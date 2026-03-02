@@ -1,0 +1,36 @@
+{
+  "name": "@repo/server",
+  "private": true,
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:check": "drizzle-kit check",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "cors": "latest",
+    "dotenv": "latest",
+    "drizzle-orm": "latest",
+    "express": "latest",
+    "morgan": "^1.10.1",
+    "pg": "latest",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "drizzle-kit": "^0.31.9",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

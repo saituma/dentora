@@ -1,0 +1,26 @@
+{
+  "name": "next-express-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.29.3",
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,green \"pnpm --filter @repo/client dev\" \"pnpm --filter @repo/server dev\"",
+    "dev:client": "pnpm --filter @repo/client dev",
+    "dev:server": "pnpm --filter @repo/server dev",
+    "build": "pnpm --filter @repo/client build && pnpm --filter @repo/server build",
+    "typecheck": "pnpm --filter @repo/client typecheck && pnpm --filter @repo/server typecheck",
+    "start": "concurrently -n client,server -c cyan,green \"pnpm --filter @repo/client start\" \"pnpm --filter @repo/server start\"",
+    "start:client": "pnpm --filter @repo/client start",
+    "start:server": "pnpm --filter @repo/server start",
+    "db:up": "docker compose --env-file .env.postgres up -d postgres",
+    "db:down": "docker compose --env-file .env.postgres down",
+    "db:generate": "pnpm --filter @repo/server db:generate",
+    "db:migrate": "pnpm --filter @repo/server db:migrate",
+    "db:push": "pnpm --filter @repo/server db:push",
+    "db:check": "pnpm --filter @repo/server db:check",
+    "db:studio": "pnpm --filter @repo/server db:studio"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}
