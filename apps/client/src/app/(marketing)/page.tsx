@@ -11,6 +11,7 @@ import {
   StethoscopeIcon,
   TrendingUpIcon,
 } from 'lucide-react';
+import { TrustedClinicsMarquee } from '@/components/marketing/trusted-clinics-marquee';
 
 export default function LandingPage() {
   return (
@@ -117,27 +118,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="border-b py-10">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-xs tracking-[0.2em] text-muted-foreground uppercase">
-            Trusted by fast-growing clinics
-          </p>
-          <div className="mt-5 grid grid-cols-2 gap-3 text-center text-sm text-muted-foreground md:grid-cols-4 lg:grid-cols-6">
-            {[
-              'NorthPearl Dental',
-              'Aura Smiles',
-              'CityCare Dental',
-              'BlueLine Ortho',
-              'Nova Dental Group',
-              'Sunset Dentistry',
-            ].map((name) => (
-              <div key={name} className="rounded-md border bg-card px-3 py-2">
-                {name}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <TrustedClinicsMarquee />
 
       <section className="py-20 md:py-24">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
