@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/features/auth/authSlice";
+import { useRegisterMutation } from "@/features/auth/authApi";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,37 +26,36 @@ import { Input } from "@/components/ui/input";
 export function SignupForm() {
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const [register, { isLoading }] = useRegisterMutation();
   const [clinicName, setClinicName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     try {
+      const result = await register({
+        email,
+        password,
+        clinicName,
+        displayName: clinicName,
+      }).unwrap();
+      localStorage.setItem("auth_token", result.accessToken);
+      localStorage.setItem("refresh_token", result.refreshToken);
       dispatch(
         setCredentials({
-          user: {
-            id: "1",
-            email,
-            displayName: clinicName,
-            role: "admin",
-          },
-          tenantId: "tenant-1",
+          user: result.user,
+          tenantId: result.tenantId,
           onboardingStatus: "clinic-profile",
         })
       );
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth_token", "mock-token");
-      }
       toast.success("Account created! Complete your setup.");
       router.push("/onboarding/clinic-profile");
-    } catch {
-      toast.error("Sign up failed");
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      const message =
+        err?.data?.message || err?.message || "Sign up failed";
+      toast.error(message);
     }
   };
 

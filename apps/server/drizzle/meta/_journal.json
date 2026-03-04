@@ -8,6 +8,27 @@
       "when": 1772569681666,
       "tag": "0000_sticky_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772569681667,
+      "tag": "0001_rls_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772569681668,
+      "tag": "0002_tenant_api_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772569681669,
+      "tag": "0003_fix_schema_mismatches",
+      "breakpoints": true
     }
   ]
 }

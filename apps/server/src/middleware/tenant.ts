@@ -134,7 +134,7 @@ async function resolveTenant(
     throw new TenantArchivedError(tenantId);
   }
 
-  let activeConfigVersion: number;
+  let activeConfigVersion = 0;
 
   const cachedVersion = await tenantCacheGet<number>(
     tenantId, 'active_config', 'version',
@@ -149,12 +149,10 @@ async function resolveTenant(
       .where(eq(tenantActiveConfig.tenantId, tenantId))
       .limit(1);
 
-    if (!activeConfig) {
-      throw new ConfigNotFoundError(tenantId);
+    if (activeConfig) {
+      activeConfigVersion = activeConfig.activeVersionNumber;
+      await tenantCacheSet(tenantId, 'active_config', 'version', activeConfigVersion, CACHE_TTL_TENANT_CONFIG);
     }
-
-    activeConfigVersion = activeConfig.activeVersionNumber;
-    await tenantCacheSet(tenantId, 'active_config', 'version', activeConfigVersion, CACHE_TTL_TENANT_CONFIG);
   }
 
   if (features.databaseRls) {

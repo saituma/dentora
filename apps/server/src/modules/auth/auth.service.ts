@@ -1,9 +1,9 @@
 
 import { db } from '../../db/index.js';
-import { users, sessions, tenantUsers } from '../../db/schema.js';
+import { users, sessions, tenantUsers, tenantRegistry } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId } from '../../lib/crypto.js';
-import { AuthenticationError } from '../../lib/errors.js';
+import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId } from '../../lib/crypto.js';
+import { AuthenticationError, ConflictError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 
 interface LoginResult {
@@ -67,6 +67,93 @@ export async function login(email: string, password: string): Promise<LoginResul
       email: user.email,
       displayName: user.displayName,
       role: user.role,
+    },
+    tenantId,
+  };
+}
+
+export async function register(input: {
+  email: string;
+  password: string;
+  clinicName: string;
+  displayName?: string;
+}): Promise<LoginResult> {
+  const [existing] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, input.email))
+    .limit(1);
+
+  if (existing) throw new ConflictError('A user with this email already exists');
+
+  const passwordHash = await hashPassword(input.password);
+  const userId = generateId();
+  const tenantId = generateId();
+  const sessionId = generateId();
+
+  // Create tenant, user, and link in a transaction
+  const result = await db.transaction(async (tx) => {
+    // 1. Create tenant
+    await tx.insert(tenantRegistry).values({
+      id: tenantId,
+      clinicName: input.clinicName,
+      clinicSlug: input.clinicName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') + '-' + userId.slice(0, 6),
+      plan: 'starter',
+      status: 'active',
+    });
+
+    // 2. Create user
+    const [user] = await tx.insert(users).values({
+      id: userId,
+      email: input.email,
+      passwordHash,
+      displayName: input.displayName ?? input.clinicName,
+      role: 'admin',
+    }).returning();
+
+    // 3. Link user to tenant
+    await tx.insert(tenantUsers).values({
+      id: generateId(),
+      tenantId,
+      userId,
+      role: 'admin',
+    });
+
+    // 4. Create tokens
+    const accessToken = signAccessToken({
+      userId,
+      role: 'admin',
+      tenantId,
+    });
+
+    const refreshToken = signRefreshToken({ userId, tenantId, sessionId });
+
+    // 5. Create session
+    await tx.insert(sessions).values({
+      id: sessionId,
+      userId,
+      refreshToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      userAgent: null,
+      ipAddress: null,
+    });
+
+    return { accessToken, refreshToken, user };
+  });
+
+  logger.info({ userId, tenantId, clinicName: input.clinicName }, 'User registered');
+
+  return {
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    user: {
+      id: result.user.id,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      role: result.user.role,
     },
     tenantId,
   };

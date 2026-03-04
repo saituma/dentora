@@ -156,7 +156,7 @@ async function handleStreamStart(
 
     activeSessions.set(callSessionId, session);
 
-    await callService.updateCallStatus(tenantId, callSessionId, 'in-progress');
+    await callService.updateCallStatus(tenantId, callSessionId, 'in_progress');
 
     await callService.logCallEvent({
       tenantId,

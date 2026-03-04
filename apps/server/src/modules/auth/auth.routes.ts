@@ -8,6 +8,27 @@ import { z } from 'zod';
 export const authRouter = Router();
 
 authRouter.post(
+  '/register',
+  authRateLimiter,
+  validate({
+    body: z.object({
+      email: z.string().email(),
+      password: z.string().min(8),
+      clinicName: z.string().min(1).max(200),
+      displayName: z.string().min(1).max(200).optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const result = await authService.register(req.body);
+      res.status(201).json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
   '/login',
   authRateLimiter,
   validate({

@@ -119,9 +119,9 @@ export async function saveServices(
       configVersion: 1,
       serviceCode: generateId(),
       serviceName: svc.serviceName,
-      serviceCategory: svc.category as any,
+      category: svc.category as any,
       durationMinutes: svc.durationMinutes,
-      active: svc.isActive ?? true,
+      isActive: svc.isActive ?? true,
     });
   }
 
@@ -148,13 +148,12 @@ export async function saveBookingRules(
     .limit(1);
 
   const values = {
-    minNoticeHours: data.minNoticeHours ?? 2,
-    maxFutureDays: data.advanceBookingDays ?? data.maxFutureDays ?? 30,
+    minNoticePeriodHours: data.minNoticeHours ?? 2,
+    maxAdvanceBookingDays: data.advanceBookingDays ?? data.maxFutureDays ?? 30,
     cancellationCutoffHours: data.cancellationHours ?? 24,
-    allowedChannels: data.allowedChannels ?? ['phone'],
     doubleBookingPolicy: (data.doubleBookingPolicy ?? 'forbid') as any,
-    emergencySlotPolicy: (data.emergencySlotPolicy ?? 'reserved') as any,
-    afterHoursPolicy: 'voicemail',
+    emergencySlotPolicy: { policy: data.emergencySlotPolicy ?? 'reserved' },
+    afterHoursPolicy: { action: 'voicemail' },
     updatedAt: new Date(),
   };
 
@@ -251,6 +250,8 @@ export async function saveVoiceProfile(
     tone: (data.tone as any) ?? 'professional',
     voiceId: data.voiceId ?? 'default',
     speakingSpeed: String(data.speed ?? 1.0),
+    greetingMessage: data.greeting ?? null,
+    language: data.language ?? 'en',
     pronunciationHints: {},
     updatedAt: new Date(),
   };
@@ -285,10 +286,12 @@ export async function saveFaqs(
       id: faq.id ?? generateId(),
       tenantId,
       configVersion: 1,
+      question: faq.question,
+      answer: faq.answer,
       faqKey: faq.id ?? generateId(),
       questionVariants: [faq.question],
       canonicalAnswer: faq.answer,
-      category: (faq.category ?? 'other') as any,
+      category: (faq.category ?? 'general') as any,
     });
   }
 
@@ -333,7 +336,7 @@ export async function computeReadinessScore(tenantId: string): Promise<Readiness
     let serviceScore = 50;
     let completeCount = 0;
     for (const svc of tenantServices) {
-      const isComplete = svc.serviceName && svc.serviceCategory && svc.durationMinutes;
+      const isComplete = svc.serviceName && svc.category && svc.durationMinutes;
       if (isComplete) completeCount++;
       else scorecard.serviceCatalog.issues.push({ domain: 'services', field: svc.serviceName, message: `Service "${svc.serviceName}" is incomplete`, severity: 'warning' });
     }
@@ -344,7 +347,7 @@ export async function computeReadinessScore(tenantId: string): Promise<Readiness
   const [booking] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
   if (booking) {
     let bookingScore = 60;
-    if (booking.maxFutureDays) bookingScore += 20;
+    if (booking.maxAdvanceBookingDays) bookingScore += 20;
     if (booking.cancellationCutoffHours) bookingScore += 20;
     scorecard.bookingRules.score = Math.min(bookingScore, 100);
   } else {

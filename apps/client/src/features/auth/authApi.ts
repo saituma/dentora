@@ -1,6 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
 
+interface RegisterRequest {
+  email: string;
+  password: string;
+  clinicName: string;
+  displayName?: string;
+}
+
 interface LoginRequest {
   email: string;
   password: string;
@@ -38,6 +45,13 @@ export const authApi = createApi({
     prepareHeaders: applyAuthHeaders,
   }),
   endpoints: (builder) => ({
+    register: builder.mutation<LoginResponse, RegisterRequest>({
+      query: (body) => ({
+        url: '/auth/register',
+        method: 'POST',
+        body,
+      }),
+    }),
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
         url: '/auth/login',
@@ -63,6 +77,7 @@ export const authApi = createApi({
 });
 
 export const {
+  useRegisterMutation,
   useLoginMutation,
   useRefreshMutation,
   useLogoutMutation,

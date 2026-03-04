@@ -178,9 +178,9 @@ export async function handleCallStatusUpdate(input: {
   }
 
   const statusMap: Record<string, string> = {
-    initiated: 'ringing',
-    ringing: 'ringing',
-    'in-progress': 'in-progress',
+    initiated: 'started',
+    ringing: 'started',
+    'in-progress': 'in_progress',
     completed: 'completed',
     busy: 'failed',
     'no-answer': 'failed',

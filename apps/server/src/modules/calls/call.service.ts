@@ -49,7 +49,7 @@ export async function updateCallStatus(
 ): Promise<CallSession> {
   const updates: Record<string, any> = { status, updatedAt: new Date() };
 
-  if (status === 'completed' || status === 'failed' || status === 'voicemail') {
+  if (status === 'completed' || status === 'failed' || status === 'escalated') {
     updates.endedAt = new Date();
   }
   if (metadata?.durationSeconds) {
