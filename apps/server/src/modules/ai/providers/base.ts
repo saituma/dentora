@@ -28,6 +28,8 @@ export interface LlmRequest {
   temperature?: number;
   tenantId: string;
   callSessionId?: string;
+  /** Runtime API key override. When provided, uses this key instead of the env-configured key. */
+  apiKey?: string;
 }
 
 export interface LlmResponse {

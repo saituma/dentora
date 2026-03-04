@@ -19,13 +19,14 @@ export class OpenAIProvider implements LlmProvider {
   async chat(request: LlmRequest): Promise<LlmResponse> {
     const start = Date.now();
     const model = request.model || 'gpt-4o-mini';
+    const effectiveKey = request.apiKey || this.apiKey;
 
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${effectiveKey}`,
           ...(process.env.OPENAI_ORG_ID ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID } : {}),
         },
         body: JSON.stringify({

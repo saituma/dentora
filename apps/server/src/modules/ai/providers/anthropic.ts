@@ -19,6 +19,7 @@ export class AnthropicProvider implements LlmProvider {
   async chat(request: LlmRequest): Promise<LlmResponse> {
     const start = Date.now();
     const model = request.model || 'claude-3-5-sonnet-20241022';
+    const effectiveKey = request.apiKey || this.apiKey;
 
     const systemMessage = request.messages.find((m) => m.role === 'system')?.content ?? '';
     const conversationMessages = request.messages
@@ -30,7 +31,7 @@ export class AnthropicProvider implements LlmProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
+          'x-api-key': effectiveKey,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({

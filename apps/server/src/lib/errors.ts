@@ -187,3 +187,27 @@ export class ConflictError extends AppError {
     super(message, 409, 'CONFLICT', true, context);
   }
 }
+
+export class MissingProviderKeyError extends AppError {
+  constructor(provider: string, tenantId: string) {
+    super(
+      `No API key configured for provider '${provider}'`,
+      422,
+      'MISSING_PROVIDER_KEY',
+      true,
+      { provider, tenantId },
+    );
+  }
+}
+
+export class InvalidProviderError extends AppError {
+  constructor(provider: string) {
+    super(
+      `Invalid or unsupported provider: '${provider}'`,
+      400,
+      'INVALID_PROVIDER',
+      true,
+      { provider },
+    );
+  }
+}

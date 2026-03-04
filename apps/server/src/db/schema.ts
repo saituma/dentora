@@ -35,6 +35,9 @@ export const userRoleEnum = pgEnum('user_role', ['owner', 'admin', 'manager', 'v
 
 export const tenantPlanEnum = pgEnum('tenant_plan', ['starter', 'professional', 'enterprise']);
 
+export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
+export const aiProviderNameEnum = pgEnum('ai_provider_name', ['openai', 'anthropic', 'deepgram', 'elevenlabs', 'google-stt', 'google-tts']);
+
 export const tenantRegistry = pgTable('tenant_registry', {
   id: uuid('id').primaryKey().defaultRandom(),
   clinicName: text('clinic_name').notNull(),
@@ -387,6 +390,29 @@ export const platformConfig = pgTable('platform_config', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const tenantApiKeys = pgTable('tenant_api_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenantRegistry.id),
+  providerName: aiProviderNameEnum('provider_name').notNull(),
+  encryptedKey: text('encrypted_key').notNull(),
+  keyHint: text('key_hint').notNull(),
+  status: apiKeyStatusEnum('status').notNull().default('active'),
+  label: text('label'),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('tenant_api_keys_tenant_provider_active_idx').on(table.tenantId, table.providerName, table.status),
+  index('tenant_api_keys_tenant_idx').on(table.tenantId),
+]);
+
+export const tenantApiKeysRelations = relations(tenantApiKeys, ({ one }) => ({
+  tenant: one(tenantRegistry, { fields: [tenantApiKeys.tenantId], references: [tenantRegistry.id] }),
+  createdByUser: one(users, { fields: [tenantApiKeys.createdBy], references: [users.id] }),
+}));
+
 export const tenantRegistryRelations = relations(tenantRegistry, ({ many }) => ({
   twilioNumbers: many(twilioNumbers),
   clinicProfiles: many(clinicProfile),
@@ -399,6 +425,7 @@ export const tenantRegistryRelations = relations(tenantRegistry, ({ many }) => (
   configVersions: many(tenantConfigVersions),
   tenantUsers: many(tenantUsers),
   callSessions: many(callSessions),
+  apiKeys: many(tenantApiKeys),
 }));
 
 export const twilioNumbersRelations = relations(twilioNumbers, ({ one }) => ({

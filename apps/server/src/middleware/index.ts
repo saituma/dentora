@@ -6,3 +6,4 @@ export { errorHandler, notFoundHandler } from './errorHandler.js';
 export { requestId } from './requestId.js';
 export { validate } from './validate.js';
 export { metricsMiddleware } from './metrics.js';
+export { resolveProviderKey, type ProviderKeyContext } from './providerKey.js';

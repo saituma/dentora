@@ -33,6 +33,8 @@ import { configRouter } from './modules/config/index.js';
 import { adminRouter } from './modules/admin/index.js';
 import { onboardingRouter } from './modules/onboarding/index.js';
 import { aiChatRouter } from './modules/ai-chat/index.js';
+import { llmRouter } from './modules/llm/index.js';
+import { apiKeyRouter } from './modules/api-keys/index.js';
 
 const app = express();
 
@@ -92,6 +94,8 @@ app.use('/api/config', configRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/onboarding', onboardingRouter);
 app.use('/api/ai-chat', aiChatRouter);
+app.use('/api/llm', llmRouter);
+app.use('/api/api-keys', apiKeyRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

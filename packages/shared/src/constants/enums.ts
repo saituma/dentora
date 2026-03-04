@@ -157,3 +157,22 @@ export const TenantResolutionMethod = {
   ADMIN_OVERRIDE: 'admin_override',
 } as const;
 export type TenantResolutionMethod = (typeof TenantResolutionMethod)[keyof typeof TenantResolutionMethod];
+
+export const AiProviderName = {
+  OPENAI: 'openai',
+  ANTHROPIC: 'anthropic',
+  DEEPGRAM: 'deepgram',
+  ELEVENLABS: 'elevenlabs',
+  GOOGLE_STT: 'google-stt',
+  GOOGLE_TTS: 'google-tts',
+} as const;
+export type AiProviderName = (typeof AiProviderName)[keyof typeof AiProviderName];
+
+export const AI_PROVIDER_NAMES = Object.values(AiProviderName);
+
+export const LlmTask = {
+  GENERATE_RESPONSE: 'generate_response',
+  SUMMARIZE: 'summarize',
+  EXTRACT_INTENT: 'extract_intent',
+} as const;
+export type LlmTask = (typeof LlmTask)[keyof typeof LlmTask];
