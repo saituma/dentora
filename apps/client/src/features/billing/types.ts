@@ -1,21 +1,18 @@
-export type PlanTier = "starter" | "pro" | "enterprise";
-
-export interface Subscription {
-  plan: PlanTier;
-  price: number;
-  nextBillingDate: string;
-  status: "active" | "canceled" | "past_due";
+export interface BillingSummary {
+  totalCost: string;
+  totalCalls: number;
+  costBreakdown: Record<string, string>;
+  period: { start: string; end: string };
 }
 
-export interface Usage {
-  callMinutesUsed: number;
-  callMinutesLimit: number;
-}
-
-export interface Invoice {
-  id: string;
+export interface DailyCostTrend {
   date: string;
-  amount: number;
-  status: "paid" | "pending";
-  downloadUrl?: string;
+  cost: string;
+  calls: number;
+}
+
+export interface PlanLimits {
+  withinLimits: boolean;
+  currentUsage: { calls: number; cost: string };
+  plan: string;
 }

@@ -1,24 +1,34 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
-import type { User, Clinic } from './types';
 
 interface LoginRequest {
   email: string;
   password: string;
 }
 
-interface SignupRequest {
-  clinicName: string;
-  email: string;
-  password: string;
-  phone?: string;
+interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    displayName: string | null;
+    role: string;
+  };
+  tenantId: string | null;
 }
 
-interface AuthResponse {
-  user: User;
-  clinic: Clinic;
-  token: string;
-  onboardingStatus?: string;
+interface RefreshRequest {
+  refreshToken: string;
+}
+
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface LogoutRequest {
+  refreshToken: string;
 }
 
 export const authApi = createApi({
@@ -28,33 +38,23 @@ export const authApi = createApi({
     prepareHeaders: applyAuthHeaders,
   }),
   endpoints: (builder) => ({
-    login: builder.mutation<AuthResponse, LoginRequest>({
+    login: builder.mutation<LoginResponse, LoginRequest>({
       query: (credentials) => ({
         url: '/auth/login',
         method: 'POST',
         body: credentials,
       }),
     }),
-    signup: builder.mutation<AuthResponse, SignupRequest>({
-      query: (data) => ({
-        url: '/auth/signup',
-        method: 'POST',
-        body: data,
-      }),
-    }),
-    me: builder.query<{ user: User; clinic: Clinic }, void>({
-      query: () => '/auth/me',
-    }),
-    verifyEmail: builder.mutation<{ success: boolean }, { token: string }>({
-      query: ({ token }) => ({
-        url: '/auth/verify-email',
-        method: 'POST',
-        body: { token },
-      }),
-    }),
-    forgotPassword: builder.mutation<{ success: boolean }, { email: string }>({
+    refresh: builder.mutation<RefreshResponse, RefreshRequest>({
       query: (body) => ({
-        url: '/auth/forgot-password',
+        url: '/auth/refresh',
+        method: 'POST',
+        body,
+      }),
+    }),
+    logout: builder.mutation<{ message: string }, LogoutRequest>({
+      query: (body) => ({
+        url: '/auth/logout',
         method: 'POST',
         body,
       }),
@@ -64,8 +64,6 @@ export const authApi = createApi({
 
 export const {
   useLoginMutation,
-  useSignupMutation,
-  useMeQuery,
-  useVerifyEmailMutation,
-  useForgotPasswordMutation,
+  useRefreshMutation,
+  useLogoutMutation,
 } = authApi;

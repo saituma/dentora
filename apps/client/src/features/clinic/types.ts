@@ -1,19 +1,18 @@
-export interface BusinessHours {
-  [day: string]: { start: string; end: string } | null;
-}
-
 export interface ClinicProfile {
   id: string;
-  name: string;
-  slug: string;
-  email: string;
-  phone?: string;
+  tenantId: string;
+  clinicName: string;
   address?: string;
-  timezone: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  timezone?: string;
   logo?: string;
-  brandingColors?: {
-    primary?: string;
-    secondary?: string;
-  };
-  businessHours: BusinessHours;
+  brandingColors?: Record<string, string>;
+  businessHours?: Record<string, { start: string; end: string } | null>;
+  status?: string;
+  specialties?: string[];
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
 }

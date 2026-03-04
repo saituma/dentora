@@ -1,12 +1,15 @@
-export interface AnalyticsMetrics {
-  missedCallCaptureRate: number;
-  callToBookingConversion: number;
-  revenueRecovered: number;
+export interface DashboardStats {
   totalCalls: number;
+  averageDurationSeconds: number;
+  completionRate: number;
+  totalCost: string;
+  sentimentBreakdown: Record<string, number>;
+  topIntents: Array<{ intent: string; count: number }>;
+  callsByStatus: Record<string, number>;
+  averageLatencyMs: number;
 }
 
-export interface ChartDataPoint {
-  date: string;
-  value: number;
-  label?: string;
+export interface HourlyVolume {
+  hour: string;
+  calls: number;
 }

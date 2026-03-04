@@ -3,7 +3,7 @@ import type { AuthState } from "./types";
 
 const initialState: AuthState = {
   user: null,
-  clinic: null,
+  tenantId: null,
   isAuthenticated: false,
   onboardingStatus: "clinic-profile",
 };
@@ -17,13 +17,13 @@ const authSlice = createSlice({
       action: {
         payload: {
           user: AuthState["user"];
-          clinic: AuthState["clinic"];
+          tenantId: AuthState["tenantId"];
           onboardingStatus?: AuthState["onboardingStatus"];
         };
       }
     ) => {
       state.user = action.payload.user;
-      state.clinic = action.payload.clinic;
+      state.tenantId = action.payload.tenantId;
       state.isAuthenticated = !!action.payload.user;
       if (action.payload.onboardingStatus !== undefined) {
         state.onboardingStatus = action.payload.onboardingStatus;

@@ -1,11 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
-import type { AnalyticsMetrics } from './types';
+import type { DashboardStats, HourlyVolume } from './types';
 
-interface GetMetricsParams {
-  clinicId: string;
-  startDate: string;
-  endDate: string;
+interface DateRangeParams {
+  startDate?: string;
+  endDate?: string;
 }
 
 export const analyticsApi = createApi({
@@ -16,20 +15,27 @@ export const analyticsApi = createApi({
   }),
   tagTypes: ['Analytics'],
   endpoints: (builder) => ({
-    getMetrics: builder.query<AnalyticsMetrics, GetMetricsParams>({
-      query: ({ clinicId, startDate, endDate }) =>
-        `/clinics/${clinicId}/analytics/metrics?startDate=${startDate}&endDate=${endDate}`,
-      providesTags: (_, __, { clinicId }) => [
-        { type: 'Analytics', id: clinicId },
-      ],
+    getDashboardStats: builder.query<DashboardStats, DateRangeParams | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.startDate) searchParams.append('startDate', params.startDate);
+        if (params?.endDate) searchParams.append('endDate', params.endDate);
+        const qs = searchParams.toString();
+        return `/analytics/dashboard${qs ? `?${qs}` : ''}`;
+      },
+      providesTags: ['Analytics'],
     }),
-    exportCsv: builder.mutation<string, GetMetricsParams>({
-      query: ({ clinicId, startDate, endDate }) => ({
-        url: `/clinics/${clinicId}/analytics/export?startDate=${startDate}&endDate=${endDate}`,
-        responseHandler: (response) => response.text(),
-      }),
+    getHourlyVolume: builder.query<{ data: HourlyVolume[] }, DateRangeParams | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.startDate) searchParams.append('startDate', params.startDate);
+        if (params?.endDate) searchParams.append('endDate', params.endDate);
+        const qs = searchParams.toString();
+        return `/analytics/hourly${qs ? `?${qs}` : ''}`;
+      },
+      providesTags: ['Analytics'],
     }),
   }),
 });
 
-export const { useGetMetricsQuery, useExportCsvMutation } = analyticsApi;
+export const { useGetDashboardStatsQuery, useGetHourlyVolumeQuery } = analyticsApi;

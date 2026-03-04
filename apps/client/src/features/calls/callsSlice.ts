@@ -1,22 +1,18 @@
 import { createSlice } from "@reduxjs/toolkit";
-import type { CallLog, CallOutcome } from "./types";
+import type { CallSession } from "./types";
 
 interface CallsState {
-  callLogs: CallLog[];
-  selectedCall: CallLog | null;
+  selectedCall: CallSession | null;
   filters: {
-    dateRange: { start: string; end: string };
-    outcome: CallOutcome | "all";
+    status: string;
     search: string;
   };
 }
 
 const initialState: CallsState = {
-  callLogs: [],
   selectedCall: null,
   filters: {
-    dateRange: { start: "", end: "" },
-    outcome: "all",
+    status: "all",
     search: "",
   },
 };
@@ -25,10 +21,7 @@ const callsSlice = createSlice({
   name: "calls",
   initialState,
   reducers: {
-    setCallLogs: (state, action: { payload: CallLog[] }) => {
-      state.callLogs = action.payload;
-    },
-    setSelectedCall: (state, action: { payload: CallLog | null }) => {
+    setSelectedCall: (state, action: { payload: CallSession | null }) => {
       state.selectedCall = action.payload;
     },
     setFilters: (
@@ -42,5 +35,5 @@ const callsSlice = createSlice({
   },
 });
 
-export const { setCallLogs, setSelectedCall, setFilters } = callsSlice.actions;
+export const { setSelectedCall, setFilters } = callsSlice.actions;
 export default callsSlice.reducer;

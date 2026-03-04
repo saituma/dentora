@@ -1,6 +1,11 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
-import type { Subscription, Usage, Invoice } from './types';
+import type { BillingSummary, DailyCostTrend, PlanLimits } from './types';
+
+interface DateRangeParams {
+  startDate?: string;
+  endDate?: string;
+}
 
 export const billingApi = createApi({
   reducerPath: 'billingApi',
@@ -10,23 +15,31 @@ export const billingApi = createApi({
   }),
   tagTypes: ['Billing'],
   endpoints: (builder) => ({
-    getSubscription: builder.query<Subscription, string>({
-      query: (clinicId) => `/clinics/${clinicId}/billing/subscription`,
-      providesTags: (_, __, clinicId) => [{ type: 'Billing', id: clinicId }],
+    getSummary: builder.query<BillingSummary, DateRangeParams | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.startDate) searchParams.append('startDate', params.startDate);
+        if (params?.endDate) searchParams.append('endDate', params.endDate);
+        const qs = searchParams.toString();
+        return `/billing/summary${qs ? `?${qs}` : ''}`;
+      },
+      providesTags: ['Billing'],
     }),
-    getUsage: builder.query<Usage, string>({
-      query: (clinicId) => `/clinics/${clinicId}/billing/usage`,
-      providesTags: (_, __, clinicId) => [{ type: 'Billing', id: clinicId }],
+    getTrend: builder.query<{ data: DailyCostTrend[] }, DateRangeParams | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.startDate) searchParams.append('startDate', params.startDate);
+        if (params?.endDate) searchParams.append('endDate', params.endDate);
+        const qs = searchParams.toString();
+        return `/billing/trend${qs ? `?${qs}` : ''}`;
+      },
+      providesTags: ['Billing'],
     }),
-    getInvoices: builder.query<Invoice[], string>({
-      query: (clinicId) => `/clinics/${clinicId}/billing/invoices`,
-      providesTags: (_, __, clinicId) => [{ type: 'Billing', id: clinicId }],
+    getLimits: builder.query<PlanLimits, void>({
+      query: () => '/billing/limits',
+      providesTags: ['Billing'],
     }),
   }),
 });
 
-export const {
-  useGetSubscriptionQuery,
-  useGetUsageQuery,
-  useGetInvoicesQuery,
-} = billingApi;
+export const { useGetSummaryQuery, useGetTrendQuery, useGetLimitsQuery } = billingApi;

@@ -1,18 +1,8 @@
 export interface User {
   id: string;
   email: string;
-  name: string;
-  clinicId: string;
-}
-
-export interface Clinic {
-  id: string;
-  name: string;
-  slug: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  timezone: string;
+  displayName: string | null;
+  role: string;
 }
 
 export type OnboardingStep =
@@ -26,7 +16,7 @@ export type OnboardingStep =
 
 export interface AuthState {
   user: User | null;
-  clinic: Clinic | null;
+  tenantId: string | null;
   isAuthenticated: boolean;
   onboardingStatus: OnboardingStep | "complete";
 }

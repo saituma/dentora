@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   Card,
@@ -6,133 +6,161 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Progress } from "@/components/ui/progress";
-import { DownloadIcon } from "lucide-react";
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useGetSummaryQuery, useGetTrendQuery, useGetLimitsQuery } from '@/features/billing/billingApi';
 
-const plans = [
-  { name: "Starter", price: 49, minutes: 200 },
-  { name: "Pro", price: 99, minutes: 500, current: true },
-  { name: "Enterprise", price: 249, minutes: 1500 },
-];
-
-const invoices = [
-  { id: "INV-001", date: "Mar 1, 2024", amount: 99, status: "paid" },
-  { id: "INV-002", date: "Feb 1, 2024", amount: 99, status: "paid" },
-  { id: "INV-003", date: "Jan 1, 2024", amount: 99, status: "paid" },
-];
+const trendChartConfig = {
+  cost: { label: 'Cost ($)', color: 'var(--primary)' },
+} satisfies ChartConfig;
 
 export default function BillingPage() {
+  const { data: summary, isLoading: summaryLoading } = useGetSummaryQuery();
+  const { data: limits, isLoading: limitsLoading } = useGetLimitsQuery();
+  const { data: trendData, isLoading: trendLoading } = useGetTrendQuery();
+
+  const trend = trendData?.data ?? [];
+
   return (
     <div className="flex flex-col gap-8">
       <div>
         <h2 className="text-lg font-semibold">Billing</h2>
         <p className="text-sm text-muted-foreground">
-          Manage your subscription and usage
+          Usage costs and plan limits
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Current plan</CardTitle>
-            <CardDescription>Pro plan · $99/month</CardDescription>
+            <CardTitle>Total cost</CardTitle>
+            <CardDescription>
+              {summary ? `${summary.period.start} – ${summary.period.end}` : 'Current period'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Next billing date: April 1, 2024
-            </p>
-            <Button variant="outline" className="mt-4">
-              Change plan
-            </Button>
+            {summaryLoading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <p className="text-2xl font-bold">${summary?.totalCost ?? '0.00'}</p>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
+            <CardTitle>Total calls</CardTitle>
+            <CardDescription>Calls in period</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {summaryLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <p className="text-2xl font-bold">{summary?.totalCalls ?? 0}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Plan</CardTitle>
+            <CardDescription>
+              {limits?.withinLimits ? 'Within limits' : 'Limits exceeded'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {limitsLoading ? (
+              <Skeleton className="h-8 w-32" />
+            ) : (
+              <div className="space-y-2">
+                <p className="text-lg font-semibold capitalize">{limits?.plan ?? '—'}</p>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{limits?.currentUsage.calls ?? 0} calls</span>
+                  <span>${limits?.currentUsage.cost ?? '0.00'} spent</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {summary && Object.keys(summary.costBreakdown).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cost breakdown</CardTitle>
+            <CardDescription>Costs by category</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(summary.costBreakdown).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between rounded-lg border p-3">
+                  <span className="text-sm font-medium capitalize">{key.replace(/_/g, ' ')}</span>
+                  <span className="text-sm font-semibold">${value}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily cost trend</CardTitle>
+          <CardDescription>Cost per day over the current period</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {trendLoading ? (
+            <Skeleton className="h-[250px] w-full" />
+          ) : trend.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-12 text-center">No trend data available</p>
+          ) : (
+            <ChartContainer config={trendChartConfig} className="h-[250px] w-full">
+              <BarChart data={trend}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickLine={false}
+                  tickFormatter={(v) =>
+                    new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  }
+                />
+                <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={(v) => `$${v}`} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="cost" fill="var(--color-cost)" radius={6} />
+              </BarChart>
+            </ChartContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {limits && (
+        <Card>
+          <CardHeader>
             <CardTitle>Usage</CardTitle>
-            <CardDescription>Call minutes this month</CardDescription>
+            <CardDescription>Calls used this period</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span>247 / 500 minutes</span>
-                <span className="text-muted-foreground">49%</span>
+                <span>{limits.currentUsage.calls} calls</span>
+                <span className="text-muted-foreground">${limits.currentUsage.cost} spent</span>
               </div>
-              <Progress value={49} className="h-2" />
+              <Progress
+                value={limits.withinLimits ? Math.min((limits.currentUsage.calls / 500) * 100, 100) : 100}
+                className="h-2"
+              />
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        {plans.map((plan) => (
-          <Card
-            key={plan.name}
-            className={plan.current ? "border-primary" : ""}
-          >
-            <CardHeader>
-              <CardTitle className="text-base">{plan.name}</CardTitle>
-              <CardDescription>
-                ${plan.price}/month · {plan.minutes} min
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                variant={plan.current ? "secondary" : "outline"}
-                className="w-full"
-                disabled={plan.current}
-              >
-                {plan.current ? "Current plan" : "Upgrade"}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoices</CardTitle>
-          <CardDescription>Download past invoices</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium">{inv.id}</TableCell>
-                  <TableCell>{inv.date}</TableCell>
-                  <TableCell>${inv.amount}</TableCell>
-                  <TableCell className="capitalize">{inv.status}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon">
-                      <DownloadIcon className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      )}
     </div>
   );
 }

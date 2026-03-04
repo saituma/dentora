@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   Card,
@@ -14,6 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -21,9 +23,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FileUpload } from '@/components/file-upload';
-import { Badge } from '@/components/ui/badge';
-import { PhoneIcon } from 'lucide-react';
+import { Loader2Icon, PlusIcon, TrashIcon } from 'lucide-react';
+import {
+  useGetVoiceProfileQuery,
+  useUpdateVoiceProfileMutation,
+  useGetServicesQuery,
+  useAddServiceMutation,
+  useDeleteServiceMutation,
+  useGetFaqsQuery,
+  useAddFaqMutation,
+  useDeleteFaqMutation,
+  useGetBookingRulesQuery,
+  useUpdateBookingRulesMutation,
+  useGetPoliciesQuery,
+  useAddPolicyMutation,
+  useDeletePolicyMutation,
+} from '@/features/aiConfig/aiConfigApi';
 
 const toneOptions = [
   { value: 'friendly', label: 'Friendly' },
@@ -32,46 +47,131 @@ const toneOptions = [
   { value: 'casual', label: 'Casual' },
 ];
 
-const voiceOptions = [
-  { value: 'rachel', label: 'Rachel (Female)' },
-  { value: 'drew', label: 'Drew (Male)' },
-  { value: 'clyde', label: 'Clyde (Male)' },
-];
-
 export default function AiReceptionistPage() {
-  const [greeting, setGreeting] = useState(
-    'Hi, thank you for calling. How can I help you today?'
-  );
-  const [transferNumber, setTransferNumber] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState(
-    'You are a friendly dental clinic receptionist. Help patients with appointment booking, rescheduling, and answering common questions about services and pricing.'
-  );
-  const [tone, setTone] = useState('professional');
-  const [voice, setVoice] = useState('rachel');
-  const [documents, setDocuments] = useState<
-    { id: string; name: string; status: string }[]
-  >([]);
-  const [isSaving, setIsSaving] = useState(false);
+  // Voice profile
+  const { data: voiceProfile, isLoading: voiceLoading } = useGetVoiceProfileQuery();
+  const [updateVoice, { isLoading: voiceSaving }] = useUpdateVoiceProfileMutation();
 
-  const handleFileUpload = (file: File) => {
-    setDocuments((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), name: file.name, status: 'processing' },
-    ]);
-    toast.success(`${file.name} uploaded. Processing...`);
-    setTimeout(() => {
-      setDocuments((prev) =>
-        prev.map((d) => (d.name === file.name ? { ...d, status: 'ready' } : d))
-      );
-      toast.success(`${file.name} is ready`);
-    }, 2000);
+  const [greeting, setGreeting] = useState('');
+  const [tone, setTone] = useState('professional');
+  const [voiceId, setVoiceId] = useState('');
+  const [afterHoursMessage, setAfterHoursMessage] = useState('');
+  const [language, setLanguage] = useState('en');
+
+  useEffect(() => {
+    if (voiceProfile) {
+      setGreeting(voiceProfile.greetingMessage ?? '');
+      setTone(voiceProfile.tone ?? 'professional');
+      setVoiceId(voiceProfile.voiceId ?? '');
+      setAfterHoursMessage(voiceProfile.afterHoursMessage ?? '');
+      setLanguage(voiceProfile.language ?? 'en');
+    }
+  }, [voiceProfile]);
+
+  const handleSaveVoice = async () => {
+    try {
+      await updateVoice({
+        greetingMessage: greeting,
+        tone: tone as 'friendly' | 'professional' | 'formal' | 'casual',
+        voiceId,
+        afterHoursMessage,
+        language,
+      }).unwrap();
+      toast.success('Voice profile saved');
+    } catch {
+      toast.error('Failed to save voice profile');
+    }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setIsSaving(false);
-    toast.success('AI configuration saved');
+  // Services
+  const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery();
+  const services = servicesData?.data ?? [];
+  const [addService, { isLoading: addingService }] = useAddServiceMutation();
+  const [deleteService] = useDeleteServiceMutation();
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceDuration, setNewServiceDuration] = useState('30');
+
+  const handleAddService = async () => {
+    if (!newServiceName.trim()) return;
+    try {
+      await addService({
+        serviceName: newServiceName,
+        durationMinutes: parseInt(newServiceDuration) || 30,
+        isActive: true,
+      }).unwrap();
+      setNewServiceName('');
+      setNewServiceDuration('30');
+      toast.success('Service added');
+    } catch {
+      toast.error('Failed to add service');
+    }
+  };
+
+  // FAQs
+  const { data: faqsData, isLoading: faqsLoading } = useGetFaqsQuery();
+  const faqs = faqsData?.data ?? [];
+  const [addFaq, { isLoading: addingFaq }] = useAddFaqMutation();
+  const [deleteFaq] = useDeleteFaqMutation();
+  const [newQuestion, setNewQuestion] = useState('');
+  const [newAnswer, setNewAnswer] = useState('');
+
+  const handleAddFaq = async () => {
+    if (!newQuestion.trim() || !newAnswer.trim()) return;
+    try {
+      await addFaq({ question: newQuestion, answer: newAnswer }).unwrap();
+      setNewQuestion('');
+      setNewAnswer('');
+      toast.success('FAQ added');
+    } catch {
+      toast.error('Failed to add FAQ');
+    }
+  };
+
+  // Booking rules
+  const { data: bookingRules, isLoading: rulesLoading } = useGetBookingRulesQuery();
+  const [updateRules, { isLoading: rulesSaving }] = useUpdateBookingRulesMutation();
+  const [defaultDuration, setDefaultDuration] = useState('30');
+  const [minNotice, setMinNotice] = useState('2');
+  const [maxAdvance, setMaxAdvance] = useState('90');
+
+  useEffect(() => {
+    if (bookingRules) {
+      setDefaultDuration(String(bookingRules.defaultAppointmentDurationMinutes ?? 30));
+      setMinNotice(String(bookingRules.minNoticePeriodHours ?? 2));
+      setMaxAdvance(String(bookingRules.maxAdvanceBookingDays ?? 90));
+    }
+  }, [bookingRules]);
+
+  const handleSaveRules = async () => {
+    try {
+      await updateRules({
+        defaultAppointmentDurationMinutes: parseInt(defaultDuration) || 30,
+        minNoticePeriodHours: parseInt(minNotice) || 2,
+        maxAdvanceBookingDays: parseInt(maxAdvance) || 90,
+      }).unwrap();
+      toast.success('Booking rules saved');
+    } catch {
+      toast.error('Failed to save booking rules');
+    }
+  };
+
+  // Policies
+  const { data: policiesData, isLoading: policiesLoading } = useGetPoliciesQuery();
+  const policies = policiesData?.data ?? [];
+  const [addPolicy, { isLoading: addingPolicy }] = useAddPolicyMutation();
+  const [deletePolicy] = useDeletePolicyMutation();
+  const [newPolicyType, setNewPolicyType] = useState('cancellation');
+  const [newPolicyContent, setNewPolicyContent] = useState('');
+
+  const handleAddPolicy = async () => {
+    if (!newPolicyContent.trim()) return;
+    try {
+      await addPolicy({ policyType: newPolicyType, content: newPolicyContent }).unwrap();
+      setNewPolicyContent('');
+      toast.success('Policy added');
+    } catch {
+      toast.error('Failed to add policy');
+    }
   };
 
   return (
@@ -85,178 +185,393 @@ export default function AiReceptionistPage() {
             Customize voice, knowledge base, and behavior
           </p>
         </div>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save changes'}
-        </Button>
       </div>
 
-      <Tabs defaultValue="configuration" className="space-y-6">
+      <Tabs defaultValue="voice" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="configuration">Configuration</TabsTrigger>
-          <TabsTrigger value="voice">Voice & Tone</TabsTrigger>
-          <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
-          <TabsTrigger value="rules">Services & Rules</TabsTrigger>
+          <TabsTrigger value="voice">Voice & Greeting</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="faqs">FAQs</TabsTrigger>
+          <TabsTrigger value="rules">Booking Rules</TabsTrigger>
+          <TabsTrigger value="policies">Policies</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="configuration" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>AI behavior</CardTitle>
-              <CardDescription>
-                Define how your AI receptionist greets callers and handles calls
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel>Greeting message</FieldLabel>
-                  <Textarea
-                    value={greeting}
-                    onChange={(e) => setGreeting(e.target.value)}
-                    rows={3}
-                    placeholder="Hi, thank you for calling [Clinic Name]. How can I help you today?"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Transfer number</FieldLabel>
-                  <Input
-                    value={transferNumber}
-                    onChange={(e) => setTransferNumber(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>System prompt</FieldLabel>
-                  <Textarea
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
-                    rows={6}
-                    placeholder="Instructions for the AI..."
-                  />
-                </Field>
-              </FieldGroup>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
+        {/* Voice & Greeting Tab */}
         <TabsContent value="voice" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Voice & tone</CardTitle>
+              <CardTitle>Voice & greeting</CardTitle>
               <CardDescription>
-                Choose the voice and personality of your AI receptionist
+                Configure how your AI receptionist sounds and greets callers
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel>Voice</FieldLabel>
-                  <Select
-                    value={voice}
-                    onValueChange={(value) => setVoice(value ?? 'rachel')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {voiceOptions.map((v) => (
-                        <SelectItem key={v.value} value={v.value}>
-                          {v.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Tone</FieldLabel>
-                  <Select
-                    value={tone}
-                    onValueChange={(value) => setTone(value ?? 'professional')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {toneOptions.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <div className="flex gap-4">
-                  <Button variant="outline">
-                    <PhoneIcon className="mr-2 size-4" />
-                    Test call
-                  </Button>
+              {voiceLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
                 </div>
-              </FieldGroup>
+              ) : (
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>Greeting message</FieldLabel>
+                    <Textarea
+                      value={greeting}
+                      onChange={(e) => setGreeting(e.target.value)}
+                      rows={3}
+                      placeholder="Hi, thank you for calling. How can I help you today?"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Voice ID (ElevenLabs / provider voice ID)</FieldLabel>
+                    <Input
+                      value={voiceId}
+                      onChange={(e) => setVoiceId(e.target.value)}
+                      placeholder="e.g. rachel, drew, clyde"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Tone</FieldLabel>
+                    <Select value={tone} onValueChange={(v) => setTone(v ?? 'professional')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {toneOptions.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel>After-hours message</FieldLabel>
+                    <Textarea
+                      value={afterHoursMessage}
+                      onChange={(e) => setAfterHoursMessage(e.target.value)}
+                      rows={2}
+                      placeholder="We're currently closed. Please leave a message..."
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Language</FieldLabel>
+                    <Input
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      placeholder="en"
+                    />
+                  </Field>
+                  <Button onClick={handleSaveVoice} disabled={voiceSaving}>
+                    {voiceSaving ? (
+                      <>
+                        <Loader2Icon className="mr-2 size-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save voice profile'
+                    )}
+                  </Button>
+                </FieldGroup>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="knowledge" className="space-y-6">
+        {/* Services Tab */}
+        <TabsContent value="services" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Knowledge base</CardTitle>
+              <CardTitle>Services</CardTitle>
               <CardDescription>
-                Upload documents with services, pricing, and FAQs for your AI to
-                reference
+                Dental services your AI can book appointments for
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <FileUpload onFileSelect={handleFileUpload} />
-              {documents.length > 0 && (
+              <div className="flex gap-2">
+                <Input
+                  value={newServiceName}
+                  onChange={(e) => setNewServiceName(e.target.value)}
+                  placeholder="Service name"
+                  className="flex-1"
+                />
+                <Input
+                  value={newServiceDuration}
+                  onChange={(e) => setNewServiceDuration(e.target.value)}
+                  placeholder="Duration (min)"
+                  type="number"
+                  className="w-28"
+                />
+                <Button onClick={handleAddService} disabled={addingService}>
+                  <PlusIcon className="mr-1 size-4" />
+                  Add
+                </Button>
+              </div>
+              {servicesLoading ? (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Uploaded documents</p>
-                  <div className="space-y-2">
-                    {documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                      >
-                        <span className="text-sm">{doc.name}</span>
-                        <Badge
-                          variant={
-                            doc.status === 'ready' ? 'default' : 'secondary'
-                          }
-                        >
-                          {doc.status}
-                        </Badge>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : services.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  No services configured yet
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {services.map((svc) => (
+                    <div key={svc.id} className="flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <p className="text-sm font-medium">{svc.serviceName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {svc.durationMinutes ? `${svc.durationMinutes} min` : ''}
+                          {svc.price ? ` · $${svc.price}` : ''}
+                          {svc.category ? ` · ${svc.category}` : ''}
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={svc.isActive ? 'default' : 'secondary'}>
+                          {svc.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={async () => {
+                            try {
+                              await deleteService(svc.id).unwrap();
+                              toast.success('Service removed');
+                            } catch {
+                              toast.error('Failed to remove service');
+                            }
+                          }}
+                        >
+                          <TrashIcon className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* FAQs Tab */}
+        <TabsContent value="faqs" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Frequently asked questions</CardTitle>
+              <CardDescription>
+                Questions and answers your AI can reference during calls
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Question</FieldLabel>
+                  <Input
+                    value={newQuestion}
+                    onChange={(e) => setNewQuestion(e.target.value)}
+                    placeholder="What are your hours?"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>Answer</FieldLabel>
+                  <Textarea
+                    value={newAnswer}
+                    onChange={(e) => setNewAnswer(e.target.value)}
+                    rows={2}
+                    placeholder="We're open Monday through Friday, 8am to 5pm."
+                  />
+                </Field>
+                <Button onClick={handleAddFaq} disabled={addingFaq}>
+                  <PlusIcon className="mr-1 size-4" />
+                  Add FAQ
+                </Button>
+              </FieldGroup>
+
+              {faqsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : faqs.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  No FAQs configured yet
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {faqs.map((faq) => (
+                    <div key={faq.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-medium">{faq.question}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{faq.answer}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={async () => {
+                            try {
+                              await deleteFaq(faq.id).unwrap();
+                              toast.success('FAQ removed');
+                            } catch {
+                              toast.error('Failed to remove FAQ');
+                            }
+                          }}
+                        >
+                          <TrashIcon className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Booking Rules Tab */}
         <TabsContent value="rules" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Services & rules</CardTitle>
+              <CardTitle>Booking rules</CardTitle>
               <CardDescription>
-                Define appointment durations and transfer rules
+                Control appointment scheduling behavior
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {rulesLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>Default appointment duration (minutes)</FieldLabel>
+                    <Input
+                      type="number"
+                      value={defaultDuration}
+                      onChange={(e) => setDefaultDuration(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Minimum notice period (hours)</FieldLabel>
+                    <Input
+                      type="number"
+                      value={minNotice}
+                      onChange={(e) => setMinNotice(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Max advance booking (days)</FieldLabel>
+                    <Input
+                      type="number"
+                      value={maxAdvance}
+                      onChange={(e) => setMaxAdvance(e.target.value)}
+                    />
+                  </Field>
+                  <Button onClick={handleSaveRules} disabled={rulesSaving}>
+                    {rulesSaving ? (
+                      <>
+                        <Loader2Icon className="mr-2 size-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save booking rules'
+                    )}
+                  </Button>
+                </FieldGroup>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Policies Tab */}
+        <TabsContent value="policies" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Policies</CardTitle>
+              <CardDescription>
+                Cancellation, no-show, and other policies the AI communicates
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <FieldGroup>
                 <Field>
-                  <FieldLabel>
-                    Default appointment duration (minutes)
-                  </FieldLabel>
-                  <Input type="number" defaultValue={30} />
+                  <FieldLabel>Policy type</FieldLabel>
+                  <Select value={newPolicyType} onValueChange={(v) => setNewPolicyType(v ?? 'cancellation')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cancellation">Cancellation</SelectItem>
+                      <SelectItem value="no_show">No-show</SelectItem>
+                      <SelectItem value="payment">Payment</SelectItem>
+                      <SelectItem value="insurance">Insurance</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </Field>
                 <Field>
-                  <FieldLabel>Cancellation policy</FieldLabel>
+                  <FieldLabel>Content</FieldLabel>
                   <Textarea
-                    placeholder="e.g. Please cancel at least 24 hours in advance"
+                    value={newPolicyContent}
+                    onChange={(e) => setNewPolicyContent(e.target.value)}
                     rows={2}
+                    placeholder="e.g. Please cancel at least 24 hours in advance"
                   />
                 </Field>
+                <Button onClick={handleAddPolicy} disabled={addingPolicy}>
+                  <PlusIcon className="mr-1 size-4" />
+                  Add policy
+                </Button>
               </FieldGroup>
+
+              {policiesLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : policies.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  No policies configured yet
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {policies.map((policy) => (
+                    <div key={policy.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <Badge variant="outline" className="mb-1 capitalize">
+                            {policy.policyType.replace(/_/g, ' ')}
+                          </Badge>
+                          <p className="text-sm text-muted-foreground">{policy.content}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={async () => {
+                            try {
+                              await deletePolicy(policy.id).unwrap();
+                              toast.success('Policy removed');
+                            } catch {
+                              toast.error('Failed to remove policy');
+                            }
+                          }}
+                        >
+                          <TrashIcon className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

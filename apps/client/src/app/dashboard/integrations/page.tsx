@@ -1,36 +1,69 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from 'sonner';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { IntegrationCard } from "@/components/integration-card";
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/empty-state';
+import { PlugIcon, Loader2Icon, TrashIcon, ZapIcon, PlayIcon } from 'lucide-react';
 import {
-  CalendarIcon,
-  DatabaseIcon,
-  PhoneIcon,
-  KeyIcon,
-  CopyIcon,
-  CheckIcon,
-} from "lucide-react";
+  useGetIntegrationsQuery,
+  useActivateIntegrationMutation,
+  useTestIntegrationMutation,
+  useDeleteIntegrationMutation,
+} from '@/features/integrations/integrationsApi';
+import type { Integration } from '@/features/integrations/types';
+
+const statusColors: Record<string, string> = {
+  active: 'bg-green-500/10 text-green-600 dark:text-green-400',
+  inactive: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+  error: 'bg-red-500/10 text-red-600 dark:text-red-400',
+};
 
 export default function IntegrationsPage() {
-  const [calendarConnected, setCalendarConnected] = useState(false);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { data: integrationData, isLoading } = useGetIntegrationsQuery();
+  const integrations = integrationData?.data ?? [];
 
-  const handleCopyKey = (key: string) => {
-    navigator.clipboard.writeText(key);
-    setCopiedKey(key);
-    toast.success("API key copied");
-    setTimeout(() => setCopiedKey(null), 2000);
+  const [activate, { isLoading: activating }] = useActivateIntegrationMutation();
+  const [test, { isLoading: testing }] = useTestIntegrationMutation();
+  const [remove] = useDeleteIntegrationMutation();
+
+  const handleActivate = async (id: string) => {
+    try {
+      await activate(id).unwrap();
+      toast.success('Integration activated');
+    } catch {
+      toast.error('Failed to activate integration');
+    }
+  };
+
+  const handleTest = async (id: string) => {
+    try {
+      const result = await test(id).unwrap();
+      if (result.success) {
+        toast.success(result.message || 'Connection test passed');
+      } else {
+        toast.error(result.message || 'Connection test failed');
+      }
+    } catch {
+      toast.error('Test failed');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await remove(id).unwrap();
+      toast.success('Integration removed');
+    } catch {
+      toast.error('Failed to remove integration');
+    }
   };
 
   return (
@@ -38,102 +71,113 @@ export default function IntegrationsPage() {
       <div>
         <h2 className="text-lg font-semibold">Integrations</h2>
         <p className="text-sm text-muted-foreground">
-          Connect your calendar, PMS, and manage API access
+          Manage connected services and integrations
         </p>
       </div>
 
-      <div className="space-y-6">
-        <h3 className="text-sm font-medium">Calendar & scheduling</h3>
+      {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2">
-          <IntegrationCard
-            title="Google Calendar"
-            description="Sync availability and create appointments"
-            icon={<CalendarIcon className="size-5" />}
-            status={calendarConnected ? "connected" : "disconnected"}
-            lastSync={calendarConnected ? "2 min ago" : undefined}
-            onConnect={() => {
-              setCalendarConnected(true);
-              toast.success("Google Calendar connected");
-            }}
-            onDisconnect={() => {
-              setCalendarConnected(false);
-              toast.success("Disconnected");
-            }}
-          />
-          <IntegrationCard
-            title="Outlook Calendar"
-            description="Sync with Microsoft 365"
-            icon={<CalendarIcon className="size-5" />}
-            status="disconnected"
-            onConnect={() => toast.info("OAuth flow would start here")}
-          />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
         </div>
-      </div>
-
-      <div className="space-y-6">
-        <h3 className="text-sm font-medium">Practice management</h3>
-        <IntegrationCard
-          title="PMS / Dentally"
-          description="Connect your practice management system"
-          icon={<DatabaseIcon className="size-5" />}
-          status="disconnected"
-          onConnect={() => toast.info("PMS integration setup would start")}
+      ) : integrations.length === 0 ? (
+        <EmptyState
+          icon={PlugIcon}
+          title="No integrations"
+          description="Connect your PMS, calendar, or phone system to get started"
         />
-      </div>
-
-      <div className="space-y-6">
-        <h3 className="text-sm font-medium">Phone</h3>
-        <IntegrationCard
-          title="Phone number"
-          description="Your AI receptionist number"
-          icon={<PhoneIcon className="size-5" />}
-          status="connected"
-          lastSync="Active"
-          onDisconnect={() => toast.info("Number management")}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyIcon className="size-5" />
-            API keys
-          </CardTitle>
-          <CardDescription>
-            Use API keys to integrate with external systems
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Create new key</FieldLabel>
-              <div className="flex gap-2">
-                <Input placeholder="Key name (e.g. Production)" />
-                <Button>Create</Button>
-              </div>
-            </Field>
-          </FieldGroup>
-          <div>
-            <p className="mb-2 text-sm font-medium">Existing keys</p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <span className="font-mono text-sm">df_live_••••••••••••abc1</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleCopyKey("df_live_xxxx")}
-                >
-                  {copiedKey ? (
-                    <CheckIcon className="size-4 text-green-500" />
-                  ) : (
-                    <CopyIcon className="size-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {integrations.map((integration) => (
+            <IntegrationCard
+              key={integration.id}
+              integration={integration}
+              onActivate={handleActivate}
+              onTest={handleTest}
+              onDelete={handleDelete}
+              activating={activating}
+              testing={testing}
+            />
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+function IntegrationCard({
+  integration,
+  onActivate,
+  onTest,
+  onDelete,
+  activating,
+  testing,
+}: {
+  integration: Integration;
+  onActivate: (id: string) => void;
+  onTest: (id: string) => void;
+  onDelete: (id: string) => void;
+  activating: boolean;
+  testing: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="text-base">{integration.provider}</CardTitle>
+          <CardDescription className="capitalize">
+            {integration.integrationType.replace(/_/g, ' ')}
+          </CardDescription>
+        </div>
+        <Badge variant="secondary" className={statusColors[integration.status] ?? ''}>
+          {integration.status}
+        </Badge>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-center gap-2">
+          {integration.healthStatus && (
+            <span className="text-xs text-muted-foreground">
+              Health: {integration.healthStatus}
+            </span>
+          )}
+          {integration.lastCheckedAt && (
+            <span className="text-xs text-muted-foreground">
+              · Checked {new Date(integration.lastCheckedAt).toLocaleString()}
+            </span>
+          )}
+        </div>
+        <div className="mt-4 flex gap-2">
+          {!integration.isActive && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onActivate(integration.id)}
+              disabled={activating}
+            >
+              {activating ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : <ZapIcon className="mr-1 size-3" />}
+              Activate
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onTest(integration.id)}
+            disabled={testing}
+          >
+            {testing ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : <PlayIcon className="mr-1 size-3" />}
+            Test
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(integration.id)}
+          >
+            <TrashIcon className="mr-1 size-3" />
+            Remove
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

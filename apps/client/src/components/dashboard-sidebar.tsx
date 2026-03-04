@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout } from '@/features/auth/authSlice';
+import { useLogoutMutation } from '@/features/auth/authApi';
+import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import {
   Sidebar,
   SidebarContent,
@@ -52,12 +54,23 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { user, clinic } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
+  const { data: clinic } = useGetClinicQuery();
+  const [logoutApi] = useLogoutMutation();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
+      if (refreshToken) {
+        await logoutApi({ refreshToken }).unwrap();
+      }
+    } catch {
+      // proceed with local logout even if API call fails
+    }
     dispatch(logout());
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
     }
     router.push('/login');
   };
@@ -76,7 +89,7 @@ export function DashboardSidebar() {
               </div>
               <div className="min-w-0 flex-1 text-left leading-tight">
                 <span className="block truncate text-sm font-semibold">
-                  {clinic?.name ?? 'DentalFlow AI'}
+                  {clinic?.clinicName ?? 'DentalFlow AI'}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">
                   Enterprise
@@ -106,7 +119,7 @@ export function DashboardSidebar() {
       <SidebarFooter>
         <NavUser
           user={{
-            name: user?.name ?? 'Clinic Admin',
+            name: user?.displayName ?? 'Clinic Admin',
             email: user?.email ?? 'admin@clinic.com',
             avatar: '',
           }}

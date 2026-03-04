@@ -1,19 +1,10 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
-import type { CallLog } from './types';
+import type { CallSession, CallEvent } from './types';
 
 interface GetCallsParams {
-  clinicId: string;
-  startDate?: string;
-  endDate?: string;
-  outcome?: string;
-  page?: number;
   limit?: number;
-}
-
-interface CallsResponse {
-  calls: CallLog[];
-  total: number;
+  offset?: number;
 }
 
 export const callsApi = createApi({
@@ -24,30 +15,25 @@ export const callsApi = createApi({
   }),
   tagTypes: ['Calls'],
   endpoints: (builder) => ({
-    getCalls: builder.query<CallsResponse, GetCallsParams>({
-      query: ({
-        clinicId,
-        startDate,
-        endDate,
-        outcome,
-        page = 1,
-        limit = 20,
-      }) => {
-        const params = new URLSearchParams();
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
-        if (outcome && outcome !== 'all') params.append('outcome', outcome);
-        params.append('page', String(page));
-        params.append('limit', String(limit));
-        return `/clinics/${clinicId}/calls?${params.toString()}`;
+    getCalls: builder.query<{ data: CallSession[] }, GetCallsParams | void>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params?.limit) searchParams.append('limit', String(params.limit));
+        if (params?.offset) searchParams.append('offset', String(params.offset));
+        const qs = searchParams.toString();
+        return `/calls${qs ? `?${qs}` : ''}`;
       },
-      providesTags: (_, __, { clinicId }) => [{ type: 'Calls', id: clinicId }],
+      providesTags: ['Calls'],
     }),
-    getCallById: builder.query<CallLog, { clinicId: string; callId: string }>({
-      query: ({ clinicId, callId }) => `/clinics/${clinicId}/calls/${callId}`,
-      providesTags: (_, __, { callId }) => [{ type: 'Calls', id: callId }],
+    getCallById: builder.query<CallSession, string>({
+      query: (callId) => `/calls/${callId}`,
+      providesTags: (_, __, callId) => [{ type: 'Calls', id: callId }],
+    }),
+    getCallEvents: builder.query<{ data: CallEvent[] }, string>({
+      query: (callId) => `/calls/${callId}/events`,
+      providesTags: (_, __, callId) => [{ type: 'Calls', id: `events-${callId}` }],
     }),
   }),
 });
 
-export const { useGetCallsQuery, useGetCallByIdQuery } = callsApi;
+export const { useGetCallsQuery, useGetCallByIdQuery, useGetCallEventsQuery } = callsApi;

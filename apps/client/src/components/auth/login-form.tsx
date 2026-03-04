@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/features/auth/authSlice";
+import { useLoginMutation } from "@/features/auth/authApi";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,39 +28,27 @@ export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [login, { isLoading }] = useLoginMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     try {
+      const result = await login({ email, password }).unwrap();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("auth_token", result.accessToken);
+        localStorage.setItem("refresh_token", result.refreshToken);
+      }
       dispatch(
         setCredentials({
-          user: {
-            id: "1",
-            email,
-            name: "Clinic Admin",
-            clinicId: "clinic-1",
-          },
-          clinic: {
-            id: "clinic-1",
-            name: "Smile Dental",
-            slug: "smile-dental",
-            email,
-            timezone: "America/New_York",
-          },
+          user: result.user,
+          tenantId: result.tenantId,
           onboardingStatus: "complete",
         })
       );
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth_token", "mock-token");
-      }
       toast.success("Welcome back!");
       router.push("/dashboard");
-    } catch {
-      toast.error("Login failed");
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      toast.error(err?.data?.message ?? "Invalid email or password");
     }
   };
 

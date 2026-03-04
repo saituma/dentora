@@ -1,6 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
-import type { ApiKey } from './types';
+import type { Integration } from './types';
+
+interface CreateIntegrationRequest {
+  integrationType: string;
+  provider?: string;
+  config: Record<string, unknown>;
+  credentials?: Record<string, unknown>;
+}
 
 export const integrationsApi = createApi({
   reducerPath: 'integrationsApi',
@@ -10,43 +17,45 @@ export const integrationsApi = createApi({
   }),
   tagTypes: ['Integrations'],
   endpoints: (builder) => ({
-    connectCalendar: builder.mutation<
-      { url: string },
-      { clinicId: string; provider: 'google' | 'outlook' }
-    >({
-      query: ({ clinicId, provider }) => ({
-        url: `/clinics/${clinicId}/integrations/calendar/connect`,
-        method: 'POST',
-        body: { provider },
-      }),
-      invalidatesTags: (_, __, { clinicId }) => [
-        { type: 'Integrations', id: clinicId },
-      ],
+    getIntegrations: builder.query<{ data: Integration[] }, void>({
+      query: () => '/integrations',
+      providesTags: ['Integrations'],
     }),
-    getApiKeys: builder.query<ApiKey[], string>({
-      query: (clinicId) => `/clinics/${clinicId}/integrations/api-keys`,
-      providesTags: (_, __, clinicId) => [
-        { type: 'Integrations', id: clinicId },
-      ],
-    }),
-    createApiKey: builder.mutation<
-      { key: string },
-      { clinicId: string; name: string }
-    >({
-      query: ({ clinicId, name }) => ({
-        url: `/clinics/${clinicId}/integrations/api-keys`,
+    createIntegration: builder.mutation<Integration, CreateIntegrationRequest>({
+      query: (body) => ({
+        url: '/integrations',
         method: 'POST',
-        body: { name },
+        body,
       }),
-      invalidatesTags: (_, __, { clinicId }) => [
-        { type: 'Integrations', id: clinicId },
-      ],
+      invalidatesTags: ['Integrations'],
+    }),
+    activateIntegration: builder.mutation<Integration, string>({
+      query: (id) => ({
+        url: `/integrations/${id}/activate`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Integrations'],
+    }),
+    testIntegration: builder.mutation<{ success: boolean; message: string }, string>({
+      query: (id) => ({
+        url: `/integrations/${id}/test`,
+        method: 'POST',
+      }),
+    }),
+    deleteIntegration: builder.mutation<{ message: string }, string>({
+      query: (id) => ({
+        url: `/integrations/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Integrations'],
     }),
   }),
 });
 
 export const {
-  useConnectCalendarMutation,
-  useGetApiKeysQuery,
-  useCreateApiKeyMutation,
+  useGetIntegrationsQuery,
+  useCreateIntegrationMutation,
+  useActivateIntegrationMutation,
+  useTestIntegrationMutation,
+  useDeleteIntegrationMutation,
 } = integrationsApi;

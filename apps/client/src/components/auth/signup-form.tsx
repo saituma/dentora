@@ -40,17 +40,10 @@ export function SignupForm() {
           user: {
             id: "1",
             email,
-            name: "Clinic Admin",
-            clinicId: "clinic-1",
+            displayName: clinicName,
+            role: "admin",
           },
-          clinic: {
-            id: "clinic-1",
-            name: clinicName,
-            slug: clinicName.toLowerCase().replace(/\s+/g, "-"),
-            email,
-            phone: phone || undefined,
-            timezone: "America/New_York",
-          },
+          tenantId: "tenant-1",
           onboardingStatus: "clinic-profile",
         })
       );

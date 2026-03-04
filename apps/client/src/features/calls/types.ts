@@ -1,13 +1,27 @@
-export type CallOutcome = "booked" | "faq" | "transferred" | "abandoned";
-
-export interface CallLog {
+export interface CallSession {
   id: string;
-  clinicId: string;
-  callerPhone: string;
-  durationSeconds: number;
-  outcome: CallOutcome;
-  transcript?: string;
-  recordingUrl?: string;
-  bookingId?: string;
+  tenantId: string;
+  twilioCallSid?: string;
+  callerNumber: string;
+  clinicNumber?: string;
+  status: string;
+  startedAt: string;
+  endedAt?: string;
+  durationSeconds?: number;
+  aiProvider?: string;
+  aiModel?: string;
+  costEstimate?: string;
+  metadata?: Record<string, unknown>;
   createdAt: string;
+}
+
+export interface CallEvent {
+  id: string;
+  callSessionId: string;
+  tenantId: string;
+  eventType: string;
+  actor?: string;
+  payload?: Record<string, unknown>;
+  latencyMs?: number;
+  timestamp: string;
 }

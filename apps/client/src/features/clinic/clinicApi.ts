@@ -10,20 +10,17 @@ export const clinicApi = createApi({
   }),
   tagTypes: ['Clinic'],
   endpoints: (builder) => ({
-    getClinic: builder.query<ClinicProfile, string>({
-      query: (id) => `/clinics/${id}`,
-      providesTags: (_, __, id) => [{ type: 'Clinic', id }],
+    getClinic: builder.query<ClinicProfile, void>({
+      query: () => '/config/clinic',
+      providesTags: ['Clinic'],
     }),
-    updateClinic: builder.mutation<
-      ClinicProfile,
-      { id: string; data: Partial<ClinicProfile> }
-    >({
-      query: ({ id, data }) => ({
-        url: `/clinics/${id}`,
-        method: 'PATCH',
+    updateClinic: builder.mutation<ClinicProfile, Partial<ClinicProfile>>({
+      query: (data) => ({
+        url: '/config/clinic',
+        method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (_, __, { id }) => [{ type: 'Clinic', id }],
+      invalidatesTags: ['Clinic'],
     }),
   }),
 });

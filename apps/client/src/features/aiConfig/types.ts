@@ -1,21 +1,69 @@
+export interface VoiceProfile {
+  id: string;
+  tenantId: string;
+  voiceId?: string;
+  greetingMessage?: string;
+  tone?: 'friendly' | 'professional' | 'formal' | 'casual';
+  speechSpeed?: number;
+  afterHoursMessage?: string;
+  holdMusic?: string;
+  language?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Service {
   id: string;
-  name: string;
-  durationMinutes: number;
-  price?: number;
+  tenantId: string;
+  serviceName: string;
+  category?: string;
+  description?: string;
+  durationMinutes?: number;
+  price?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdAt: string;
 }
 
-export interface KnowledgeDocument {
+export interface BookingRules {
   id: string;
-  filename: string;
-  status: "processing" | "ready" | "error";
-  chunkCount?: number;
-  uploadedAt: string;
+  tenantId: string;
+  minNoticePeriodHours?: number;
+  maxAdvanceBookingDays?: number;
+  defaultAppointmentDurationMinutes?: number;
+  bufferBetweenAppointmentsMinutes?: number;
+  operatingSchedule?: Record<string, unknown>;
+  doubleBookingPolicy?: string;
+  afterHoursPolicy?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface TransferRule {
+export interface Policy {
   id: string;
-  condition: string;
-  targetNumber: string;
-  priority: number;
+  tenantId: string;
+  policyType: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface Faq {
+  id: string;
+  tenantId: string;
+  question: string;
+  answer: string;
+  category?: string;
+  priority?: number;
+  createdAt: string;
+}
+
+export interface ConfigVersion {
+  id: string;
+  tenantId: string;
+  version: number;
+  status: string;
+  snapshot: Record<string, unknown>;
+  createdBy: string;
+  publishedAt?: string;
+  createdAt: string;
 }

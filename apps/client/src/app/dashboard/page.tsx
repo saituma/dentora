@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/stats-card';
 import {
   ChartContainer,
@@ -17,192 +16,99 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 import { Bar, BarChart, XAxis as BarXAxis, YAxis } from 'recharts';
-import { PieChart, Pie, Cell } from 'recharts';
-import { PhoneIcon, CalendarIcon } from 'lucide-react';
-
-const callsOverTimeData = [
-  { date: '2024-02-26', calls: 12 },
-  { date: '2024-02-27', calls: 19 },
-  { date: '2024-02-28', calls: 15 },
-  { date: '2024-02-29', calls: 22 },
-  { date: '2024-03-01', calls: 8 },
-  { date: '2024-03-02', calls: 5 },
-  { date: '2024-03-03', calls: 18 },
-];
-
-const callsByHourData = [
-  { hour: '9am', calls: 12 },
-  { hour: '10am', calls: 18 },
-  { hour: '11am', calls: 24 },
-  { hour: '12pm', calls: 15 },
-  { hour: '1pm', calls: 20 },
-  { hour: '2pm', calls: 22 },
-  { hour: '3pm', calls: 19 },
-  { hour: '4pm', calls: 14 },
-  { hour: '5pm', calls: 8 },
-];
-
-const outcomeData = [
-  { name: 'Booked', value: 45, color: 'var(--chart-1)' },
-  { name: 'FAQ', value: 30, color: 'var(--chart-2)' },
-  { name: 'Transferred', value: 15, color: 'var(--chart-3)' },
-  { name: 'Abandoned', value: 10, color: 'var(--chart-4)' },
-];
-
-const recentCalls = [
-  { id: '1', caller: '+1 555-0123', outcome: 'Booked', time: '2 min ago' },
-  { id: '2', caller: '+1 555-0456', outcome: 'FAQ', time: '15 min ago' },
-  {
-    id: '3',
-    caller: '+1 555-0789',
-    outcome: 'Transferred',
-    time: '32 min ago',
-  },
-  { id: '4', caller: '+1 555-0321', outcome: 'Booked', time: '1 hr ago' },
-  { id: '5', caller: '+1 555-0654', outcome: 'FAQ', time: '2 hr ago' },
-];
+import { PhoneIcon, CalendarIcon, Loader2Icon } from 'lucide-react';
+import { useGetDashboardStatsQuery, useGetHourlyVolumeQuery } from '@/features/analytics/analyticsApi';
+import { useGetCallsQuery } from '@/features/calls/callsApi';
 
 const chartConfig = {
   calls: { label: 'Calls', color: 'var(--primary)' },
 } satisfies ChartConfig;
 
 export default function DashboardOverviewPage() {
+  const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery();
+  const { data: hourlyData, isLoading: hourlyLoading } = useGetHourlyVolumeQuery();
+  const { data: callsData, isLoading: callsLoading } = useGetCallsQuery({ limit: 5 });
+
+  const recentCalls = callsData?.data ?? [];
+  const hourlyVolume = hourlyData?.data ?? [];
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Overview</h2>
-        <Badge variant="outline">Demo data</Badge>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard
-          title="Missed call capture rate"
-          value="94%"
-          trend={{ value: 12, label: 'vs last 7 days', positive: true }}
-          description="Calls answered outside business hours"
-        />
-        <StatsCard
-          title="Call-to-booking conversion"
-          value="34%"
-          trend={{ value: 5, label: 'vs last 7 days', positive: true }}
-          description="Calls that resulted in a booking"
-        />
-        <StatsCard
-          title="Revenue recovered"
-          value="$2,340"
-          trend={{ value: 18, label: 'vs last 30 days', positive: true }}
-          description="From AI-booked appointments"
-        />
-        <StatsCard
-          title="Total calls"
-          value="247"
-          trend={{ value: -3, label: 'vs last 7 days', positive: false }}
-          description="Last 7 days"
-        />
+        {statsLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2"><div className="h-4 w-24 rounded bg-muted" /></CardHeader>
+              <CardContent><div className="h-8 w-16 rounded bg-muted" /></CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            <StatsCard
+              title="Total calls"
+              value={String(stats?.totalCalls ?? 0)}
+              description="In selected period"
+            />
+            <StatsCard
+              title="Completion rate"
+              value={`${stats?.completionRate?.toFixed(1) ?? 0}%`}
+              description="Calls completed successfully"
+            />
+            <StatsCard
+              title="Avg duration"
+              value={`${Math.round((stats?.averageDurationSeconds ?? 0) / 60)}m ${(stats?.averageDurationSeconds ?? 0) % 60}s`}
+              description="Average call length"
+            />
+            <StatsCard
+              title="Total cost"
+              value={`$${parseFloat(stats?.totalCost ?? '0').toFixed(2)}`}
+              description="AI processing costs"
+            />
+          </>
+        )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Calls over time</CardTitle>
-            <CardDescription>Last 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[250px] w-full">
-              <AreaChart data={callsOverTimeData}>
-                <defs>
-                  <linearGradient id="fillCalls" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor="var(--color-calls)"
-                      stopOpacity={1}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor="var(--color-calls)"
-                      stopOpacity={0.1}
-                    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  tickFormatter={(v) =>
-                    new Date(v).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  }
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Area
-                  dataKey="calls"
-                  type="natural"
-                  fill="url(#fillCalls)"
-                  stroke="var(--color-calls)"
-                />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Outcome breakdown</CardTitle>
-            <CardDescription>By call outcome</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={{}} className="h-[250px] w-full">
-              <PieChart>
-                <Pie
-                  data={outcomeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {outcomeData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value) => [`${value}%`, '']}
-                    />
-                  }
-                />
-              </PieChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid items-start gap-6 lg:grid-cols-3">
-        <Card className="self-start lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Calls by hour</CardTitle>
+            <CardTitle>Hourly call volume</CardTitle>
             <CardDescription>Peak call times</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[200px] w-full">
-              <BarChart data={callsByHourData}>
-                <BarXAxis dataKey="hour" tickLine={false} />
-                <YAxis hide />
-                <Bar
-                  dataKey="calls"
-                  fill="var(--primary)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-              </BarChart>
-            </ChartContainer>
+            {hourlyLoading ? (
+              <div className="flex h-[200px] items-center justify-center">
+                <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : hourlyVolume.length === 0 ? (
+              <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+                No call data yet
+              </div>
+            ) : (
+              <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                <BarChart data={hourlyVolume}>
+                  <BarXAxis
+                    dataKey="hour"
+                    tickLine={false}
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return d.toLocaleTimeString('en-US', { hour: 'numeric' });
+                    }}
+                  />
+                  <YAxis hide />
+                  <Bar
+                    dataKey="calls"
+                    fill="var(--primary)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                </BarChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -212,29 +118,39 @@ export default function DashboardOverviewPage() {
             <CardDescription>Latest calls</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {recentCalls.map((call) => (
-                <div
-                  key={call.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-full bg-muted">
-                      <PhoneIcon className="size-4" />
+            {callsLoading ? (
+              <div className="flex h-[200px] items-center justify-center">
+                <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : recentCalls.length === 0 ? (
+              <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+                No calls yet
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {recentCalls.map((call) => (
+                  <div
+                    key={call.id}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-full bg-muted">
+                        <PhoneIcon className="size-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{call.callerNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {call.status} · {new Date(call.startedAt).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium">{call.caller}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {call.outcome} · {call.time}
-                      </p>
-                    </div>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/dashboard/calls">View</Link>
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/dashboard/calls">View</Link>
-                  </Button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             <Button variant="outline" className="mt-4 w-full" asChild>
               <Link href="/dashboard/calls">View all calls</Link>
             </Button>

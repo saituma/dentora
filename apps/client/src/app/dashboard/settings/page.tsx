@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   Card,
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
 
 const timezones = [
   { value: 'America/New_York', label: 'Eastern Time' },
@@ -31,16 +33,44 @@ const timezones = [
 ];
 
 export default function SettingsPage() {
-  const [clinicName, setClinicName] = useState('Smile Dental');
-  const [address, setAddress] = useState('123 Main St, City');
+  const { data: clinic, isLoading } = useGetClinicQuery();
+  const [updateClinic, { isLoading: isSaving }] = useUpdateClinicMutation();
+
+  const [clinicName, setClinicName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
-  const [isSaving, setIsSaving] = useState(false);
+  const [description, setDescription] = useState('');
+
+  useEffect(() => {
+    if (clinic) {
+      setClinicName(clinic.clinicName ?? '');
+      setAddress(clinic.address ?? '');
+      setPhone(clinic.phone ?? '');
+      setEmail(clinic.email ?? '');
+      setWebsite(clinic.website ?? '');
+      setTimezone(clinic.timezone ?? 'America/New_York');
+      setDescription(clinic.description ?? '');
+    }
+  }, [clinic]);
 
   const handleSave = async () => {
-    setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setIsSaving(false);
-    toast.success('Settings saved');
+    try {
+      await updateClinic({
+        clinicName,
+        address,
+        phone,
+        email,
+        website,
+        timezone,
+        description,
+      }).unwrap();
+      toast.success('Settings saved');
+    } catch {
+      toast.error('Failed to save settings');
+    }
   };
 
   return (
@@ -74,42 +104,83 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel>Clinic name</FieldLabel>
-                  <Input
-                    value={clinicName}
-                    onChange={(e) => setClinicName(e.target.value)}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Address</FieldLabel>
-                  <Input
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel>Timezone</FieldLabel>
-                  <Select
-                    value={timezone}
-                    onValueChange={(value) =>
-                      setTimezone(value ?? 'America/New_York')
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timezones.map((tz) => (
-                        <SelectItem key={tz.value} value={tz.value}>
-                          {tz.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </FieldGroup>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>Clinic name</FieldLabel>
+                    <Input
+                      value={clinicName}
+                      onChange={(e) => setClinicName(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Address</FieldLabel>
+                    <Input
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </Field>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel>Phone</FieldLabel>
+                      <Input
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Email</FieldLabel>
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                  <Field>
+                    <FieldLabel>Website</FieldLabel>
+                    <Input
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Timezone</FieldLabel>
+                    <Select
+                      value={timezone}
+                      onValueChange={(value) =>
+                        setTimezone(value ?? 'America/New_York')
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timezones.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <FieldLabel>Description</FieldLabel>
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                      placeholder="A short description of your practice"
+                    />
+                  </Field>
+                </FieldGroup>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -126,7 +197,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-medium">Admin (you)</p>
                     <p className="text-sm text-muted-foreground">
-                      admin@clinic.com
+                      {clinic?.email ?? '—'}
                     </p>
                   </div>
                   <span className="text-xs text-muted-foreground">Owner</span>
