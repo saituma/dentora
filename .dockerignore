@@ -1,0 +1,28 @@
+# Dental-Flow – Keep these out of version control
+.env
+.env.local
+.env.production.local
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+out/
+
+# Database
+apps/server/drizzle/*.sql.bak
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+
+# Docker volumes
+pgdata/
+redisdata/
+
+# SSL certs
+nginx/ssl/*.pem
+nginx/ssl/*.key

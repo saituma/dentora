@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setOnboardingStatus } from '@/features/auth/authSlice';
@@ -25,6 +26,16 @@ import {
 } from '@/components/ui/select';
 import { FileUpload } from '@/components/file-upload';
 import { toast } from 'sonner';
+import {
+  useSaveClinicProfileMutation,
+  useSaveServicesMutation,
+  useSaveBookingRulesMutation,
+  useSavePoliciesMutation,
+  useSaveVoiceProfileMutation,
+  useSaveFaqsMutation,
+  usePublishConfigMutation,
+  useGetOnboardingStatusQuery,
+} from '@/features/onboarding/onboardingApi';
 
 const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
@@ -83,6 +94,26 @@ export default function OnboardingStepPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { onboardingStatus } = useAppSelector((state) => state.auth);
+
+  const [saveClinicProfile, { isLoading: savingProfile }] = useSaveClinicProfileMutation();
+  const [saveServices, { isLoading: savingServices }] = useSaveServicesMutation();
+  const [saveBookingRules, { isLoading: savingRules }] = useSaveBookingRulesMutation();
+  const [savePolicies] = useSavePoliciesMutation();
+  const [saveVoiceProfile, { isLoading: savingVoice }] = useSaveVoiceProfileMutation();
+  const [saveFaqs] = useSaveFaqsMutation();
+  const [publishConfig, { isLoading: publishing }] = usePublishConfigMutation();
+  const { data: onboardingData } = useGetOnboardingStatusQuery();
+
+  const [clinicName, setClinicName] = useState('');
+  const [address, setAddress] = useState('');
+  const [timezone, setTimezone] = useState('America/New_York');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [voiceTone, setVoiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
+  const [greeting, setGreeting] = useState('Hi, thank you for calling. How can I help you today?');
+  const [defaultDuration, setDefaultDuration] = useState(30);
+  const [cancellationHours, setCancellationHours] = useState(24);
+  const [advanceBookingDays, setAdvanceBookingDays] = useState(30);
 
   const requestedStep = params.step as string | undefined;
   const step = STEP_ORDER.includes(requestedStep as OnboardingStep)
@@ -149,31 +180,69 @@ export default function OnboardingStepPage() {
           </CardHeader>
           <CardContent>
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                goNext('knowledge-base');
+                try {
+                  await saveClinicProfile({
+                    clinicName,
+                    address: address || undefined,
+                    phone: phone || undefined,
+                    email: email || undefined,
+                    timezone,
+                  }).unwrap();
+                  toast.success('Clinic profile saved');
+                  goNext('knowledge-base');
+                } catch (err) {
+                  toast.error('Failed to save clinic profile');
+                }
               }}
             >
               <FieldGroup>
                 <Field>
                   <FieldLabel>Clinic name</FieldLabel>
-                  <Input placeholder="Smile Dental" required />
+                  <Input
+                    placeholder="Smile Dental"
+                    required
+                    value={clinicName}
+                    onChange={(e) => setClinicName(e.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>Address</FieldLabel>
-                  <Input placeholder="123 Main St" />
+                  <Input
+                    placeholder="123 Main St"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>Phone</FieldLabel>
+                  <Input
+                    placeholder="+1 555-0100"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>Email</FieldLabel>
+                  <Input
+                    type="email"
+                    placeholder="office@smiledental.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>Timezone</FieldLabel>
-                  <Select defaultValue="America/New_York">
+                  <Select value={timezone} onValueChange={setTimezone}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="America/New_York">Eastern</SelectItem>
-                      <SelectItem value="America/Los_Angeles">
-                        Pacific
-                      </SelectItem>
+                      <SelectItem value="America/Chicago">Central</SelectItem>
+                      <SelectItem value="America/Denver">Mountain</SelectItem>
+                      <SelectItem value="America/Los_Angeles">Pacific</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -186,8 +255,8 @@ export default function OnboardingStepPage() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" className="min-w-28">
-                    Next
+                  <Button type="submit" className="min-w-28" disabled={savingProfile}>
+                    {savingProfile ? 'Saving...' : 'Next'}
                   </Button>
                 </div>
               </FieldGroup>
@@ -227,21 +296,24 @@ export default function OnboardingStepPage() {
           <CardContent>
             <FieldGroup>
               <Field>
-                <FieldLabel>Voice</FieldLabel>
-                <Select defaultValue="rachel">
+                <FieldLabel>Tone</FieldLabel>
+                <Select value={voiceTone} onValueChange={(v) => setVoiceTone(v as any)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rachel">Rachel</SelectItem>
-                    <SelectItem value="drew">Drew</SelectItem>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="warm">Warm</SelectItem>
+                    <SelectItem value="friendly">Friendly</SelectItem>
+                    <SelectItem value="calm">Calm</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
               <Field>
                 <FieldLabel>Greeting</FieldLabel>
                 <Textarea
-                  defaultValue="Hi, thank you for calling. How can I help you today?"
+                  value={greeting}
+                  onChange={(e) => setGreeting(e.target.value)}
                   rows={2}
                 />
               </Field>
@@ -249,8 +321,20 @@ export default function OnboardingStepPage() {
                 <Button variant="outline" onClick={goBack} className="min-w-28">
                   Back
                 </Button>
-                <Button onClick={() => goNext('rules')} className="min-w-28">
-                  Next
+                <Button
+                  disabled={savingVoice}
+                  onClick={async () => {
+                    try {
+                      await saveVoiceProfile({ tone: voiceTone, greeting }).unwrap();
+                      toast.success('Voice profile saved');
+                      goNext('rules');
+                    } catch {
+                      toast.error('Failed to save voice profile');
+                    }
+                  }}
+                  className="min-w-28"
+                >
+                  {savingVoice ? 'Saving...' : 'Next'}
                 </Button>
               </div>
             </FieldGroup>
@@ -262,23 +346,55 @@ export default function OnboardingStepPage() {
         <Card className="border-0 bg-card shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl">Appointment rules</CardTitle>
-            <CardDescription>Set durations and policies</CardDescription>
+            <CardDescription>Set booking policies your AI should always follow</CardDescription>
           </CardHeader>
           <CardContent>
             <FieldGroup>
               <Field>
                 <FieldLabel>Default duration (min)</FieldLabel>
-                <Input type="number" defaultValue={30} />
+                <Input
+                  type="number"
+                  value={defaultDuration}
+                  onChange={(e) => setDefaultDuration(Number(e.target.value))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel>Advance booking (days)</FieldLabel>
+                <Input
+                  type="number"
+                  value={advanceBookingDays}
+                  onChange={(e) => setAdvanceBookingDays(Number(e.target.value))}
+                />
+              </Field>
+              <Field>
+                <FieldLabel>Cancellation notice (hours)</FieldLabel>
+                <Input
+                  type="number"
+                  value={cancellationHours}
+                  onChange={(e) => setCancellationHours(Number(e.target.value))}
+                />
               </Field>
               <div className="flex flex-wrap gap-3 pt-2">
                 <Button variant="outline" onClick={goBack} className="min-w-28">
                   Back
                 </Button>
                 <Button
-                  onClick={() => goNext('integrations')}
+                  disabled={savingRules}
+                  onClick={async () => {
+                    try {
+                      await saveBookingRules({
+                        advanceBookingDays,
+                        cancellationHours,
+                      }).unwrap();
+                      toast.success('Booking rules saved');
+                      goNext('integrations');
+                    } catch {
+                      toast.error('Failed to save booking rules');
+                    }
+                  }}
                   className="min-w-28"
                 >
-                  Next
+                  {savingRules ? 'Saving...' : 'Next'}
                 </Button>
               </div>
             </FieldGroup>
@@ -317,18 +433,58 @@ export default function OnboardingStepPage() {
       {step === 'test-call' && (
         <Card className="border-0 bg-card shadow-lg">
           <CardHeader>
-            <CardTitle className="text-xl">Test your AI</CardTitle>
+            <CardTitle className="text-xl">Review & Go Live</CardTitle>
             <CardDescription>
-              Make a test call to verify everything works
+              Review your configuration and publish to go live
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {onboardingData && (
+              <div className="mb-6 space-y-3">
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <span className="text-sm font-medium">Readiness Score</span>
+                  <span className="text-lg font-bold text-primary">{onboardingData.readinessScore}%</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <span className="text-sm font-medium">Steps Completed</span>
+                  <span className="text-sm">{onboardingData.completedSteps.length} / 7</span>
+                </div>
+                {onboardingData.validationErrors.length > 0 && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
+                    <p className="mb-1 text-sm font-medium text-destructive">Blocking Issues:</p>
+                    {onboardingData.validationErrors.map((err, i) => (
+                      <p key={i} className="text-xs text-destructive">{err.message}</p>
+                    ))}
+                  </div>
+                )}
+                {onboardingData.validationWarnings.length > 0 && (
+                  <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3">
+                    <p className="mb-1 text-sm font-medium text-yellow-600">Warnings:</p>
+                    {onboardingData.validationWarnings.map((warn, i) => (
+                      <p key={i} className="text-xs text-yellow-600">{warn.message}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap gap-3">
               <Button variant="outline" onClick={goBack} className="min-w-28">
                 Back
               </Button>
-              <Button onClick={() => goNext('complete')} className="min-w-36">
-                Complete setup
+              <Button
+                disabled={publishing || (onboardingData && !onboardingData.isReady)}
+                onClick={async () => {
+                  try {
+                    await publishConfig().unwrap();
+                    toast.success('Configuration published! Your AI receptionist is live.');
+                    goNext('complete');
+                  } catch {
+                    toast.error('Failed to publish configuration');
+                  }
+                }}
+                className="min-w-36"
+              >
+                {publishing ? 'Publishing...' : 'Publish & Go Live'}
               </Button>
             </div>
           </CardContent>

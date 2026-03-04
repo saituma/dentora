@@ -1,0 +1,65 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  SERVER_IMAGE: ghcr.io/${{ github.repository }}/server
+  CLIENT_IMAGE: ghcr.io/${{ github.repository }}/client
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /opt/dental-flow
+
+            # Pull latest compose & config
+            git pull origin main
+
+            # Set image tags
+            export SERVER_IMAGE=${{ env.SERVER_IMAGE }}:${{ steps.sha.outputs.short }}
+            export CLIENT_IMAGE=${{ env.CLIENT_IMAGE }}:${{ steps.sha.outputs.short }}
+
+            # Pull new images
+            docker compose -f docker-compose.prod.yaml pull server client
+
+            # Run migrations
+            docker compose -f docker-compose.prod.yaml run --rm server \
+              node -e "const { execSync } = require('child_process'); execSync('pnpm --filter @repo/server exec drizzle-kit push', { stdio: 'inherit' });"
+
+            # Rolling restart
+            docker compose -f docker-compose.prod.yaml up -d --no-deps --remove-orphans server client nginx
+
+            # Verify health
+            sleep 15
+            curl -sf http://localhost/api/health || exit 1
+            echo "Deploy successful: ${{ steps.sha.outputs.short }}"

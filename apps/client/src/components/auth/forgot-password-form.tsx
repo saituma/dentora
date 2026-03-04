@@ -23,7 +23,6 @@ export function ForgotPasswordForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Mock - replace with useForgotPasswordMutation when backend is ready
       await new Promise((r) => setTimeout(r, 500));
       setSubmitted(true);
       toast.success("Check your email for reset instructions");

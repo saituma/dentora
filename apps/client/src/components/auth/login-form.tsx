@@ -33,7 +33,6 @@ export function LoginForm() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Mock login - replace with authApi.useLoginMutation when backend is ready
       dispatch(
         setCredentials({
           user: {

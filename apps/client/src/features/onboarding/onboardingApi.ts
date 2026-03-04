@@ -1,0 +1,191 @@
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+
+export interface OnboardingStatus {
+  tenantId: string;
+  currentStep: string;
+  completedSteps: string[];
+  readinessScore: number;
+  validationErrors: Array<{ domain: string; field?: string; message: string; severity: string }>;
+  validationWarnings: Array<{ domain: string; field?: string; message: string; severity: string }>;
+  isReady: boolean;
+}
+
+export interface ReadinessScorecard {
+  clinicProfile: { score: number; weight: number; issues: unknown[] };
+  serviceCatalog: { score: number; weight: number; issues: unknown[] };
+  bookingRules: { score: number; weight: number; issues: unknown[] };
+  policyEscalation: { score: number; weight: number; issues: unknown[] };
+  toneProfile: { score: number; weight: number; issues: unknown[] };
+  integrations: { score: number; weight: number; issues: unknown[] };
+  totalScore: number;
+  isDeployable: boolean;
+}
+
+export interface ClinicProfileInput {
+  clinicName: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  timezone?: string;
+  operatingHours?: Record<string, unknown>;
+  afterHoursBehavior?: 'voicemail' | 'callback' | 'emergency_routing';
+}
+
+export interface ServiceInput {
+  id?: string;
+  serviceName: string;
+  category: string;
+  description?: string;
+  durationMinutes: number;
+  price?: string;
+  isActive?: boolean;
+}
+
+export interface BookingRulesInput {
+  advanceBookingDays?: number;
+  cancellationHours?: number;
+  minNoticeHours?: number;
+  maxFutureDays?: number;
+  allowedChannels?: string[];
+  doubleBookingPolicy?: 'forbid' | 'conditional' | 'manual-review';
+  emergencySlotPolicy?: 'reserved' | 'normal' | 'manual-review';
+}
+
+export interface PolicyInput {
+  id?: string;
+  policyType: string;
+  content: string;
+}
+
+export interface VoiceProfileInput {
+  tone?: 'professional' | 'warm' | 'friendly' | 'calm';
+  language?: string;
+  greeting?: string;
+  voiceId?: string;
+  speed?: number;
+  verbosityLevel?: 'short' | 'balanced' | 'detailed';
+  empathyLevel?: 'low' | 'medium' | 'high';
+  greetingStyle?: 'formal' | 'friendly';
+}
+
+export interface FaqInput {
+  id?: string;
+  question: string;
+  answer: string;
+  category?: string;
+}
+
+export interface ConfigChatResponse {
+  response: string;
+  extractedFields: Record<string, unknown>;
+  isComplete: boolean;
+  readinessScore: number;
+  metadata: { provider: string; latencyMs: number };
+}
+
+export const onboardingApi = createApi({
+  reducerPath: 'onboardingApi',
+  baseQuery: fetchBaseQuery({
+    baseUrl: API_BASE_URL,
+    prepareHeaders: applyAuthHeaders,
+  }),
+  tagTypes: ['OnboardingStatus', 'Readiness'],
+  endpoints: (builder) => ({
+    getOnboardingStatus: builder.query<OnboardingStatus, void>({
+      query: () => '/onboarding/status',
+      providesTags: ['OnboardingStatus'],
+    }),
+
+    getReadiness: builder.query<ReadinessScorecard, void>({
+      query: () => '/onboarding/readiness',
+      providesTags: ['Readiness'],
+    }),
+
+    saveClinicProfile: builder.mutation<{ success: boolean; step: string }, ClinicProfileInput>({
+      query: (data) => ({
+        url: '/onboarding/clinic-profile',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    saveServices: builder.mutation<{ success: boolean; step: string }, { services: ServiceInput[] }>({
+      query: (data) => ({
+        url: '/onboarding/services',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    saveBookingRules: builder.mutation<{ success: boolean; step: string }, BookingRulesInput>({
+      query: (data) => ({
+        url: '/onboarding/booking-rules',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    savePolicies: builder.mutation<{ success: boolean; step: string }, { policies: PolicyInput[] }>({
+      query: (data) => ({
+        url: '/onboarding/policies',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    saveVoiceProfile: builder.mutation<{ success: boolean; step: string }, VoiceProfileInput>({
+      query: (data) => ({
+        url: '/onboarding/voice',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    saveFaqs: builder.mutation<{ success: boolean; step: string }, { faqs: FaqInput[] }>({
+      query: (data) => ({
+        url: '/onboarding/faqs',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    publishConfig: builder.mutation<{ configVersionId: string }, void>({
+      query: () => ({
+        url: '/onboarding/publish',
+        method: 'POST',
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    sendConfigChatMessage: builder.mutation<
+      ConfigChatResponse,
+      { message: string; conversationHistory?: Array<{ role: string; content: string; timestamp: string }> }
+    >({
+      query: (data) => ({
+        url: '/ai-chat/turn',
+        method: 'POST',
+        body: data,
+      }),
+    }),
+  }),
+});
+
+export const {
+  useGetOnboardingStatusQuery,
+  useGetReadinessQuery,
+  useSaveClinicProfileMutation,
+  useSaveServicesMutation,
+  useSaveBookingRulesMutation,
+  useSavePoliciesMutation,
+  useSaveVoiceProfileMutation,
+  useSaveFaqsMutation,
+  usePublishConfigMutation,
+  useSendConfigChatMessageMutation,
+} = onboardingApi;

@@ -29,7 +29,6 @@ export function TrustedClinicsMarquee() {
       return;
     }
 
-    // Fade in once when the section enters the viewport.
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -57,7 +56,7 @@ export function TrustedClinicsMarquee() {
         </p>
 
         <div className="relative mt-6 overflow-hidden rounded-2xl border bg-gradient-to-b from-card to-background px-3 py-3">
-          {/* Soft edge masks hide logo entry/exit points for a cleaner marquee loop. */}
+          {}
           <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-14 bg-gradient-to-r from-background to-transparent sm:w-20" />
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-14 bg-gradient-to-l from-background to-transparent sm:w-20" />
 
@@ -80,7 +79,6 @@ export function TrustedClinicsMarquee() {
       </div>
 
       <style jsx>{`
-        /* Continuous horizontal slide animation using duplicated logo items. */
         @keyframes clinic-marquee {
           0% {
             transform: translateX(0);

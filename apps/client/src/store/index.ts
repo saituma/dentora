@@ -14,6 +14,7 @@ import { callsApi } from "@/features/calls/callsApi";
 import { analyticsApi } from "@/features/analytics/analyticsApi";
 import { integrationsApi } from "@/features/integrations/integrationsApi";
 import { billingApi } from "@/features/billing/billingApi";
+import { onboardingApi } from "@/features/onboarding/onboardingApi";
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     [analyticsApi.reducerPath]: analyticsApi.reducer,
     [integrationsApi.reducerPath]: integrationsApi.reducer,
     [billingApi.reducerPath]: billingApi.reducer,
+    [onboardingApi.reducerPath]: onboardingApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -41,7 +43,8 @@ export const store = configureStore({
       callsApi.middleware,
       analyticsApi.middleware,
       integrationsApi.middleware,
-      billingApi.middleware
+      billingApi.middleware,
+      onboardingApi.middleware,
     ),
 });
 

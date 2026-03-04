@@ -1,0 +1,60 @@
+
+import { z } from 'zod';
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
+  PORT: z.coerce.number().default(4000),
+  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+
+  PLATFORM_ENV: z.enum(['local', 'ci', 'staging', 'production']).default('local'),
+  PLATFORM_VERSION: z.string().default('0.1.0'),
+  COST_MARGIN_PERCENT: z.coerce.number().min(0).max(100).default(30),
+
+  DATABASE_URL: z.string().url(),
+  DATABASE_POOL_SIZE: z.coerce.number().min(1).max(100).default(20),
+  DATABASE_SSL_MODE: z.enum(['disable', 'require', 'verify-ca', 'verify-full']).default('disable'),
+
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+  REDIS_MAX_CONNECTIONS: z.coerce.number().min(1).max(500).default(50),
+
+  JWT_SECRET: z.string().min(32).default('development-secret-change-in-production-min32chars'),
+  JWT_ISSUER: z.string().default('dental-flow'),
+  JWT_EXPIRY_SECONDS: z.coerce.number().default(900),
+  REFRESH_TOKEN_EXPIRY_DAYS: z.coerce.number().default(7),
+
+  TWILIO_ACCOUNT_SID: z.string().default(''),
+  TWILIO_AUTH_TOKEN: z.string().default(''),
+  TWILIO_WEBHOOK_BASE_URL: z.string().default('http://localhost:4000'),
+
+  OPENAI_API_KEY: z.string().default(''),
+  ANTHROPIC_API_KEY: z.string().default(''),
+  GOOGLE_AI_API_KEY: z.string().default(''),
+
+  DEEPGRAM_API_KEY: z.string().default(''),
+  ASSEMBLYAI_API_KEY: z.string().default(''),
+
+  ELEVENLABS_API_KEY: z.string().default(''),
+  GOOGLE_TTS_API_KEY: z.string().default(''),
+
+  S3_BUCKET: z.string().default(''),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_ACCESS_KEY: z.string().default(''),
+  S3_SECRET_KEY: z.string().default(''),
+
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+  OTEL_EXPORTER_ENDPOINT: z.string().default(''),
+  SENTRY_DSN: z.string().default(''),
+});
+
+function loadEnv() {
+  const result = envSchema.safeParse(process.env);
+  if (!result.success) {
+    console.error('❌ Invalid environment variables:');
+    console.error(result.error.flatten().fieldErrors);
+    process.exit(1);
+  }
+  return result.data;
+}
+
+export const env = loadEnv();
+export type Env = z.infer<typeof envSchema>;
