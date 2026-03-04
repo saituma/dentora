@@ -14,11 +14,15 @@ export function ProtectedRoute({
   requireOnboardingComplete = false,
 }: ProtectedRouteProps) {
   const router = useRouter();
-  const { isAuthenticated, onboardingStatus } = useAppSelector(
+  const { isAuthenticated, onboardingStatus, isHydrated } = useAppSelector(
     (state) => state.auth
   );
 
   useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     if (!isAuthenticated) {
       router.replace("/login");
       return;
@@ -38,12 +42,24 @@ export function ProtectedRoute({
                 ? "rules"
                 : onboardingStatus === "integrations"
                   ? "integrations"
+                  : onboardingStatus === "ai-chat"
+                    ? "ai-chat"
                   : onboardingStatus === "test-call"
                     ? "test-call"
                     : "clinic-profile";
       router.replace(`/onboarding/${step}`);
     }
-  }, [isAuthenticated, onboardingStatus, requireOnboardingComplete, router]);
+  }, [
+    isAuthenticated,
+    onboardingStatus,
+    requireOnboardingComplete,
+    router,
+    isHydrated,
+  ]);
+
+  if (!isHydrated) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return null;

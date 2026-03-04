@@ -22,7 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
+import { useAppSelector } from '@/store/hooks';
+import { useChangePasswordMutation } from '@/features/auth/authApi';
+import { getUserFriendlyApiError } from '@/lib/api-error';
 
 const timezones = [
   { value: 'America/New_York', label: 'Eastern Time' },
@@ -33,8 +37,10 @@ const timezones = [
 ];
 
 export default function SettingsPage() {
+  const { user } = useAppSelector((state) => state.auth);
   const { data: clinic, isLoading } = useGetClinicQuery();
   const [updateClinic, { isLoading: isSaving }] = useUpdateClinicMutation();
+  const [changePassword, { isLoading: updatingPassword }] = useChangePasswordMutation();
 
   const [clinicName, setClinicName] = useState('');
   const [address, setAddress] = useState('');
@@ -43,6 +49,10 @@ export default function SettingsPage() {
   const [website, setWebsite] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
   const [description, setDescription] = useState('');
+  const [emailAlerts, setEmailAlerts] = useState(true);
+  const [smsAlerts, setSmsAlerts] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     if (clinic) {
@@ -55,6 +65,24 @@ export default function SettingsPage() {
       setDescription(clinic.description ?? '');
     }
   }, [clinic]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const raw = localStorage.getItem('settings_notifications');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        emailAlerts?: boolean;
+        smsAlerts?: boolean;
+      };
+      setEmailAlerts(parsed.emailAlerts ?? true);
+      setSmsAlerts(parsed.smsAlerts ?? false);
+    } catch {
+      // ignore invalid local state
+    }
+  }, []);
 
   const handleSave = async () => {
     try {
@@ -70,6 +98,37 @@ export default function SettingsPage() {
       toast.success('Settings saved');
     } catch {
       toast.error('Failed to save settings');
+    }
+  };
+
+  const handleSaveNotifications = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        'settings_notifications',
+        JSON.stringify({ emailAlerts, smsAlerts }),
+      );
+    }
+    toast.success('Notification preferences saved');
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      toast.error('Enter current and new password');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters');
+      return;
+    }
+
+    try {
+      await changePassword({ currentPassword, newPassword }).unwrap();
+      setCurrentPassword('');
+      setNewPassword('');
+      toast.success('Password updated');
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err));
     }
   };
 
@@ -195,14 +254,18 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div>
-                    <p className="font-medium">Admin (you)</p>
+                    <p className="font-medium">{user?.displayName ?? 'Admin (you)'}</p>
                     <p className="text-sm text-muted-foreground">
-                      {clinic?.email ?? '—'}
+                      {user?.email ?? clinic?.email ?? '—'}
                     </p>
                   </div>
-                  <span className="text-xs text-muted-foreground">Owner</span>
+                  <span className="text-xs text-muted-foreground capitalize">
+                    {user?.role ?? 'owner'}
+                  </span>
                 </div>
-                <Button variant="outline">Invite member</Button>
+                <p className="text-sm text-muted-foreground">
+                  Team management endpoints are not configured yet for this environment.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -225,7 +288,10 @@ export default function SettingsPage() {
                       Important events and reports
                     </p>
                   </div>
-                  <input type="checkbox" defaultChecked className="rounded" />
+                  <Checkbox
+                    checked={emailAlerts}
+                    onCheckedChange={(value) => setEmailAlerts(value === true)}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
@@ -234,8 +300,14 @@ export default function SettingsPage() {
                       Urgent notifications
                     </p>
                   </div>
-                  <input type="checkbox" className="rounded" />
+                  <Checkbox
+                    checked={smsAlerts}
+                    onCheckedChange={(value) => setSmsAlerts(value === true)}
+                  />
                 </div>
+                <Button variant="outline" onClick={handleSaveNotifications}>
+                  Save notification preferences
+                </Button>
               </FieldGroup>
             </CardContent>
           </Card>
@@ -252,11 +324,27 @@ export default function SettingsPage() {
                 <Field>
                   <FieldLabel>Change password</FieldLabel>
                   <div className="flex gap-2">
-                    <Input type="password" placeholder="Current password" />
-                    <Input type="password" placeholder="New password" />
+                    <Input
+                      type="password"
+                      placeholder="Current password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <Input
+                      type="password"
+                      placeholder="New password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
                   </div>
                 </Field>
-                <Button variant="outline">Update password</Button>
+                <Button
+                  variant="outline"
+                  onClick={handleChangePassword}
+                  disabled={updatingPassword}
+                >
+                  {updatingPassword ? 'Updating...' : 'Update password'}
+                </Button>
               </FieldGroup>
             </CardContent>
           </Card>

@@ -10,6 +10,7 @@ const ONBOARDING_STEPS = [
   'voice',
   'rules',
   'integrations',
+  'ai-chat',
   'test-call',
   'complete',
 ] as const;
@@ -19,14 +20,20 @@ export default function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, isHydrated } = useAppSelector((state) => state.auth);
   const router = useRouter();
 
   useEffect(() => {
+    if (!isHydrated) return;
+
     if (!isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isHydrated, router]);
+
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-muted/20 p-4 sm:p-6">

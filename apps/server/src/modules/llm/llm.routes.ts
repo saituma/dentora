@@ -17,7 +17,7 @@ const llmRateLimiter = rateLimiter({
   keyPrefix: 'llm',
 });
 
-const VALID_PROVIDERS = ['openai', 'anthropic'] as const;
+const VALID_PROVIDERS = ['openai'] as const;
 const VALID_TASKS = ['generate_response', 'summarize', 'extract_intent'] as const;
 
 const executeLlmSchema = z.object({

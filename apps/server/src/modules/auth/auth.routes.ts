@@ -81,3 +81,26 @@ authRouter.post(
     }
   },
 );
+
+authRouter.post(
+  '/change-password',
+  authenticateJwt,
+  validate({
+    body: z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      await authService.changePassword({
+        userId: req.user!.userId,
+        currentPassword: req.body.currentPassword,
+        newPassword: req.body.newPassword,
+      });
+      res.json({ message: 'Password updated' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);

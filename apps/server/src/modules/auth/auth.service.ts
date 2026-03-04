@@ -210,3 +210,40 @@ export async function logout(userId: string, refreshToken: string): Promise<void
 
   logger.info({ userId }, 'User logged out');
 }
+
+export async function changePassword(input: {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, input.userId))
+    .limit(1);
+
+  if (!user) {
+    throw new AuthenticationError('User not found');
+  }
+
+  const validCurrentPassword = await verifyPassword(
+    input.currentPassword,
+    user.passwordHash,
+  );
+
+  if (!validCurrentPassword) {
+    throw new AuthenticationError('Current password is incorrect');
+  }
+
+  const newPasswordHash = await hashPassword(input.newPassword);
+
+  await db
+    .update(users)
+    .set({
+      passwordHash: newPasswordHash,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, input.userId));
+
+  logger.info({ userId: input.userId }, 'User password changed');
+}

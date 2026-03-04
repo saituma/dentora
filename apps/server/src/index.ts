@@ -88,6 +88,7 @@ app.use('/api/telephony', telephonyRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/providers', providerRouter);
 app.use('/api/integrations', integrationRouter);
+app.use('/integrations', integrationRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/config', configRouter);

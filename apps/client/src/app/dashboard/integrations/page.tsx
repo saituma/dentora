@@ -23,7 +23,8 @@ import type { Integration } from '@/features/integrations/types';
 
 const statusColors: Record<string, string> = {
   active: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  inactive: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+  disconnected: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+  pending: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   error: 'bg-red-500/10 text-red-600 dark:text-red-400',
 };
 

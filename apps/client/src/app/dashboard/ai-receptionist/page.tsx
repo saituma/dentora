@@ -549,9 +549,15 @@ export default function AiReceptionistPage() {
                       <div className="flex items-start justify-between">
                         <div>
                           <Badge variant="outline" className="mb-1 capitalize">
-                            {policy.policyType.replace(/_/g, ' ')}
+                            {typeof policy.policyType === 'string' && policy.policyType.trim().length > 0
+                              ? policy.policyType.replace(/_/g, ' ')
+                              : 'general'}
                           </Badge>
-                          <p className="text-sm text-muted-foreground">{policy.content}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {typeof policy.content === 'string' && policy.content.trim().length > 0
+                              ? policy.content
+                              : 'Policy details are stored in structured fields.'}
+                          </p>
                         </div>
                         <Button
                           variant="ghost"

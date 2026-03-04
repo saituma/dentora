@@ -20,6 +20,7 @@ import { Bar, BarChart, XAxis as BarXAxis, YAxis } from 'recharts';
 import { PhoneIcon, CalendarIcon, Loader2Icon } from 'lucide-react';
 import { useGetDashboardStatsQuery, useGetHourlyVolumeQuery } from '@/features/analytics/analyticsApi';
 import { useGetCallsQuery } from '@/features/calls/callsApi';
+import { useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
 
 const chartConfig = {
   calls: { label: 'Calls', color: 'var(--primary)' },
@@ -29,9 +30,15 @@ export default function DashboardOverviewPage() {
   const { data: stats, isLoading: statsLoading } = useGetDashboardStatsQuery();
   const { data: hourlyData, isLoading: hourlyLoading } = useGetHourlyVolumeQuery();
   const { data: callsData, isLoading: callsLoading } = useGetCallsQuery({ limit: 5 });
+  const { data: integrationsData } = useGetIntegrationsQuery();
 
   const recentCalls = callsData?.data ?? [];
   const hourlyVolume = hourlyData?.data ?? [];
+  const hasActiveCalendar = (integrationsData?.data ?? []).some(
+    (integration) =>
+      integration.integrationType === 'calendar' &&
+      (integration.status === 'active' || integration.isActive),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -162,15 +169,21 @@ export default function DashboardOverviewPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarIcon className="size-5" />
-            Next step: Connect your calendar
+            {hasActiveCalendar
+              ? 'Calendar connected'
+              : 'Next step: Connect your calendar'}
           </CardTitle>
           <CardDescription>
-            Connect Google Calendar or Outlook to enable AI appointment booking
+            {hasActiveCalendar
+              ? 'Manage calendar sync and connection health from Integrations'
+              : 'Connect Google Calendar or Outlook to enable AI appointment booking'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button asChild>
-            <Link href="/dashboard/integrations">Connect calendar</Link>
+          <Button variant={hasActiveCalendar ? 'outline' : 'default'} asChild>
+            <Link href="/dashboard/integrations">
+              {hasActiveCalendar ? 'Manage integrations' : 'Connect calendar'}
+            </Link>
           </Button>
         </CardContent>
       </Card>

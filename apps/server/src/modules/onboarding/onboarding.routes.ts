@@ -202,7 +202,10 @@ onboardingRouter.post(
 
 onboardingRouter.post('/publish', async (req, res, next) => {
   try {
-    const result = await onboardingService.publishOnboardingConfig(req.tenantContext!.tenantId);
+    const result = await onboardingService.publishOnboardingConfig(
+      req.tenantContext!.tenantId,
+      req.user!.userId,
+    );
     req.audit?.({
       action: 'onboarding.config_published',
       entityType: 'config_version',

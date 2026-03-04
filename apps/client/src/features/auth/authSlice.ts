@@ -6,6 +6,7 @@ const initialState: AuthState = {
   tenantId: null,
   isAuthenticated: false,
   onboardingStatus: "clinic-profile",
+  isHydrated: false,
 };
 
 const authSlice = createSlice({
@@ -25,6 +26,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.tenantId = action.payload.tenantId;
       state.isAuthenticated = !!action.payload.user;
+      state.isHydrated = true;
       if (action.payload.onboardingStatus !== undefined) {
         state.onboardingStatus = action.payload.onboardingStatus;
       }
@@ -35,10 +37,19 @@ const authSlice = createSlice({
     ) => {
       state.onboardingStatus = action.payload;
     },
-    logout: () => initialState,
+    setHydrated: (state) => {
+      state.isHydrated = true;
+    },
+    logout: (state) => {
+      state.user = null;
+      state.tenantId = null;
+      state.isAuthenticated = false;
+      state.onboardingStatus = "clinic-profile";
+      state.isHydrated = true;
+    },
   },
 });
 
-export const { setCredentials, setOnboardingStatus, logout } =
+export const { setCredentials, setOnboardingStatus, setHydrated, logout } =
   authSlice.actions;
 export default authSlice.reducer;

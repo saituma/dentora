@@ -11,6 +11,7 @@ export type OnboardingStep =
   | "voice"
   | "rules"
   | "integrations"
+  | "ai-chat"
   | "test-call"
   | "complete";
 
@@ -19,4 +20,5 @@ export interface AuthState {
   tenantId: string | null;
   isAuthenticated: boolean;
   onboardingStatus: OnboardingStep | "complete";
+  isHydrated: boolean;
 }

@@ -17,7 +17,54 @@ import { logger } from '../../lib/logger.js';
 import { NotFoundError, ConfigValidationError, ConflictError } from '../../lib/errors.js';
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
 
+function normalizeClinicProfile(profile: any) {
+  if (!profile) return null;
+
+  const firstLocationAddress = Array.isArray(profile.locations)
+    ? profile.locations.find((location: unknown) => {
+        if (!location || typeof location !== 'object') return false;
+        const maybeAddress = (location as { address?: unknown }).address;
+        return typeof maybeAddress === 'string' && maybeAddress.trim().length > 0;
+      })
+    : null;
+
+  const locationAddress =
+    firstLocationAddress && typeof firstLocationAddress === 'object'
+      ? (firstLocationAddress as { address?: string }).address
+      : undefined;
+
+  return {
+    ...profile,
+    address:
+      typeof profile.address === 'string' && profile.address.trim().length > 0
+        ? profile.address
+        : locationAddress ?? null,
+    phone:
+      typeof profile.phone === 'string' && profile.phone.trim().length > 0
+        ? profile.phone
+        : profile.primaryPhone ?? null,
+    email:
+      typeof profile.email === 'string' && profile.email.trim().length > 0
+        ? profile.email
+        : profile.supportEmail ?? null,
+  };
+}
+
 export async function upsertClinicProfile(tenantId: string, data: Record<string, unknown>) {
+  const address = typeof data.address === 'string' ? data.address.trim() : '';
+  const phone = typeof data.phone === 'string' ? data.phone.trim() : '';
+  const email = typeof data.email === 'string' ? data.email.trim() : '';
+
+  const mappedData: Record<string, unknown> = {
+    ...data,
+    primaryPhone: phone || data.primaryPhone,
+    supportEmail: email || data.supportEmail,
+  };
+
+  if (address.length > 0) {
+    mappedData.locations = [{ address }];
+  }
+
   const [existing] = await db
     .select()
     .from(clinicProfile)
@@ -27,17 +74,17 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
   if (existing) {
     const [updated] = await db
       .update(clinicProfile)
-      .set({ ...data, updatedAt: new Date() } as any)
+      .set({ ...mappedData, updatedAt: new Date() } as any)
       .where(eq(clinicProfile.tenantId, tenantId))
       .returning();
-    return updated;
+    return normalizeClinicProfile(updated);
   }
 
   const [created] = await db
     .insert(clinicProfile)
-    .values({ id: generateId(), tenantId, ...data } as any)
+    .values({ id: generateId(), tenantId, ...mappedData } as any)
     .returning();
-  return created;
+  return normalizeClinicProfile(created);
 }
 
 export async function getClinicProfile(tenantId: string) {
@@ -46,7 +93,7 @@ export async function getClinicProfile(tenantId: string) {
     .from(clinicProfile)
     .where(eq(clinicProfile.tenantId, tenantId))
     .limit(1);
-  return profile ?? null;
+  return normalizeClinicProfile(profile);
 }
 
 export async function addService(tenantId: string, data: Record<string, unknown>) {

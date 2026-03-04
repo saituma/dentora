@@ -5,6 +5,7 @@ import { eq, and, desc, gte } from 'drizzle-orm';
 import { cache } from '../../../lib/cache.js';
 import { logger } from '../../../lib/logger.js';
 import { AllProvidersFailedError, ProviderError } from '../../../lib/errors.js';
+import { resolveApiKey } from '../../api-keys/api-key.service.js';
 import {
   getLlmAdapter,
   getSttAdapter,
@@ -73,6 +74,101 @@ interface ProviderHealthSnapshot {
   lastError?: string;
 }
 
+function providerMatchesModel(providerName: string, model?: string): boolean {
+  if (!model) return true;
+
+  const normalizedModel = model.toLowerCase();
+
+  if (
+    normalizedModel.startsWith('gpt') ||
+    normalizedModel.startsWith('o1') ||
+    normalizedModel.startsWith('o3')
+  ) {
+    return providerName === 'openai';
+  }
+
+  if (normalizedModel.startsWith('claude')) {
+    return providerName === 'anthropic';
+  }
+
+  return true;
+}
+
+function getDefaultCandidates(workloadType: WorkloadType): ProviderCandidate[] {
+  if (workloadType === 'llm') {
+    return [
+      {
+        id: 'default-openai',
+        name: 'openai',
+        providerType: 'llm',
+        priorityOrder: 1,
+        costPer1k: 0.02,
+        avgLatencyMs: 800,
+        reliability: 1,
+        isHealthy: true,
+      },
+      {
+        id: 'default-anthropic',
+        name: 'anthropic',
+        providerType: 'llm',
+        priorityOrder: 2,
+        costPer1k: 0.02,
+        avgLatencyMs: 900,
+        reliability: 1,
+        isHealthy: true,
+      },
+    ];
+  }
+
+  if (workloadType === 'stt') {
+    return [
+      {
+        id: 'default-deepgram',
+        name: 'deepgram',
+        providerType: 'stt',
+        priorityOrder: 1,
+        costPer1k: 0.01,
+        avgLatencyMs: 700,
+        reliability: 1,
+        isHealthy: true,
+      },
+      {
+        id: 'default-google-stt',
+        name: 'google-stt',
+        providerType: 'stt',
+        priorityOrder: 2,
+        costPer1k: 0.01,
+        avgLatencyMs: 700,
+        reliability: 1,
+        isHealthy: true,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: 'default-elevenlabs',
+      name: 'elevenlabs',
+      providerType: 'tts',
+      priorityOrder: 1,
+      costPer1k: 0.02,
+      avgLatencyMs: 700,
+      reliability: 1,
+      isHealthy: true,
+    },
+    {
+      id: 'default-google-tts',
+      name: 'google-tts',
+      providerType: 'tts',
+      priorityOrder: 2,
+      costPer1k: 0.02,
+      avgLatencyMs: 700,
+      reliability: 1,
+      isHealthy: true,
+    },
+  ];
+}
+
 async function getProviderHealthFromRedis(providerName: string): Promise<ProviderHealthSnapshot | null> {
   try {
     const raw = await cache.getGlobal('provider-health', providerName);
@@ -118,7 +214,15 @@ async function buildCandidates(workloadType: WorkloadType): Promise<ProviderCand
   const cached = await cache.getGlobal('provider-candidates', workloadType);
   if (cached) {
     try {
-      return JSON.parse(cached);
+      const parsed = JSON.parse(cached) as ProviderCandidate[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+
+      logger.warn(
+        { workloadType },
+        'Ignoring empty cached provider candidates and rebuilding',
+      );
     } catch { }
   }
 
@@ -155,6 +259,13 @@ async function buildCandidates(workloadType: WorkloadType): Promise<ProviderCand
       reliability: health?.successRate ?? 1.0,
       isHealthy: health ? health.successRate > 0.5 : true,
     });
+  }
+
+  if (candidates.length === 0) {
+    const defaults = getDefaultCandidates(workloadType);
+    logger.warn({ workloadType }, 'Provider registry empty, using default provider candidates');
+    await cache.setGlobal('provider-candidates', workloadType, JSON.stringify(defaults), 60);
+    return defaults;
   }
 
   await cache.setGlobal('provider-candidates', workloadType, JSON.stringify(candidates), 60);
@@ -245,26 +356,43 @@ export async function executeLlmWithFailover(
 ): Promise<LlmResponse & { selectionResult: SelectionResult }> {
   const candidates = await buildCandidates('llm');
   const qualified = qualifyProviders(candidates, request);
-  const scored = scoreProviders(qualified.length > 0 ? qualified : candidates.filter((c) => c.isHealthy));
+  const healthyCandidates = candidates.filter((c) => c.isHealthy);
+  const fallbackCandidates = healthyCandidates.length > 0 ? healthyCandidates : candidates;
+  const scored = scoreProviders(qualified.length > 0 ? qualified : fallbackCandidates);
 
   if (scored.length === 0) {
     throw new AllProvidersFailedError('llm');
   }
 
   let lastError: Error | null = null;
-  const maxAttempts = Math.min(scored.length, MAX_FAILOVER_ATTEMPTS + 1);
+  const modelScopedCandidates = scored.filter((candidate) =>
+    providerMatchesModel(candidate.name, request.llmRequest.model),
+  );
+  const scoped = modelScopedCandidates.length > 0 ? modelScopedCandidates : scored;
+
+  const maxAttempts = Math.min(scoped.length, MAX_FAILOVER_ATTEMPTS + 1);
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const candidate = scored[attempt];
+    const candidate = scoped[attempt];
     const adapter = getLlmAdapter(candidate.name);
 
     try {
+      const resolvedKey = await resolveApiKey(request.tenantId, candidate.name);
+
       logger.info(
-        { provider: candidate.name, attempt, tenantId: request.tenantId },
+        {
+          provider: candidate.name,
+          attempt,
+          tenantId: request.tenantId,
+          keyResolvedVia: resolvedKey.resolvedVia,
+        },
         'Executing LLM request',
       );
 
-      const response = await adapter.chat(request.llmRequest);
+      const response = await adapter.chat({
+        ...request.llmRequest,
+        apiKey: resolvedKey.apiKey,
+      });
 
       await recordProviderOutcome(candidate.name, true, response.latencyMs);
 
@@ -302,7 +430,9 @@ export async function executeSttWithFailover(
 ): Promise<SttResponse & { selectionResult: SelectionResult }> {
   const candidates = await buildCandidates('stt');
   const qualified = qualifyProviders(candidates, request);
-  const scored = scoreProviders(qualified.length > 0 ? qualified : candidates.filter((c) => c.isHealthy));
+  const healthyCandidates = candidates.filter((c) => c.isHealthy);
+  const fallbackCandidates = healthyCandidates.length > 0 ? healthyCandidates : candidates;
+  const scored = scoreProviders(qualified.length > 0 ? qualified : fallbackCandidates);
 
   if (scored.length === 0) {
     throw new AllProvidersFailedError('stt');
@@ -352,7 +482,9 @@ export async function executeTtsWithFailover(
 ): Promise<TtsResponse & { selectionResult: SelectionResult }> {
   const candidates = await buildCandidates('tts');
   const qualified = qualifyProviders(candidates, request);
-  const scored = scoreProviders(qualified.length > 0 ? qualified : candidates.filter((c) => c.isHealthy));
+  const healthyCandidates = candidates.filter((c) => c.isHealthy);
+  const fallbackCandidates = healthyCandidates.length > 0 ? healthyCandidates : candidates;
+  const scored = scoreProviders(qualified.length > 0 ? qualified : fallbackCandidates);
 
   if (scored.length === 0) {
     throw new AllProvidersFailedError('tts');

@@ -7,6 +7,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/features/auth/authSlice";
 import { useRegisterMutation } from "@/features/auth/authApi";
 import { toast } from "sonner";
+import { getUserFriendlyApiError } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,10 +53,8 @@ export function SignupForm() {
       );
       toast.success("Account created! Complete your setup.");
       router.push("/onboarding/clinic-profile");
-    } catch (err: any) {
-      const message =
-        err?.data?.message || err?.message || "Sign up failed";
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err, { operation: "signup" }));
     }
   };
 

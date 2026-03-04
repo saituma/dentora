@@ -447,7 +447,10 @@ export async function getOnboardingStatus(tenantId: string): Promise<OnboardingS
   return status;
 }
 
-export async function publishOnboardingConfig(tenantId: string): Promise<{ configVersionId: string }> {
+export async function publishOnboardingConfig(
+  tenantId: string,
+  actorUserId: string,
+): Promise<{ configVersionId: string }> {
   const scorecard = await computeReadinessScore(tenantId);
 
   if (!scorecard.isDeployable) {
@@ -496,7 +499,7 @@ export async function publishOnboardingConfig(tenantId: string): Promise<{ confi
       version: nextVersion,
       snapshot,
       status: 'published',
-      createdBy: 'system',
+      createdBy: actorUserId,
     });
 
     const [existingActive] = await tx
@@ -514,7 +517,7 @@ export async function publishOnboardingConfig(tenantId: string): Promise<{ confi
       await tx.insert(tenantActiveConfig).values({
         tenantId,
         activeVersion: nextVersion,
-        activatedBy: 'system',
+        activatedBy: actorUserId,
       });
     }
   });

@@ -9,6 +9,11 @@ interface CreateIntegrationRequest {
   credentials?: Record<string, unknown>;
 }
 
+interface StartGoogleOAuthRequest {
+  accountEmail?: string;
+  calendarId?: string;
+}
+
 export const integrationsApi = createApi({
   reducerPath: 'integrationsApi',
   baseQuery: fetchBaseQuery({
@@ -28,6 +33,13 @@ export const integrationsApi = createApi({
         body,
       }),
       invalidatesTags: ['Integrations'],
+    }),
+    startGoogleCalendarOAuth: builder.mutation<{ authUrl: string; state: string }, StartGoogleOAuthRequest>({
+      query: (body) => ({
+        url: '/integrations/google/calendar/oauth/start',
+        method: 'POST',
+        body,
+      }),
     }),
     activateIntegration: builder.mutation<Integration, string>({
       query: (id) => ({
@@ -55,6 +67,7 @@ export const integrationsApi = createApi({
 export const {
   useGetIntegrationsQuery,
   useCreateIntegrationMutation,
+  useStartGoogleCalendarOAuthMutation,
   useActivateIntegrationMutation,
   useTestIntegrationMutation,
   useDeleteIntegrationMutation,

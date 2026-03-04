@@ -38,6 +38,11 @@ interface LogoutRequest {
   refreshToken: string;
 }
 
+interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
@@ -73,6 +78,13 @@ export const authApi = createApi({
         body,
       }),
     }),
+    changePassword: builder.mutation<{ message: string }, ChangePasswordRequest>({
+      query: (body) => ({
+        url: '/auth/change-password',
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -81,4 +93,5 @@ export const {
   useLoginMutation,
   useRefreshMutation,
   useLogoutMutation,
+  useChangePasswordMutation,
 } = authApi;

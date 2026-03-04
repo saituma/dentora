@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/features/auth/authSlice";
 import { useLoginMutation } from "@/features/auth/authApi";
+import type { OnboardingStep } from "@/features/auth/types";
 import { toast } from "sonner";
+import { getUserFriendlyApiError } from "@/lib/api-error";
+import { API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,12 +26,53 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
+const mapServerStepToClientStep = (step?: string): OnboardingStep => {
+  if (!step) return "clinic-profile";
+
+  if (step === "clinic-profile") return "clinic-profile";
+  if (step === "services" || step === "knowledge-base") return "knowledge-base";
+  if (step === "voice") return "voice";
+  if (step === "booking-rules" || step === "policies" || step === "rules") {
+    return "rules";
+  }
+  if (step === "integrations") return "integrations";
+  if (step === "review") return "ai-chat";
+  if (step === "test-call") return "test-call";
+  if (step === "complete") return "complete";
+
+  return "clinic-profile";
+};
+
+const getLoginDestination = (step: OnboardingStep): string => {
+  if (step === "complete") return "/dashboard";
+  return `/onboarding/${step}`;
+};
+
 export function LoginForm() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [login, { isLoading }] = useLoginMutation();
+
+  const fetchOnboardingStep = async (accessToken: string): Promise<OnboardingStep> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/onboarding/status`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        return "clinic-profile";
+      }
+
+      const data = (await response.json()) as { currentStep?: string };
+      return mapServerStepToClientStep(data.currentStep);
+    } catch {
+      return "clinic-profile";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,17 +82,20 @@ export function LoginForm() {
         localStorage.setItem("auth_token", result.accessToken);
         localStorage.setItem("refresh_token", result.refreshToken);
       }
+
+      const onboardingStatus = await fetchOnboardingStep(result.accessToken);
+
       dispatch(
         setCredentials({
           user: result.user,
           tenantId: result.tenantId,
-          onboardingStatus: "complete",
+          onboardingStatus,
         })
       );
       toast.success("Welcome back!");
-      router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err?.data?.message ?? "Invalid email or password");
+      router.push(getLoginDestination(onboardingStatus));
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err, { operation: "login" }));
     }
   };
 
