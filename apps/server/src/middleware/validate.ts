@@ -16,7 +16,14 @@ export function validate(schemas: ValidationSchemas) {
         req.body = schemas.body.parse(req.body);
       }
       if (schemas.query) {
-        (req as any).query = schemas.query.parse(req.query);
+        const parsedQuery = schemas.query.parse(req.query);
+        if (req.query && typeof req.query === 'object') {
+          const queryObject = req.query as Record<string, unknown>;
+          for (const key of Object.keys(queryObject)) {
+            delete queryObject[key];
+          }
+          Object.assign(queryObject, parsedQuery);
+        }
       }
       if (schemas.params) {
         req.params = schemas.params.parse(req.params) as any;

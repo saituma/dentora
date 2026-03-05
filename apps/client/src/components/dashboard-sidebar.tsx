@@ -19,6 +19,7 @@ import { NavUser } from '@/components/nav-user';
 import {
   LayoutDashboardIcon,
   BotIcon,
+  PhoneCallIcon,
   PhoneIcon,
   BarChart3Icon,
   PlugIcon,
@@ -34,6 +35,11 @@ const navItems = [
     title: 'AI Receptionist',
     url: '/dashboard/ai-receptionist',
     icon: <BotIcon />,
+  },
+  {
+    title: 'Test AI Receptionist',
+    url: '/dashboard/test-ai-receptionist',
+    icon: <PhoneCallIcon />,
   },
   { title: 'Calls', url: '/dashboard/calls', icon: <PhoneIcon /> },
   {

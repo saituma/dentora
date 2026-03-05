@@ -1,5 +1,10 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import {
+  API_BASE_URL,
+  baseQueryWithReauth,
+  getAuthHeaders,
+  tryRefreshAccessToken,
+} from '@/lib/api';
 
 export interface OnboardingStatus {
   tenantId: string;
@@ -76,6 +81,18 @@ export interface FaqInput {
   category?: string;
 }
 
+export interface VoicePreviewInput {
+  voiceId: string;
+  text: string;
+  speed?: number;
+}
+
+export interface LiveTranscribeInput {
+  audioBase64: string;
+  mimeType?: string;
+  language?: string;
+}
+
 export interface ConfigChatResponse {
   response: string;
   extractedFields: Record<string, unknown>;
@@ -86,10 +103,7 @@ export interface ConfigChatResponse {
 
 export const onboardingApi = createApi({
   reducerPath: 'onboardingApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: applyAuthHeaders,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['OnboardingStatus', 'Readiness'],
   endpoints: (builder) => ({
     getOnboardingStatus: builder.query<OnboardingStatus, void>({
@@ -156,6 +170,53 @@ export const onboardingApi = createApi({
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
 
+    generateVoicePreview: builder.mutation<string, VoicePreviewInput>({
+      queryFn: async (arg) => {
+        try {
+          const buildHeaders = (): HeadersInit => ({
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          });
+
+          let res = await fetch(`${API_BASE_URL}/onboarding/voice-preview`, {
+            method: 'POST',
+            headers: buildHeaders(),
+            body: JSON.stringify(arg),
+          });
+
+          if (res.status === 401) {
+            const refreshed = await tryRefreshAccessToken();
+            if (refreshed) {
+              res = await fetch(`${API_BASE_URL}/onboarding/voice-preview`, {
+                method: 'POST',
+                headers: buildHeaders(),
+                body: JSON.stringify(arg),
+              });
+            }
+          }
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            return { error: { status: res.status, data: errorText } as const };
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          return { data: url };
+        } catch (err) {
+          return { error: { status: 'FETCH_ERROR' as const, error: String(err) } };
+        }
+      },
+    }),
+
+    transcribeLiveAudio: builder.mutation<string, LiveTranscribeInput>({
+      query: (data) => ({
+        url: '/onboarding/live-transcribe',
+        method: 'POST',
+        body: data,
+      }),
+      transformResponse: (response: { transcript: string }) => response.transcript,
+    }),
+
     publishConfig: builder.mutation<{ configVersionId: string }, void>({
       query: () => ({
         url: '/onboarding/publish',
@@ -186,6 +247,8 @@ export const {
   useSavePoliciesMutation,
   useSaveVoiceProfileMutation,
   useSaveFaqsMutation,
+  useGenerateVoicePreviewMutation,
+  useTranscribeLiveAudioMutation,
   usePublishConfigMutation,
   useSendConfigChatMessageMutation,
 } = onboardingApi;

@@ -1,6 +1,7 @@
 
 export * from './base.js';
 export { OpenAIProvider } from './openai.js';
+export { OpenAITtsProvider } from './openai-tts.js';
 export { AnthropicProvider } from './anthropic.js';
 export { DeepgramProvider } from './deepgram.js';
 export { ElevenLabsProvider } from './elevenlabs.js';
@@ -8,6 +9,7 @@ export { GoogleSttProvider, GoogleTtsProvider } from './google.js';
 
 import type { LlmProvider, SttProvider, TtsProvider, AnyProvider } from './base.js';
 import { OpenAIProvider } from './openai.js';
+import { OpenAITtsProvider } from './openai-tts.js';
 import { AnthropicProvider } from './anthropic.js';
 import { DeepgramProvider } from './deepgram.js';
 import { ElevenLabsProvider } from './elevenlabs.js';
@@ -26,6 +28,7 @@ const sttAdapters: Record<string, () => SttProvider> = {
 const ttsAdapters: Record<string, () => TtsProvider> = {
   elevenlabs: () => new ElevenLabsProvider(),
   'google-tts': () => new GoogleTtsProvider(),
+  openai: () => new OpenAITtsProvider(),
 };
 
 const providerInstances = new Map<string, AnyProvider>();

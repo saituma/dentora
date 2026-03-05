@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/lib/api';
 import type { CallSession, CallEvent } from './types';
 
 interface GetCallsParams {
@@ -9,10 +9,7 @@ interface GetCallsParams {
 
 export const callsApi = createApi({
   reducerPath: 'callsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: applyAuthHeaders,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Calls'],
   endpoints: (builder) => ({
     getCalls: builder.query<{ data: CallSession[] }, GetCallsParams | void>({

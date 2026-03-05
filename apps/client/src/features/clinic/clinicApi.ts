@@ -1,13 +1,10 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/lib/api';
 import type { ClinicProfile } from './types';
 
 export const clinicApi = createApi({
   reducerPath: 'clinicApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: applyAuthHeaders,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Clinic'],
   endpoints: (builder) => ({
     getClinic: builder.query<ClinicProfile, void>({

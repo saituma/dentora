@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import * as onboardingService from './onboarding.service.js';
-import { authenticateJwt, resolveTenant, validate } from '../../middleware/index.js';
+import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
 import { z } from 'zod';
 
 export const onboardingRouter = Router();
@@ -194,6 +194,57 @@ onboardingRouter.post(
         afterState: { count: req.body.faqs.length },
       });
       res.json({ success: true, step: 'knowledge-base' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+onboardingRouter.post(
+  '/voice-preview',
+  apiRateLimiter,
+  validate({
+    body: z.object({
+      voiceId: z.string().min(1),
+      text: z.string().min(1).max(500),
+      speed: z.number().min(0.5).max(2.0).optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const audio = await onboardingService.generateVoicePreview(
+        req.tenantContext!.tenantId,
+        req.body,
+      );
+      res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': String(audio.length),
+        'Cache-Control': 'no-store',
+      });
+      res.send(audio);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+onboardingRouter.post(
+  '/live-transcribe',
+  apiRateLimiter,
+  validate({
+    body: z.object({
+      audioBase64: z.string().min(1),
+      mimeType: z.string().min(1).max(100).optional(),
+      language: z.string().min(2).max(20).optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const transcript = await onboardingService.transcribeLiveAudio(
+        req.tenantContext!.tenantId,
+        req.body,
+      );
+      res.json({ transcript });
     } catch (err) {
       next(err);
     }

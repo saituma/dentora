@@ -17,6 +17,7 @@ import { generateId } from '../../lib/crypto.js';
 import { logger } from '../../lib/logger.js';
 import { cache } from '../../lib/cache.js';
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
+import { env } from '../../config/env.js';
 
 export interface OnboardingStatus {
   tenantId: string;
@@ -240,6 +241,11 @@ export async function saveVoiceProfile(
     requiredPhrases?: string[];
   },
 ): Promise<void> {
+  const normalizedTone =
+    data.tone === 'warm'
+      ? 'friendly'
+      : (data.tone as 'calm' | 'friendly' | 'professional' | 'urgent' | 'formal' | 'casual' | undefined);
+
   const [existing] = await db
     .select()
     .from(voiceProfile)
@@ -247,7 +253,7 @@ export async function saveVoiceProfile(
     .limit(1);
 
   const values = {
-    tone: (data.tone as any) ?? 'professional',
+    tone: normalizedTone ?? 'professional',
     voiceId: data.voiceId ?? 'default',
     speakingSpeed: String(data.speed ?? 1.0),
     greetingMessage: data.greeting ?? null,
@@ -528,6 +534,140 @@ export async function publishOnboardingConfig(
   logger.info({ tenantId, versionId, version: nextVersion }, 'Onboarding config published');
 
   return { configVersionId: versionId };
+}
+
+export async function generateVoicePreview(
+  tenantId: string,
+  data: { voiceId: string; text: string; speed?: number },
+): Promise<Buffer> {
+  const { getTtsAdapter } = await import('../ai/providers/index.js');
+
+  const ttsProvider = getTtsAdapter(env.TTS_PROVIDER);
+  const result = await ttsProvider.synthesize({
+    text: data.text,
+    voiceId: data.voiceId,
+    speed: data.speed ?? 1.0,
+    language: 'en-US',
+    tenantId,
+  });
+
+  logger.info(
+    { tenantId, voiceId: data.voiceId, provider: ttsProvider.name, latencyMs: result.latencyMs },
+    'Voice preview generated',
+  );
+
+  return result.audio;
+}
+
+export async function transcribeLiveAudio(
+  tenantId: string,
+  data: { audioBase64: string; mimeType?: string; language?: string },
+): Promise<string> {
+  if (!env.OPENAI_API_KEY) {
+    throw new ValidationError('OpenAI API key is required for live transcription');
+  }
+
+  const rawMimeType = (data.mimeType || 'audio/webm').toLowerCase();
+  const mimeType = rawMimeType.split(';')[0] || 'audio/webm';
+  const language = data.language || 'en';
+
+  let audioBuffer: Buffer;
+  try {
+    audioBuffer = Buffer.from(data.audioBase64, 'base64');
+  } catch {
+    throw new ValidationError('Invalid audio payload');
+  }
+
+  if (!audioBuffer.length) {
+    throw new ValidationError('Empty audio payload');
+  }
+
+  if (audioBuffer.length < 1024) {
+    return '';
+  }
+
+  const extension = mimeType.includes('wav')
+    ? 'wav'
+    : mimeType.includes('mp4') || mimeType.includes('m4a')
+      ? 'mp4'
+      : mimeType.includes('mpeg') || mimeType.includes('mp3')
+        ? 'mp3'
+        : mimeType.includes('ogg')
+          ? 'ogg'
+          : 'webm';
+
+  const form = new FormData();
+  form.append('model', 'gpt-4o-mini-transcribe');
+  form.append('language', language);
+  form.append('response_format', 'json');
+  const audioBytes = Uint8Array.from(audioBuffer);
+  form.append(
+    'file',
+    new Blob([audioBytes], { type: mimeType }),
+    `live-input.${extension}`,
+  );
+
+  const startedAt = Date.now();
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      ...(process.env.OPENAI_ORG_ID ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID } : {}),
+    },
+    body: form,
+    signal: AbortSignal.timeout(20_000),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    const isRecoverableChunkError = response.status === 400
+      && errorBody.includes('Audio file might be corrupted or unsupported')
+      && errorBody.includes('"param": "file"');
+
+    if (isRecoverableChunkError) {
+      logger.debug(
+        {
+          tenantId,
+          mimeType,
+          bytes: audioBuffer.length,
+          status: response.status,
+        },
+        'Live audio chunk rejected by provider; returning empty transcript chunk',
+      );
+      return '';
+    }
+
+    let providerMessage = 'Live transcription request was rejected by provider';
+    try {
+      const parsed = JSON.parse(errorBody) as { error?: { message?: string } };
+      if (parsed.error?.message) {
+        providerMessage = parsed.error.message;
+      }
+    } catch {
+      if (errorBody.trim()) {
+        providerMessage = errorBody.trim();
+      }
+    }
+
+    throw new ValidationError(`Live transcription failed (${response.status}): ${providerMessage}`);
+  }
+
+  const result = (await response.json()) as { text?: string };
+  const transcript = (result.text || '').trim();
+
+  logger.info(
+    {
+      tenantId,
+      mimeType,
+      language,
+      bytes: audioBuffer.length,
+      latencyMs: Date.now() - startedAt,
+      transcriptChars: transcript.length,
+    },
+    'Live audio transcribed',
+  );
+
+  return transcript;
 }
 
 const STEP_ORDER = [

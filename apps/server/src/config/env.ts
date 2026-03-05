@@ -51,6 +51,7 @@ const envSchema = z.object({
   DEEPGRAM_API_KEY: z.string().default(''),
   ASSEMBLYAI_API_KEY: z.string().default(''),
 
+  TTS_PROVIDER: z.enum(['elevenlabs', 'google-tts', 'openai']).default('elevenlabs'),
   ELEVENLABS_API_KEY: z.string().default(''),
   GOOGLE_TTS_API_KEY: z.string().default(''),
 

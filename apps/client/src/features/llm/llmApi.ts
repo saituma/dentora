@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/lib/api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -119,10 +119,7 @@ export interface StoreApiKeyResponse {
  */
 export const llmApi = createApi({
   reducerPath: 'llmApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: applyAuthHeaders,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['ApiKeys', 'LlmProviders'],
   endpoints: (builder) => ({
     // ─── LLM Execution ───────────────────────────────────────────────

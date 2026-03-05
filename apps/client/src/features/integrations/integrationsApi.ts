@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/lib/api';
 import type { Integration } from './types';
 
 interface CreateIntegrationRequest {
@@ -16,10 +16,7 @@ interface StartGoogleOAuthRequest {
 
 export const integrationsApi = createApi({
   reducerPath: 'integrationsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: applyAuthHeaders,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Integrations'],
   endpoints: (builder) => ({
     getIntegrations: builder.query<{ data: Integration[] }, void>({

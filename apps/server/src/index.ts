@@ -125,7 +125,14 @@ async function start() {
 
     attachMediaStreamWebSocket(server);
 
+    let isShuttingDown = false;
+
     const shutdown = async (signal: string) => {
+      if (isShuttingDown) {
+        logger.warn({ signal }, 'Shutdown already in progress');
+        return;
+      }
+      isShuttingDown = true;
       logger.info({ signal }, 'Shutdown signal received');
 
       server.close(async () => {

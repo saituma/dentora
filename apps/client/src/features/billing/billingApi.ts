@@ -1,5 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { baseQueryWithReauth } from '@/lib/api';
 import type { BillingSummary, DailyCostTrend, PlanLimits } from './types';
 
 interface DateRangeParams {
@@ -9,10 +9,7 @@ interface DateRangeParams {
 
 export const billingApi = createApi({
   reducerPath: 'billingApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    prepareHeaders: applyAuthHeaders,
-  }),
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Billing'],
   endpoints: (builder) => ({
     getSummary: builder.query<BillingSummary, DateRangeParams | void>({

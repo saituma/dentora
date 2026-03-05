@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { PlayIcon, PauseIcon } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setOnboardingStatus } from '@/features/auth/authSlice';
@@ -32,6 +35,7 @@ import {
   useSavePoliciesMutation,
   useSaveVoiceProfileMutation,
   useSaveFaqsMutation,
+  useGenerateVoicePreviewMutation,
   usePublishConfigMutation,
   useGetOnboardingStatusQuery,
   useSendConfigChatMessageMutation,
@@ -39,7 +43,57 @@ import {
 import {
   useStartGoogleCalendarOAuthMutation,
 } from '@/features/integrations/integrationsApi';
+import { useGetClinicQuery } from '@/features/clinic/clinicApi';
+import {
+  useGetBookingRulesQuery,
+  useGetFaqsQuery,
+  useGetServicesQuery,
+  useGetVoiceProfileQuery,
+} from '@/features/aiConfig/aiConfigApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
+import { VoicePreviewCard, type VoiceOption } from '@/components/voice-preview-card';
+
+/**
+ * Available voices mapped to ElevenLabs voice IDs.
+ * Each voice is paired with its best-fit tone for the dental receptionist use case.
+ */
+const VOICE_OPTIONS: VoiceOption[] = [
+  {
+    id: 'pNInz6obpgDQGcFmaJgB',
+    name: 'Dr. Adams',
+    tone: 'Professional',
+    description: 'Clear, authoritative, and composed. Great for clinical settings.',
+    gender: 'male',
+  },
+  {
+    id: '21m00Tcm4TlvDq8ikWAM',
+    name: 'Sarah',
+    tone: 'Warm',
+    description: 'Friendly and caring with a natural warmth patients love.',
+    gender: 'female',
+  },
+  {
+    id: 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Bella',
+    tone: 'Friendly',
+    description: 'Upbeat and approachable. Puts nervous callers at ease.',
+    gender: 'female',
+  },
+  {
+    id: 'MF3mGyEYCl7XYWbV9V6O',
+    name: 'Emily',
+    tone: 'Calm',
+    description: 'Soothing and relaxed. Ideal for anxious patients.',
+    gender: 'female',
+  },
+];
+
+const TONE_FROM_VOICE: Record<string, 'professional' | 'warm' | 'friendly' | 'calm'> = {
+  'pNInz6obpgDQGcFmaJgB': 'professional',
+  '21m00Tcm4TlvDq8ikWAM': 'warm',
+  'EXAVITQu4vr4xnSDxMaL': 'friendly',
+  'MF3mGyEYCl7XYWbV9V6O': 'calm',
+};
 
 const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
@@ -116,6 +170,47 @@ const STEP_META: Record<
   },
 };
 
+function GreetingPlayer({ src }: { src: string }) {
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = React.useState(false);
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+      <Button
+        type="button"
+        size="icon"
+        variant="outline"
+        className="size-9 shrink-0"
+        onClick={() => {
+          if (!audioRef.current) return;
+          if (playing) {
+            audioRef.current.pause();
+            setPlaying(false);
+          } else {
+            audioRef.current
+              .play()
+              .then(() => setPlaying(true))
+              .catch(() => {
+                setPlaying(false);
+                toast.error('Could not play greeting preview. Check browser/tab sound and try again.');
+              });
+          }
+        }}
+      >
+        {playing ? (
+          <PauseIcon className="size-4" />
+        ) : (
+          <PlayIcon className="size-4" />
+        )}
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        {playing ? 'Playing greeting...' : 'Play greeting preview'}
+      </span>
+      <audio ref={audioRef} src={src} onEnded={() => setPlaying(false)} className="hidden" />
+    </div>
+  );
+}
+
 export default function OnboardingStepPage() {
   const params = useParams();
   const router = useRouter();
@@ -128,9 +223,15 @@ export default function OnboardingStepPage() {
   const [saveBookingRules, { isLoading: savingRules }] = useSaveBookingRulesMutation();
   const [savePolicies, { isLoading: savingPolicies }] = useSavePoliciesMutation();
   const [saveVoiceProfile, { isLoading: savingVoice }] = useSaveVoiceProfileMutation();
+  const [generateVoicePreview] = useGenerateVoicePreviewMutation();
   const [saveFaqs, { isLoading: savingFaqs }] = useSaveFaqsMutation();
   const [publishConfig, { isLoading: publishing }] = usePublishConfigMutation();
   const { data: onboardingData, refetch: refetchOnboardingStatus } = useGetOnboardingStatusQuery();
+  const { data: clinicData } = useGetClinicQuery();
+  const { data: voiceProfileData } = useGetVoiceProfileQuery();
+  const { data: bookingRulesData } = useGetBookingRulesQuery();
+  const { data: servicesData } = useGetServicesQuery();
+  const { data: faqsData } = useGetFaqsQuery();
   const [sendConfigChatMessage, { isLoading: testingAi }] = useSendConfigChatMessageMutation();
   const [startGoogleCalendarOAuth, { isLoading: startingGoogleOAuth }] = useStartGoogleCalendarOAuthMutation();
 
@@ -141,6 +242,12 @@ export default function OnboardingStepPage() {
   const [email, setEmail] = useState('');
   const [voiceTone, setVoiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
   const [greeting, setGreeting] = useState('Hi, thank you for calling. How can I help you today?');
+  const [selectedVoiceId, setSelectedVoiceId] = useState(VOICE_OPTIONS[0].id);
+  const [speakingSpeed, setSpeakingSpeed] = useState(1.0);
+  const [voicePreviewUrls, setVoicePreviewUrls] = useState<Record<string, string>>({});
+  const [generatingPreviewFor, setGeneratingPreviewFor] = useState<string | null>(null);
+  const [greetingPreviewUrl, setGreetingPreviewUrl] = useState<string | null>(null);
+  const [generatingGreetingPreview, setGeneratingGreetingPreview] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState(30);
   const [cancellationHours, setCancellationHours] = useState(24);
   const [advanceBookingDays, setAdvanceBookingDays] = useState(30);
@@ -148,8 +255,10 @@ export default function OnboardingStepPage() {
   const [googleCalendarId, setGoogleCalendarId] = useState('primary');
   const [handledGoogleCallback, setHandledGoogleCallback] = useState(false);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
-  const [testPrompt, setTestPrompt] = useState('Hi, I need to book a cleaning next week.');
-  const [testAiResponse, setTestAiResponse] = useState('');
+  const [configChatInput, setConfigChatInput] = useState('');
+  const [configChatMessages, setConfigChatMessages] = useState<
+    Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>
+  >([]);
   const [servicesForm, setServicesForm] = useState<KnowledgeServiceForm[]>([
     {
       serviceName: 'New Patient Exam',
@@ -283,21 +392,140 @@ export default function OnboardingStepPage() {
     ? onboardingData.validationErrors.some((err) => err.message === 'No policies configured')
     : false;
 
+  const contextClinicName = clinicData?.clinicName || clinicName || 'Not provided yet';
+  const contextTimezone = clinicData?.timezone || timezone || 'Not provided yet';
+  const contextPhone = clinicData?.phone || phone || 'Not provided yet';
+  const contextEmail = clinicData?.email || email || 'Not provided yet';
+  const contextVoiceTone = voiceProfileData?.tone || voiceTone;
+  const contextGreeting = voiceProfileData?.greetingMessage || greeting || 'Not provided yet';
+  const contextDefaultDuration =
+    bookingRulesData?.defaultAppointmentDurationMinutes ?? defaultDuration;
+  const contextCancellationHours =
+    bookingRulesData?.minNoticePeriodHours ?? cancellationHours;
+  const contextAdvanceBookingDays =
+    bookingRulesData?.maxAdvanceBookingDays ?? advanceBookingDays;
+  const contextServicesCount =
+    servicesData?.data?.length ?? servicesForm.filter((service) => service.serviceName.trim().length > 0).length;
+  const contextFaqCount =
+    faqsData?.data?.length ?? faqsForm.filter((faq) => faq.question.trim().length > 0 && faq.answer.trim().length > 0).length;
+
   const configuratorContext = [
-    `Clinic name: ${clinicName || 'Not provided yet'}`,
-    `Timezone: ${timezone}`,
-    `Primary phone: ${phone || 'Not provided yet'}`,
-    `Support email: ${email || 'Not provided yet'}`,
-    `Voice tone: ${voiceTone}`,
-    `Greeting: ${greeting || 'Not provided yet'}`,
-    `Default appointment duration: ${defaultDuration} minutes`,
-    `Cancellation notice: ${cancellationHours} hours`,
-    `Advance booking window: ${advanceBookingDays} days`,
-    `Services configured: ${servicesForm.filter((service) => service.serviceName.trim().length > 0).length}`,
-    `FAQs configured: ${faqsForm.filter((faq) => faq.question.trim().length > 0 && faq.answer.trim().length > 0).length}`,
+    `Clinic name: ${contextClinicName}`,
+    `Timezone: ${contextTimezone}`,
+    `Primary phone: ${contextPhone}`,
+    `Support email: ${contextEmail}`,
+    `Voice tone: ${contextVoiceTone}`,
+    `Greeting: ${contextGreeting}`,
+    `Default appointment duration: ${contextDefaultDuration} minutes`,
+    `Cancellation notice: ${contextCancellationHours} hours`,
+    `Advance booking window: ${contextAdvanceBookingDays} days`,
+    `Services configured: ${contextServicesCount}`,
+    `FAQs configured: ${contextFaqCount}`,
     `Google Calendar connected: ${googleCalendarConnected || !hasIntegrationWarning ? 'yes' : 'no'}`,
     `Readiness score: ${onboardingData?.readinessScore ?? 0}%`,
   ].join('\n');
+
+  const userTurns = configChatMessages.filter((turn) => turn.role === 'user');
+  const assistantTurns = configChatMessages.filter((turn) => turn.role === 'assistant');
+  const lastUserMessage =
+    userTurns.length > 0 ? userTurns[userTurns.length - 1].content : 'None yet.';
+  const lastAssistantQuestion = [...assistantTurns]
+    .reverse()
+    .find((turn) => turn.content.includes('?'))?.content;
+
+  const aiContextSummary = [
+    `User messages captured: ${userTurns.length}`,
+    `AI responses generated: ${assistantTurns.length}`,
+    `Latest user input: ${lastUserMessage.slice(0, 180)}`,
+    `Current AI focus: ${(lastAssistantQuestion || 'No open question right now.').slice(0, 220)}`,
+  ].join('\n');
+
+  const aiClinicContextMarkdown = [
+    '### 🏥 Clinic Configuration Context',
+    '',
+    '```text',
+    configuratorContext,
+    '```',
+    '',
+    '### 🤖 AI Context Summary',
+    '',
+    aiContextSummary
+      .split('\n')
+      .map((line) => `- ${line}`)
+      .join('\n'),
+  ].join('\n');
+
+  useEffect(() => {
+    if (step !== 'ai-chat' || configChatMessages.length > 0) return;
+
+    const firstQuestion =
+      contextClinicName === 'Not provided yet'
+        ? 'To start, what is your exact clinic name and primary phone number?'
+        : contextServicesCount === 0
+          ? 'What are the top 3 services you want your receptionist to handle first, with duration and price?'
+          : contextFaqCount === 0
+            ? 'What are the most common patient questions you want your receptionist to answer?'
+            : 'What specific workflows or edge cases should your receptionist handle exactly your way?';
+
+    setConfigChatMessages([
+      {
+        role: 'assistant',
+        content:
+          `Hi! I’m your configuration assistant. I’ll ask focused questions so your DentalFlow receptionist has clear, reliable context for your clinic.\n\n${firstQuestion}`,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  }, [
+    step,
+    configChatMessages.length,
+    contextClinicName,
+    contextFaqCount,
+    contextServicesCount,
+  ]);
+
+  const sendConfigMessage = async () => {
+    const userMessage = configChatInput.trim();
+    if (!userMessage) {
+      toast.error('Enter configuration instructions first');
+      return;
+    }
+
+    const userTurn = {
+      role: 'user' as const,
+      content: userMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    setConfigChatMessages((prev) => [...prev, userTurn]);
+    setConfigChatInput('');
+
+    try {
+      const result = await sendConfigChatMessage({
+        message: userMessage,
+        conversationHistory: [
+          {
+            role: 'system',
+            content: `[CONFIG_CONTEXT]\n${configuratorContext}`,
+            timestamp: new Date().toISOString(),
+          },
+          ...configChatMessages,
+        ],
+      }).unwrap();
+
+      setConfigChatMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: result.response,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+
+      toast.success('Configuration response generated');
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -618,58 +846,174 @@ export default function OnboardingStepPage() {
       )}
 
       {step === 'voice' && (
-        <Card className="border-0 bg-card shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl">Voice & tone</CardTitle>
-            <CardDescription>Choose your AI receptionist voice</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FieldGroup>
-              <Field>
-                <FieldLabel>Tone</FieldLabel>
-                <Select value={voiceTone} onValueChange={(v) => setVoiceTone(v as any)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="professional">Professional</SelectItem>
-                    <SelectItem value="warm">Warm</SelectItem>
-                    <SelectItem value="friendly">Friendly</SelectItem>
-                    <SelectItem value="calm">Calm</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel>Greeting</FieldLabel>
-                <Textarea
-                  value={greeting}
-                  onChange={(e) => setGreeting(e.target.value)}
-                  rows={2}
+        <div className="space-y-6">
+          {/* Voice selection */}
+          <Card className="border-0 bg-card shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Choose a voice</CardTitle>
+              <CardDescription>
+                Listen to each voice and pick the one that best represents your clinic.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {VOICE_OPTIONS.map((voice) => (
+                  <VoicePreviewCard
+                    key={voice.id}
+                    voice={voice}
+                    selected={selectedVoiceId === voice.id}
+                    previewAudioUrl={voicePreviewUrls[voice.id] ?? null}
+                    isGenerating={generatingPreviewFor === voice.id}
+                    onSelect={(id) => {
+                      setSelectedVoiceId(id);
+                      setVoiceTone(TONE_FROM_VOICE[id] ?? 'professional');
+                      // Clear greeting preview when voice changes
+                      setGreetingPreviewUrl(null);
+                    }}
+                    onPreview={async (id) => {
+                      setGeneratingPreviewFor(id);
+                      try {
+                        const url = await generateVoicePreview({
+                          voiceId: id,
+                          text: 'Hi, thank you for calling. I am your AI dental receptionist. How can I help you today?',
+                          speed: speakingSpeed,
+                        }).unwrap();
+                        setVoicePreviewUrls((prev) => ({ ...prev, [id]: url }));
+                      } catch {
+                        toast.error('Could not generate voice preview. Please try again.');
+                      } finally {
+                        setGeneratingPreviewFor(null);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Speaking speed */}
+          <Card className="border-0 bg-card shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Speaking speed</CardTitle>
+              <CardDescription>
+                Adjust how fast the AI receptionist speaks. A moderate pace works best for most callers.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Slower</span>
+                  <span className="rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                    {speakingSpeed.toFixed(1)}x
+                  </span>
+                  <span className="text-sm text-muted-foreground">Faster</span>
+                </div>
+                <input
+                  type="range"
+                  min={0.8}
+                  max={1.2}
+                  step={0.05}
+                  value={speakingSpeed}
+                  onChange={(e) => {
+                    setSpeakingSpeed(parseFloat(e.target.value));
+                    // Clear previews when speed changes since they were generated at old speed
+                    setVoicePreviewUrls({});
+                    setGreetingPreviewUrl(null);
+                  }}
+                  className="w-full cursor-pointer accent-primary"
                 />
-              </Field>
-              <div className="flex flex-wrap gap-3 pt-2">
-                <Button variant="outline" onClick={goBack} className="min-w-28">
-                  Back
-                </Button>
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>0.8x</span>
+                  <span>1.0x (default)</span>
+                  <span>1.2x</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Greeting message */}
+          <Card className="border-0 bg-card shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Greeting message</CardTitle>
+              <CardDescription>
+                This is the first thing callers hear. Include your clinic name and offer to help.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Greeting</FieldLabel>
+                  <Textarea
+                    value={greeting}
+                    onChange={(e) => {
+                      setGreeting(e.target.value);
+                      setGreetingPreviewUrl(null);
+                    }}
+                    rows={3}
+                    placeholder="Hi, thank you for calling Bright Smile Dental. How can I assist you today?"
+                  />
+                </Field>
                 <Button
-                  disabled={savingVoice}
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  disabled={generatingGreetingPreview || !greeting.trim()}
                   onClick={async () => {
+                    setGeneratingGreetingPreview(true);
                     try {
-                      await saveVoiceProfile({ tone: voiceTone, greeting }).unwrap();
-                      toast.success('Voice profile saved');
-                      goNext('rules');
-                    } catch (err: unknown) {
-                      toast.error(getUserFriendlyApiError(err));
+                      const url = await generateVoicePreview({
+                        voiceId: selectedVoiceId,
+                        text: greeting.trim(),
+                        speed: speakingSpeed,
+                      }).unwrap();
+                      setGreetingPreviewUrl(url);
+                    } catch {
+                      toast.error('Could not preview greeting. Please try again.');
+                    } finally {
+                      setGeneratingGreetingPreview(false);
                     }
                   }}
-                  className="min-w-28"
                 >
-                  {savingVoice ? 'Saving...' : 'Next'}
+                  {generatingGreetingPreview ? (
+                    <>Generating...</>
+                  ) : (
+                    <>Preview my greeting</>
+                  )}
                 </Button>
-              </div>
-            </FieldGroup>
-          </CardContent>
-        </Card>
+                {greetingPreviewUrl && (
+                  <GreetingPlayer src={greetingPreviewUrl} />
+                )}
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* Navigation */}
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={goBack} className="min-w-28">
+              Back
+            </Button>
+            <Button
+              disabled={savingVoice}
+              onClick={async () => {
+                try {
+                  await saveVoiceProfile({
+                    voiceId: selectedVoiceId,
+                    tone: voiceTone,
+                    greeting,
+                    speed: speakingSpeed,
+                  }).unwrap();
+                  toast.success('Voice profile saved');
+                  goNext('rules');
+                } catch (err: unknown) {
+                  toast.error(getUserFriendlyApiError(err));
+                }
+              }}
+              className="min-w-28"
+            >
+              {savingVoice ? 'Saving...' : 'Next'}
+            </Button>
+          </div>
+        </div>
       )}
 
       {step === 'rules' && (
@@ -812,61 +1156,104 @@ export default function OnboardingStepPage() {
           <CardHeader>
             <CardTitle className="text-xl">AI configuration chat</CardTitle>
             <CardDescription>
-              Configure receptionist behavior as clinic admin and validate responses before go-live
+              Configure receptionist behavior as clinic admin. The AI asks clarifying questions based on your context.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <Field>
-                <FieldLabel>Configuration instructions for your AI receptionist</FieldLabel>
-                <Textarea
-                  rows={4}
-                  value={testPrompt}
-                  onChange={(e) => setTestPrompt(e.target.value)}
-                  placeholder="Example: I am the clinic CEO. Keep tone warm but concise, prioritize same-day emergencies, and escalate billing disputes to manager."
-                />
+                <FieldLabel>Configuration chat</FieldLabel>
+                <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border bg-muted/20 p-3">
+                  {configChatMessages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Send a message to start. The AI will ask focused follow-up questions until your setup is clear.
+                    </p>
+                  ) : (
+                    configChatMessages.map((turn, index) => (
+                      <div
+                        key={`${turn.timestamp}-${index}`}
+                        className={`rounded-md p-2 text-sm ${
+                          turn.role === 'user'
+                            ? 'ml-8 bg-primary/10 text-foreground'
+                            : 'mr-8 bg-background border'
+                        }`}
+                      >
+                        <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {turn.role === 'user' ? 'You' : 'AI'}
+                        </p>
+                        {turn.role === 'assistant' ? (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                              h1: ({ children }) => <h1 className="mb-2 text-base font-semibold">{children}</h1>,
+                              h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold">{children}</h2>,
+                              h3: ({ children }) => <h3 className="mb-2 text-sm font-medium">{children}</h3>,
+                              ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
+                              ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>,
+                              li: ({ children }) => <li>{children}</li>,
+                              code: ({ children }) => (
+                                <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
+                              ),
+                              pre: ({ children }) => (
+                                <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
+                              ),
+                            }}
+                          >
+                            {turn.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="whitespace-pre-wrap">{turn.content}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </Field>
               <Field>
-                <FieldLabel>Context AI is using from previous onboarding steps</FieldLabel>
+                <FieldLabel>Your message</FieldLabel>
                 <Textarea
-                  rows={10}
-                  value={configuratorContext}
-                  readOnly
+                  rows={4}
+                  value={configChatInput}
+                  onChange={(e) => setConfigChatInput(e.target.value)}
+                  placeholder="Example: I am the clinic CEO. Keep tone warm but concise, prioritize same-day emergencies, and escalate billing disputes to manager."
                 />
+                <div className="mt-2 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={sendConfigMessage}
+                    disabled={testingAi}
+                    className="min-w-32"
+                  >
+                    {testingAi ? 'Sending...' : 'Send'}
+                  </Button>
+                </div>
+              </Field>
+              <Field>
+                <FieldLabel>AI context about your clinic</FieldLabel>
+                <div className="max-h-72 overflow-y-auto rounded-md border bg-muted/20 p-3 text-sm">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                      h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold">{children}</h3>,
+                      ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
+                      li: ({ children }) => <li>{children}</li>,
+                      code: ({ children }) => (
+                        <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
+                      ),
+                      pre: ({ children }) => (
+                        <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
+                      ),
+                    }}
+                  >
+                    {aiClinicContextMarkdown}
+                  </ReactMarkdown>
+                </div>
               </Field>
               <div className="flex flex-wrap gap-3">
                 <Button variant="outline" onClick={goBack} className="min-w-28">
                   Back
-                </Button>
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    if (!testPrompt.trim()) {
-                      toast.error('Enter configuration instructions first');
-                      return;
-                    }
-
-                    try {
-                      const result = await sendConfigChatMessage({
-                        message: `${testPrompt.trim()}\n\n[CONFIG_CONTEXT]\n${configuratorContext}`,
-                        conversationHistory: [
-                          {
-                            role: 'user',
-                            content: `${testPrompt.trim()}\n\n[CONFIG_CONTEXT]\n${configuratorContext}`,
-                            timestamp: new Date().toISOString(),
-                          },
-                        ],
-                      }).unwrap();
-                      setTestAiResponse(result.response);
-                      toast.success('Configuration response generated');
-                    } catch (err: unknown) {
-                      toast.error(getUserFriendlyApiError(err));
-                    }
-                  }}
-                  disabled={testingAi}
-                  className="min-w-36"
-                >
-                  {testingAi ? 'Configuring...' : 'Send Config to AI'}
                 </Button>
                 <Button
                   type="button"
@@ -877,12 +1264,6 @@ export default function OnboardingStepPage() {
                   Continue to Test Step
                 </Button>
               </div>
-              {testAiResponse && (
-                <div className="rounded-md bg-muted/50 p-3">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">AI configuration reply</p>
-                  <p className="text-sm">{testAiResponse}</p>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>

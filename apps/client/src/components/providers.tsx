@@ -47,14 +47,6 @@ function AuthBootstrap() {
       return;
     }
 
-    if (tokenPayload.exp && tokenPayload.exp * 1000 <= Date.now()) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
-      clearAuthSession();
-      dispatch(setHydrated());
-      return;
-    }
-
     dispatch(
       setCredentials({
         user: {
