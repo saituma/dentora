@@ -2,12 +2,13 @@ import type { TtsProvider, TtsRequest, TtsResponse } from './base.js';
 import { env } from '../../../config/env.js';
 import { logger } from '../../../lib/logger.js';
 import { ProviderError } from '../../../lib/errors.js';
+import { isCustomTtsVoiceId } from './voice-routing.js';
 
 const VOICE_MAP: Record<string, string> = {
   pNInz6obpgDQGcFmaJgB: 'alloy',
-  '21m00Tcm4TlvDq8ikWAM': 'nova',
   EXAVITQu4vr4xnSDxMaL: 'shimmer',
-  MF3mGyEYCl7XYWbV9V6O: 'sage',
+  MF3mGyEYCl7XYWbV9V6O: 'echo',
+  '21m00Tcm4TlvDq8ikWAM': 'nova',
   professional: 'alloy',
   warm: 'nova',
   friendly: 'shimmer',
@@ -28,6 +29,13 @@ export class OpenAITtsProvider implements TtsProvider {
 
   async synthesize(request: TtsRequest): Promise<TtsResponse> {
     const start = Date.now();
+    if (isCustomTtsVoiceId(request.voiceId)) {
+      throw new ProviderError(
+        `OpenAI TTS does not support custom voiceId '${request.voiceId}'`,
+        this.name,
+        400,
+      );
+    }
     const voice = VOICE_MAP[request.voiceId] ?? 'alloy';
 
     try {

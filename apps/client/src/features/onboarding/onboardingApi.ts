@@ -85,6 +85,7 @@ export interface VoicePreviewInput {
   voiceId: string;
   text: string;
   speed?: number;
+  language?: string;
 }
 
 export interface LiveTranscribeInput {

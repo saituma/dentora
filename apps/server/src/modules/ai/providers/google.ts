@@ -3,6 +3,7 @@ import type { SttProvider, SttRequest, SttResponse, TtsProvider, TtsRequest, Tts
 import { env } from '../../../config/env.js';
 import { logger } from '../../../lib/logger.js';
 import { ProviderError } from '../../../lib/errors.js';
+import { isCustomTtsVoiceId } from './voice-routing.js';
 
 export class GoogleSttProvider implements SttProvider {
   readonly name = 'google-stt';
@@ -90,6 +91,13 @@ export class GoogleTtsProvider implements TtsProvider {
 
   async synthesize(request: TtsRequest): Promise<TtsResponse> {
     const start = Date.now();
+    if (isCustomTtsVoiceId(request.voiceId)) {
+      throw new ProviderError(
+        `Google TTS does not support custom voiceId '${request.voiceId}'`,
+        this.name,
+        400,
+      );
+    }
 
     const voiceName = this.mapVoiceTone(request.voiceId ?? 'professional', request.language);
 

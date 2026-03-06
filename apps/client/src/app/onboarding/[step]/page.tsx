@@ -5,7 +5,7 @@ import { PlayIcon, PauseIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppDispatch } from '@/store/hooks';
 import { setOnboardingStatus } from '@/features/auth/authSlice';
 import type { OnboardingStep } from '@/features/auth/types';
 import { Stepper } from '@/components/stepper';
@@ -52,48 +52,15 @@ import {
 } from '@/features/aiConfig/aiConfigApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import { VoicePreviewCard, type VoiceOption } from '@/components/voice-preview-card';
+import {
+  RECEPTIONIST_VOICE_OPTIONS,
+  getReceptionistVoiceByAccentAndGender,
+  getReceptionistVoiceById,
+  type ReceptionistVoiceAccent,
+  type ReceptionistVoiceGender,
+} from '@/lib/voice-catalog';
 
-/**
- * Available voices mapped to ElevenLabs voice IDs.
- * Each voice is paired with its best-fit tone for the dental receptionist use case.
- */
-const VOICE_OPTIONS: VoiceOption[] = [
-  {
-    id: 'pNInz6obpgDQGcFmaJgB',
-    name: 'Dr. Adams',
-    tone: 'Professional',
-    description: 'Clear, authoritative, and composed. Great for clinical settings.',
-    gender: 'male',
-  },
-  {
-    id: '21m00Tcm4TlvDq8ikWAM',
-    name: 'Sarah',
-    tone: 'Warm',
-    description: 'Friendly and caring with a natural warmth patients love.',
-    gender: 'female',
-  },
-  {
-    id: 'EXAVITQu4vr4xnSDxMaL',
-    name: 'Bella',
-    tone: 'Friendly',
-    description: 'Upbeat and approachable. Puts nervous callers at ease.',
-    gender: 'female',
-  },
-  {
-    id: 'MF3mGyEYCl7XYWbV9V6O',
-    name: 'Emily',
-    tone: 'Calm',
-    description: 'Soothing and relaxed. Ideal for anxious patients.',
-    gender: 'female',
-  },
-];
-
-const TONE_FROM_VOICE: Record<string, 'professional' | 'warm' | 'friendly' | 'calm'> = {
-  'pNInz6obpgDQGcFmaJgB': 'professional',
-  '21m00Tcm4TlvDq8ikWAM': 'warm',
-  'EXAVITQu4vr4xnSDxMaL': 'friendly',
-  'MF3mGyEYCl7XYWbV9V6O': 'calm',
-};
+const VOICE_OPTIONS: VoiceOption[] = RECEPTIONIST_VOICE_OPTIONS;
 
 const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
@@ -216,8 +183,6 @@ export default function OnboardingStepPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
-  const { onboardingStatus } = useAppSelector((state) => state.auth);
-
   const [saveClinicProfile, { isLoading: savingProfile }] = useSaveClinicProfileMutation();
   const [saveServices, { isLoading: savingServices }] = useSaveServicesMutation();
   const [saveBookingRules, { isLoading: savingRules }] = useSaveBookingRulesMutation();
@@ -243,6 +208,8 @@ export default function OnboardingStepPage() {
   const [voiceTone, setVoiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
   const [greeting, setGreeting] = useState('Hi, thank you for calling. How can I help you today?');
   const [selectedVoiceId, setSelectedVoiceId] = useState(VOICE_OPTIONS[0].id);
+  const [selectedAccent, setSelectedAccent] = useState<ReceptionistVoiceAccent>('us');
+  const [selectedGender, setSelectedGender] = useState<ReceptionistVoiceGender>('female');
   const [speakingSpeed, setSpeakingSpeed] = useState(1.0);
   const [voicePreviewUrls, setVoicePreviewUrls] = useState<Record<string, string>>({});
   const [generatingPreviewFor, setGeneratingPreviewFor] = useState<string | null>(null);
@@ -275,6 +242,33 @@ export default function OnboardingStepPage() {
       category: 'insurance',
     },
   ]);
+
+  useEffect(() => {
+    if (!voiceProfileData) return;
+
+    const matchedVoice = getReceptionistVoiceById(voiceProfileData.voiceId);
+    if (matchedVoice) {
+      setSelectedVoiceId(matchedVoice.id);
+      setSelectedAccent(matchedVoice.accent);
+      setSelectedGender(matchedVoice.gender);
+      setVoiceTone(matchedVoice.toneValue);
+    }
+
+    if (voiceProfileData.greetingMessage) {
+      setGreeting(voiceProfileData.greetingMessage);
+    }
+
+    if (voiceProfileData.speechSpeed) {
+      setSpeakingSpeed(Number(voiceProfileData.speechSpeed));
+    }
+  }, [voiceProfileData]);
+
+  useEffect(() => {
+    const preferredVoice = getReceptionistVoiceByAccentAndGender(selectedAccent, selectedGender);
+    setSelectedVoiceId(preferredVoice.id);
+    setVoiceTone(preferredVoice.toneValue);
+    setGreetingPreviewUrl(null);
+  }, [selectedAccent, selectedGender]);
 
   const addServiceRow = () => {
     setServicesForm((prev) => [
@@ -370,11 +364,6 @@ export default function OnboardingStepPage() {
       toast.error(reason ? `Google Calendar connect failed: ${reason}` : 'Google Calendar connect failed');
     }
   }, [handledGoogleCallback, refetchOnboardingStatus, searchParams]);
-
-  if (step === 'complete') {
-    goNext('complete');
-    return null;
-  }
 
   const connectGoogleCalendar = async () => {
     const result = await startGoogleCalendarOAuth({
@@ -482,6 +471,11 @@ export default function OnboardingStepPage() {
     contextFaqCount,
     contextServicesCount,
   ]);
+
+  if (step === 'complete') {
+    goNext('complete');
+    return null;
+  }
 
   const sendConfigMessage = async () => {
     const userMessage = configChatInput.trim();
@@ -852,10 +846,42 @@ export default function OnboardingStepPage() {
             <CardHeader>
               <CardTitle className="text-xl">Choose a voice</CardTitle>
               <CardDescription>
-                Listen to each voice and pick the one that best represents your clinic.
+                Pick a US or UK receptionist voice, then choose male or female delivery.
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-5 grid gap-4 md:grid-cols-2">
+                <Field>
+                  <FieldLabel>Accent</FieldLabel>
+                  <Select
+                    value={selectedAccent}
+                    onValueChange={(value) => setSelectedAccent((value as ReceptionistVoiceAccent) || 'us')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="us">US accent agent</SelectItem>
+                      <SelectItem value="uk">UK accent agent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel>Voice</FieldLabel>
+                  <Select
+                    value={selectedGender}
+                    onValueChange={(value) => setSelectedGender((value as ReceptionistVoiceGender) || 'female')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {VOICE_OPTIONS.map((voice) => (
                   <VoicePreviewCard
@@ -865,18 +891,23 @@ export default function OnboardingStepPage() {
                     previewAudioUrl={voicePreviewUrls[voice.id] ?? null}
                     isGenerating={generatingPreviewFor === voice.id}
                     onSelect={(id) => {
+                      const selectedVoice = getReceptionistVoiceById(id);
+                      if (!selectedVoice) return;
                       setSelectedVoiceId(id);
-                      setVoiceTone(TONE_FROM_VOICE[id] ?? 'professional');
-                      // Clear greeting preview when voice changes
+                      setSelectedAccent(selectedVoice.accent);
+                      setSelectedGender(selectedVoice.gender);
+                      setVoiceTone(selectedVoice.toneValue);
                       setGreetingPreviewUrl(null);
                     }}
                     onPreview={async (id) => {
+                      const previewVoice = getReceptionistVoiceById(id);
                       setGeneratingPreviewFor(id);
                       try {
                         const url = await generateVoicePreview({
                           voiceId: id,
                           text: 'Hi, thank you for calling. I am your AI dental receptionist. How can I help you today?',
                           speed: speakingSpeed,
+                          language: previewVoice?.locale ?? 'en-US',
                         }).unwrap();
                         setVoicePreviewUrls((prev) => ({ ...prev, [id]: url }));
                       } catch {
@@ -961,10 +992,12 @@ export default function OnboardingStepPage() {
                   onClick={async () => {
                     setGeneratingGreetingPreview(true);
                     try {
+                      const selectedVoice = getReceptionistVoiceById(selectedVoiceId);
                       const url = await generateVoicePreview({
                         voiceId: selectedVoiceId,
                         text: greeting.trim(),
                         speed: speakingSpeed,
+                        language: selectedVoice?.locale ?? 'en-US',
                       }).unwrap();
                       setGreetingPreviewUrl(url);
                     } catch {
@@ -996,11 +1029,13 @@ export default function OnboardingStepPage() {
               disabled={savingVoice}
               onClick={async () => {
                 try {
+                  const selectedVoice = getReceptionistVoiceById(selectedVoiceId);
                   await saveVoiceProfile({
                     voiceId: selectedVoiceId,
                     tone: voiceTone,
                     greeting,
                     speed: speakingSpeed,
+                    language: selectedVoice?.locale ?? 'en-US',
                   }).unwrap();
                   toast.success('Voice profile saved');
                   goNext('rules');

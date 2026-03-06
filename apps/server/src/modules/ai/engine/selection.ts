@@ -6,6 +6,7 @@ import { cache } from '../../../lib/cache.js';
 import { logger } from '../../../lib/logger.js';
 import { AllProvidersFailedError, ProviderError } from '../../../lib/errors.js';
 import { resolveApiKey } from '../../api-keys/api-key.service.js';
+import { getPreferredTtsProviderForVoiceId, isCustomTtsVoiceId } from '../providers/voice-routing.js';
 import {
   getLlmAdapter,
   getSttAdapter,
@@ -485,16 +486,23 @@ export async function executeTtsWithFailover(
   const healthyCandidates = candidates.filter((c) => c.isHealthy);
   const fallbackCandidates = healthyCandidates.length > 0 ? healthyCandidates : candidates;
   const scored = scoreProviders(qualified.length > 0 ? qualified : fallbackCandidates);
+  const preferredProvider = getPreferredTtsProviderForVoiceId(request.ttsRequest.voiceId);
+  const ordered = preferredProvider
+    ? [
+        ...scored.filter((candidate) => candidate.name === preferredProvider),
+        ...scored.filter((candidate) => candidate.name !== preferredProvider),
+      ]
+    : scored;
 
-  if (scored.length === 0) {
+  if (ordered.length === 0) {
     throw new AllProvidersFailedError('tts');
   }
 
   let lastError: Error | null = null;
-  const maxAttempts = Math.min(scored.length, MAX_FAILOVER_ATTEMPTS + 1);
+  const maxAttempts = Math.min(ordered.length, MAX_FAILOVER_ATTEMPTS + 1);
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const candidate = scored[attempt];
+    const candidate = ordered[attempt];
     const adapter = getTtsAdapter(candidate.name);
 
     try {

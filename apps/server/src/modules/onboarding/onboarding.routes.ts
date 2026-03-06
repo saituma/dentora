@@ -217,6 +217,7 @@ onboardingRouter.post(
       voiceId: z.string().min(1),
       text: z.string().min(1).max(500),
       speed: z.number().min(0.5).max(2.0).optional(),
+      language: z.string().optional(),
     }),
   }),
   async (req, res, next) => {

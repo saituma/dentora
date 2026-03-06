@@ -3,7 +3,7 @@ export interface VoiceProfile {
   tenantId: string;
   voiceId?: string;
   greetingMessage?: string;
-  tone?: 'friendly' | 'professional' | 'formal' | 'casual';
+  tone?: 'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm';
   speechSpeed?: number;
   afterHoursMessage?: string;
   holdMusic?: string;

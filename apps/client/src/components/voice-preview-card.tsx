@@ -5,19 +5,9 @@ import { PlayIcon, PauseIcon, LoaderIcon, Volume2Icon, CheckIcon } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { ReceptionistVoiceOption } from '@/lib/voice-catalog';
 
-export interface VoiceOption {
-  /** ElevenLabs voice ID */
-  id: string;
-  /** Display name shown on the card */
-  name: string;
-  /** Tone label (professional, warm, friendly, calm) */
-  tone: string;
-  /** Short description of the voice character */
-  description: string;
-  /** Gender label */
-  gender: 'female' | 'male';
-}
+export type VoiceOption = ReceptionistVoiceOption;
 
 interface VoicePreviewCardProps {
   voice: VoiceOption;
@@ -111,7 +101,7 @@ export function VoicePreviewCard({
           <p className="mt-0.5 text-xs text-muted-foreground">{voice.description}</p>
         </div>
         <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          {voice.gender}
+          {voice.accent.toUpperCase()} {voice.gender}
         </span>
       </div>
 

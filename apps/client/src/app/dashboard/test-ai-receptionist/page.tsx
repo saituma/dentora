@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { MicIcon, PhoneCallIcon, PhoneOffIcon } from 'lucide-react';
 import {
@@ -15,14 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MicrophoneDiagnosticsPanel } from '@/components/microphone-diagnostics-panel';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
-import {
-  useGetBookingRulesQuery,
-  useGetFaqsQuery,
-  useGetPoliciesQuery,
-  useGetServicesQuery,
-  useGetVoiceProfileQuery,
-} from '@/features/aiConfig/aiConfigApi';
-import { useExecuteLlmMutation } from '@/features/llm/llmApi';
+import { useGetVoiceProfileQuery } from '@/features/aiConfig/aiConfigApi';
 import {
   useGenerateVoicePreviewMutation,
   useTranscribeLiveAudioMutation,
@@ -32,6 +25,7 @@ import {
   type MicrophoneDiagnosticsResult,
 } from '@/lib/microphone-diagnostics';
 import { getUserFriendlyApiError } from '@/lib/api-error';
+import { API_BASE_URL, getAuthHeaders, tryRefreshAccessToken } from '@/lib/api';
 
 type ChatTurn = { speaker: 'caller' | 'receptionist'; text: string; ts: string };
 
@@ -56,18 +50,14 @@ const TONE_TO_VOICE_ID: Record<string, string> = {
 const LIVE_AUDIO_RECORDER_MIME_TYPE = 'audio/webm;codecs=opus';
 const LIVE_AUDIO_UPLOAD_MIME_TYPE = 'audio/webm';
 const MAX_LIVE_AUDIO_CHUNK_BYTES = 1024 * 1024;
+const EARLY_TTS_MIN_CHARS = 28;
 /** Record 1s at a time and restart so each blob is a self-contained WebM. Shorter = faster turnaround. */
-const LIVE_AUDIO_RECORD_TIMESLICE_MS = 1000;
+const LIVE_AUDIO_RECORD_TIMESLICE_MS = 1500;
 
 export default function TestAiReceptionistPage() {
   const { data: clinic } = useGetClinicQuery();
   const { data: voiceProfile } = useGetVoiceProfileQuery();
-  const { data: servicesData } = useGetServicesQuery();
-  const { data: faqsData } = useGetFaqsQuery();
-  const { data: bookingRules } = useGetBookingRulesQuery();
-  const { data: policiesData } = useGetPoliciesQuery();
 
-  const [executeLlm, { isLoading: isThinking }] = useExecuteLlmMutation();
   const [generateVoicePreview, { isLoading: isSpeaking }] = useGenerateVoicePreviewMutation();
   const [transcribeLiveAudio, { isLoading: isTranscribing }] = useTranscribeLiveAudioMutation();
 
@@ -78,12 +68,15 @@ export default function TestAiReceptionistPage() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [micDiagnostics, setMicDiagnostics] = useState<MicrophoneDiagnosticsResult>(INITIAL_MIC_DIAGNOSTICS);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const fallbackSilenceTimerRef = useRef<number | null>(null);
-  const fallbackBufferRef = useRef('');
+  const transcriptionSessionRef = useRef(0);
+  const utteranceAudioChunksRef = useRef<Blob[]>([]);
+  const utteranceAudioBytesRef = useRef(0);
   const transcribeErrorShownRef = useRef(false);
   const aiRespondingRef = useRef(false);
   const pendingTranscriptionsRef = useRef(0);
@@ -96,6 +89,10 @@ export default function TestAiReceptionistPage() {
   const vadIntervalRef = useRef<number | null>(null);
   const userSilentSinceRef = useRef<number | null>(null);
   const voiceDetectedRef = useRef(false);
+  const ttsQueueRef = useRef<string[]>([]);
+  const isProcessingTtsQueueRef = useRef(false);
+  const ttsAccumulatorRef = useRef('');
+  const ttsDrainResolversRef = useRef<Array<() => void>>([]);
 
   const hasMediaRecorder = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined';
   const supportsWebmOpus = hasMediaRecorder && MediaRecorder.isTypeSupported(LIVE_AUDIO_RECORDER_MIME_TYPE);
@@ -105,32 +102,6 @@ export default function TestAiReceptionistPage() {
     : !supportsWebmOpus
       ? 'This browser does not support audio/webm;codecs=opus live capture required for real-time transcription.'
       : null;
-
-  const services = servicesData?.data ?? [];
-  const faqs = faqsData?.data ?? [];
-  const policies = policiesData?.data ?? [];
-
-  const contextPrompt = useMemo(() => {
-    return [
-      'You are a dental clinic AI receptionist simulating a real phone call.',
-      'Respond in 1-2 short sentences maximum, like a real phone conversation.',
-      'Speak naturally, concise, warm, and helpful.',
-      `Clinic name: ${clinic?.clinicName ?? 'Dental clinic'}`,
-      `Timezone: ${clinic?.timezone ?? 'America/New_York'}`,
-      `Primary phone: ${clinic?.phone ?? 'not provided'}`,
-      `Support email: ${clinic?.email ?? 'not provided'}`,
-      `Tone: ${voiceProfile?.tone ?? 'professional'}`,
-      `Greeting: ${voiceProfile?.greetingMessage ?? 'Hi, thank you for calling. How can I help you today?'}`,
-      `Default appointment duration: ${bookingRules?.defaultAppointmentDurationMinutes ?? 30} minutes`,
-      `Min notice: ${bookingRules?.minNoticePeriodHours ?? 2} hours`,
-      `Max advance booking: ${bookingRules?.maxAdvanceBookingDays ?? 30} days`,
-      `Services: ${services.map((s) => s.serviceName).join(', ') || 'none configured'}`,
-      `FAQs: ${faqs.map((f) => f.question).join(' | ') || 'none configured'}`,
-      `Policies: ${policies.map((p) => `${p.policyType}: ${p.content}`).join(' | ') || 'none configured'}`,
-      'If caller asks something unknown, say you can have the clinic follow up.',
-      'Do not mention that you are an AI unless explicitly asked.',
-    ].join('\n');
-  }, [bookingRules, clinic?.clinicName, clinic?.email, clinic?.phone, clinic?.timezone, faqs, policies, services, voiceProfile?.greetingMessage, voiceProfile?.tone]);
 
   const selectedVoiceId =
     voiceProfile?.voiceId || TONE_TO_VOICE_ID[voiceProfile?.tone ?? 'professional'] || TONE_TO_VOICE_ID.professional;
@@ -176,7 +147,9 @@ export default function TestAiReceptionistPage() {
     }
     mediaStreamRef.current = null;
 
-    fallbackBufferRef.current = '';
+    transcriptionSessionRef.current += 1;
+    utteranceAudioChunksRef.current = [];
+    utteranceAudioBytesRef.current = 0;
     setInterimTranscript('');
     setIsListening(false);
     streamForRecorderRef.current = null;
@@ -198,40 +171,40 @@ export default function TestAiReceptionistPage() {
       transcribeErrorShownRef.current = false;
       oversizedChunkWarningShownRef.current = false;
 
-      const sendBufferedUtterance = () => {
+      const sendBufferedUtterance = async () => {
         if (aiRespondingRef.current) return;
-        const utterance = fallbackBufferRef.current.trim();
-        if (!utterance) return;
+        const audioChunks = utteranceAudioChunksRef.current;
+        if (audioChunks.length === 0 || utteranceAudioBytesRef.current < 2048) return;
 
         if (fallbackSilenceTimerRef.current !== null) {
           window.clearTimeout(fallbackSilenceTimerRef.current);
           fallbackSilenceTimerRef.current = null;
         }
 
-        fallbackBufferRef.current = '';
+        const transcriptionSessionId = transcriptionSessionRef.current;
+        const utteranceBlob = new Blob(audioChunks, { type: LIVE_AUDIO_UPLOAD_MIME_TYPE });
+        utteranceAudioChunksRef.current = [];
+        utteranceAudioBytesRef.current = 0;
         setInterimTranscript('');
-        void sendCallerUtterance(utterance);
-      };
-
-      const flushAndTranscribe = async (blob: Blob) => {
-        if (!isCallActiveRef.current) return;
         pendingTranscriptionsRef.current++;
+
         try {
-          const transcriptChunk = (await transcribeLiveAudio({
-            audioChunk: blob,
+          const utterance = (await transcribeLiveAudio({
+            audioChunk: utteranceBlob,
             mimeType: LIVE_AUDIO_UPLOAD_MIME_TYPE,
-            language: 'en',
+            language: 'en-US',
           }).unwrap()).trim();
 
-          if (!transcriptChunk || transcriptChunk.length < 3) return;
-
-          fallbackBufferRef.current = `${fallbackBufferRef.current} ${transcriptChunk}`.trim();
-          setInterimTranscript(fallbackBufferRef.current);
-
-          if (fallbackSilenceTimerRef.current !== null) {
-            window.clearTimeout(fallbackSilenceTimerRef.current);
+          if (
+            transcriptionSessionId !== transcriptionSessionRef.current ||
+            aiRespondingRef.current ||
+            !isCallActiveRef.current
+          ) {
+            return;
           }
-          fallbackSilenceTimerRef.current = window.setTimeout(sendBufferedUtterance, 1500);
+
+          if (!utterance || utterance.length < 2) return;
+          await sendCallerUtterance(utterance);
         } catch (error) {
           if (!transcribeErrorShownRef.current) {
             transcribeErrorShownRef.current = true;
@@ -239,10 +212,6 @@ export default function TestAiReceptionistPage() {
           }
         } finally {
           pendingTranscriptionsRef.current--;
-          const silentFor = userSilentSinceRef.current
-            ? Date.now() - userSilentSinceRef.current
-            : 0;
-          if (silentFor >= 600) sendBufferedUtterance();
         }
       };
 
@@ -267,7 +236,7 @@ export default function TestAiReceptionistPage() {
             if (userSilentSinceRef.current === null) {
               userSilentSinceRef.current = Date.now();
             } else if (Date.now() - userSilentSinceRef.current >= 600) {
-              sendBufferedUtterance();
+              void sendBufferedUtterance();
             }
           } else {
             userSilentSinceRef.current = null;
@@ -297,7 +266,11 @@ export default function TestAiReceptionistPage() {
           }
           const hadVoice = voiceDetectedRef.current;
           voiceDetectedRef.current = false;
-          if (hadVoice) void flushAndTranscribe(event.data);
+          if (hadVoice) {
+            utteranceAudioChunksRef.current.push(event.data);
+            utteranceAudioBytesRef.current += event.data.size;
+            setInterimTranscript('Listening...');
+          }
           r.stop();
         };
         r.onstop = () => {
@@ -319,7 +292,7 @@ export default function TestAiReceptionistPage() {
     }
   };
 
-  const runDiagnostics = async (requestPermission: boolean) => {
+  const runDiagnostics = useCallback(async (requestPermission: boolean) => {
     setIsRunningDiagnostics(true);
     try {
       const result = await runMicrophoneDiagnostics({
@@ -331,7 +304,7 @@ export default function TestAiReceptionistPage() {
     } finally {
       setIsRunningDiagnostics(false);
     }
-  };
+  }, [micDiagnostics.selectedDeviceId]);
 
   const requestMicrophonePermission = async (): Promise<boolean> => {
     const result = await runDiagnostics(true);
@@ -370,11 +343,9 @@ export default function TestAiReceptionistPage() {
 
   useEffect(() => {
     void runDiagnostics(false);
-  }, []);
+  }, [runDiagnostics]);
 
-  const speakText = async (text: string) => {
-    stopFallbackRecorder();
-
+  const playTtsText = useCallback(async (text: string) => {
     try {
       const audioUrl = await generateVoicePreview({
         voiceId: selectedVoiceId,
@@ -394,8 +365,168 @@ export default function TestAiReceptionistPage() {
     } catch {
       toast.error('Failed to play AI voice response');
     }
+  }, [generateVoicePreview, selectedVoiceId, voiceProfile?.speechSpeed]);
 
-    void startFallbackRecorder();
+  const resolveTtsDrain = () => {
+    const resolvers = ttsDrainResolversRef.current.splice(0);
+    for (const resolve of resolvers) resolve();
+  };
+
+  const waitForTtsDrain = () => {
+    if (!isProcessingTtsQueueRef.current && ttsQueueRef.current.length === 0) {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      ttsDrainResolversRef.current.push(resolve);
+    });
+  };
+
+  const extractSpeakableSegments = (buffer: string, flushRemainder = false) => {
+    const segments: string[] = [];
+    let start = 0;
+    let lastCommittedIndex = 0;
+
+    for (let index = 0; index < buffer.length; index += 1) {
+      const char = buffer[index];
+      const currentLength = index + 1 - lastCommittedIndex;
+      const isStrongBoundary = char === '.' || char === '!' || char === '?';
+      const isSoftBoundary =
+        (char === ',' || char === ';' || char === ':') && currentLength >= EARLY_TTS_MIN_CHARS;
+      const isEarlyWordBoundary =
+        char === ' ' && currentLength >= EARLY_TTS_MIN_CHARS + 18;
+
+      if (isStrongBoundary || isSoftBoundary || isEarlyWordBoundary) {
+        const segment = buffer.slice(start, index + 1).trim();
+        if (segment) segments.push(segment);
+        start = index + 1;
+        lastCommittedIndex = start;
+      }
+    }
+
+    const remainder = buffer.slice(start).trim();
+    if (flushRemainder && remainder) {
+      segments.push(remainder);
+      return { segments, remainder: '' };
+    }
+
+    return { segments, remainder };
+  };
+
+  const processTtsQueue = useCallback(async () => {
+    if (isProcessingTtsQueueRef.current) return;
+    isProcessingTtsQueueRef.current = true;
+
+    try {
+      while (ttsQueueRef.current.length > 0) {
+        const nextSegment = ttsQueueRef.current.shift();
+        if (!nextSegment) continue;
+        await playTtsText(nextSegment);
+      }
+    } finally {
+      isProcessingTtsQueueRef.current = false;
+      if (ttsQueueRef.current.length === 0) {
+        resolveTtsDrain();
+      }
+    }
+  }, [playTtsText]);
+
+  const queueTtsSegments = useCallback((segments: string[]) => {
+    const cleanedSegments = segments.map((segment) => segment.trim()).filter(Boolean);
+    if (cleanedSegments.length === 0) return;
+    ttsQueueRef.current.push(...cleanedSegments);
+    void processTtsQueue();
+  }, [processTtsQueue]);
+
+  const readReceptionistStream = async (input: {
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
+    userMessage: string;
+    onDelta: (delta: string) => void;
+  }) => {
+    const buildHeaders = (): HeadersInit => ({
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...getAuthHeaders(),
+    });
+
+    const makeRequest = () => fetch(`${API_BASE_URL}/llm/receptionist-test/stream`, {
+      method: 'POST',
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        provider: 'openai',
+        conversationHistory: input.conversationHistory,
+        userMessage: input.userMessage,
+      }),
+    });
+
+    let response = await makeRequest();
+
+    if (response.status === 401) {
+      const refreshed = await tryRefreshAccessToken();
+      if (refreshed) {
+        response = await makeRequest();
+      }
+    }
+
+    if (!response.ok || !response.body) {
+      throw new Error(await response.text() || 'Streaming request failed');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalResponse = '';
+
+    const processEventBlock = (block: string) => {
+      const lines = block.split('\n');
+      const event = lines.find((line) => line.startsWith('event:'))?.slice(6).trim() ?? 'message';
+      const data = lines
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+        .join('\n');
+
+      if (!data) return;
+
+      const parsed = JSON.parse(data) as { delta?: string; response?: string; message?: string };
+
+      if (event === 'chunk' && parsed.delta) {
+        finalResponse += parsed.delta;
+        input.onDelta(parsed.delta);
+        return;
+      }
+
+      if (event === 'done') {
+        finalResponse = parsed.response ?? finalResponse;
+        return;
+      }
+
+      if (event === 'error') {
+        throw new Error(parsed.message || 'Streaming failed');
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      while (true) {
+        const boundaryIndex = buffer.indexOf('\n\n');
+        if (boundaryIndex === -1) break;
+
+        const block = buffer.slice(0, boundaryIndex);
+        buffer = buffer.slice(boundaryIndex + 2);
+        if (!block.trim()) continue;
+        processEventBlock(block);
+      }
+    }
+
+    if (buffer.trim()) {
+      processEventBlock(buffer);
+    }
+
+    return finalResponse.trim();
   };
 
   const sendCallerUtterance = async (utterance: string) => {
@@ -403,42 +534,71 @@ export default function TestAiReceptionistPage() {
     if (!cleaned) return;
     if (aiRespondingRef.current) return;
     aiRespondingRef.current = true;
-    fallbackBufferRef.current = '';
+    setIsStreamingResponse(true);
+    stopFallbackRecorder();
+    utteranceAudioChunksRef.current = [];
+    utteranceAudioBytesRef.current = 0;
     setInterimTranscript('');
+    ttsQueueRef.current = [];
+    ttsAccumulatorRef.current = '';
 
     const callerTurn: ChatTurn = { speaker: 'caller', text: cleaned, ts: new Date().toISOString() };
-    setTurns((prev) => [...prev, callerTurn]);
+    const receptionistTs = new Date().toISOString();
+    setTurns((prev) => [
+      ...prev,
+      callerTurn,
+      { speaker: 'receptionist', text: '', ts: receptionistTs },
+    ]);
 
     try {
-      const history = turnsRef.current;
-      const llmMessages = [
-        { role: 'system' as const, content: contextPrompt },
-        ...history.map((turn) => ({
-          role: turn.speaker === 'caller' ? ('user' as const) : ('assistant' as const),
-          content: turn.text,
-        })),
-        { role: 'user' as const, content: cleaned },
-      ];
+      const history = turnsRef.current.map((turn) => ({
+        role: turn.speaker === 'caller' ? ('user' as const) : ('assistant' as const),
+        content: turn.text,
+      }));
 
-      const result = await executeLlm({
-        provider: 'openai',
-        task: 'generate_response',
-        payload: {
-          model: 'gpt-4o-mini',
-          messages: llmMessages,
-          temperature: 0.5,
-          maxTokens: 150,
+      const responseText = await readReceptionistStream({
+        conversationHistory: history,
+        userMessage: cleaned,
+        onDelta: (delta) => {
+          ttsAccumulatorRef.current += delta;
+          setTurns((prev) => prev.map((turn) => (
+            turn.ts === receptionistTs
+              ? { ...turn, text: `${turn.text}${delta}` }
+              : turn
+          )));
+
+          const { segments, remainder } = extractSpeakableSegments(ttsAccumulatorRef.current);
+          ttsAccumulatorRef.current = remainder;
+          queueTtsSegments(segments);
         },
-      }).unwrap();
+      });
 
-      const responseText = result.data.response.trim();
-      setTurns((prev) => [...prev, { speaker: 'receptionist', text: responseText, ts: new Date().toISOString() }]);
-      await speakText(responseText);
+      if (!responseText) {
+        throw new Error('AI receptionist returned an empty response');
+      }
+
+      const { segments, remainder } = extractSpeakableSegments(ttsAccumulatorRef.current, true);
+      ttsAccumulatorRef.current = remainder;
+      queueTtsSegments(segments);
+      await waitForTtsDrain();
+      setTurns((prev) => prev.map((turn) => (
+        turn.ts === receptionistTs
+          ? { ...turn, text: responseText }
+          : turn
+      )));
     } catch {
+      setTurns((prev) => prev.filter((turn) => turn.ts !== receptionistTs || turn.text.trim().length > 0));
       toast.error('AI receptionist failed to respond');
-      void startFallbackRecorder();
     } finally {
       aiRespondingRef.current = false;
+      setIsStreamingResponse(false);
+      if (isCallActiveRef.current) {
+        window.setTimeout(() => {
+          if (isCallActiveRef.current && !aiRespondingRef.current) {
+            void startFallbackRecorder();
+          }
+        }, 350);
+      }
     }
   };
 
@@ -447,7 +607,7 @@ export default function TestAiReceptionistPage() {
 
     const greeting =
       voiceProfile?.greetingMessage ||
-      `Hi, thank you for calling ${clinic?.clinicName ?? 'our clinic'}. How can I help you today?`;
+      `Hello, thank you for calling ${clinic?.clinicName ?? 'our clinic'}. How may I help you today?`;
 
     const micReady = await requestMicrophonePermission();
 
@@ -463,7 +623,7 @@ export default function TestAiReceptionistPage() {
     setIsCallActive(true);
     isCallActiveRef.current = true;
     setTurns([{ speaker: 'receptionist', text: greeting, ts: new Date().toISOString() }]);
-    await speakText(greeting);
+    await playTtsText(greeting);
 
     if (!hasMediaRecorder) {
       toast.error('Microphone capture is unavailable in this browser session. Use manual input below.');
@@ -478,9 +638,15 @@ export default function TestAiReceptionistPage() {
   const endCall = () => {
     setIsCallActive(false);
     isCallActiveRef.current = false;
+    aiRespondingRef.current = false;
     setIsListening(false);
+    setIsStreamingResponse(false);
     setInterimTranscript('');
     stopFallbackRecorder();
+    utteranceAudioChunksRef.current = [];
+    utteranceAudioBytesRef.current = 0;
+    ttsQueueRef.current = [];
+    ttsAccumulatorRef.current = '';
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -578,7 +744,7 @@ export default function TestAiReceptionistPage() {
             />
             <Button
               onClick={sendManualMessage}
-              disabled={!isCallActive || isThinking || isSpeaking || isTranscribing || !manualInput.trim()}
+              disabled={!isCallActive || isStreamingResponse || isSpeaking || isTranscribing || !manualInput.trim()}
               className="gap-2"
             >
               <MicIcon className="size-4" />

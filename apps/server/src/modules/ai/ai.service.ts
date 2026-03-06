@@ -20,6 +20,199 @@ export interface TenantAIContext {
   faqs: Record<string, unknown>[];
 }
 
+type PromptEnvironment = 'phone' | 'sidebar-test';
+
+type ScheduleEntry = { start?: string; end?: string } | null;
+
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+};
+
+function formatScheduleValue(schedule?: Record<string, unknown> | null): string {
+  if (!schedule || typeof schedule !== 'object') return 'Not provided';
+
+  const lines = Object.entries(schedule)
+    .map(([rawDay, rawValue]) => {
+      const day = DAY_LABELS[rawDay.toLowerCase()] ?? rawDay;
+      if (!rawValue || typeof rawValue !== 'object') return `${day}: Closed`;
+
+      const entry = rawValue as ScheduleEntry;
+      if (!entry?.start || !entry?.end) return `${day}: Closed`;
+      return `${day}: ${entry.start}-${entry.end}`;
+    })
+    .filter(Boolean);
+
+  return lines.length > 0 ? lines.join('; ') : 'Not provided';
+}
+
+function formatServicesForPrompt(
+  serviceList: Record<string, unknown>[],
+): string {
+  if (serviceList.length === 0) return 'Not provided';
+
+  return serviceList
+    .map((service) => {
+      const svc = service as {
+        serviceName?: string;
+        durationMinutes?: number;
+        price?: string | number;
+        description?: string;
+      };
+
+      const details = [
+        svc.durationMinutes ? `${svc.durationMinutes} min` : null,
+        svc.price ? `$${svc.price}` : null,
+        svc.description?.trim() || null,
+      ].filter(Boolean);
+
+      return details.length > 0
+        ? `${svc.serviceName ?? 'Service'} (${details.join(', ')})`
+        : (svc.serviceName ?? 'Service');
+    })
+    .join('; ');
+}
+
+function formatContactInfo(clinic: Record<string, unknown>): string {
+  const clinicData = clinic as {
+    phone?: string;
+    primaryPhone?: string;
+    email?: string;
+    supportEmail?: string;
+    website?: string;
+    address?: string;
+  };
+
+  const items = [
+    clinicData.phone || clinicData.primaryPhone ? `Phone: ${clinicData.phone || clinicData.primaryPhone}` : null,
+    clinicData.email || clinicData.supportEmail ? `Email: ${clinicData.email || clinicData.supportEmail}` : null,
+    clinicData.website ? `Website: ${clinicData.website}` : null,
+    clinicData.address ? `Address: ${clinicData.address}` : null,
+  ].filter(Boolean);
+
+  return items.length > 0 ? items.join('; ') : 'Not provided';
+}
+
+function formatPromotionsForPrompt(policyList: Record<string, unknown>[]): string {
+  const promotions = policyList
+    .map((policy) => policy as { policyType?: string; content?: string })
+    .filter((policy) => {
+      const type = policy.policyType?.toLowerCase() ?? '';
+      return ['promotion', 'promotions', 'offer', 'special', 'announcement', 'update'].some((token) =>
+        type.includes(token),
+      );
+    })
+    .map((policy) => policy.content?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return promotions.length > 0 ? promotions.join('; ') : 'Not provided';
+}
+
+function buildPromptContextBlock(context: TenantAIContext): string[] {
+  const clinicData = context.clinic as {
+    clinicName?: string;
+    timezone?: string;
+    businessHours?: Record<string, unknown>;
+  };
+  const bookingData = context.bookingRules as {
+    operatingSchedule?: Record<string, unknown>;
+    defaultAppointmentDurationMinutes?: number;
+    minNoticePeriodHours?: number;
+    maxAdvanceBookingDays?: number;
+  };
+  const voiceData = context.voiceProfile as {
+    greetingMessage?: string;
+    greeting?: string;
+    tone?: string;
+  };
+
+  const officeHours = formatScheduleValue(
+    clinicData.businessHours ?? bookingData.operatingSchedule ?? null,
+  );
+  const faqSummary = context.faqs.length > 0
+    ? context.faqs
+      .map((faq) => faq as { question?: string; answer?: string })
+      .map((faq) => `Q: ${faq.question ?? 'Question'} A: ${faq.answer ?? 'Not provided'}`)
+      .join(' | ')
+    : 'None provided';
+
+  return [
+    'Context (dynamic, can be updated during testing):',
+    `- Clinic Name: ${context.clinicName}`,
+    `- Office Hours: ${officeHours}`,
+    `- Services: ${formatServicesForPrompt(context.services)}`,
+    `- Contact Info: ${formatContactInfo(context.clinic)}`,
+    `- Promotions / Updates: ${formatPromotionsForPrompt(context.policies)}`,
+    `- Greeting: ${voiceData.greetingMessage ?? voiceData.greeting ?? `Hello, thank you for calling ${context.clinicName}. How may I help you today?`}`,
+    `- Tone: ${voiceData.tone ?? 'professional'}`,
+    `- Timezone: ${clinicData.timezone ?? 'America/New_York'}`,
+    `- Booking Rules: default ${bookingData.defaultAppointmentDurationMinutes ?? 30} minutes; minimum notice ${bookingData.minNoticePeriodHours ?? 2} hours; maximum advance ${bookingData.maxAdvanceBookingDays ?? 30} days`,
+    `- FAQs: ${faqSummary}`,
+  ];
+}
+
+function buildPromptHeader(environment: PromptEnvironment): string[] {
+  if (environment === 'sidebar-test') {
+    return [
+      'You are a professional AI receptionist for a dental clinic.',
+      'You are currently being tested in the clinic\'s client sidebar "AI Receptionist Test", where users talk to you live using their microphone to simulate a real call.',
+      'Treat each interaction as if it were a real phone call simulation while the user watches the sidebar transcript and hears TTS playback.',
+    ];
+  }
+
+  return [
+    'You are a professional AI receptionist for a dental clinic handling a live patient phone call.',
+    'Respond naturally, clearly, and politely, exactly like a real front-desk receptionist on the phone.',
+  ];
+}
+
+function buildSharedReceptionistRules(): string[] {
+  return [
+    'Rules:',
+    '1. Respond clearly and concisely, suitable for spoken conversation (2-3 short sentences).',
+    '2. Maintain a friendly, professional, and patient-oriented tone.',
+    '3. Base your answers on the provided context (clinic name, office hours, services, contact info, promotions).',
+    '4. If you do not know the answer, politely suggest contacting the office.',
+    '5. Avoid filler words like "um" or "uh", unless necessary for natural speech patterns.',
+    '6. Include punctuation for TTS clarity and natural intonation.',
+    '7. Never provide medical advice or diagnoses.',
+    '8. If the caller has a dental emergency, direct them to emergency services or the nearest emergency room.',
+    '9. If the caller says they want to die, are dead, might hurt themselves, are unsafe, or sound like a self-harm or mental-health crisis, stop normal receptionist flow and tell them to call 988 or 911 immediately and contact emergency services or a trusted nearby person right now.',
+    '10. If the caller asks to speak to a human, direct them to the clinic\'s main contact line or staff callback process.',
+    '11. Do not mention that you are an AI unless explicitly asked.',
+  ];
+}
+
+export function buildReceptionistSystemPrompt(
+  context: TenantAIContext,
+  environment: PromptEnvironment = 'phone',
+): string {
+  return [
+    ...buildPromptHeader(environment),
+    '',
+    ...buildSharedReceptionistRules(),
+    '',
+    ...buildPromptContextBlock(context),
+    '',
+    environment === 'sidebar-test'
+      ? 'Environment: This is the "AI Receptionist Test" sidebar in the client dashboard. Users may speak live to test your responses, see transcriptions, and hear your TTS output.'
+      : 'Environment: This is a live production phone call. Keep the interaction calm, efficient, and easy to follow by voice only.',
+    '',
+    'Instructions for AI:',
+    '- Prioritize speed, clarity, and natural flow for live conversation.',
+    '- Respond immediately as if hearing the caller live.',
+    '- Keep responses concise, but helpful and polite.',
+    '- Use transcription-friendly formatting and short spoken phrasing.',
+    '- Each response should feel like a realistic receptionist talking to a patient in real time.',
+    '- If the caller asks something unknown, politely suggest contacting the office using the available contact information.',
+  ].join('\n');
+}
+
 export async function loadTenantAIContext(
   tenantId: string,
   configVersion: number,
@@ -67,78 +260,46 @@ export async function loadTenantAIContext(
   return context;
 }
 
+export async function loadCurrentTenantAIContext(
+  tenantId: string,
+): Promise<TenantAIContext> {
+  const [clinic] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  const tenantServices = await db.select().from(services).where(eq(services.tenantId, tenantId));
+  const [booking] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
+  const tenantPolicies = await db.select().from(policies).where(eq(policies.tenantId, tenantId));
+  const [voice] = await db.select().from(voiceProfile).where(eq(voiceProfile.tenantId, tenantId)).limit(1);
+  const faqs = await db.select().from(faqLibrary).where(eq(faqLibrary.tenantId, tenantId));
+
+  return {
+    tenantId,
+    configVersion: 0,
+    clinicName: clinic?.clinicName ?? 'Dental Clinic',
+    clinic: clinic ?? {},
+    services: tenantServices,
+    bookingRules: booking ?? {},
+    policies: tenantPolicies,
+    voiceProfile: voice ?? {},
+    faqs,
+  };
+}
+
+export async function loadLiveTenantAIContext(
+  tenantId: string,
+  configVersion?: number,
+): Promise<TenantAIContext> {
+  if (configVersion && configVersion > 0) {
+    try {
+      return await loadTenantAIContext(tenantId, configVersion);
+    } catch (error) {
+      if (!(error instanceof ConfigNotFoundError)) throw error;
+    }
+  }
+
+  return loadCurrentTenantAIContext(tenantId);
+}
+
 export function buildSystemPrompt(context: TenantAIContext): string {
-  const { clinicName, clinic, services: svcList, bookingRules: booking, policies: policyList, voiceProfile: voice, faqs } = context;
-
-  const voiceSettings = voice as any;
-  const tone = voiceSettings?.tone ?? 'professional';
-  const language = voiceSettings?.language ?? 'en-US';
-  const greeting = voiceSettings?.greeting ?? `Thank you for calling ${clinicName}. How can I help you today?`;
-
-  let prompt = `You are an AI dental receptionist for ${clinicName}.\n`;
-  prompt += `Tone: ${tone}. Language: ${language}.\n`;
-  prompt += `Greeting: "${greeting}"\n\n`;
-
-  const clinicData = clinic as any;
-  if (clinicData?.address) {
-    prompt += `Clinic Address: ${clinicData.address}\n`;
-  }
-  if (clinicData?.phone) {
-    prompt += `Clinic Phone: ${clinicData.phone}\n`;
-  }
-  if (clinicData?.operatingHours) {
-    prompt += `Operating Hours: ${JSON.stringify(clinicData.operatingHours)}\n`;
-  }
-  prompt += '\n';
-
-  if (svcList.length > 0) {
-    prompt += 'Available Services:\n';
-    for (const svc of svcList) {
-      const s = svc as any;
-      prompt += `- ${s.serviceName}: ${s.description ?? 'No description'}`;
-      if (s.durationMinutes) prompt += ` (${s.durationMinutes} min)`;
-      if (s.price) prompt += ` - $${s.price}`;
-      prompt += '\n';
-    }
-    prompt += '\n';
-  }
-
-  const bookingData = booking as any;
-  if (bookingData?.advanceBookingDays) {
-    prompt += `Booking: Appointments can be scheduled up to ${bookingData.advanceBookingDays} days in advance.\n`;
-  }
-  if (bookingData?.cancellationHours) {
-    prompt += `Cancellation: ${bookingData.cancellationHours} hours notice required.\n`;
-  }
-  prompt += '\n';
-
-  if (policyList.length > 0) {
-    prompt += 'Policies:\n';
-    for (const p of policyList) {
-      const policy = p as any;
-      prompt += `- ${policy.policyType}: ${policy.content}\n`;
-    }
-    prompt += '\n';
-  }
-
-  if (faqs.length > 0) {
-    prompt += 'Frequently Asked Questions:\n';
-    for (const faq of faqs) {
-      const f = faq as any;
-      prompt += `Q: ${f.question}\nA: ${f.answer}\n\n`;
-    }
-  }
-
-  prompt += `\nIMPORTANT RULES:
-- Never provide medical advice or diagnoses.
-- If the caller has a dental emergency, advise them to go to the nearest emergency room.
-- If you don't know the answer, offer to have the clinic call them back.
-- Always confirm appointment details before booking.
-- Be concise in verbal responses as this is a phone conversation.
-- If the caller asks to speak to a human, transfer them to the clinic's main line.
-`;
-
-  return prompt;
+  return buildReceptionistSystemPrompt(context, 'phone');
 }
 
 export async function processConversationTurn(input: {
@@ -211,6 +372,7 @@ export async function processVoiceTurn(input: {
   conversationHistory: Array<{ role: string; content: string }>;
   audioInput: Buffer;
   language?: string;
+  voiceId?: string;
   voiceTone?: string;
 }): Promise<{
   audioOutput: Buffer;
@@ -248,7 +410,7 @@ export async function processVoiceTurn(input: {
     language: input.language,
     ttsRequest: {
       text: llmResult.response,
-      voiceId: input.voiceTone || 'default',
+      voiceId: input.voiceId || input.voiceTone || 'default',
       language: input.language || 'en-US',
       tenantId: input.tenantId,
     },

@@ -18,6 +18,7 @@ import { logger } from '../../lib/logger.js';
 import { cache } from '../../lib/cache.js';
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
 import { env } from '../../config/env.js';
+import { getPreferredTtsProviderForVoiceId } from '../ai/providers/voice-routing.js';
 
 export interface OnboardingStatus {
   tenantId: string;
@@ -48,6 +49,26 @@ export interface ReadinessScorecard {
 }
 
 const LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/pcm']);
+
+function normalizeLiveTranscriptionLanguage(language?: string): string {
+  const raw = (language || 'en-US').trim();
+  if (!raw) return 'en-US';
+
+  const lower = raw.toLowerCase();
+  if (lower === 'en') return 'en-US';
+  if (lower === 'en-gb' || lower === 'en-uk') return 'en-GB';
+  if (lower === 'en-au') return 'en-AU';
+  if (lower === 'en-ca') return 'en-CA';
+  if (lower === 'en-in') return 'en-IN';
+
+  return raw;
+}
+
+function toOpenAiTranscriptionLanguage(language: string): string {
+  const normalized = language.trim().toLowerCase();
+  const [base] = normalized.split('-');
+  return base || 'en';
+}
 
 export async function saveClinicIdentity(
   tenantId: string,
@@ -540,16 +561,17 @@ export async function publishOnboardingConfig(
 
 export async function generateVoicePreview(
   tenantId: string,
-  data: { voiceId: string; text: string; speed?: number },
+  data: { voiceId: string; text: string; speed?: number; language?: string },
 ): Promise<Buffer> {
   const { getTtsAdapter } = await import('../ai/providers/index.js');
 
-  const ttsProvider = getTtsAdapter(env.TTS_PROVIDER);
+  const providerName = getPreferredTtsProviderForVoiceId(data.voiceId) ?? env.TTS_PROVIDER;
+  const ttsProvider = getTtsAdapter(providerName);
   const result = await ttsProvider.synthesize({
     text: data.text,
     voiceId: data.voiceId,
     speed: data.speed ?? 1.0,
-    language: 'en-US',
+    language: data.language ?? 'en-US',
     tenantId,
   });
 
@@ -571,7 +593,8 @@ export async function transcribeLiveAudio(
 
   const rawMimeType = (data.mimeType || 'audio/webm').toLowerCase();
   const mimeType = rawMimeType.split(';')[0] || 'audio/webm';
-  const language = data.language || 'en';
+  const language = normalizeLiveTranscriptionLanguage(data.language);
+  const openAiLanguage = toOpenAiTranscriptionLanguage(language);
 
   if (mimeType.startsWith('video/') || mimeType.startsWith('application/') || mimeType === 'audio/mp4') {
     throw new ValidationError(`Unsupported live transcription mime type: ${mimeType}`);
@@ -620,15 +643,25 @@ export async function transcribeLiveAudio(
   const tryDeepgram = async (): Promise<string> => {
     if (!env.DEEPGRAM_API_KEY) return '';
     try {
+      const query = new URLSearchParams({
+        model: 'nova-2',
+        language,
+        smart_format: 'true',
+        punctuate: 'true',
+        paragraphs: 'false',
+        diarize: 'false',
+        filler_words: 'false',
+      });
+
       const deepgramRes = await fetch(
-        `https://api.deepgram.com/v1/listen?model=nova-2&language=${language}&smart_format=true`,
+        `https://api.deepgram.com/v1/listen?${query.toString()}`,
         {
           method: 'POST',
           headers: {
             Authorization: `Token ${env.DEEPGRAM_API_KEY}`,
             'Content-Type': mimeType,
           },
-          body: audioBuffer,
+          body: new Uint8Array(audioBuffer.buffer, audioBuffer.byteOffset, audioBuffer.byteLength) as any,
           signal: AbortSignal.timeout(15_000),
         },
       );
@@ -642,10 +675,30 @@ export async function transcribeLiveAudio(
 
   const startedAt = Date.now();
 
+  // Prefer Deepgram for short live chunks; it handles accents and fragmented speech
+  // more reliably than Whisper in this low-latency microphone path.
+  const deepgramTranscript = await tryDeepgram();
+  if (deepgramTranscript) {
+    logger.info(
+      {
+        tenantId,
+        mimeType,
+        language,
+        chunkBytes: audioBuffer.length,
+        latencyMs: Date.now() - startedAt,
+        transcriptChars: deepgramTranscript.length,
+        transcriptText: deepgramTranscript,
+        provider: 'deepgram',
+      },
+      'Live audio transcribed',
+    );
+    return deepgramTranscript;
+  }
+
   if (env.OPENAI_API_KEY) {
     const form = new FormData();
     form.append('model', 'whisper-1');
-    form.append('language', language);
+    form.append('language', openAiLanguage);
     form.append('response_format', 'json');
     const audioBytes = Uint8Array.from(audioBuffer);
     form.append(
@@ -671,11 +724,12 @@ export async function transcribeLiveAudio(
         {
           tenantId,
           mimeType,
-          language,
+          language: openAiLanguage,
           chunkBytes: audioBuffer.length,
           latencyMs: Date.now() - startedAt,
           transcriptChars: transcript.length,
           transcriptText: transcript,
+          provider: 'openai',
         },
         'Live audio transcribed',
       );
@@ -727,15 +781,6 @@ export async function transcribeLiveAudio(
     }
 
     throw new ValidationError(`Live transcription failed (${response.status}): ${providerMessage}`);
-  }
-
-  const transcript = await tryDeepgram();
-  if (transcript) {
-    logger.info(
-      { tenantId, chunkBytes: audioBuffer.length, latencyMs: Date.now() - startedAt, transcriptChars: transcript.length },
-      'Live audio transcribed via Deepgram',
-    );
-    return transcript;
   }
 
   return '';

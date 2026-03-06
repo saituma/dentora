@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -39,40 +40,59 @@ import {
   useAddPolicyMutation,
   useDeletePolicyMutation,
 } from '@/features/aiConfig/aiConfigApi';
-
-const toneOptions = [
-  { value: 'friendly', label: 'Friendly' },
-  { value: 'professional', label: 'Professional' },
-  { value: 'formal', label: 'Formal' },
-  { value: 'casual', label: 'Casual' },
-];
+import { useGenerateVoicePreviewMutation } from '@/features/onboarding/onboardingApi';
+import { VoicePreviewCard } from '@/components/voice-preview-card';
+import {
+  RECEPTIONIST_VOICE_OPTIONS,
+  getReceptionistVoiceByAccentAndGender,
+  getReceptionistVoiceById,
+  type ReceptionistVoiceAccent,
+  type ReceptionistVoiceGender,
+} from '@/lib/voice-catalog';
 
 export default function AiReceptionistPage() {
   // Voice profile
   const { data: voiceProfile, isLoading: voiceLoading } = useGetVoiceProfileQuery();
   const [updateVoice, { isLoading: voiceSaving }] = useUpdateVoiceProfileMutation();
+  const [generateVoicePreview, { isLoading: previewGenerating }] = useGenerateVoicePreviewMutation();
 
   const [greeting, setGreeting] = useState('');
-  const [tone, setTone] = useState('professional');
-  const [voiceId, setVoiceId] = useState('');
+  const [tone, setTone] = useState<'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'>('professional');
+  const [voiceId, setVoiceId] = useState(RECEPTIONIST_VOICE_OPTIONS[0].id);
   const [afterHoursMessage, setAfterHoursMessage] = useState('');
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState('en-US');
+  const [selectedAccent, setSelectedAccent] = useState<ReceptionistVoiceAccent>('us');
+  const [selectedGender, setSelectedGender] = useState<ReceptionistVoiceGender>('female');
+  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (voiceProfile) {
+      const matchedVoice = getReceptionistVoiceById(voiceProfile.voiceId);
       setGreeting(voiceProfile.greetingMessage ?? '');
       setTone(voiceProfile.tone ?? 'professional');
-      setVoiceId(voiceProfile.voiceId ?? '');
+      setVoiceId(matchedVoice?.id ?? voiceProfile.voiceId ?? RECEPTIONIST_VOICE_OPTIONS[0].id);
       setAfterHoursMessage(voiceProfile.afterHoursMessage ?? '');
-      setLanguage(voiceProfile.language ?? 'en');
+      setLanguage(matchedVoice?.locale ?? voiceProfile.language ?? 'en-US');
+      if (matchedVoice) {
+        setSelectedAccent(matchedVoice.accent);
+        setSelectedGender(matchedVoice.gender);
+      }
     }
   }, [voiceProfile]);
+
+  useEffect(() => {
+    const selectedVoice = getReceptionistVoiceByAccentAndGender(selectedAccent, selectedGender);
+    setVoiceId(selectedVoice.id);
+    setTone(selectedVoice.toneValue);
+    setLanguage(selectedVoice.locale);
+    setPreviewAudioUrl(null);
+  }, [selectedAccent, selectedGender]);
 
   const handleSaveVoice = async () => {
     try {
       await updateVoice({
         greetingMessage: greeting,
-        tone: tone as 'friendly' | 'professional' | 'formal' | 'casual',
+        tone,
         voiceId,
         afterHoursMessage,
         language,
@@ -224,28 +244,71 @@ export default function AiReceptionistPage() {
                     />
                   </Field>
                   <Field>
-                    <FieldLabel>Voice ID (ElevenLabs / provider voice ID)</FieldLabel>
-                    <Input
-                      value={voiceId}
-                      onChange={(e) => setVoiceId(e.target.value)}
-                      placeholder="e.g. rachel, drew, clyde"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Tone</FieldLabel>
-                    <Select value={tone} onValueChange={(v) => setTone(v ?? 'professional')}>
+                    <FieldLabel>Accent</FieldLabel>
+                    <Select
+                      value={selectedAccent}
+                      onValueChange={(value) => setSelectedAccent((value as ReceptionistVoiceAccent) || 'us')}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {toneOptions.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="us">US accent agent</SelectItem>
+                        <SelectItem value="uk">UK accent agent</SelectItem>
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field>
+                    <FieldLabel>Voice</FieldLabel>
+                    <Select
+                      value={selectedGender}
+                      onValueChange={(value) => setSelectedGender((value as ReceptionistVoiceGender) || 'female')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {RECEPTIONIST_VOICE_OPTIONS.map((voice) => (
+                      <VoicePreviewCard
+                        key={voice.id}
+                        voice={voice}
+                        selected={voiceId === voice.id}
+                        previewAudioUrl={voiceId === voice.id ? previewAudioUrl : null}
+                        isGenerating={previewGenerating && voiceId === voice.id}
+                        onSelect={(id) => {
+                          const selectedVoice = getReceptionistVoiceById(id);
+                          if (!selectedVoice) return;
+                          setVoiceId(id);
+                          setSelectedAccent(selectedVoice.accent);
+                          setSelectedGender(selectedVoice.gender);
+                          setTone(selectedVoice.toneValue);
+                          setLanguage(selectedVoice.locale);
+                          setPreviewAudioUrl(null);
+                        }}
+                        onPreview={async (id) => {
+                          const previewVoice = getReceptionistVoiceById(id);
+                          if (!previewVoice) return;
+                          try {
+                            const url = await generateVoicePreview({
+                              voiceId: id,
+                              text: greeting.trim() || `Hello, thank you for calling ${voiceProfile?.tenantId ? 'the clinic' : 'our clinic'}. How may I help you today?`,
+                              speed: voiceProfile?.speechSpeed ?? 1,
+                              language: previewVoice.locale,
+                            }).unwrap();
+                            setPreviewAudioUrl(url);
+                          } catch {
+                            toast.error('Failed to generate voice preview');
+                          }
+                        }}
+                      />
+                    ))}
+                  </div>
                   <Field>
                     <FieldLabel>After-hours message</FieldLabel>
                     <Textarea
@@ -258,9 +321,9 @@ export default function AiReceptionistPage() {
                   <Field>
                     <FieldLabel>Language</FieldLabel>
                     <Input
+                      readOnly
                       value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      placeholder="en"
+                      placeholder="en-US"
                     />
                   </Field>
                   <Button onClick={handleSaveVoice} disabled={voiceSaving}>
