@@ -53,6 +53,12 @@ const TONE_TO_VOICE_ID: Record<string, string> = {
   casual: 'EXAVITQu4vr4xnSDxMaL',
 };
 
+const LIVE_AUDIO_RECORDER_MIME_TYPE = 'audio/webm;codecs=opus';
+const LIVE_AUDIO_UPLOAD_MIME_TYPE = 'audio/webm';
+const MAX_LIVE_AUDIO_CHUNK_BYTES = 1024 * 1024;
+/** Record 1s at a time and restart so each blob is a self-contained WebM. Shorter = faster turnaround. */
+const LIVE_AUDIO_RECORD_TIMESLICE_MS = 1000;
+
 export default function TestAiReceptionistPage() {
   const { data: clinic } = useGetClinicQuery();
   const { data: voiceProfile } = useGetVoiceProfileQuery();
@@ -79,14 +85,26 @@ export default function TestAiReceptionistPage() {
   const fallbackSilenceTimerRef = useRef<number | null>(null);
   const fallbackBufferRef = useRef('');
   const transcribeErrorShownRef = useRef(false);
-  const processingRef = useRef(false);
+  const aiRespondingRef = useRef(false);
+  const pendingTranscriptionsRef = useRef(0);
   const isCallActiveRef = useRef(false);
+  const turnsRef = useRef<ChatTurn[]>([]);
+  const oversizedChunkWarningShownRef = useRef(false);
+  const streamForRecorderRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const vadIntervalRef = useRef<number | null>(null);
+  const userSilentSinceRef = useRef<number | null>(null);
+  const voiceDetectedRef = useRef(false);
 
   const hasMediaRecorder = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined';
+  const supportsWebmOpus = hasMediaRecorder && MediaRecorder.isTypeSupported(LIVE_AUDIO_RECORDER_MIME_TYPE);
 
   const speechSupportReason = !hasMediaRecorder
     ? 'Live microphone capture is unavailable in this browser. Use Chrome/Edge/Firefox on HTTPS or localhost.'
-    : null;
+    : !supportsWebmOpus
+      ? 'This browser does not support audio/webm;codecs=opus live capture required for real-time transcription.'
+      : null;
 
   const services = servicesData?.data ?? [];
   const faqs = faqsData?.data ?? [];
@@ -95,6 +113,7 @@ export default function TestAiReceptionistPage() {
   const contextPrompt = useMemo(() => {
     return [
       'You are a dental clinic AI receptionist simulating a real phone call.',
+      'Respond in 1-2 short sentences maximum, like a real phone conversation.',
       'Speak naturally, concise, warm, and helpful.',
       `Clinic name: ${clinic?.clinicName ?? 'Dental clinic'}`,
       `Timezone: ${clinic?.timezone ?? 'America/New_York'}`,
@@ -120,11 +139,30 @@ export default function TestAiReceptionistPage() {
     isCallActiveRef.current = isCallActive;
   }, [isCallActive]);
 
+  useEffect(() => {
+    turnsRef.current = turns;
+  }, [turns]);
+
+  const stopVad = () => {
+    if (vadIntervalRef.current !== null) {
+      window.clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (audioContextRef.current) {
+      void audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    userSilentSinceRef.current = null;
+  };
+
   const stopFallbackRecorder = () => {
     if (fallbackSilenceTimerRef.current !== null) {
       window.clearTimeout(fallbackSilenceTimerRef.current);
       fallbackSilenceTimerRef.current = null;
     }
+
+    stopVad();
 
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state !== 'inactive') {
@@ -141,10 +179,11 @@ export default function TestAiReceptionistPage() {
     fallbackBufferRef.current = '';
     setInterimTranscript('');
     setIsListening(false);
+    streamForRecorderRef.current = null;
   };
 
   const startFallbackRecorder = async () => {
-    if (!isCallActiveRef.current || mediaRecorderRef.current || !hasMediaRecorder) return;
+    if (!isCallActiveRef.current || mediaRecorderRef.current || !hasMediaRecorder || !supportsWebmOpus) return;
 
     try {
       const stream = mediaStreamRef.current ?? await navigator.mediaDevices.getUserMedia({
@@ -155,39 +194,36 @@ export default function TestAiReceptionistPage() {
           : true,
       });
       mediaStreamRef.current = stream;
+      streamForRecorderRef.current = stream;
       transcribeErrorShownRef.current = false;
+      oversizedChunkWarningShownRef.current = false;
 
-      const preferredMimeTypes = [
-        'audio/mp4',
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-      ];
-      const mimeType = preferredMimeTypes.find((candidate) => MediaRecorder.isTypeSupported(candidate));
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
+      const sendBufferedUtterance = () => {
+        if (aiRespondingRef.current) return;
+        const utterance = fallbackBufferRef.current.trim();
+        if (!utterance) return;
 
-      recorder.ondataavailable = async (event) => {
-        if (!isCallActiveRef.current || processingRef.current) return;
-        if (!event.data || event.data.size === 0) return;
+        if (fallbackSilenceTimerRef.current !== null) {
+          window.clearTimeout(fallbackSilenceTimerRef.current);
+          fallbackSilenceTimerRef.current = null;
+        }
 
+        fallbackBufferRef.current = '';
+        setInterimTranscript('');
+        void sendCallerUtterance(utterance);
+      };
+
+      const flushAndTranscribe = async (blob: Blob) => {
+        if (!isCallActiveRef.current) return;
+        pendingTranscriptionsRef.current++;
         try {
-          const arrayBuffer = await event.data.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          let binary = '';
-          for (let index = 0; index < bytes.byteLength; index += 1) {
-            binary += String.fromCharCode(bytes[index]);
-          }
-          const audioBase64 = btoa(binary);
-
           const transcriptChunk = (await transcribeLiveAudio({
-            audioBase64,
-            mimeType: event.data.type || mimeType || 'audio/webm',
+            audioChunk: blob,
+            mimeType: LIVE_AUDIO_UPLOAD_MIME_TYPE,
             language: 'en',
           }).unwrap()).trim();
 
-          if (!transcriptChunk) return;
+          if (!transcriptChunk || transcriptChunk.length < 3) return;
 
           fallbackBufferRef.current = `${fallbackBufferRef.current} ${transcriptChunk}`.trim();
           setInterimTranscript(fallbackBufferRef.current);
@@ -195,29 +231,87 @@ export default function TestAiReceptionistPage() {
           if (fallbackSilenceTimerRef.current !== null) {
             window.clearTimeout(fallbackSilenceTimerRef.current);
           }
-
-          fallbackSilenceTimerRef.current = window.setTimeout(() => {
-            const utterance = fallbackBufferRef.current.trim();
-            fallbackBufferRef.current = '';
-            setInterimTranscript('');
-            if (utterance) {
-              void sendCallerUtterance(utterance);
-            }
-          }, 1200);
+          fallbackSilenceTimerRef.current = window.setTimeout(sendBufferedUtterance, 1500);
         } catch (error) {
           if (!transcribeErrorShownRef.current) {
             transcribeErrorShownRef.current = true;
             toast.error(getUserFriendlyApiError(error));
           }
+        } finally {
+          pendingTranscriptionsRef.current--;
+          const silentFor = userSilentSinceRef.current
+            ? Date.now() - userSilentSinceRef.current
+            : 0;
+          if (silentFor >= 600) sendBufferedUtterance();
         }
       };
 
-      recorder.onstop = () => {
-        setIsListening(false);
+      try {
+        const ctx = new AudioContext();
+        const source = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        source.connect(analyser);
+        audioContextRef.current = ctx;
+        analyserRef.current = analyser;
+
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        vadIntervalRef.current = window.setInterval(() => {
+          if (!analyserRef.current || !isCallActiveRef.current) return;
+          analyserRef.current.getByteFrequencyData(freqData);
+          const avg = freqData.reduce((a, b) => a + b, 0) / freqData.length;
+
+          if (avg >= 18) voiceDetectedRef.current = true;
+
+          if (avg < 10) {
+            if (userSilentSinceRef.current === null) {
+              userSilentSinceRef.current = Date.now();
+            } else if (Date.now() - userSilentSinceRef.current >= 600) {
+              sendBufferedUtterance();
+            }
+          } else {
+            userSilentSinceRef.current = null;
+          }
+        }, 100);
+      } catch {
+        // AudioContext unavailable; timer-based silence detection is used as fallback
+      }
+
+      const startNewRecorder = () => {
+        if (!isCallActiveRef.current || !streamForRecorderRef.current) {
+          setIsListening(false);
+          return;
+        }
+        const r = new MediaRecorder(streamForRecorderRef.current, {
+          mimeType: LIVE_AUDIO_RECORDER_MIME_TYPE,
+        });
+        r.ondataavailable = (event) => {
+          if (!isCallActiveRef.current) return;
+          if (!event.data || event.data.size === 0) return;
+          if (event.data.size > MAX_LIVE_AUDIO_CHUNK_BYTES) {
+            if (!oversizedChunkWarningShownRef.current) {
+              oversizedChunkWarningShownRef.current = true;
+              toast.warning('Microphone chunk too large; skipped.');
+            }
+            return;
+          }
+          const hadVoice = voiceDetectedRef.current;
+          voiceDetectedRef.current = false;
+          if (hadVoice) void flushAndTranscribe(event.data);
+          r.stop();
+        };
+        r.onstop = () => {
+          if (isCallActiveRef.current && streamForRecorderRef.current) {
+            startNewRecorder();
+          } else {
+            setIsListening(false);
+          }
+        };
+        mediaRecorderRef.current = r;
+        r.start(LIVE_AUDIO_RECORD_TIMESLICE_MS);
       };
 
-      mediaRecorderRef.current = recorder;
-      recorder.start(1500);
+      startNewRecorder();
       setIsListening(true);
     } catch {
       toast.error('Microphone access failed. Allow mic permissions to run live call tests.');
@@ -279,6 +373,8 @@ export default function TestAiReceptionistPage() {
   }, []);
 
   const speakText = async (text: string) => {
+    stopFallbackRecorder();
+
     try {
       const audioUrl = await generateVoicePreview({
         voiceId: selectedVoiceId,
@@ -286,36 +382,38 @@ export default function TestAiReceptionistPage() {
         speed: voiceProfile?.speechSpeed ?? 1,
       }).unwrap();
 
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-      }
-
-      stopFallbackRecorder();
-
+      if (!audioRef.current) audioRef.current = new Audio();
       audioRef.current.src = audioUrl;
       await audioRef.current.play();
-
-      audioRef.current.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        void startFallbackRecorder();
-      };
+      await new Promise<void>((resolve) => {
+        audioRef.current!.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+      });
     } catch {
       toast.error('Failed to play AI voice response');
-      void startFallbackRecorder();
     }
+
+    void startFallbackRecorder();
   };
 
   const sendCallerUtterance = async (utterance: string) => {
     const cleaned = utterance.trim();
-    if (!cleaned || processingRef.current) return;
+    if (!cleaned) return;
+    if (aiRespondingRef.current) return;
+    aiRespondingRef.current = true;
+    fallbackBufferRef.current = '';
+    setInterimTranscript('');
 
-    processingRef.current = true;
-    setTurns((prev) => [...prev, { speaker: 'caller', text: cleaned, ts: new Date().toISOString() }]);
+    const callerTurn: ChatTurn = { speaker: 'caller', text: cleaned, ts: new Date().toISOString() };
+    setTurns((prev) => [...prev, callerTurn]);
 
     try {
+      const history = turnsRef.current;
       const llmMessages = [
         { role: 'system' as const, content: contextPrompt },
-        ...turns.map((turn) => ({
+        ...history.map((turn) => ({
           role: turn.speaker === 'caller' ? ('user' as const) : ('assistant' as const),
           content: turn.text,
         })),
@@ -329,7 +427,7 @@ export default function TestAiReceptionistPage() {
           model: 'gpt-4o-mini',
           messages: llmMessages,
           temperature: 0.5,
-          maxTokens: 400,
+          maxTokens: 150,
         },
       }).unwrap();
 
@@ -340,7 +438,7 @@ export default function TestAiReceptionistPage() {
       toast.error('AI receptionist failed to respond');
       void startFallbackRecorder();
     } finally {
-      processingRef.current = false;
+      aiRespondingRef.current = false;
     }
   };
 
@@ -357,9 +455,14 @@ export default function TestAiReceptionistPage() {
       return;
     }
 
+    if (hasMediaRecorder && !supportsWebmOpus) {
+      toast.error('This browser cannot stream audio/webm;codecs=opus. Use Chrome or Edge for live voice tests.');
+      return;
+    }
+
     setIsCallActive(true);
-    setTurns([]);
-    setTurns((prev) => [...prev, { speaker: 'receptionist', text: greeting, ts: new Date().toISOString() }]);
+    isCallActiveRef.current = true;
+    setTurns([{ speaker: 'receptionist', text: greeting, ts: new Date().toISOString() }]);
     await speakText(greeting);
 
     if (!hasMediaRecorder) {

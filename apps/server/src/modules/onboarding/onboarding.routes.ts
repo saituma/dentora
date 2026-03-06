@@ -1,10 +1,19 @@
 
-import { Router } from 'express';
+import express, { Router } from 'express';
 import * as onboardingService from './onboarding.service.js';
 import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
 import { z } from 'zod';
+import { ValidationError } from '../../lib/errors.js';
 
 export const onboardingRouter = Router();
+
+const LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/pcm']);
+const LIVE_TRANSCRIBE_MAX_BYTES = 1024 * 1024;
+
+const liveTranscribeRawParser = express.raw({
+  type: ['audio/webm', 'audio/wav', 'audio/pcm', 'audio/webm;codecs=opus'],
+  limit: '1mb',
+});
 
 onboardingRouter.use(authenticateJwt, resolveTenant);
 
@@ -231,18 +240,41 @@ onboardingRouter.post(
 onboardingRouter.post(
   '/live-transcribe',
   apiRateLimiter,
-  validate({
-    body: z.object({
-      audioBase64: z.string().min(1),
-      mimeType: z.string().min(1).max(100).optional(),
-      language: z.string().min(2).max(20).optional(),
-    }),
-  }),
+  liveTranscribeRawParser,
   async (req, res, next) => {
     try {
+      const receivedContentType = String(req.header('content-type') || '').toLowerCase();
+      const mimeType = (receivedContentType.split(';')[0] || '').trim();
+      const language = typeof req.query.language === 'string' ? req.query.language : undefined;
+
+      if (!mimeType) {
+        throw new ValidationError('Missing Content-Type for live transcription audio chunk');
+      }
+
+      if (mimeType.startsWith('video/') || mimeType.startsWith('application/') || mimeType === 'audio/mp4') {
+        throw new ValidationError(`Unsupported live transcription mime type: ${mimeType}`);
+      }
+
+      if (!LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES.has(mimeType)) {
+        throw new ValidationError(`Unsupported live transcription mime type: ${mimeType}`);
+      }
+
+      const audioBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+      if (!audioBuffer.length) {
+        throw new ValidationError('Empty audio payload');
+      }
+
+      if (audioBuffer.length > LIVE_TRANSCRIBE_MAX_BYTES) {
+        throw new ValidationError('Audio chunk too large; max size is 1MB');
+      }
+
       const transcript = await onboardingService.transcribeLiveAudio(
         req.tenantContext!.tenantId,
-        req.body,
+        {
+          audioBuffer,
+          mimeType,
+          language,
+        },
       );
       res.json({ transcript });
     } catch (err) {

@@ -1,24 +1,26 @@
-
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import ws from 'ws';
 import * as schema from './schema.js';
 import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
 
-const pool = new Pool({
-  connectionString: env.DATABASE_URL,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
-});
+// WebSocket required in Node.js for transaction support (neon-http does not support transactions)
+neonConfig.webSocketConstructor = ws;
 
-pool.on('error', (err) => {
-  logger.error({ err }, 'Unexpected idle pool client error');
-});
+function buildConnectionString(rawUrl: string): string {
+  const parsedUrl = new URL(rawUrl);
 
-pool.on('connect', () => {
-  logger.debug('New database connection established');
-});
+  if (parsedUrl.searchParams.has('channel_binding')) {
+    parsedUrl.searchParams.delete('channel_binding');
+    logger.warn('Removed unsupported channel_binding from DATABASE_URL');
+  }
+
+  return parsedUrl.toString();
+}
+
+const connectionString = buildConnectionString(env.DATABASE_URL);
+const pool = new Pool({ connectionString });
 
 export const db = drizzle(pool, { schema, logger: env.NODE_ENV === 'development' });
 
@@ -31,15 +33,15 @@ export async function checkDbHealth(): Promise<boolean> {
     } finally {
       client.release();
     }
-  } catch {
+  } catch (err) {
+    logger.error({ err }, 'Database health check query failed');
     return false;
   }
 }
 
 export async function closeDb(): Promise<void> {
-  logger.info('Draining database pool...');
   await pool.end();
   logger.info('Database pool closed');
 }
 
-export { pool, schema };
+export { schema };

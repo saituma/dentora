@@ -28,6 +28,7 @@ const envSchema = z.object({
 
   DATABASE_URL: z.string().url(),
   DATABASE_POOL_SIZE: z.coerce.number().min(1).max(100).default(20),
+  DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().min(1000).max(120000).default(15000),
   DATABASE_SSL_MODE: z.enum(['disable', 'require', 'verify-ca', 'verify-full']).default('disable'),
 
   REDIS_URL: z.string().default('redis://localhost:6379'),

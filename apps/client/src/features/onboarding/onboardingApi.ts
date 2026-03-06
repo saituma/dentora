@@ -88,7 +88,7 @@ export interface VoicePreviewInput {
 }
 
 export interface LiveTranscribeInput {
-  audioBase64: string;
+  audioChunk: Blob | ArrayBuffer | Uint8Array;
   mimeType?: string;
   language?: string;
 }
@@ -209,12 +209,53 @@ export const onboardingApi = createApi({
     }),
 
     transcribeLiveAudio: builder.mutation<string, LiveTranscribeInput>({
-      query: (data) => ({
-        url: '/onboarding/live-transcribe',
-        method: 'POST',
-        body: data,
-      }),
-      transformResponse: (response: { transcript: string }) => response.transcript,
+      queryFn: async ({ audioChunk, mimeType = 'audio/webm', language = 'en' }) => {
+        try {
+          const buildHeaders = (): HeadersInit => ({
+            'Content-Type': mimeType,
+            ...getAuthHeaders(),
+          });
+
+          const requestBody: BodyInit =
+            audioChunk instanceof Blob
+              ? audioChunk
+              : audioChunk instanceof ArrayBuffer
+                ? audioChunk
+                : (audioChunk.buffer.slice(
+                    audioChunk.byteOffset,
+                    audioChunk.byteOffset + audioChunk.byteLength,
+                  ) as ArrayBuffer);
+
+          const url = `${API_BASE_URL}/onboarding/live-transcribe?language=${encodeURIComponent(language)}`;
+
+          let res = await fetch(url, {
+            method: 'POST',
+            headers: buildHeaders(),
+            body: requestBody,
+          });
+
+          if (res.status === 401) {
+            const refreshed = await tryRefreshAccessToken();
+            if (refreshed) {
+              res = await fetch(url, {
+                method: 'POST',
+                headers: buildHeaders(),
+                body: requestBody,
+              });
+            }
+          }
+
+          if (!res.ok) {
+            const errorText = await res.text();
+            return { error: { status: res.status, data: errorText } as const };
+          }
+
+          const payload = (await res.json()) as { transcript?: string };
+          return { data: payload.transcript?.trim() ?? '' };
+        } catch (err) {
+          return { error: { status: 'FETCH_ERROR' as const, error: String(err) } };
+        }
+      },
     }),
 
     publishConfig: builder.mutation<{ configVersionId: string }, void>({

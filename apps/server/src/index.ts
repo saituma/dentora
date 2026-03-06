@@ -103,6 +103,22 @@ app.use(errorHandler);
 
 const port = env.PORT;
 
+async function waitForDatabase(maxAttempts = 5, delayMs = 3000): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const dbOk = await checkDbHealth();
+    if (dbOk) {
+      return true;
+    }
+
+    if (attempt < maxAttempts) {
+      logger.warn({ attempt, maxAttempts }, 'Database not ready yet, retrying');
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return false;
+}
+
 async function start() {
   try {
     try {
@@ -112,7 +128,7 @@ async function start() {
       logger.warn({ err }, 'Redis connection failed — continuing without cache');
     }
 
-    const dbOk = await checkDbHealth();
+    const dbOk = await waitForDatabase();
     if (!dbOk) {
       logger.error('Database health check failed at startup');
       process.exit(1);

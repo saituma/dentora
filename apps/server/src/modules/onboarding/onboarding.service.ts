@@ -47,6 +47,8 @@ export interface ReadinessScorecard {
   isDeployable: boolean;
 }
 
+const LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/pcm']);
+
 export async function saveClinicIdentity(
   tenantId: string,
   data: {
@@ -561,33 +563,52 @@ export async function generateVoicePreview(
 
 export async function transcribeLiveAudio(
   tenantId: string,
-  data: { audioBase64: string; mimeType?: string; language?: string },
+  data: { audioBuffer: Buffer; mimeType: string; language?: string },
 ): Promise<string> {
-  if (!env.OPENAI_API_KEY) {
-    throw new ValidationError('OpenAI API key is required for live transcription');
+  if (!env.OPENAI_API_KEY && !env.DEEPGRAM_API_KEY) {
+    throw new ValidationError('OpenAI or Deepgram API key is required for live transcription');
   }
 
   const rawMimeType = (data.mimeType || 'audio/webm').toLowerCase();
   const mimeType = rawMimeType.split(';')[0] || 'audio/webm';
   const language = data.language || 'en';
 
-  let audioBuffer: Buffer;
-  try {
-    audioBuffer = Buffer.from(data.audioBase64, 'base64');
-  } catch {
-    throw new ValidationError('Invalid audio payload');
+  if (mimeType.startsWith('video/') || mimeType.startsWith('application/') || mimeType === 'audio/mp4') {
+    throw new ValidationError(`Unsupported live transcription mime type: ${mimeType}`);
   }
+
+  if (!LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES.has(mimeType)) {
+    throw new ValidationError(`Unsupported live transcription mime type: ${mimeType}`);
+  }
+
+  const audioBuffer = data.audioBuffer;
 
   if (!audioBuffer.length) {
     throw new ValidationError('Empty audio payload');
+  }
+
+  if (audioBuffer.length > 1024 * 1024) {
+    throw new ValidationError('Audio chunk too large; max size is 1MB');
   }
 
   if (audioBuffer.length < 1024) {
     return '';
   }
 
+  logger.debug(
+    {
+      tenantId,
+      mimeType,
+      language,
+      chunkBytes: audioBuffer.length,
+    },
+    'Live transcription chunk received',
+  );
+
   const extension = mimeType.includes('wav')
     ? 'wav'
+    : mimeType.includes('pcm')
+      ? 'pcm'
     : mimeType.includes('mp4') || mimeType.includes('m4a')
       ? 'mp4'
       : mimeType.includes('mpeg') || mimeType.includes('mp3')
@@ -596,29 +617,71 @@ export async function transcribeLiveAudio(
           ? 'ogg'
           : 'webm';
 
-  const form = new FormData();
-  form.append('model', 'gpt-4o-mini-transcribe');
-  form.append('language', language);
-  form.append('response_format', 'json');
-  const audioBytes = Uint8Array.from(audioBuffer);
-  form.append(
-    'file',
-    new Blob([audioBytes], { type: mimeType }),
-    `live-input.${extension}`,
-  );
+  const tryDeepgram = async (): Promise<string> => {
+    if (!env.DEEPGRAM_API_KEY) return '';
+    try {
+      const deepgramRes = await fetch(
+        `https://api.deepgram.com/v1/listen?model=nova-2&language=${language}&smart_format=true`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${env.DEEPGRAM_API_KEY}`,
+            'Content-Type': mimeType,
+          },
+          body: audioBuffer,
+          signal: AbortSignal.timeout(15_000),
+        },
+      );
+      if (!deepgramRes.ok) return '';
+      const dg = (await deepgramRes.json()) as { results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string }> }> } };
+      return dg.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim() ?? '';
+    } catch {
+      return '';
+    }
+  };
 
   const startedAt = Date.now();
-  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      ...(process.env.OPENAI_ORG_ID ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID } : {}),
-    },
-    body: form,
-    signal: AbortSignal.timeout(20_000),
-  });
 
-  if (!response.ok) {
+  if (env.OPENAI_API_KEY) {
+    const form = new FormData();
+    form.append('model', 'whisper-1');
+    form.append('language', language);
+    form.append('response_format', 'json');
+    const audioBytes = Uint8Array.from(audioBuffer);
+    form.append(
+      'file',
+      new Blob([audioBytes], { type: mimeType }),
+      `live-input.${extension}`,
+    );
+
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        ...(process.env.OPENAI_ORG_ID ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID } : {}),
+      },
+      body: form,
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (response.ok) {
+      const result = (await response.json()) as { text?: string };
+      const transcript = (result.text || '').trim();
+      logger.info(
+        {
+          tenantId,
+          mimeType,
+          language,
+          chunkBytes: audioBuffer.length,
+          latencyMs: Date.now() - startedAt,
+          transcriptChars: transcript.length,
+          transcriptText: transcript,
+        },
+        'Live audio transcribed',
+      );
+      return transcript;
+    }
+
     const errorBody = await response.text();
     const isRecoverableChunkError = response.status === 400
       && errorBody.includes('Audio file might be corrupted or unsupported')
@@ -626,16 +689,30 @@ export async function transcribeLiveAudio(
 
     if (isRecoverableChunkError) {
       logger.debug(
-        {
-          tenantId,
-          mimeType,
-          bytes: audioBuffer.length,
-          status: response.status,
-        },
-        'Live audio chunk rejected by provider; returning empty transcript chunk',
+        { tenantId, mimeType, chunkBytes: audioBuffer.length },
+        'OpenAI rejected WebM; trying Deepgram fallback',
       );
+      const fallback = await tryDeepgram();
+      if (fallback) {
+        logger.info(
+          { tenantId, chunkBytes: audioBuffer.length, transcriptChars: fallback.length },
+          'Live audio transcribed via Deepgram fallback',
+        );
+        return fallback;
+      }
       return '';
     }
+
+    logger.warn(
+      {
+        tenantId,
+        mimeType,
+        chunkBytes: audioBuffer.length,
+        providerStatus: response.status,
+        providerResponse: errorBody.slice(0, 1000),
+      },
+      'Live transcription provider request failed',
+    );
 
     let providerMessage = 'Live transcription request was rejected by provider';
     try {
@@ -652,22 +729,16 @@ export async function transcribeLiveAudio(
     throw new ValidationError(`Live transcription failed (${response.status}): ${providerMessage}`);
   }
 
-  const result = (await response.json()) as { text?: string };
-  const transcript = (result.text || '').trim();
+  const transcript = await tryDeepgram();
+  if (transcript) {
+    logger.info(
+      { tenantId, chunkBytes: audioBuffer.length, latencyMs: Date.now() - startedAt, transcriptChars: transcript.length },
+      'Live audio transcribed via Deepgram',
+    );
+    return transcript;
+  }
 
-  logger.info(
-    {
-      tenantId,
-      mimeType,
-      language,
-      bytes: audioBuffer.length,
-      latencyMs: Date.now() - startedAt,
-      transcriptChars: transcript.length,
-    },
-    'Live audio transcribed',
-  );
-
-  return transcript;
+  return '';
 }
 
 const STEP_ORDER = [

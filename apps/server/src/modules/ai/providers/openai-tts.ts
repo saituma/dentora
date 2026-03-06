@@ -44,7 +44,7 @@ export class OpenAITtsProvider implements TtsProvider {
           speed: request.speed ?? 1,
           input: request.text,
         }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
