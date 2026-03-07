@@ -39,7 +39,18 @@ import { apiKeyRouter } from './modules/api-keys/index.js';
 const app = express();
 
 app.set('trust proxy', 1);
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+let allowedOrigins = env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean);
+if (env.NODE_ENV === 'development') {
+  const devOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+  allowedOrigins = [...new Set([...allowedOrigins, ...devOrigins])];
+}
+app.use(
+  cors({
+    origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+    credentials: true,
+    optionsSuccessStatus: 204,
+  }),
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestId);

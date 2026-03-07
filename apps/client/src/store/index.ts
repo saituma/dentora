@@ -38,7 +38,9 @@ export const store = configureStore({
     [llmApi.reducerPath]: llmApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(
+    getDefaultMiddleware({
+      serializableCheck: { warnAfter: 128 },
+    }).concat(
       authApi.middleware,
       clinicApi.middleware,
       aiConfigApi.middleware,
