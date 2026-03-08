@@ -156,12 +156,18 @@ llmRouter.post(
       });
       res.flushHeaders();
 
+      const recentHistory = req.body.conversationHistory
+        .filter((message: { role: 'user' | 'assistant'; content: string }) => (
+          typeof message.content === 'string' && message.content.trim().length > 0
+        ))
+        .slice(-6);
+
       const messages = [
         { role: 'system' as const, content: systemPrompt },
-        ...req.body.conversationHistory,
+        ...recentHistory,
         {
           role: 'user' as const,
-          content: `User Speaking Live: ${req.body.userMessage}\n\nRespond naturally, concisely, and ready for immediate spoken output.`,
+          content: `Caller said: ${req.body.userMessage}\n\nReply like a real dental receptionist speaking live on the phone. Be accurate, natural, and concise. Use 1-2 short spoken sentences unless you need one brief follow-up question.`,
         },
       ];
 
@@ -175,8 +181,8 @@ llmRouter.post(
         payload: {
           model: 'gpt-4o-mini',
           messages,
-          temperature: 0.5,
-          maxTokens: 150,
+          temperature: 0.35,
+          maxTokens: 110,
         },
         onDelta: (delta) => {
           res.write(`event: chunk\n`);

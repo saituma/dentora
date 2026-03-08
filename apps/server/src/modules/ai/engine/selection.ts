@@ -148,10 +148,20 @@ function getDefaultCandidates(workloadType: WorkloadType): ProviderCandidate[] {
 
   return [
     {
+      id: 'default-openai-tts',
+      name: 'openai',
+      providerType: 'tts',
+      priorityOrder: 1,
+      costPer1k: 0.02,
+      avgLatencyMs: 500,
+      reliability: 1,
+      isHealthy: true,
+    },
+    {
       id: 'default-elevenlabs',
       name: 'elevenlabs',
       providerType: 'tts',
-      priorityOrder: 1,
+      priorityOrder: 2,
       costPer1k: 0.02,
       avgLatencyMs: 700,
       reliability: 1,
@@ -161,7 +171,7 @@ function getDefaultCandidates(workloadType: WorkloadType): ProviderCandidate[] {
       id: 'default-google-tts',
       name: 'google-tts',
       providerType: 'tts',
-      priorityOrder: 2,
+      priorityOrder: 3,
       costPer1k: 0.02,
       avgLatencyMs: 700,
       reliability: 1,

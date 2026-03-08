@@ -12,6 +12,7 @@ interface CreateIntegrationRequest {
 interface StartGoogleOAuthRequest {
   accountEmail?: string;
   calendarId?: string;
+  returnTo?: string;
 }
 
 export const integrationsApi = createApi({

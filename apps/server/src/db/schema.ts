@@ -124,6 +124,7 @@ export const bookingRules = pgTable('booking_rules', {
   defaultAppointmentDurationMinutes: integer('default_appointment_duration_minutes').default(30),
   bufferBetweenAppointmentsMinutes: integer('buffer_between_appointments_minutes').default(0),
   operatingSchedule: jsonb('operating_schedule'),
+  closedDates: jsonb('closed_dates').notNull().default([]),
   doubleBookingPolicy: doubleBookingPolicyEnum('double_booking_policy'),
   emergencySlotPolicy: jsonb('emergency_slot_policy'),
   rescheduleLimits: jsonb('reschedule_limits'),

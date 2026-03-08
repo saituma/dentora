@@ -1,3 +1,5 @@
+import { VOICE_FOCUSED_AUDIO_CONSTRAINTS } from './audio-constraints';
+
 export type MicrophonePermissionStatus = 'granted' | 'denied' | 'prompt' | 'unknown';
 
 export type MicrophoneDiagnosticStatus =
@@ -112,7 +114,9 @@ export async function runMicrophoneDiagnostics(
 
   if (requestPermission) {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: VOICE_FOCUSED_AUDIO_CONSTRAINTS,
+      });
       permission = 'granted';
     } catch (error) {
       const name = error instanceof DOMException ? error.name : 'UnknownError';

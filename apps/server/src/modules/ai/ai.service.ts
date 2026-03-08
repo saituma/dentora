@@ -22,7 +22,13 @@ export interface TenantAIContext {
 
 type PromptEnvironment = 'phone' | 'sidebar-test';
 
-type ScheduleEntry = { start?: string; end?: string } | null;
+type ScheduleEntry = {
+  start?: string;
+  end?: string;
+  breakStart?: string;
+  breakEnd?: string;
+  breaks?: Array<{ start?: string; end?: string }>;
+} | null;
 
 const DAY_LABELS: Record<string, string> = {
   monday: 'Monday',
@@ -44,7 +50,15 @@ function formatScheduleValue(schedule?: Record<string, unknown> | null): string 
 
       const entry = rawValue as ScheduleEntry;
       if (!entry?.start || !entry?.end) return `${day}: Closed`;
-      return `${day}: ${entry.start}-${entry.end}`;
+      const firstBreak = Array.isArray(entry.breaks) && entry.breaks.length > 0
+        ? entry.breaks[0]
+        : entry.breakStart && entry.breakEnd
+          ? { start: entry.breakStart, end: entry.breakEnd }
+          : null;
+      const breakLabel = firstBreak?.start && firstBreak?.end
+        ? ` (break ${firstBreak.start}-${firstBreak.end})`
+        : '';
+      return `${day}: ${entry.start}-${entry.end}${breakLabel}`;
     })
     .filter(Boolean);
 
@@ -124,6 +138,7 @@ function buildPromptContextBlock(context: TenantAIContext): string[] {
     defaultAppointmentDurationMinutes?: number;
     minNoticePeriodHours?: number;
     maxAdvanceBookingDays?: number;
+    closedDates?: string[];
   };
   const voiceData = context.voiceProfile as {
     greetingMessage?: string;
@@ -152,6 +167,7 @@ function buildPromptContextBlock(context: TenantAIContext): string[] {
     `- Tone: ${voiceData.tone ?? 'professional'}`,
     `- Timezone: ${clinicData.timezone ?? 'America/New_York'}`,
     `- Booking Rules: default ${bookingData.defaultAppointmentDurationMinutes ?? 30} minutes; minimum notice ${bookingData.minNoticePeriodHours ?? 2} hours; maximum advance ${bookingData.maxAdvanceBookingDays ?? 30} days`,
+    `- Closed Dates: ${Array.isArray(bookingData.closedDates) && bookingData.closedDates.length > 0 ? bookingData.closedDates.join(', ') : 'None configured'}`,
     `- FAQs: ${faqSummary}`,
   ];
 }
@@ -185,6 +201,7 @@ function buildSharedReceptionistRules(): string[] {
     '9. If the caller says they want to die, are dead, might hurt themselves, are unsafe, or sound like a self-harm or mental-health crisis, stop normal receptionist flow and tell them to call 988 or 911 immediately and contact emergency services or a trusted nearby person right now.',
     '10. If the caller asks to speak to a human, direct them to the clinic\'s main contact line or staff callback process.',
     '11. Do not mention that you are an AI unless explicitly asked.',
+    '12. Never invent appointment availability. Any real booking confirmation must come from backend calendar validation.',
   ];
 }
 

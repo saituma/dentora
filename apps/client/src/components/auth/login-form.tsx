@@ -36,6 +36,7 @@ const mapServerStepToClientStep = (step?: string): OnboardingStep => {
     return "rules";
   }
   if (step === "integrations") return "integrations";
+  if (step === "schedule") return "schedule";
   if (step === "review") return "ai-chat";
   if (step === "test-call") return "test-call";
   if (step === "complete") return "complete";

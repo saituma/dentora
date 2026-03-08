@@ -35,7 +35,7 @@ integrationRouter.get('/google/calendar/oauth/callback', async (req, res) => {
 
   try {
     const result = await integrationService.completeGoogleCalendarOAuth({ code, state });
-    res.redirect(buildRedirect(successRedirect, {
+    res.redirect(buildRedirect(result.returnTo || successRedirect, {
       googleCalendar: 'connected',
       integrationId: result.integrationId,
     }));
@@ -53,6 +53,7 @@ integrationRouter.post(
     body: z.object({
       accountEmail: z.string().email().optional(),
       calendarId: z.string().min(1).optional(),
+      returnTo: z.string().min(1).optional(),
     }),
   }),
   async (req, res, next) => {
@@ -61,6 +62,7 @@ integrationRouter.post(
         tenantId: req.tenantContext!.tenantId,
         accountEmail: req.body.accountEmail,
         calendarId: req.body.calendarId,
+        returnTo: req.body.returnTo,
       });
       res.json(result);
     } catch (err) {

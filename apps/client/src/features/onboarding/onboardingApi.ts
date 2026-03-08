@@ -52,6 +52,10 @@ export interface BookingRulesInput {
   cancellationHours?: number;
   minNoticeHours?: number;
   maxFutureDays?: number;
+  defaultAppointmentDurationMinutes?: number;
+  bufferBetweenAppointmentsMinutes?: number;
+  operatingSchedule?: Record<string, unknown>;
+  closedDates?: string[];
   allowedChannels?: string[];
   doubleBookingPolicy?: 'forbid' | 'conditional' | 'manual-review';
   emergencySlotPolicy?: 'reserved' | 'normal' | 'manual-review';
@@ -88,6 +92,17 @@ export interface VoicePreviewInput {
   language?: string;
 }
 
+export interface AvailableVoiceOption {
+  voiceId: string;
+  name: string;
+  label: string;
+  previewUrl?: string;
+  gender?: string;
+  accent?: string;
+  locale?: string;
+  category?: string;
+}
+
 export interface LiveTranscribeInput {
   audioChunk: Blob | ArrayBuffer | Uint8Array;
   mimeType?: string;
@@ -115,6 +130,10 @@ export const onboardingApi = createApi({
     getReadiness: builder.query<ReadinessScorecard, void>({
       query: () => '/onboarding/readiness',
       providesTags: ['Readiness'],
+    }),
+
+    getAvailableVoices: builder.query<{ data: AvailableVoiceOption[] }, void>({
+      query: () => '/onboarding/voices',
     }),
 
     saveClinicProfile: builder.mutation<{ success: boolean; step: string }, ClinicProfileInput>({
@@ -283,6 +302,7 @@ export const onboardingApi = createApi({
 export const {
   useGetOnboardingStatusQuery,
   useGetReadinessQuery,
+  useGetAvailableVoicesQuery,
   useSaveClinicProfileMutation,
   useSaveServicesMutation,
   useSaveBookingRulesMutation,

@@ -1,8 +1,9 @@
-const OPENAI_PRESET_VOICE_IDS = new Set([
-  'pNInz6obpgDQGcFmaJgB',
-  'EXAVITQu4vr4xnSDxMaL',
-  'MF3mGyEYCl7XYWbV9V6O',
-  '21m00Tcm4TlvDq8ikWAM',
+const OPENAI_BUILTIN_VOICE_IDS = new Set([
+  'alloy',
+  'echo',
+  'nova',
+  'sage',
+  'shimmer',
 ]);
 
 const GENERIC_TTS_VOICE_IDS = new Set([
@@ -13,7 +14,7 @@ const GENERIC_TTS_VOICE_IDS = new Set([
   'calm',
   'formal',
   'casual',
-  ...OPENAI_PRESET_VOICE_IDS,
+  ...OPENAI_BUILTIN_VOICE_IDS,
 ]);
 
 export function isGenericTtsVoiceId(voiceId?: string | null): boolean {
@@ -27,7 +28,7 @@ export function isCustomTtsVoiceId(voiceId?: string | null): boolean {
 
 export function getPreferredTtsProviderForVoiceId(voiceId?: string | null): 'openai' | 'elevenlabs' | null {
   if (!voiceId) return null;
-  if (OPENAI_PRESET_VOICE_IDS.has(voiceId)) return 'openai';
+  if (OPENAI_BUILTIN_VOICE_IDS.has(voiceId)) return 'openai';
   if (isCustomTtsVoiceId(voiceId)) return 'elevenlabs';
   return null;
 }

@@ -35,6 +35,15 @@ onboardingRouter.get('/readiness', async (req, res, next) => {
   }
 });
 
+onboardingRouter.get('/voices', async (_req, res, next) => {
+  try {
+    const voices = await onboardingService.listAvailableVoices();
+    res.json({ data: voices });
+  } catch (err) {
+    next(err);
+  }
+});
+
 onboardingRouter.post(
   '/clinic-profile',
   validate({
@@ -103,6 +112,10 @@ onboardingRouter.post(
       cancellationHours: z.number().int().optional(),
       minNoticeHours: z.number().int().optional(),
       maxFutureDays: z.number().int().optional(),
+      defaultAppointmentDurationMinutes: z.number().int().min(5).max(240).optional(),
+      bufferBetweenAppointmentsMinutes: z.number().int().min(0).max(120).optional(),
+      operatingSchedule: z.record(z.string(), z.unknown()).optional(),
+      closedDates: z.array(z.string()).optional(),
       allowedChannels: z.array(z.string()).optional(),
       doubleBookingPolicy: z.enum(['forbid', 'conditional', 'manual-review']).optional(),
       emergencySlotPolicy: z.enum(['reserved', 'normal', 'manual-review']).optional(),

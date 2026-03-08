@@ -2,7 +2,11 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import { logger } from '../../lib/logger.js';
-import { loadTenantAIContext, buildSystemPrompt } from '../ai/ai.service.js';
+import {
+  loadTenantAIContext,
+  buildSystemPrompt,
+  type TenantAIContext,
+} from '../ai/ai.service.js';
 import * as callService from '../calls/call.service.js';
 import { resolveTenantByPhone } from './telephony.service.js';
 import { db } from '../../db/index.js';
@@ -10,8 +14,11 @@ import { tenantActiveConfig, twilioNumbers, callSessions, tenantConfigVersions }
 import { eq, and } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { executeSttWithFailover, executeTtsWithFailover } from '../ai/engine/index.js';
-import { resolveApiKey } from '../api-keys/api-key.service.js';
-import { streamLlm } from '../llm/llm.service.js';
+import {
+  createInitialReceptionistSessionState,
+  processReceptionistTurnWithBooking,
+  type ReceptionistSessionState,
+} from '../ai/receptionist-booking.service.js';
 
 interface MediaStreamSession {
   callSessionId: string;
@@ -19,8 +26,10 @@ interface MediaStreamSession {
   configVersionId: string;
   configVersion: number;
   streamSid: string;
+  aiContext: TenantAIContext;
   systemPrompt: string;
   conversationHistory: Array<{ role: string; content: string }>;
+  sessionState: ReceptionistSessionState;
   audioBuffer: Buffer[];
   isProcessing: boolean;
   language: string;
@@ -61,8 +70,7 @@ function extractSpeakableSegments(buffer: string, flushRemainder = false): { seg
 
 export function attachMediaStreamWebSocket(server: HttpServer): void {
   const wss = new WebSocketServer({
-    server,
-    path: '/api/telephony/media-stream',
+    noServer: true,
   });
 
   wss.on('connection', (ws, req) => {
@@ -128,6 +136,17 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
     });
   });
 
+  server.on('upgrade', (req, socket, head) => {
+    const requestUrl = new URL(req.url || '', `http://${req.headers.host}`);
+    if (!requestUrl.pathname.startsWith('/api/telephony/media-stream/')) {
+      return;
+    }
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req);
+    });
+  });
+
   logger.info('Twilio Media Stream WebSocket server attached');
 }
 
@@ -169,8 +188,10 @@ async function handleStreamStart(
       configVersionId,
       configVersion,
       streamSid,
+      aiContext,
       systemPrompt,
       conversationHistory: [],
+      sessionState: createInitialReceptionistSessionState(),
       audioBuffer: [],
       isProcessing: false,
       language: voiceSettings?.language ?? 'en-US',
@@ -286,95 +307,40 @@ async function processBufferedAudio(callSessionId: string): Promise<void> {
       return;
     }
 
-    const providerKey = await resolveApiKey(session.tenantId, 'openai');
-    const ttsSegments: string[] = [];
-    let isSynthesizing = false;
-    let ttsBuffer = '';
-    let responseText = '';
+    const llmStart = Date.now();
+    const turnResult = await processReceptionistTurnWithBooking({
+      tenantId: session.tenantId,
+      sessionId: session.callSessionId,
+      aiContext: session.aiContext,
+      systemPrompt: session.systemPrompt,
+      conversationHistory: session.conversationHistory,
+      userMessage: transcript,
+      sessionState: session.sessionState,
+    });
+    session.sessionState = turnResult.sessionState;
+    const llmMs = Date.now() - llmStart;
+    const finalResponseText = turnResult.response.trim();
+    const { segments } = extractSpeakableSegments(finalResponseText, true);
+    const speakableSegments = segments.length > 0 ? segments : (finalResponseText ? [finalResponseText] : []);
     let ttsMs = 0;
 
-    const drainTtsQueue = async () => {
-      if (isSynthesizing) return;
-      isSynthesizing = true;
-
-      try {
-        while (ttsSegments.length > 0) {
-          const nextSegment = ttsSegments.shift();
-          if (!nextSegment) continue;
-
-          const ttsStart = Date.now();
-          const ttsResult = await executeTtsWithFailover({
-            workloadType: 'tts',
-            tenantId: session.tenantId,
-            language: session.language,
-            ttsRequest: {
-              text: nextSegment,
-              voiceId: session.voiceId || session.voiceTone || 'default',
-              language: session.language,
-              tenantId: session.tenantId,
-              callSessionId: session.callSessionId,
-            },
-          });
-          ttsMs += Date.now() - ttsStart;
-          await sendAudioToTwilio(session, ttsResult.audio);
-        }
-      } finally {
-        isSynthesizing = false;
-      }
-    };
-
-    const waitForTtsDrain = async () => {
-      while (isSynthesizing || ttsSegments.length > 0) {
-        await new Promise((resolve) => setTimeout(resolve, 25));
-      }
-    };
-
-    const llmStart = Date.now();
-
-    const llmResult = await streamLlm({
-      provider: providerKey.provider,
-      apiKey: providerKey.apiKey,
-      tenantId: session.tenantId,
-      userId: session.tenantId,
-      task: 'generate_response',
-      payload: {
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: session.systemPrompt },
-          ...session.conversationHistory.map((turn) => ({
-            role: turn.role as 'system' | 'user' | 'assistant',
-            content: turn.content,
-          })),
-          {
-            role: 'user',
-            content: `Caller speaking live on the phone: ${transcript}\n\nRespond naturally, concisely, and ready for immediate spoken output.`,
-          },
-        ],
-        temperature: 0.5,
-        maxTokens: 150,
-      },
-      onDelta: (delta) => {
-        responseText += delta;
-        ttsBuffer += delta;
-        const { segments, remainder } = extractSpeakableSegments(ttsBuffer);
-        ttsBuffer = remainder;
-        if (segments.length > 0) {
-          ttsSegments.push(...segments);
-          void drainTtsQueue();
-        }
-      },
-    });
-
-    const llmMs = llmResult.latencyMs || (Date.now() - llmStart);
-    const { segments: trailingSegments, remainder } = extractSpeakableSegments(ttsBuffer, true);
-    ttsBuffer = remainder;
-    if (trailingSegments.length > 0) {
-      ttsSegments.push(...trailingSegments);
-      void drainTtsQueue();
+    for (const segment of speakableSegments) {
+      const ttsStart = Date.now();
+      const ttsResult = await executeTtsWithFailover({
+        workloadType: 'tts',
+        tenantId: session.tenantId,
+        language: session.language,
+        ttsRequest: {
+          text: segment,
+          voiceId: session.voiceId || session.voiceTone || 'default',
+          language: session.language,
+          tenantId: session.tenantId,
+          callSessionId: session.callSessionId,
+        },
+      });
+      ttsMs += Date.now() - ttsStart;
+      await sendAudioToTwilio(session, ttsResult.audio);
     }
-    await waitForTtsDrain();
-
-    const finalResponseText = llmResult.response.trim() || responseText.trim();
 
     session.conversationHistory.push(
       { role: 'user', content: transcript },
@@ -394,11 +360,11 @@ async function processBufferedAudio(callSessionId: string): Promise<void> {
         aiText: finalResponseText,
         providers: {
           stt: sttResult.provider,
-          llm: llmResult.provider,
-          tts: 'streamed',
+          llm: 'booking-controller',
+          tts: 'tts-failover',
         },
         turnNumber: session.turnCount,
-        streaming: true,
+        streaming: false,
       },
       latencyMs: totalMs,
     });
@@ -462,7 +428,8 @@ async function sendAudioToTwilio(session: MediaStreamSession, audio: Buffer): Pr
 async function sendGreeting(session: MediaStreamSession, aiContext: any): Promise<void> {
   try {
     const voiceSettings = aiContext.voiceProfile as any;
-    const greeting = voiceSettings?.greeting
+    const greeting = voiceSettings?.greetingMessage
+      ?? voiceSettings?.greeting
       ?? `Thank you for calling ${aiContext.clinicName}. How can I help you today?`;
 
     const ttsResult = await executeTtsWithFailover({

@@ -18,7 +18,7 @@ import { logger } from '../../lib/logger.js';
 import { cache } from '../../lib/cache.js';
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
 import { env } from '../../config/env.js';
-import { getPreferredTtsProviderForVoiceId } from '../ai/providers/voice-routing.js';
+import { getPreferredTtsProviderForVoiceId, isCustomTtsVoiceId } from '../ai/providers/voice-routing.js';
 
 export interface OnboardingStatus {
   tenantId: string;
@@ -46,6 +46,17 @@ export interface ReadinessScorecard {
   integrations: { score: number; weight: number; issues: ValidationIssue[] };
   totalScore: number;
   isDeployable: boolean;
+}
+
+export interface AvailableVoiceOption {
+  voiceId: string;
+  name: string;
+  label: string;
+  previewUrl?: string;
+  gender?: string;
+  accent?: string;
+  locale?: string;
+  category?: string;
 }
 
 const LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/pcm']);
@@ -159,6 +170,10 @@ export async function saveBookingRules(
     cancellationHours?: number;
     minNoticeHours?: number;
     maxFutureDays?: number;
+    defaultAppointmentDurationMinutes?: number;
+    bufferBetweenAppointmentsMinutes?: number;
+    operatingSchedule?: Record<string, unknown>;
+    closedDates?: string[];
     allowedChannels?: string[];
     doubleBookingPolicy?: string;
     emergencySlotPolicy?: string;
@@ -175,6 +190,10 @@ export async function saveBookingRules(
     minNoticePeriodHours: data.minNoticeHours ?? 2,
     maxAdvanceBookingDays: data.advanceBookingDays ?? data.maxFutureDays ?? 30,
     cancellationCutoffHours: data.cancellationHours ?? 24,
+    defaultAppointmentDurationMinutes: data.defaultAppointmentDurationMinutes ?? existing?.defaultAppointmentDurationMinutes ?? 30,
+    bufferBetweenAppointmentsMinutes: data.bufferBetweenAppointmentsMinutes ?? existing?.bufferBetweenAppointmentsMinutes ?? 0,
+    operatingSchedule: data.operatingSchedule ?? existing?.operatingSchedule ?? {},
+    closedDates: data.closedDates ?? (existing as any)?.closedDates ?? [],
     doubleBookingPolicy: (data.doubleBookingPolicy ?? 'forbid') as any,
     emergencySlotPolicy: { policy: data.emergencySlotPolicy ?? 'reserved' },
     afterHoursPolicy: { action: 'voicemail' },
@@ -378,6 +397,16 @@ export async function computeReadinessScore(tenantId: string): Promise<Readiness
     let bookingScore = 60;
     if (booking.maxAdvanceBookingDays) bookingScore += 20;
     if (booking.cancellationCutoffHours) bookingScore += 20;
+    if (hasConfiguredOperatingSchedule(booking.operatingSchedule as Record<string, unknown> | null | undefined)) {
+      bookingScore += 10;
+    } else {
+      scorecard.bookingRules.issues.push({
+        domain: 'booking_rules',
+        field: 'operatingSchedule',
+        message: 'Clinic working hours and breaks are not configured',
+        severity: 'warning',
+      });
+    }
     scorecard.bookingRules.score = Math.min(bookingScore, 100);
   } else {
     scorecard.bookingRules.issues.push({ domain: 'booking_rules', message: 'Booking rules not configured', severity: 'error' });
@@ -565,7 +594,9 @@ export async function generateVoicePreview(
 ): Promise<Buffer> {
   const { getTtsAdapter } = await import('../ai/providers/index.js');
 
-  const providerName = getPreferredTtsProviderForVoiceId(data.voiceId) ?? env.TTS_PROVIDER;
+  const providerName = !isCustomTtsVoiceId(data.voiceId) && env.OPENAI_API_KEY
+    ? 'openai'
+    : getPreferredTtsProviderForVoiceId(data.voiceId) ?? env.TTS_PROVIDER;
   const ttsProvider = getTtsAdapter(providerName);
   const result = await ttsProvider.synthesize({
     text: data.text,
@@ -581,6 +612,57 @@ export async function generateVoicePreview(
   );
 
   return result.audio;
+}
+
+export async function listAvailableVoices(): Promise<AvailableVoiceOption[]> {
+  if (!env.ELEVENLABS_API_KEY) {
+    throw new ValidationError('ELEVENLABS_API_KEY is required to load available voices');
+  }
+
+  const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+    headers: {
+      'xi-api-key': env.ELEVENLABS_API_KEY,
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new ValidationError(`Failed to load ElevenLabs voices: ${errorBody.slice(0, 300)}`);
+  }
+
+  const payload = (await response.json()) as {
+    voices?: Array<{
+      voice_id?: string;
+      name?: string;
+      preview_url?: string;
+      category?: string;
+      labels?: Record<string, string>;
+    }>;
+  };
+
+  return (payload.voices ?? [])
+    .filter((voice) => typeof voice.voice_id === 'string' && typeof voice.name === 'string')
+    .map((voice) => {
+      const labels = voice.labels ?? {};
+      const gender = labels.gender || labels.gender_identity || undefined;
+      const accent = labels.accent || undefined;
+      const locale = labels.language || labels.locale || undefined;
+      const category = voice.category || labels.use_case || undefined;
+      const parts = [gender, accent || locale, category].filter(Boolean);
+
+      return {
+        voiceId: voice.voice_id as string,
+        name: voice.name as string,
+        label: parts.length > 0 ? parts.join(' • ') : 'ElevenLabs voice',
+        previewUrl: voice.preview_url || undefined,
+        gender,
+        accent,
+        locale,
+        category,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function transcribeLiveAudio(
@@ -794,8 +876,19 @@ const STEP_ORDER = [
   'voice',
   'knowledge-base',
   'integrations',
+  'schedule',
   'review',
 ] as const;
+
+function hasConfiguredOperatingSchedule(schedule?: Record<string, unknown> | null): boolean {
+  if (!schedule || typeof schedule !== 'object') return false;
+
+  return Object.values(schedule).some((value) => {
+    if (!value || typeof value !== 'object') return false;
+    const entry = value as { start?: unknown; end?: unknown };
+    return typeof entry.start === 'string' && entry.start.trim() && typeof entry.end === 'string' && entry.end.trim();
+  });
+}
 
 async function detectCompletedSteps(tenantId: string): Promise<string[]> {
   const completed: string[] = [];
@@ -808,6 +901,9 @@ async function detectCompletedSteps(tenantId: string): Promise<string[]> {
 
   const [booking] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
   if (booking) completed.push('booking-rules');
+  if (hasConfiguredOperatingSchedule(booking?.operatingSchedule as Record<string, unknown> | null | undefined)) {
+    completed.push('schedule');
+  }
 
   const policyList = await db.select().from(policies).where(eq(policies.tenantId, tenantId));
   if (policyList.length > 0) completed.push('policies');

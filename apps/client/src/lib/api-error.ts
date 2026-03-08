@@ -46,6 +46,14 @@ export function getUserFriendlyApiError(
     return serverMessage || "Please check your details and try again.";
   }
 
+  if (code === "PROVIDER_ERROR" && serverMessage) {
+    if (serverMessage.includes("detected_unusual_activity")) {
+      return "ElevenLabs is blocking voice generation for this account. Voice listing may still work, but previews require an account/key that ElevenLabs allows for TTS requests.";
+    }
+
+    return serverMessage;
+  }
+
   if (options.operation === "login" && !serverMessage) {
     return "Invalid email or password.";
   }

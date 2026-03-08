@@ -33,7 +33,7 @@ import { configRouter } from './modules/config/index.js';
 import { adminRouter } from './modules/admin/index.js';
 import { onboardingRouter } from './modules/onboarding/index.js';
 import { aiChatRouter } from './modules/ai-chat/index.js';
-import { llmRouter } from './modules/llm/index.js';
+import { llmRouter, attachReceptionistLiveWebSocket } from './modules/llm/index.js';
 import { apiKeyRouter } from './modules/api-keys/index.js';
 
 const app = express();
@@ -151,6 +151,7 @@ async function start() {
     });
 
     attachMediaStreamWebSocket(server);
+    attachReceptionistLiveWebSocket(server);
 
     let isShuttingDown = false;
 

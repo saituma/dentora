@@ -33,6 +33,7 @@ export interface BookingRules {
   defaultAppointmentDurationMinutes?: number;
   bufferBetweenAppointmentsMinutes?: number;
   operatingSchedule?: Record<string, unknown>;
+  closedDates?: string[];
   doubleBookingPolicy?: string;
   afterHoursPolicy?: Record<string, unknown>;
   createdAt: string;

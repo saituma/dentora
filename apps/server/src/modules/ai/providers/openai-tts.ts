@@ -5,10 +5,11 @@ import { ProviderError } from '../../../lib/errors.js';
 import { isCustomTtsVoiceId } from './voice-routing.js';
 
 const VOICE_MAP: Record<string, string> = {
-  pNInz6obpgDQGcFmaJgB: 'alloy',
-  EXAVITQu4vr4xnSDxMaL: 'shimmer',
-  MF3mGyEYCl7XYWbV9V6O: 'echo',
-  '21m00Tcm4TlvDq8ikWAM': 'nova',
+  alloy: 'alloy',
+  echo: 'echo',
+  nova: 'nova',
+  sage: 'sage',
+  shimmer: 'shimmer',
   professional: 'alloy',
   warm: 'nova',
   friendly: 'shimmer',
@@ -22,8 +23,8 @@ export class OpenAITtsProvider implements TtsProvider {
   private apiKey: string;
   private baseUrl: string;
 
-  constructor() {
-    this.apiKey = env.OPENAI_API_KEY;
+  constructor(apiKey?: string) {
+    this.apiKey = apiKey || env.OPENAI_API_KEY;
     this.baseUrl = 'https://api.openai.com/v1';
   }
 
@@ -48,7 +49,7 @@ export class OpenAITtsProvider implements TtsProvider {
         body: JSON.stringify({
           model: 'gpt-4o-mini-tts',
           voice,
-          format: 'mp3',
+          response_format: 'mp3',
           speed: request.speed ?? 1,
           input: request.text,
         }),

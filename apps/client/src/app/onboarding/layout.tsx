@@ -10,6 +10,7 @@ const ONBOARDING_STEPS = [
   'voice',
   'rules',
   'integrations',
+  'schedule',
   'ai-chat',
   'test-call',
   'complete',

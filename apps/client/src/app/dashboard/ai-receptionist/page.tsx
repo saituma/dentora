@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Card,
@@ -24,7 +24,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2Icon, PlusIcon, TrashIcon } from 'lucide-react';
+import { Loader2Icon, PlusIcon, TrashIcon, LinkIcon } from 'lucide-react';
+import { getUserFriendlyApiError } from '@/lib/api-error';
 import {
   useGetVoiceProfileQuery,
   useUpdateVoiceProfileMutation,
@@ -40,61 +41,203 @@ import {
   useAddPolicyMutation,
   useDeletePolicyMutation,
 } from '@/features/aiConfig/aiConfigApi';
-import { useGenerateVoicePreviewMutation } from '@/features/onboarding/onboardingApi';
-import { VoicePreviewCard } from '@/components/voice-preview-card';
 import {
-  RECEPTIONIST_VOICE_OPTIONS,
-  getReceptionistVoiceByAccentAndGender,
-  getReceptionistVoiceById,
-  type ReceptionistVoiceAccent,
-  type ReceptionistVoiceGender,
-} from '@/lib/voice-catalog';
+  useGenerateVoicePreviewMutation,
+  useGetAvailableVoicesQuery,
+} from '@/features/onboarding/onboardingApi';
+import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
+import {
+  useGetIntegrationsQuery,
+  useStartGoogleCalendarOAuthMutation,
+} from '@/features/integrations/integrationsApi';
+
+type WeekdayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+type ScheduleRow = {
+  enabled: boolean;
+  start: string;
+  end: string;
+};
+
+const WEEKDAYS: Array<{ key: WeekdayKey; label: string }> = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+];
+
+const DEFAULT_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time' },
+  { value: 'America/Chicago', label: 'Central Time' },
+  { value: 'America/Denver', label: 'Mountain Time' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time' },
+  { value: 'Europe/London', label: 'London' },
+];
+
+const DEFAULT_SCHEDULE: Record<WeekdayKey, ScheduleRow> = {
+  monday: { enabled: true, start: '09:00', end: '17:00' },
+  tuesday: { enabled: true, start: '09:00', end: '17:00' },
+  wednesday: { enabled: true, start: '09:00', end: '17:00' },
+  thursday: { enabled: true, start: '09:00', end: '17:00' },
+  friday: { enabled: true, start: '09:00', end: '17:00' },
+  saturday: { enabled: false, start: '09:00', end: '13:00' },
+  sunday: { enabled: false, start: '09:00', end: '13:00' },
+};
 
 export default function AiReceptionistPage() {
-  // Voice profile
+  const { data: clinic, isLoading: clinicLoading } = useGetClinicQuery();
   const { data: voiceProfile, isLoading: voiceLoading } = useGetVoiceProfileQuery();
+  const { data: bookingRules, isLoading: bookingLoading } = useGetBookingRulesQuery();
+  const { data: integrationsData } = useGetIntegrationsQuery();
+  const { data: voicesData, isLoading: voicesLoading } = useGetAvailableVoicesQuery();
+
+  const [updateClinic, { isLoading: clinicSaving }] = useUpdateClinicMutation();
+  const [updateRules, { isLoading: rulesSaving }] = useUpdateBookingRulesMutation();
   const [updateVoice, { isLoading: voiceSaving }] = useUpdateVoiceProfileMutation();
   const [generateVoicePreview, { isLoading: previewGenerating }] = useGenerateVoicePreviewMutation();
+  const [startGoogleCalendarOAuth, { isLoading: connectingCalendar }] = useStartGoogleCalendarOAuthMutation();
+
+  const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery();
+  const services = servicesData?.data ?? [];
+  const [addService, { isLoading: addingService }] = useAddServiceMutation();
+  const [deleteService] = useDeleteServiceMutation();
+
+  const { data: faqsData, isLoading: faqsLoading } = useGetFaqsQuery();
+  const faqs = faqsData?.data ?? [];
+  const [addFaq, { isLoading: addingFaq }] = useAddFaqMutation();
+  const [deleteFaq] = useDeleteFaqMutation();
+
+  const { data: policiesData, isLoading: policiesLoading } = useGetPoliciesQuery();
+  const policies = policiesData?.data ?? [];
+  const [addPolicy, { isLoading: addingPolicy }] = useAddPolicyMutation();
+  const [deletePolicy] = useDeletePolicyMutation();
+
+  const [clinicName, setClinicName] = useState('');
+  const [timezone, setTimezone] = useState('America/New_York');
+  const [schedule, setSchedule] = useState<Record<WeekdayKey, ScheduleRow>>(DEFAULT_SCHEDULE);
+  const [closedDatesText, setClosedDatesText] = useState('');
+  const [defaultDuration, setDefaultDuration] = useState('30');
+  const [bufferMinutes, setBufferMinutes] = useState('0');
+  const [minNotice, setMinNotice] = useState('2');
+  const [maxAdvance, setMaxAdvance] = useState('90');
 
   const [greeting, setGreeting] = useState('');
-  const [tone, setTone] = useState<'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'>('professional');
-  const [voiceId, setVoiceId] = useState(RECEPTIONIST_VOICE_OPTIONS[0].id);
   const [afterHoursMessage, setAfterHoursMessage] = useState('');
+  const [voiceId, setVoiceId] = useState('professional');
+  const [tone, setTone] = useState<'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'>('professional');
   const [language, setLanguage] = useState('en-US');
-  const [selectedAccent, setSelectedAccent] = useState<ReceptionistVoiceAccent>('us');
-  const [selectedGender, setSelectedGender] = useState<ReceptionistVoiceGender>('female');
-  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
+
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceDuration, setNewServiceDuration] = useState('30');
+  const [newQuestion, setNewQuestion] = useState('');
+  const [newAnswer, setNewAnswer] = useState('');
+  const [newPolicyType, setNewPolicyType] = useState('cancellation');
+  const [newPolicyContent, setNewPolicyContent] = useState('');
+
+  const availableVoices = voicesData?.data ?? [];
+  const calendarIntegration = useMemo(() => (
+    integrationsData?.data?.find((integration) => (
+      integration.integrationType === 'calendar' && integration.provider === 'google_calendar'
+    )) ?? null
+  ), [integrationsData?.data]);
+
+  useEffect(() => {
+    if (clinic) {
+      setClinicName(clinic.clinicName ?? '');
+      setTimezone(clinic.timezone ?? 'America/New_York');
+      setSchedule(toScheduleForm(clinic.businessHours, bookingRules?.operatingSchedule));
+    }
+  }, [clinic, bookingRules?.operatingSchedule]);
+
+  useEffect(() => {
+    if (bookingRules) {
+      setDefaultDuration(String(bookingRules.defaultAppointmentDurationMinutes ?? 30));
+      setBufferMinutes(String(bookingRules.bufferBetweenAppointmentsMinutes ?? 0));
+      setMinNotice(String(bookingRules.minNoticePeriodHours ?? 2));
+      setMaxAdvance(String(bookingRules.maxAdvanceBookingDays ?? 90));
+      setClosedDatesText((bookingRules.closedDates ?? []).join('\n'));
+      setSchedule((current) => toScheduleForm(clinic?.businessHours, bookingRules.operatingSchedule, current));
+    }
+  }, [bookingRules, clinic?.businessHours]);
 
   useEffect(() => {
     if (voiceProfile) {
-      const matchedVoice = getReceptionistVoiceById(voiceProfile.voiceId);
       setGreeting(voiceProfile.greetingMessage ?? '');
-      setTone(voiceProfile.tone ?? 'professional');
-      setVoiceId(matchedVoice?.id ?? voiceProfile.voiceId ?? RECEPTIONIST_VOICE_OPTIONS[0].id);
       setAfterHoursMessage(voiceProfile.afterHoursMessage ?? '');
-      setLanguage(matchedVoice?.locale ?? voiceProfile.language ?? 'en-US');
-      if (matchedVoice) {
-        setSelectedAccent(matchedVoice.accent);
-        setSelectedGender(matchedVoice.gender);
-      }
+      setVoiceId(voiceProfile.voiceId ?? 'professional');
+      setTone(voiceProfile.tone ?? 'professional');
+      setLanguage(voiceProfile.language ?? 'en-US');
     }
   }, [voiceProfile]);
 
-  useEffect(() => {
-    const selectedVoice = getReceptionistVoiceByAccentAndGender(selectedAccent, selectedGender);
-    setVoiceId(selectedVoice.id);
-    setTone(selectedVoice.toneValue);
-    setLanguage(selectedVoice.locale);
-    setPreviewAudioUrl(null);
-  }, [selectedAccent, selectedGender]);
+  const handleSaveClinicSetup = async () => {
+    const schedulePayload = toSchedulePayload(schedule);
+    const closedDates = parseClosedDatesText(closedDatesText);
+
+    try {
+      await Promise.all([
+        updateClinic({
+          clinicName,
+          timezone,
+          businessHours: schedulePayload,
+        }).unwrap(),
+        updateRules({
+          operatingSchedule: schedulePayload,
+          closedDates,
+          defaultAppointmentDurationMinutes: parseInt(defaultDuration, 10) || 30,
+          bufferBetweenAppointmentsMinutes: parseInt(bufferMinutes, 10) || 0,
+          minNoticePeriodHours: parseInt(minNotice, 10) || 2,
+          maxAdvanceBookingDays: parseInt(maxAdvance, 10) || 90,
+        }).unwrap(),
+      ]);
+      toast.success('Clinic booking configuration saved');
+    } catch {
+      toast.error('Failed to save clinic booking configuration');
+    }
+  };
+
+  const handleConnectCalendar = async () => {
+    try {
+      const result = await startGoogleCalendarOAuth({}).unwrap();
+      window.location.href = result.authUrl;
+    } catch {
+      toast.error('Failed to start Google Calendar connection');
+    }
+  };
+
+  const handlePreviewVoice = async () => {
+    try {
+      const audioUrl = await generateVoicePreview({
+        voiceId,
+        text: greeting.trim() || `Hello, thank you for calling ${clinicName || 'our clinic'}. How may I help you today?`,
+        speed: voiceProfile?.speechSpeed ?? 1,
+        language,
+      }).unwrap();
+      const audio = new Audio(audioUrl);
+      audio.onended = () => URL.revokeObjectURL(audioUrl);
+      await audio.play();
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err));
+    }
+  };
 
   const handleSaveVoice = async () => {
     try {
       await updateVoice({
         greetingMessage: greeting,
-        tone,
-        voiceId,
         afterHoursMessage,
+        voiceId,
+        tone,
         language,
       }).unwrap();
       toast.success('Voice profile saved');
@@ -103,20 +246,12 @@ export default function AiReceptionistPage() {
     }
   };
 
-  // Services
-  const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery();
-  const services = servicesData?.data ?? [];
-  const [addService, { isLoading: addingService }] = useAddServiceMutation();
-  const [deleteService] = useDeleteServiceMutation();
-  const [newServiceName, setNewServiceName] = useState('');
-  const [newServiceDuration, setNewServiceDuration] = useState('30');
-
   const handleAddService = async () => {
     if (!newServiceName.trim()) return;
     try {
       await addService({
         serviceName: newServiceName,
-        durationMinutes: parseInt(newServiceDuration) || 30,
+        durationMinutes: parseInt(newServiceDuration, 10) || 30,
         isActive: true,
       }).unwrap();
       setNewServiceName('');
@@ -126,14 +261,6 @@ export default function AiReceptionistPage() {
       toast.error('Failed to add service');
     }
   };
-
-  // FAQs
-  const { data: faqsData, isLoading: faqsLoading } = useGetFaqsQuery();
-  const faqs = faqsData?.data ?? [];
-  const [addFaq, { isLoading: addingFaq }] = useAddFaqMutation();
-  const [deleteFaq] = useDeleteFaqMutation();
-  const [newQuestion, setNewQuestion] = useState('');
-  const [newAnswer, setNewAnswer] = useState('');
 
   const handleAddFaq = async () => {
     if (!newQuestion.trim() || !newAnswer.trim()) return;
@@ -147,42 +274,6 @@ export default function AiReceptionistPage() {
     }
   };
 
-  // Booking rules
-  const { data: bookingRules, isLoading: rulesLoading } = useGetBookingRulesQuery();
-  const [updateRules, { isLoading: rulesSaving }] = useUpdateBookingRulesMutation();
-  const [defaultDuration, setDefaultDuration] = useState('30');
-  const [minNotice, setMinNotice] = useState('2');
-  const [maxAdvance, setMaxAdvance] = useState('90');
-
-  useEffect(() => {
-    if (bookingRules) {
-      setDefaultDuration(String(bookingRules.defaultAppointmentDurationMinutes ?? 30));
-      setMinNotice(String(bookingRules.minNoticePeriodHours ?? 2));
-      setMaxAdvance(String(bookingRules.maxAdvanceBookingDays ?? 90));
-    }
-  }, [bookingRules]);
-
-  const handleSaveRules = async () => {
-    try {
-      await updateRules({
-        defaultAppointmentDurationMinutes: parseInt(defaultDuration) || 30,
-        minNoticePeriodHours: parseInt(minNotice) || 2,
-        maxAdvanceBookingDays: parseInt(maxAdvance) || 90,
-      }).unwrap();
-      toast.success('Booking rules saved');
-    } catch {
-      toast.error('Failed to save booking rules');
-    }
-  };
-
-  // Policies
-  const { data: policiesData, isLoading: policiesLoading } = useGetPoliciesQuery();
-  const policies = policiesData?.data ?? [];
-  const [addPolicy, { isLoading: addingPolicy }] = useAddPolicyMutation();
-  const [deletePolicy] = useDeletePolicyMutation();
-  const [newPolicyType, setNewPolicyType] = useState('cancellation');
-  const [newPolicyContent, setNewPolicyContent] = useState('');
-
   const handleAddPolicy = async () => {
     if (!newPolicyContent.trim()) return;
     try {
@@ -194,146 +285,184 @@ export default function AiReceptionistPage() {
     }
   };
 
+  const saveLoading = clinicSaving || rulesSaving;
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">
-            Configure your AI receptionist
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Customize voice, knowledge base, and behavior
-          </p>
-        </div>
+      <div>
+        <h2 className="text-lg font-semibold">AI Receptionist Setup</h2>
+        <p className="text-sm text-muted-foreground">
+          Configure booking rules, calendar connection, and ElevenLabs voice selection for your clinic receptionist.
+        </p>
       </div>
 
-      <Tabs defaultValue="voice" className="space-y-6">
+      <Tabs defaultValue="clinic" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="voice">Voice & Greeting</TabsTrigger>
+          <TabsTrigger value="clinic">Clinic Setup</TabsTrigger>
+          <TabsTrigger value="voice">Voice</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="faqs">FAQs</TabsTrigger>
-          <TabsTrigger value="rules">Booking Rules</TabsTrigger>
           <TabsTrigger value="policies">Policies</TabsTrigger>
         </TabsList>
 
-        {/* Voice & Greeting Tab */}
-        <TabsContent value="voice" className="space-y-6">
+        <TabsContent value="clinic" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Voice & greeting</CardTitle>
+              <CardTitle>Booking configuration</CardTitle>
               <CardDescription>
-                Configure how your AI receptionist sounds and greets callers
+                Define clinic hours, closed dates, appointment duration, and the live Google Calendar connection used for bookings.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {voiceLoading ? (
+              {clinicLoading || bookingLoading ? (
                 <div className="space-y-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="h-10 w-full" />
                   ))}
                 </div>
               ) : (
                 <FieldGroup>
-                  <Field>
-                    <FieldLabel>Greeting message</FieldLabel>
-                    <Textarea
-                      value={greeting}
-                      onChange={(e) => setGreeting(e.target.value)}
-                      rows={3}
-                      placeholder="Hi, thank you for calling. How can I help you today?"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Accent</FieldLabel>
-                    <Select
-                      value={selectedAccent}
-                      onValueChange={(value) => setSelectedAccent((value as ReceptionistVoiceAccent) || 'us')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="us">US accent agent</SelectItem>
-                        <SelectItem value="uk">UK accent agent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field>
-                    <FieldLabel>Voice</FieldLabel>
-                    <Select
-                      value={selectedGender}
-                      onValueChange={(value) => setSelectedGender((value as ReceptionistVoiceGender) || 'female')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="male">Male</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {RECEPTIONIST_VOICE_OPTIONS.map((voice) => (
-                      <VoicePreviewCard
-                        key={voice.id}
-                        voice={voice}
-                        selected={voiceId === voice.id}
-                        previewAudioUrl={voiceId === voice.id ? previewAudioUrl : null}
-                        isGenerating={previewGenerating && voiceId === voice.id}
-                        onSelect={(id) => {
-                          const selectedVoice = getReceptionistVoiceById(id);
-                          if (!selectedVoice) return;
-                          setVoiceId(id);
-                          setSelectedAccent(selectedVoice.accent);
-                          setSelectedGender(selectedVoice.gender);
-                          setTone(selectedVoice.toneValue);
-                          setLanguage(selectedVoice.locale);
-                          setPreviewAudioUrl(null);
-                        }}
-                        onPreview={async (id) => {
-                          const previewVoice = getReceptionistVoiceById(id);
-                          if (!previewVoice) return;
-                          try {
-                            const url = await generateVoicePreview({
-                              voiceId: id,
-                              text: greeting.trim() || `Hello, thank you for calling ${voiceProfile?.tenantId ? 'the clinic' : 'our clinic'}. How may I help you today?`,
-                              speed: voiceProfile?.speechSpeed ?? 1,
-                              language: previewVoice.locale,
-                            }).unwrap();
-                            setPreviewAudioUrl(url);
-                          } catch {
-                            toast.error('Failed to generate voice preview');
-                          }
-                        }}
-                      />
+                    <Field>
+                      <FieldLabel>Clinic name</FieldLabel>
+                      <Input value={clinicName} onChange={(e) => setClinicName(e.target.value)} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Timezone</FieldLabel>
+                      <Select value={timezone} onValueChange={(value) => setTimezone(value || 'America/New_York')}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEFAULT_TIMEZONES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-4">
+                    <Field>
+                      <FieldLabel>Appointment duration</FieldLabel>
+                      <Input type="number" value={defaultDuration} onChange={(e) => setDefaultDuration(e.target.value)} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Buffer between appointments</FieldLabel>
+                      <Input type="number" value={bufferMinutes} onChange={(e) => setBufferMinutes(e.target.value)} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Minimum notice (hours)</FieldLabel>
+                      <Input type="number" value={minNotice} onChange={(e) => setMinNotice(e.target.value)} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>Max advance booking (days)</FieldLabel>
+                      <Input type="number" value={maxAdvance} onChange={(e) => setMaxAdvance(e.target.value)} />
+                    </Field>
+                  </div>
+
+                  <div className="space-y-3">
+                    <FieldLabel>Working schedule</FieldLabel>
+                    {WEEKDAYS.map((day) => (
+                      <div key={day.key} className="grid grid-cols-[140px_120px_120px_1fr] items-center gap-3 rounded-lg border p-3">
+                        <Button
+                          type="button"
+                          variant={schedule[day.key].enabled ? 'default' : 'outline'}
+                          onClick={() => {
+                            setSchedule((current) => ({
+                              ...current,
+                              [day.key]: {
+                                ...current[day.key],
+                                enabled: !current[day.key].enabled,
+                              },
+                            }));
+                          }}
+                        >
+                          {schedule[day.key].enabled ? `${day.label} open` : `${day.label} closed`}
+                        </Button>
+                        <Input
+                          type="time"
+                          value={schedule[day.key].start}
+                          disabled={!schedule[day.key].enabled}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSchedule((current) => ({
+                              ...current,
+                              [day.key]: { ...current[day.key], start: value },
+                            }));
+                          }}
+                        />
+                        <Input
+                          type="time"
+                          value={schedule[day.key].end}
+                          disabled={!schedule[day.key].enabled}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setSchedule((current) => ({
+                              ...current,
+                              [day.key]: { ...current[day.key], end: value },
+                            }));
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {schedule[day.key].enabled
+                            ? `${schedule[day.key].start} to ${schedule[day.key].end}`
+                            : 'No appointments'}
+                        </span>
+                      </div>
                     ))}
                   </div>
+
                   <Field>
-                    <FieldLabel>After-hours message</FieldLabel>
+                    <FieldLabel>Closed dates</FieldLabel>
                     <Textarea
-                      value={afterHoursMessage}
-                      onChange={(e) => setAfterHoursMessage(e.target.value)}
-                      rows={2}
-                      placeholder="We're currently closed. Please leave a message..."
+                      rows={4}
+                      value={closedDatesText}
+                      onChange={(e) => setClosedDatesText(e.target.value)}
+                      placeholder={'One date per line\n2026-12-25\n2026-12-26'}
                     />
                   </Field>
-                  <Field>
-                    <FieldLabel>Language</FieldLabel>
-                    <Input
-                      readOnly
-                      value={language}
-                      placeholder="en-US"
-                    />
-                  </Field>
-                  <Button onClick={handleSaveVoice} disabled={voiceSaving}>
-                    {voiceSaving ? (
+
+                  <div className="rounded-lg border p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium">Google Calendar</p>
+                        <p className="text-sm text-muted-foreground">
+                          Real appointment availability and bookings are validated against this calendar.
+                        </p>
+                      </div>
+                      <Badge variant={calendarIntegration?.status === 'active' ? 'default' : 'secondary'}>
+                        {calendarIntegration?.status === 'active' ? 'Connected' : 'Not connected'}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleConnectCalendar}
+                        disabled={connectingCalendar}
+                      >
+                        {connectingCalendar ? <Loader2Icon className="mr-2 size-4 animate-spin" /> : <LinkIcon className="mr-2 size-4" />}
+                        {calendarIntegration ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
+                      </Button>
+                      {calendarIntegration && (
+                        <span className="text-sm text-muted-foreground">
+                          Provider: {calendarIntegration.provider}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button onClick={handleSaveClinicSetup} disabled={saveLoading}>
+                    {saveLoading ? (
                       <>
                         <Loader2Icon className="mr-2 size-4 animate-spin" />
                         Saving...
                       </>
                     ) : (
-                      'Save voice profile'
+                      'Save clinic setup'
                     )}
                   </Button>
                 </FieldGroup>
@@ -342,76 +471,149 @@ export default function AiReceptionistPage() {
           </Card>
         </TabsContent>
 
-        {/* Services Tab */}
+        <TabsContent value="voice" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>ElevenLabs voice</CardTitle>
+              <CardDescription>
+                Choose the receptionist voice dynamically from ElevenLabs and use it for previews and live test calls.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {voiceLoading || voicesLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Skeleton key={index} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel>Greeting message</FieldLabel>
+                    <Textarea
+                      rows={3}
+                      value={greeting}
+                      onChange={(e) => setGreeting(e.target.value)}
+                      placeholder="Hello, thank you for calling. How can I help you today?"
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel>Selected voice</FieldLabel>
+                    <Select value={voiceId} onValueChange={(value) => setVoiceId(value || 'professional')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="professional">Default professional voice</SelectItem>
+                        {availableVoices.map((voice) => (
+                          <SelectItem key={voice.voiceId} value={voice.voiceId}>
+                            {voice.name}{voice.label ? ` - ${voice.label}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel>Tone</FieldLabel>
+                      <Select value={tone} onValueChange={(value) => setTone((value as typeof tone) || 'professional')}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="professional">Professional</SelectItem>
+                          <SelectItem value="friendly">Friendly</SelectItem>
+                          <SelectItem value="warm">Warm</SelectItem>
+                          <SelectItem value="calm">Calm</SelectItem>
+                          <SelectItem value="formal">Formal</SelectItem>
+                          <SelectItem value="casual">Casual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field>
+                      <FieldLabel>Language</FieldLabel>
+                      <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="en-US" />
+                    </Field>
+                  </div>
+
+                  <Field>
+                    <FieldLabel>After-hours message</FieldLabel>
+                    <Textarea
+                      rows={2}
+                      value={afterHoursMessage}
+                      onChange={(e) => setAfterHoursMessage(e.target.value)}
+                      placeholder="We are currently closed. Please leave a message and our team will return your call."
+                    />
+                  </Field>
+
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="button" variant="outline" onClick={handlePreviewVoice} disabled={previewGenerating}>
+                      {previewGenerating ? <Loader2Icon className="mr-2 size-4 animate-spin" /> : null}
+                      Preview voice
+                    </Button>
+                    <Button onClick={handleSaveVoice} disabled={voiceSaving}>
+                      {voiceSaving ? <Loader2Icon className="mr-2 size-4 animate-spin" /> : null}
+                      Save voice profile
+                    </Button>
+                  </div>
+                </FieldGroup>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="services" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Services</CardTitle>
               <CardDescription>
-                Dental services your AI can book appointments for
+                Active services the receptionist can book.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex gap-2">
-                <Input
-                  value={newServiceName}
-                  onChange={(e) => setNewServiceName(e.target.value)}
-                  placeholder="Service name"
-                  className="flex-1"
-                />
-                <Input
-                  value={newServiceDuration}
-                  onChange={(e) => setNewServiceDuration(e.target.value)}
-                  placeholder="Duration (min)"
-                  type="number"
-                  className="w-28"
-                />
+                <Input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder="Service name" className="flex-1" />
+                <Input value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} placeholder="Minutes" type="number" className="w-28" />
                 <Button onClick={handleAddService} disabled={addingService}>
                   <PlusIcon className="mr-1 size-4" />
                   Add
                 </Button>
               </div>
+
               {servicesLoading ? (
                 <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className="h-12 w-full" />
                   ))}
                 </div>
               ) : services.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-8">
-                  No services configured yet
-                </p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No services configured yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {services.map((svc) => (
-                    <div key={svc.id} className="flex items-center justify-between rounded-lg border p-3">
+                  {services.map((service) => (
+                    <div key={service.id} className="flex items-center justify-between rounded-lg border p-3">
                       <div>
-                        <p className="text-sm font-medium">{svc.serviceName}</p>
+                        <p className="text-sm font-medium">{service.serviceName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {svc.durationMinutes ? `${svc.durationMinutes} min` : ''}
-                          {svc.price ? ` · $${svc.price}` : ''}
-                          {svc.category ? ` · ${svc.category}` : ''}
+                          {service.durationMinutes ? `${service.durationMinutes} min` : 'Duration not set'}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={svc.isActive ? 'default' : 'secondary'}>
-                          {svc.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={async () => {
-                            try {
-                              await deleteService(svc.id).unwrap();
-                              toast.success('Service removed');
-                            } catch {
-                              toast.error('Failed to remove service');
-                            }
-                          }}
-                        >
-                          <TrashIcon className="size-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={async () => {
+                          try {
+                            await deleteService(service.id).unwrap();
+                            toast.success('Service removed');
+                          } catch {
+                            toast.error('Failed to remove service');
+                          }
+                        }}
+                      >
+                        <TrashIcon className="size-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -420,33 +622,23 @@ export default function AiReceptionistPage() {
           </Card>
         </TabsContent>
 
-        {/* FAQs Tab */}
         <TabsContent value="faqs" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Frequently asked questions</CardTitle>
+              <CardTitle>FAQs</CardTitle>
               <CardDescription>
-                Questions and answers your AI can reference during calls
+                Common clinic information the receptionist can answer without asking staff.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FieldGroup>
                 <Field>
                   <FieldLabel>Question</FieldLabel>
-                  <Input
-                    value={newQuestion}
-                    onChange={(e) => setNewQuestion(e.target.value)}
-                    placeholder="What are your hours?"
-                  />
+                  <Input value={newQuestion} onChange={(e) => setNewQuestion(e.target.value)} placeholder="Do you accept new patients?" />
                 </Field>
                 <Field>
                   <FieldLabel>Answer</FieldLabel>
-                  <Textarea
-                    value={newAnswer}
-                    onChange={(e) => setNewAnswer(e.target.value)}
-                    rows={2}
-                    placeholder="We're open Monday through Friday, 8am to 5pm."
-                  />
+                  <Textarea value={newAnswer} onChange={(e) => setNewAnswer(e.target.value)} rows={2} placeholder="Yes, we are currently accepting new patients." />
                 </Field>
                 <Button onClick={handleAddFaq} disabled={addingFaq}>
                   <PlusIcon className="mr-1 size-4" />
@@ -456,14 +648,12 @@ export default function AiReceptionistPage() {
 
               {faqsLoading ? (
                 <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className="h-16 w-full" />
                   ))}
                 </div>
               ) : faqs.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-8">
-                  No FAQs configured yet
-                </p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No FAQs configured yet.</p>
               ) : (
                 <div className="space-y-2">
                   {faqs.map((faq) => (
@@ -496,78 +686,19 @@ export default function AiReceptionistPage() {
           </Card>
         </TabsContent>
 
-        {/* Booking Rules Tab */}
-        <TabsContent value="rules" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking rules</CardTitle>
-              <CardDescription>
-                Control appointment scheduling behavior
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {rulesLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel>Default appointment duration (minutes)</FieldLabel>
-                    <Input
-                      type="number"
-                      value={defaultDuration}
-                      onChange={(e) => setDefaultDuration(e.target.value)}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Minimum notice period (hours)</FieldLabel>
-                    <Input
-                      type="number"
-                      value={minNotice}
-                      onChange={(e) => setMinNotice(e.target.value)}
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel>Max advance booking (days)</FieldLabel>
-                    <Input
-                      type="number"
-                      value={maxAdvance}
-                      onChange={(e) => setMaxAdvance(e.target.value)}
-                    />
-                  </Field>
-                  <Button onClick={handleSaveRules} disabled={rulesSaving}>
-                    {rulesSaving ? (
-                      <>
-                        <Loader2Icon className="mr-2 size-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save booking rules'
-                    )}
-                  </Button>
-                </FieldGroup>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Policies Tab */}
         <TabsContent value="policies" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Policies</CardTitle>
               <CardDescription>
-                Cancellation, no-show, and other policies the AI communicates
+                Patient-facing policy snippets the receptionist should communicate during calls.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FieldGroup>
                 <Field>
                   <FieldLabel>Policy type</FieldLabel>
-                  <Select value={newPolicyType} onValueChange={(v) => setNewPolicyType(v ?? 'cancellation')}>
+                  <Select value={newPolicyType} onValueChange={(value) => setNewPolicyType(value || 'cancellation')}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -582,12 +713,7 @@ export default function AiReceptionistPage() {
                 </Field>
                 <Field>
                   <FieldLabel>Content</FieldLabel>
-                  <Textarea
-                    value={newPolicyContent}
-                    onChange={(e) => setNewPolicyContent(e.target.value)}
-                    rows={2}
-                    placeholder="e.g. Please cancel at least 24 hours in advance"
-                  />
+                  <Textarea value={newPolicyContent} onChange={(e) => setNewPolicyContent(e.target.value)} rows={2} placeholder="Please cancel at least 24 hours in advance." />
                 </Field>
                 <Button onClick={handleAddPolicy} disabled={addingPolicy}>
                   <PlusIcon className="mr-1 size-4" />
@@ -597,14 +723,12 @@ export default function AiReceptionistPage() {
 
               {policiesLoading ? (
                 <div className="space-y-2">
-                  {Array.from({ length: 2 }).map((_, i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <Skeleton key={index} className="h-16 w-full" />
                   ))}
                 </div>
               ) : policies.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-8">
-                  No policies configured yet
-                </p>
+                <p className="py-8 text-center text-sm text-muted-foreground">No policies configured yet.</p>
               ) : (
                 <div className="space-y-2">
                   {policies.map((policy) => (
@@ -612,15 +736,9 @@ export default function AiReceptionistPage() {
                       <div className="flex items-start justify-between">
                         <div>
                           <Badge variant="outline" className="mb-1 capitalize">
-                            {typeof policy.policyType === 'string' && policy.policyType.trim().length > 0
-                              ? policy.policyType.replace(/_/g, ' ')
-                              : 'general'}
+                            {policy.policyType.replace(/_/g, ' ')}
                           </Badge>
-                          <p className="text-sm text-muted-foreground">
-                            {typeof policy.content === 'string' && policy.content.trim().length > 0
-                              ? policy.content
-                              : 'Policy details are stored in structured fields.'}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{policy.content || 'Policy details are stored in structured fields.'}</p>
                         </div>
                         <Button
                           variant="ghost"
@@ -647,4 +765,53 @@ export default function AiReceptionistPage() {
       </Tabs>
     </div>
   );
+}
+
+function toScheduleForm(
+  clinicHours?: Record<string, unknown>,
+  bookingSchedule?: Record<string, unknown>,
+  current?: Record<WeekdayKey, ScheduleRow>,
+): Record<WeekdayKey, ScheduleRow> {
+  const source = bookingSchedule ?? clinicHours ?? {};
+  const base = current ?? DEFAULT_SCHEDULE;
+  if (Object.keys(source).length === 0) {
+    return { ...base };
+  }
+  const next = { ...base };
+
+  for (const day of WEEKDAYS) {
+    const rawValue = source?.[day.key];
+    if (!rawValue || typeof rawValue !== 'object') {
+      next[day.key] = { ...base[day.key], enabled: false };
+      continue;
+    }
+
+    const entry = rawValue as { start?: unknown; end?: unknown };
+    if (typeof entry.start === 'string' && typeof entry.end === 'string') {
+      next[day.key] = {
+        enabled: true,
+        start: entry.start,
+        end: entry.end,
+      };
+    }
+  }
+
+  return next;
+}
+
+function toSchedulePayload(schedule: Record<WeekdayKey, ScheduleRow>): Record<string, { start: string; end: string } | null> {
+  return WEEKDAYS.reduce<Record<string, { start: string; end: string } | null>>((acc, day) => {
+    const value = schedule[day.key];
+    acc[day.key] = value.enabled
+      ? { start: value.start, end: value.end }
+      : null;
+    return acc;
+  }, {});
+}
+
+function parseClosedDatesText(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }

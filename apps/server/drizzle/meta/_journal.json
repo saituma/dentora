@@ -29,6 +29,13 @@
       "when": 1772569681669,
       "tag": "0003_fix_schema_mismatches",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772970275777,
+      "tag": "0004_milky_master_mold",
+      "breakpoints": true
     }
   ]
 }

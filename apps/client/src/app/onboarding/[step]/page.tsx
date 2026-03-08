@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { PlayIcon, PauseIcon } from 'lucide-react';
+import { ArrowUpIcon, BotIcon, PauseIcon, PlayIcon, UserIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -35,11 +35,12 @@ import {
   useSavePoliciesMutation,
   useSaveVoiceProfileMutation,
   useSaveFaqsMutation,
-  useGenerateVoicePreviewMutation,
   usePublishConfigMutation,
   useGetOnboardingStatusQuery,
   useSendConfigChatMessageMutation,
+  useGetAvailableVoicesQuery,
 } from '@/features/onboarding/onboardingApi';
+import type { AvailableVoiceOption } from '@/features/onboarding/onboardingApi';
 import {
   useStartGoogleCalendarOAuthMutation,
 } from '@/features/integrations/integrationsApi';
@@ -51,16 +52,8 @@ import {
   useGetVoiceProfileQuery,
 } from '@/features/aiConfig/aiConfigApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import { VoicePreviewCard, type VoiceOption } from '@/components/voice-preview-card';
-import {
-  RECEPTIONIST_VOICE_OPTIONS,
-  getReceptionistVoiceByAccentAndGender,
-  getReceptionistVoiceById,
-  type ReceptionistVoiceAccent,
-  type ReceptionistVoiceGender,
-} from '@/lib/voice-catalog';
-
-const VOICE_OPTIONS: VoiceOption[] = RECEPTIONIST_VOICE_OPTIONS;
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
@@ -68,6 +61,7 @@ const STEPS = [
   { id: 'voice', label: 'Voice' },
   { id: 'rules', label: 'Rules' },
   { id: 'integrations', label: 'Integrations' },
+  { id: 'schedule', label: 'Schedule' },
   { id: 'ai-chat', label: 'AI Chat' },
   { id: 'test-call', label: 'Test' },
   { id: 'complete', label: 'Done' },
@@ -92,6 +86,44 @@ interface KnowledgeFaqForm {
   category: FaqCategory;
 }
 
+type WeekdayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+type ScheduleRow = {
+  enabled: boolean;
+  start: string;
+  end: string;
+  hasBreak: boolean;
+  breakStart: string;
+  breakEnd: string;
+};
+
+const WEEKDAYS: Array<{ key: WeekdayKey; label: string }> = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+];
+
+const DEFAULT_SCHEDULE: Record<WeekdayKey, ScheduleRow> = {
+  monday: { enabled: true, start: '09:00', end: '17:00', hasBreak: true, breakStart: '12:30', breakEnd: '13:30' },
+  tuesday: { enabled: true, start: '09:00', end: '17:00', hasBreak: true, breakStart: '12:30', breakEnd: '13:30' },
+  wednesday: { enabled: true, start: '09:00', end: '17:00', hasBreak: true, breakStart: '12:30', breakEnd: '13:30' },
+  thursday: { enabled: true, start: '09:00', end: '17:00', hasBreak: true, breakStart: '12:30', breakEnd: '13:30' },
+  friday: { enabled: true, start: '09:00', end: '17:00', hasBreak: true, breakStart: '12:30', breakEnd: '13:30' },
+  saturday: { enabled: false, start: '09:00', end: '13:00', hasBreak: false, breakStart: '12:00', breakEnd: '12:30' },
+  sunday: { enabled: false, start: '09:00', end: '13:00', hasBreak: false, breakStart: '12:00', breakEnd: '12:30' },
+};
+
 const STEP_META: Record<
   OnboardingStep,
   { title: string; description: string }
@@ -109,7 +141,7 @@ const STEP_META: Record<
   voice: {
     title: 'Choose voice and personality',
     description:
-      'Pick a voice and greeting style that matches your brand and patient experience.',
+      'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
   },
   rules: {
     title: 'Define booking rules',
@@ -120,6 +152,11 @@ const STEP_META: Record<
     title: 'Connect key tools',
     description:
       'Integrate calendar tools now or skip and connect later from settings.',
+  },
+  schedule: {
+    title: 'Set clinic hours and breaks',
+    description:
+      'Define real working days, opening hours, and break windows so booking always respects your clinic schedule.',
   },
   'ai-chat': {
     title: 'Train your AI receptionist',
@@ -137,7 +174,15 @@ const STEP_META: Record<
   },
 };
 
-function GreetingPlayer({ src }: { src: string }) {
+function AudioPreviewPlayer({
+  src,
+  idleLabel,
+  playingLabel,
+}: {
+  src: string;
+  idleLabel: string;
+  playingLabel: string;
+}) {
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = React.useState(false);
 
@@ -171,11 +216,115 @@ function GreetingPlayer({ src }: { src: string }) {
         )}
       </Button>
       <span className="text-sm text-muted-foreground">
-        {playing ? 'Playing greeting...' : 'Play greeting preview'}
+        {playing ? playingLabel : idleLabel}
       </span>
       <audio ref={audioRef} src={src} onEnded={() => setPlaying(false)} className="hidden" />
     </div>
   );
+}
+
+function isUkVoice(voice: AvailableVoiceOption): boolean {
+  const searchable = [voice.locale, voice.accent, voice.label, voice.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    searchable.includes('en-gb') ||
+    searchable.includes('british') ||
+    searchable.includes('uk') ||
+    searchable.includes('united kingdom') ||
+    searchable.includes('english') ||
+    searchable.includes('england') ||
+    searchable.includes('scottish') ||
+    searchable.includes('welsh')
+  );
+}
+
+function toScheduleForm(
+  bookingSchedule?: Record<string, unknown>,
+  current?: Record<WeekdayKey, ScheduleRow>,
+): Record<WeekdayKey, ScheduleRow> {
+  const source = bookingSchedule ?? {};
+  const base = current ?? DEFAULT_SCHEDULE;
+
+  if (Object.keys(source).length === 0) {
+    return { ...base };
+  }
+
+  const next = { ...base };
+  for (const day of WEEKDAYS) {
+    const rawValue = source[day.key];
+    if (!rawValue || typeof rawValue !== 'object') {
+      next[day.key] = { ...base[day.key], enabled: false, hasBreak: false };
+      continue;
+    }
+
+    const entry = rawValue as {
+      start?: unknown;
+      end?: unknown;
+      breakStart?: unknown;
+      breakEnd?: unknown;
+      breaks?: Array<{ start?: unknown; end?: unknown }> | unknown;
+    };
+    const breakEntry = Array.isArray(entry.breaks) && entry.breaks.length > 0 ? entry.breaks[0] : null;
+    const breakStart =
+      typeof breakEntry?.start === 'string'
+        ? breakEntry.start
+        : typeof entry.breakStart === 'string'
+          ? entry.breakStart
+          : '';
+    const breakEnd =
+      typeof breakEntry?.end === 'string'
+        ? breakEntry.end
+        : typeof entry.breakEnd === 'string'
+          ? entry.breakEnd
+          : '';
+
+    if (typeof entry.start === 'string' && typeof entry.end === 'string') {
+      next[day.key] = {
+        enabled: true,
+        start: entry.start,
+        end: entry.end,
+        hasBreak: Boolean(breakStart && breakEnd),
+        breakStart: breakStart || base[day.key].breakStart,
+        breakEnd: breakEnd || base[day.key].breakEnd,
+      };
+    }
+  }
+
+  return next;
+}
+
+function toSchedulePayload(
+  schedule: Record<WeekdayKey, ScheduleRow>,
+): Record<string, { start: string; end: string; breaks?: Array<{ start: string; end: string }> } | null> {
+  return WEEKDAYS.reduce<Record<string, { start: string; end: string; breaks?: Array<{ start: string; end: string }> } | null>>(
+    (acc, day) => {
+      const value = schedule[day.key];
+      if (!value.enabled) {
+        acc[day.key] = null;
+        return acc;
+      }
+
+      acc[day.key] = {
+        start: value.start,
+        end: value.end,
+        ...(value.hasBreak && value.breakStart && value.breakEnd
+          ? { breaks: [{ start: value.breakStart, end: value.breakEnd }] }
+          : {}),
+      };
+      return acc;
+    },
+    {},
+  );
+}
+
+function parseClosedDatesText(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 export default function OnboardingStepPage() {
@@ -188,7 +337,6 @@ export default function OnboardingStepPage() {
   const [saveBookingRules, { isLoading: savingRules }] = useSaveBookingRulesMutation();
   const [savePolicies, { isLoading: savingPolicies }] = useSavePoliciesMutation();
   const [saveVoiceProfile, { isLoading: savingVoice }] = useSaveVoiceProfileMutation();
-  const [generateVoicePreview] = useGenerateVoicePreviewMutation();
   const [saveFaqs, { isLoading: savingFaqs }] = useSaveFaqsMutation();
   const [publishConfig, { isLoading: publishing }] = usePublishConfigMutation();
   const { data: onboardingData, refetch: refetchOnboardingStatus } = useGetOnboardingStatusQuery();
@@ -197,6 +345,7 @@ export default function OnboardingStepPage() {
   const { data: bookingRulesData } = useGetBookingRulesQuery();
   const { data: servicesData } = useGetServicesQuery();
   const { data: faqsData } = useGetFaqsQuery();
+  const { data: availableVoicesData } = useGetAvailableVoicesQuery();
   const [sendConfigChatMessage, { isLoading: testingAi }] = useSendConfigChatMessageMutation();
   const [startGoogleCalendarOAuth, { isLoading: startingGoogleOAuth }] = useStartGoogleCalendarOAuthMutation();
 
@@ -207,22 +356,19 @@ export default function OnboardingStepPage() {
   const [email, setEmail] = useState('');
   const [voiceTone, setVoiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
   const [greeting, setGreeting] = useState('Hi, thank you for calling. How can I help you today?');
-  const [selectedVoiceId, setSelectedVoiceId] = useState(VOICE_OPTIONS[0].id);
-  const [selectedAccent, setSelectedAccent] = useState<ReceptionistVoiceAccent>('us');
-  const [selectedGender, setSelectedGender] = useState<ReceptionistVoiceGender>('female');
+  const [selectedVoiceId, setSelectedVoiceId] = useState('professional');
   const [speakingSpeed, setSpeakingSpeed] = useState(1.0);
-  const [voicePreviewUrls, setVoicePreviewUrls] = useState<Record<string, string>>({});
-  const [generatingPreviewFor, setGeneratingPreviewFor] = useState<string | null>(null);
-  const [greetingPreviewUrl, setGreetingPreviewUrl] = useState<string | null>(null);
-  const [generatingGreetingPreview, setGeneratingGreetingPreview] = useState(false);
   const [defaultDuration, setDefaultDuration] = useState(30);
   const [cancellationHours, setCancellationHours] = useState(24);
   const [advanceBookingDays, setAdvanceBookingDays] = useState(30);
+  const [schedule, setSchedule] = useState<Record<WeekdayKey, ScheduleRow>>(DEFAULT_SCHEDULE);
+  const [closedDatesText, setClosedDatesText] = useState('');
   const [googleCalendarEmail, setGoogleCalendarEmail] = useState('');
   const [googleCalendarId, setGoogleCalendarId] = useState('primary');
   const [handledGoogleCallback, setHandledGoogleCallback] = useState(false);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
   const [configChatInput, setConfigChatInput] = useState('');
+  const chatScrollRef = React.useRef<HTMLDivElement>(null);
   const [configChatMessages, setConfigChatMessages] = useState<
     Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>
   >([]);
@@ -242,16 +388,29 @@ export default function OnboardingStepPage() {
       category: 'insurance',
     },
   ]);
+  const allAvailableVoices = availableVoicesData?.data ?? [];
+  const ukVoices = allAvailableVoices.filter(isUkVoice);
+  const availableVoices = ukVoices.length > 0 ? ukVoices : allAvailableVoices;
+  const selectedVoice =
+    availableVoices.find((voice) => voice.voiceId === selectedVoiceId) ??
+    allAvailableVoices.find((voice) => voice.voiceId === selectedVoiceId) ??
+    null;
+
+  useEffect(() => {
+    if (!clinicData) return;
+
+    setClinicName(clinicData.clinicName ?? '');
+    setAddress(clinicData.address ?? '');
+    setPhone(clinicData.phone ?? '');
+    setEmail(clinicData.email ?? '');
+    setTimezone(clinicData.timezone ?? 'America/New_York');
+  }, [clinicData]);
 
   useEffect(() => {
     if (!voiceProfileData) return;
 
-    const matchedVoice = getReceptionistVoiceById(voiceProfileData.voiceId);
-    if (matchedVoice) {
-      setSelectedVoiceId(matchedVoice.id);
-      setSelectedAccent(matchedVoice.accent);
-      setSelectedGender(matchedVoice.gender);
-      setVoiceTone(matchedVoice.toneValue);
+    if (voiceProfileData.voiceId) {
+      setSelectedVoiceId(voiceProfileData.voiceId);
     }
 
     if (voiceProfileData.greetingMessage) {
@@ -264,11 +423,22 @@ export default function OnboardingStepPage() {
   }, [voiceProfileData]);
 
   useEffect(() => {
-    const preferredVoice = getReceptionistVoiceByAccentAndGender(selectedAccent, selectedGender);
-    setSelectedVoiceId(preferredVoice.id);
-    setVoiceTone(preferredVoice.toneValue);
-    setGreetingPreviewUrl(null);
-  }, [selectedAccent, selectedGender]);
+    if (availableVoices.length === 0) return;
+    const hasSelectedVoice = availableVoices.some((voice) => voice.voiceId === selectedVoiceId);
+    if (!hasSelectedVoice) {
+      setSelectedVoiceId(availableVoices[0].voiceId);
+    }
+  }, [availableVoices, selectedVoiceId]);
+
+  useEffect(() => {
+    if (!bookingRulesData) return;
+
+    setDefaultDuration(bookingRulesData.defaultAppointmentDurationMinutes ?? 30);
+    setCancellationHours(bookingRulesData.minNoticePeriodHours ?? 24);
+    setAdvanceBookingDays(bookingRulesData.maxAdvanceBookingDays ?? 30);
+    setClosedDatesText((bookingRulesData.closedDates ?? []).join('\n'));
+    setSchedule((current) => toScheduleForm(bookingRulesData.operatingSchedule, current));
+  }, [bookingRulesData]);
 
   const addServiceRow = () => {
     setServicesForm((prev) => [
@@ -369,6 +539,7 @@ export default function OnboardingStepPage() {
     const result = await startGoogleCalendarOAuth({
       accountEmail: googleCalendarEmail || undefined,
       calendarId: googleCalendarId || 'primary',
+      returnTo: `${window.location.origin}/onboarding/schedule`,
     }).unwrap();
 
     window.location.assign(result.authUrl);
@@ -377,6 +548,7 @@ export default function OnboardingStepPage() {
   const hasIntegrationWarning = onboardingData
     ? onboardingData.validationWarnings.some((warn) => warn.message === 'No integrations configured')
     : false;
+  const calendarConnected = googleCalendarConnected || !hasIntegrationWarning;
   const hasMissingPoliciesError = onboardingData
     ? onboardingData.validationErrors.some((err) => err.message === 'No policies configured')
     : false;
@@ -410,7 +582,7 @@ export default function OnboardingStepPage() {
     `Advance booking window: ${contextAdvanceBookingDays} days`,
     `Services configured: ${contextServicesCount}`,
     `FAQs configured: ${contextFaqCount}`,
-    `Google Calendar connected: ${googleCalendarConnected || !hasIntegrationWarning ? 'yes' : 'no'}`,
+    `Google Calendar connected: ${calendarConnected ? 'yes' : 'no'}`,
     `Readiness score: ${onboardingData?.readinessScore ?? 0}%`,
   ].join('\n');
 
@@ -471,6 +643,15 @@ export default function OnboardingStepPage() {
     contextFaqCount,
     contextServicesCount,
   ]);
+
+  useEffect(() => {
+    if (step !== 'ai-chat' || !chatScrollRef.current) return;
+
+    chatScrollRef.current.scrollTo({
+      top: chatScrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [step, configChatMessages, testingAi]);
 
   if (step === 'complete') {
     goNext('complete');
@@ -846,79 +1027,115 @@ export default function OnboardingStepPage() {
             <CardHeader>
               <CardTitle className="text-xl">Choose a voice</CardTitle>
               <CardDescription>
-                Pick a US or UK receptionist voice, then choose male or female delivery.
+                Choose from the ElevenLabs voices available to your configured API key.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-5 grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel>Accent</FieldLabel>
-                  <Select
-                    value={selectedAccent}
-                    onValueChange={(value) => setSelectedAccent((value as ReceptionistVoiceAccent) || 'us')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="us">US accent agent</SelectItem>
-                      <SelectItem value="uk">UK accent agent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Voice</FieldLabel>
-                  <Select
-                    value={selectedGender}
-                    onValueChange={(value) => setSelectedGender((value as ReceptionistVoiceGender) || 'female')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="male">Male</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {VOICE_OPTIONS.map((voice) => (
-                  <VoicePreviewCard
-                    key={voice.id}
-                    voice={voice}
-                    selected={selectedVoiceId === voice.id}
-                    previewAudioUrl={voicePreviewUrls[voice.id] ?? null}
-                    isGenerating={generatingPreviewFor === voice.id}
-                    onSelect={(id) => {
-                      const selectedVoice = getReceptionistVoiceById(id);
-                      if (!selectedVoice) return;
-                      setSelectedVoiceId(id);
-                      setSelectedAccent(selectedVoice.accent);
-                      setSelectedGender(selectedVoice.gender);
-                      setVoiceTone(selectedVoice.toneValue);
-                      setGreetingPreviewUrl(null);
-                    }}
-                    onPreview={async (id) => {
-                      const previewVoice = getReceptionistVoiceById(id);
-                      setGeneratingPreviewFor(id);
-                      try {
-                        const url = await generateVoicePreview({
-                          voiceId: id,
-                          text: 'Hi, thank you for calling. I am your AI dental receptionist. How can I help you today?',
-                          speed: speakingSpeed,
-                          language: previewVoice?.locale ?? 'en-US',
-                        }).unwrap();
-                        setVoicePreviewUrls((prev) => ({ ...prev, [id]: url }));
-                      } catch {
-                        toast.error('Could not generate voice preview. Please try again.');
-                      } finally {
-                        setGeneratingPreviewFor(null);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
+              {availableVoices.length === 0 ? (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
+                  No ElevenLabs voices were returned. Add `ELEVENLABS_API_KEY` to the server env and verify the key has access to your voices.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
+                    {ukVoices.length > 0
+                      ? 'Showing UK-accent voices only. Voice samples use ElevenLabs preview clips so they still work without paid TTS preview credits.'
+                      : 'No UK-accent voices were returned by ElevenLabs, so all available voices are shown instead.'}
+                  </div>
+                  <Field>
+                    <FieldLabel>Available voices</FieldLabel>
+                    <Select
+                      value={selectedVoiceId}
+                      onValueChange={(value) => {
+                        setSelectedVoiceId(value || 'professional');
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a voice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableVoices.map((voice) => (
+                          <SelectItem key={voice.voiceId} value={voice.voiceId}>
+                            {voice.name}{voice.label ? ` - ${voice.label}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {availableVoices.map((voice) => (
+                      <div
+                        key={voice.voiceId}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          setSelectedVoiceId(voice.voiceId);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedVoiceId(voice.voiceId);
+                          }
+                        }}
+                        className={`rounded-xl border p-4 transition ${
+                          selectedVoiceId === voice.voiceId
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-border bg-card hover:border-primary/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold">{voice.name}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{voice.label || 'ElevenLabs voice'}</p>
+                          </div>
+                          {selectedVoiceId === voice.voiceId && (
+                            <Badge variant="default">Selected</Badge>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {voice.gender && <Badge variant="outline">{voice.gender}</Badge>}
+                          {voice.accent && <Badge variant="outline">{voice.accent}</Badge>}
+                          {voice.locale && <Badge variant="outline">{voice.locale}</Badge>}
+                        </div>
+                        <div className="mt-4 flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!voice.previewUrl}
+                            onClick={async (event) => {
+                              event.stopPropagation();
+                              try {
+                                if (!voice.previewUrl) return;
+                                const audio = new Audio(voice.previewUrl);
+                                await audio.play();
+                              } catch {
+                                toast.error('Could not play the ElevenLabs sample clip. Try again.');
+                              }
+                            }}
+                          >
+                            {voice.previewUrl ? 'Play sample' : 'No sample clip'}
+                          </Button>
+                          {voice.previewUrl && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                window.open(voice.previewUrl, '_blank', 'noopener,noreferrer');
+                              }}
+                            >
+                              ElevenLabs sample
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -947,9 +1164,6 @@ export default function OnboardingStepPage() {
                   value={speakingSpeed}
                   onChange={(e) => {
                     setSpeakingSpeed(parseFloat(e.target.value));
-                    // Clear previews when speed changes since they were generated at old speed
-                    setVoicePreviewUrls({});
-                    setGreetingPreviewUrl(null);
                   }}
                   className="w-full cursor-pointer accent-primary"
                 />
@@ -978,43 +1192,24 @@ export default function OnboardingStepPage() {
                     value={greeting}
                     onChange={(e) => {
                       setGreeting(e.target.value);
-                      setGreetingPreviewUrl(null);
                     }}
                     rows={3}
                     placeholder="Hi, thank you for calling Bright Smile Dental. How can I assist you today?"
                   />
                 </Field>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  disabled={generatingGreetingPreview || !greeting.trim()}
-                  onClick={async () => {
-                    setGeneratingGreetingPreview(true);
-                    try {
-                      const selectedVoice = getReceptionistVoiceById(selectedVoiceId);
-                      const url = await generateVoicePreview({
-                        voiceId: selectedVoiceId,
-                        text: greeting.trim(),
-                        speed: speakingSpeed,
-                        language: selectedVoice?.locale ?? 'en-US',
-                      }).unwrap();
-                      setGreetingPreviewUrl(url);
-                    } catch {
-                      toast.error('Could not preview greeting. Please try again.');
-                    } finally {
-                      setGeneratingGreetingPreview(false);
-                    }
-                  }}
-                >
-                  {generatingGreetingPreview ? (
-                    <>Generating...</>
-                  ) : (
-                    <>Preview my greeting</>
-                  )}
-                </Button>
-                {greetingPreviewUrl && (
-                  <GreetingPlayer src={greetingPreviewUrl} />
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
+                  Custom greeting preview needs a paid ElevenLabs text-to-speech request. You can still use the selected voice sample below for free.
+                </div>
+                {selectedVoice?.previewUrl ? (
+                  <AudioPreviewPlayer
+                    src={selectedVoice.previewUrl}
+                    idleLabel="Play selected voice sample"
+                    playingLabel="Playing selected voice sample..."
+                  />
+                ) : (
+                  <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                    The selected voice does not include a free ElevenLabs sample clip.
+                  </div>
                 )}
               </FieldGroup>
             </CardContent>
@@ -1029,7 +1224,6 @@ export default function OnboardingStepPage() {
               disabled={savingVoice}
               onClick={async () => {
                 try {
-                  const selectedVoice = getReceptionistVoiceById(selectedVoiceId);
                   await saveVoiceProfile({
                     voiceId: selectedVoiceId,
                     tone: voiceTone,
@@ -1094,6 +1288,7 @@ export default function OnboardingStepPage() {
                       await saveBookingRules({
                         advanceBookingDays,
                         cancellationHours,
+                        defaultAppointmentDurationMinutes: defaultDuration,
                       }).unwrap();
 
                       await savePolicies({
@@ -1132,7 +1327,7 @@ export default function OnboardingStepPage() {
           <CardHeader>
             <CardTitle className="text-xl">Integrations</CardTitle>
             <CardDescription>
-              Connect your calendar (optional - can skip)
+              Connect your calendar, then define the exact hours and breaks your AI can book into.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1158,13 +1353,18 @@ export default function OnboardingStepPage() {
                 <Button variant="outline" onClick={goBack} className="min-w-28">
                   Back
                 </Button>
+                {calendarConnected && (
+                  <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
+                    Google Calendar is connected. Continue to clinic hours.
+                  </div>
+                )}
                 <Button
-                  onClick={() => goNext('ai-chat')}
+                  onClick={() => goNext('schedule')}
                   variant="outline"
                   className="min-w-32"
                   type="button"
                 >
-                  Skip for now
+                  {calendarConnected ? 'Continue' : 'Skip for now'}
                 </Button>
                 <Button
                   type="button"
@@ -1186,6 +1386,199 @@ export default function OnboardingStepPage() {
         </Card>
       )}
 
+      {step === 'schedule' && (
+        <Card className="border-0 bg-card shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl">Clinic schedule</CardTitle>
+            <CardDescription>
+              Set the actual days, opening hours, and break times your AI receptionist must respect when offering appointments.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-5">
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold">Weekly working hours</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Turn days on or off, then set opening and closing times. Add one break window per day for lunch or staff-only time.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {WEEKDAYS.map((day) => {
+                    const row = schedule[day.key];
+                    return (
+                      <div key={day.key} className="rounded-lg border bg-background p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <label className="flex items-center gap-3 text-sm font-medium">
+                            <input
+                              type="checkbox"
+                              checked={row.enabled}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setSchedule((prev) => ({
+                                  ...prev,
+                                  [day.key]: {
+                                    ...prev[day.key],
+                                    enabled: checked,
+                                    hasBreak: checked ? prev[day.key].hasBreak : false,
+                                  },
+                                }));
+                              }}
+                            />
+                            {day.label}
+                          </label>
+                          <div className="grid flex-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <Field>
+                              <FieldLabel>Open</FieldLabel>
+                              <Input
+                                type="time"
+                                value={row.start}
+                                disabled={!row.enabled}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setSchedule((prev) => ({
+                                    ...prev,
+                                    [day.key]: { ...prev[day.key], start: value },
+                                  }));
+                                }}
+                              />
+                            </Field>
+                            <Field>
+                              <FieldLabel>Close</FieldLabel>
+                              <Input
+                                type="time"
+                                value={row.end}
+                                disabled={!row.enabled}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setSchedule((prev) => ({
+                                    ...prev,
+                                    [day.key]: { ...prev[day.key], end: value },
+                                  }));
+                                }}
+                              />
+                            </Field>
+                            <Field>
+                              <FieldLabel>Break start</FieldLabel>
+                              <Input
+                                type="time"
+                                value={row.breakStart}
+                                disabled={!row.enabled || !row.hasBreak}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setSchedule((prev) => ({
+                                    ...prev,
+                                    [day.key]: { ...prev[day.key], breakStart: value },
+                                  }));
+                                }}
+                              />
+                            </Field>
+                            <Field>
+                              <FieldLabel>Break end</FieldLabel>
+                              <Input
+                                type="time"
+                                value={row.breakEnd}
+                                disabled={!row.enabled || !row.hasBreak}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setSchedule((prev) => ({
+                                    ...prev,
+                                    [day.key]: { ...prev[day.key], breakEnd: value },
+                                  }));
+                                }}
+                              />
+                            </Field>
+                          </div>
+                        </div>
+                        <label className="mt-3 flex items-center gap-3 text-sm text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={row.hasBreak}
+                            disabled={!row.enabled}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSchedule((prev) => ({
+                                ...prev,
+                                [day.key]: {
+                                  ...prev[day.key],
+                                  hasBreak: checked,
+                                },
+                              }));
+                            }}
+                          />
+                          This day has a break window
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Field>
+                <FieldLabel>Closed dates</FieldLabel>
+                <Textarea
+                  rows={4}
+                  value={closedDatesText}
+                  onChange={(e) => setClosedDatesText(e.target.value)}
+                  placeholder={'2026-12-25\n2026-12-26'}
+                />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Add one `YYYY-MM-DD` date per line for holidays, training days, or any one-off closures.
+                </p>
+              </Field>
+
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" onClick={goBack} className="min-w-28">
+                  Back
+                </Button>
+                <Button
+                  disabled={savingRules}
+                  onClick={async () => {
+                    const enabledDays = WEEKDAYS.filter((day) => schedule[day.key].enabled);
+                    if (enabledDays.length === 0) {
+                      toast.error('Enable at least one working day');
+                      return;
+                    }
+
+                    for (const day of enabledDays) {
+                      const row = schedule[day.key];
+                      if (!row.start || !row.end || row.start >= row.end) {
+                        toast.error(`Check the working hours for ${day.label}`);
+                        return;
+                      }
+                      if (row.hasBreak) {
+                        if (!row.breakStart || !row.breakEnd || row.breakStart >= row.breakEnd) {
+                          toast.error(`Check the break hours for ${day.label}`);
+                          return;
+                        }
+                        if (row.breakStart <= row.start || row.breakEnd >= row.end) {
+                          toast.error(`Break on ${day.label} must stay inside clinic hours`);
+                          return;
+                        }
+                      }
+                    }
+
+                    try {
+                      await saveBookingRules({
+                        operatingSchedule: toSchedulePayload(schedule),
+                        closedDates: parseClosedDatesText(closedDatesText),
+                      }).unwrap();
+                      toast.success('Clinic schedule saved');
+                      goNext('ai-chat');
+                    } catch (err: unknown) {
+                      toast.error(getUserFriendlyApiError(err));
+                    }
+                  }}
+                  className="min-w-32"
+                >
+                  {savingRules ? 'Saving...' : 'Save schedule'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {step === 'ai-chat' && (
         <Card className="border-0 bg-card shadow-lg">
           <CardHeader>
@@ -1195,97 +1588,182 @@ export default function OnboardingStepPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <Field>
-                <FieldLabel>Configuration chat</FieldLabel>
-                <div className="max-h-72 space-y-2 overflow-y-auto rounded-md border bg-muted/20 p-3">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="overflow-hidden rounded-2xl border bg-muted/10">
+                <div className="border-b bg-background/80 px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-3">
+                    <Avatar size="sm">
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        <BotIcon className="size-3.5" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">DentalFlow Assistant</p>
+                      <p className="text-xs text-muted-foreground">
+                        Ask for workflows, edge cases, tone, escalation rules, and anything the receptionist should handle your way.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  ref={chatScrollRef}
+                  className="h-[520px] space-y-6 overflow-y-auto bg-[radial-gradient(circle_at_top,_hsl(var(--muted))_0%,_transparent_55%)] px-4 py-5 sm:px-5"
+                >
                   {configChatMessages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Send a message to start. The AI will ask focused follow-up questions until your setup is clear.
-                    </p>
-                  ) : (
-                    configChatMessages.map((turn, index) => (
-                      <div
-                        key={`${turn.timestamp}-${index}`}
-                        className={`rounded-md p-2 text-sm ${
-                          turn.role === 'user'
-                            ? 'ml-8 bg-primary/10 text-foreground'
-                            : 'mr-8 bg-background border'
-                        }`}
-                      >
-                        <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                          {turn.role === 'user' ? 'You' : 'AI'}
+                    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed bg-background/70 p-6 text-center">
+                      <div className="max-w-md space-y-2">
+                        <p className="text-sm font-medium">Start the conversation</p>
+                        <p className="text-sm text-muted-foreground">
+                          Tell the assistant how your front desk should behave and it will ask follow-up questions like ChatGPT.
                         </p>
-                        {turn.role === 'assistant' ? (
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                              h1: ({ children }) => <h1 className="mb-2 text-base font-semibold">{children}</h1>,
-                              h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold">{children}</h2>,
-                              h3: ({ children }) => <h3 className="mb-2 text-sm font-medium">{children}</h3>,
-                              ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
-                              ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>,
-                              li: ({ children }) => <li>{children}</li>,
-                              code: ({ children }) => (
-                                <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
-                              ),
-                              pre: ({ children }) => (
-                                <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
-                              ),
-                            }}
-                          >
-                            {turn.content}
-                          </ReactMarkdown>
-                        ) : (
-                          <p className="whitespace-pre-wrap">{turn.content}</p>
-                        )}
                       </div>
-                    ))
+                    </div>
+                  ) : (
+                    configChatMessages.map((turn, index) => {
+                      const isAssistant = turn.role === 'assistant';
+                      return (
+                        <div
+                          key={`${turn.timestamp}-${index}`}
+                          className={`flex gap-3 ${isAssistant ? 'justify-start' : 'justify-end'}`}
+                        >
+                          {isAssistant && (
+                            <Avatar size="sm" className="mt-1">
+                              <AvatarFallback className="bg-primary/10 text-primary">
+                                <BotIcon className="size-3.5" />
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+
+                          <div
+                            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                              isAssistant
+                                ? 'border bg-background text-foreground'
+                                : 'bg-primary text-primary-foreground'
+                            }`}
+                          >
+                            <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide opacity-70">
+                              <span>{isAssistant ? 'AI assistant' : 'You'}</span>
+                            </div>
+                            {isAssistant ? (
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  p: ({ children }) => <p className="mb-2 last:mb-0 leading-7">{children}</p>,
+                                  h1: ({ children }) => <h1 className="mb-2 text-base font-semibold">{children}</h1>,
+                                  h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold">{children}</h2>,
+                                  h3: ({ children }) => <h3 className="mb-2 text-sm font-medium">{children}</h3>,
+                                  ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
+                                  ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>,
+                                  li: ({ children }) => <li>{children}</li>,
+                                  code: ({ children }) => (
+                                    <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
+                                  ),
+                                  pre: ({ children }) => (
+                                    <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
+                                  ),
+                                }}
+                              >
+                                {turn.content}
+                              </ReactMarkdown>
+                            ) : (
+                              <p className="whitespace-pre-wrap leading-7">{turn.content}</p>
+                            )}
+                          </div>
+
+                          {!isAssistant && (
+                            <Avatar size="sm" className="mt-1">
+                              <AvatarFallback className="bg-foreground text-background">
+                                <UserIcon className="size-3.5" />
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {testingAi && (
+                    <div className="flex gap-3">
+                      <Avatar size="sm" className="mt-1">
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          <BotIcon className="size-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground shadow-sm">
+                        Thinking...
+                      </div>
+                    </div>
                   )}
                 </div>
-              </Field>
-              <Field>
-                <FieldLabel>Your message</FieldLabel>
-                <Textarea
-                  rows={4}
-                  value={configChatInput}
-                  onChange={(e) => setConfigChatInput(e.target.value)}
-                  placeholder="Example: I am the clinic CEO. Keep tone warm but concise, prioritize same-day emergencies, and escalate billing disputes to manager."
-                />
-                <div className="mt-2 flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={sendConfigMessage}
-                    disabled={testingAi}
-                    className="min-w-32"
-                  >
-                    {testingAi ? 'Sending...' : 'Send'}
-                  </Button>
+
+                <div className="border-t bg-background/90 p-4 sm:p-5">
+                  <div className="rounded-2xl border bg-background shadow-sm">
+                    <Textarea
+                      rows={3}
+                      value={configChatInput}
+                      onChange={(e) => setConfigChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (!testingAi && configChatInput.trim()) {
+                            void sendConfigMessage();
+                          }
+                        }
+                      }}
+                      placeholder="Message the assistant with clinic workflows, special instructions, edge cases, or receptionist behavior you want to lock in..."
+                      className="min-h-[110px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                    />
+                    <div className="flex items-center justify-between gap-3 border-t px-3 py-3">
+                      <p className="text-xs text-muted-foreground">
+                        Press `Enter` to send, `Shift+Enter` for a new line.
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={sendConfigMessage}
+                        disabled={testingAi || !configChatInput.trim()}
+                        size="icon"
+                        className="rounded-full"
+                      >
+                        <ArrowUpIcon className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </Field>
-              <Field>
-                <FieldLabel>AI context about your clinic</FieldLabel>
-                <div className="max-h-72 overflow-y-auto rounded-md border bg-muted/20 p-3 text-sm">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                      h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold">{children}</h3>,
-                      ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
-                      li: ({ children }) => <li>{children}</li>,
-                      code: ({ children }) => (
-                        <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
-                      ),
-                      pre: ({ children }) => (
-                        <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
-                      ),
-                    }}
-                  >
-                    {aiClinicContextMarkdown}
-                  </ReactMarkdown>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl border bg-muted/20 p-4">
+                  <p className="text-sm font-medium">Best results</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Ask for exact behavior, for example how to handle same-day emergencies, pricing questions, reschedules, insurance uncertainty, or when to escalate to staff.
+                  </p>
                 </div>
-              </Field>
+
+                <Field>
+                  <FieldLabel>AI context about your clinic</FieldLabel>
+                  <div className="max-h-[520px] overflow-y-auto rounded-2xl border bg-muted/20 p-4 text-sm">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                        h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold">{children}</h3>,
+                        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
+                        li: ({ children }) => <li>{children}</li>,
+                        code: ({ children }) => (
+                          <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
+                        ),
+                      }}
+                    >
+                      {aiClinicContextMarkdown}
+                    </ReactMarkdown>
+                  </div>
+                </Field>
+              </div>
+
               <div className="flex flex-wrap gap-3">
                 <Button variant="outline" onClick={goBack} className="min-w-28">
                   Back
@@ -1374,7 +1852,7 @@ export default function OnboardingStepPage() {
                   </div>
                 )}
 
-                {(googleCalendarConnected || !hasIntegrationWarning) && (
+                {calendarConnected && (
                   <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3">
                     <p className="text-sm font-medium text-green-700">Connected to Google Calendar</p>
                   </div>

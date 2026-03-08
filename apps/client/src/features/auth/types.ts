@@ -11,6 +11,7 @@ export type OnboardingStep =
   | "voice"
   | "rules"
   | "integrations"
+  | "schedule"
   | "ai-chat"
   | "test-call"
   | "complete";
