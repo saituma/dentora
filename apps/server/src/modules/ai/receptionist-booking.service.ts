@@ -1,8 +1,11 @@
 import { logger } from '../../lib/logger.js';
 import {
+  cancelGoogleCalendarAppointment,
   createGoogleCalendarAppointment,
   findAvailableCalendarSlots,
+  findGoogleCalendarAppointment,
   getActiveGoogleCalendarIntegration,
+  rescheduleGoogleCalendarAppointment,
   type CalendarSlot,
 } from '../integrations/integration.service.js';
 import { executeLlmWithFailover } from './engine/index.js';
@@ -18,6 +21,14 @@ type BookingStatus =
   | 'collecting_patient'
   | 'awaiting_confirmation'
   | 'confirmed';
+
+type AppointmentChangeMode = 'cancel' | 'reschedule';
+
+type AppointmentChangeStatus =
+  | 'idle'
+  | 'collecting_details'
+  | 'awaiting_confirmation'
+  | 'completed';
 
 type RequestedPeriod = 'morning' | 'afternoon' | 'evening';
 
@@ -44,6 +55,30 @@ export interface BookingConversationState {
 
 export interface ReceptionistSessionState {
   booking: BookingConversationState;
+  appointmentChange: AppointmentChangeState;
+}
+
+export interface AppointmentChangeState {
+  active: boolean;
+  mode: AppointmentChangeMode | null;
+  status: AppointmentChangeStatus;
+  patientName?: string;
+  currentDate?: string;
+  currentTime?: string;
+  preferredNewDate?: string;
+  preferredNewTime?: string;
+  confirmationRequested: boolean;
+}
+
+interface AppointmentChangeExtraction {
+  mode?: AppointmentChangeMode;
+  patientName?: string;
+  currentDate?: string;
+  currentTime?: string;
+  preferredNewDate?: string;
+  preferredNewTime?: string;
+  confirmed: boolean;
+  declined: boolean;
 }
 
 interface BookingTurnExtraction {
@@ -61,6 +96,8 @@ interface BookingTurnExtraction {
 }
 
 const BOOKING_KEYWORDS = /\b(book|booking|schedule|appointment|available|availability|come in|see the dentist|reserve)\b/i;
+const CANCEL_KEYWORDS = /\b(cancel|cancellation|call off|remove)\b/i;
+const RESCHEDULE_KEYWORDS = /\b(reschedule|rescheduling|move|change)\b/i;
 const GREETING_PATTERNS = [
   /\bhi\b/i,
   /\bhello\b/i,
@@ -75,6 +112,35 @@ const SMALL_TALK_PATTERNS = [
   /\bhow s it going\b/i,
   /\bthanks\b/i,
   /\bthank you\b/i,
+];
+const AFFIRMATIVE_PATTERNS = [
+  /\byes\b/i,
+  /\byeah\b/i,
+  /\byep\b/i,
+  /\bplease do\b/i,
+  /\bconfirm\b/i,
+  /\bgo ahead\b/i,
+  /\bcorrect\b/i,
+];
+const NEGATIVE_PATTERNS = [
+  /\bno\b/i,
+  /\bnot yet\b/i,
+  /\bwait\b/i,
+  /\bwrong\b/i,
+  /\bdon t\b/i,
+  /\bdo not\b/i,
+];
+const BOOKING_CONFIRMATION_PATTERNS = [
+  /\byes\b/i,
+  /\bbook it\b/i,
+  /\bbukit\b/i,
+  /\bgo ahead\b/i,
+  /\bconfirm\b/i,
+  /\bthat works\b/i,
+  /\bsounds good\b/i,
+  /\bplease book\b/i,
+  /\bi agree\b/i,
+  /\bi agreed\b/i,
 ];
 const WEEKDAY_KEYS = [
   'sunday',
@@ -159,6 +225,318 @@ function messageLooksBookingRelated(message: string): boolean {
   );
 }
 
+function createEmptyAppointmentChangeState(): AppointmentChangeState {
+  return {
+    active: false,
+    mode: null,
+    status: 'idle',
+    confirmationRequested: false,
+  };
+}
+
+function detectAppointmentChangeMode(message: string): AppointmentChangeMode | null {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return null;
+  if (CANCEL_KEYWORDS.test(normalized)) return 'cancel';
+  if (RESCHEDULE_KEYWORDS.test(normalized)) return 'reschedule';
+  return null;
+}
+
+function hasUsefulAppointmentDetails(message: string): boolean {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return false;
+
+  return [
+    /\b(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week)\b/i,
+    /\b\d{1,2}(:\d{2})?\s?(am|pm)\b/i,
+    /\b\d{4}-\d{2}-\d{2}\b/i,
+    /\b\d{3}[-\s]?\d{3}[-\s]?\d{4}\b/i,
+    /\bmy name is\b/i,
+    /\bpatient\b/i,
+    /\bappointment\b/i,
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function isAffirmativeMessage(message: string): boolean {
+  const normalized = normalizeMessage(message);
+  return AFFIRMATIVE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function isNegativeMessage(message: string): boolean {
+  const normalized = normalizeMessage(message);
+  return NEGATIVE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function isBookingConfirmationMessage(message: string): boolean {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return false;
+  return BOOKING_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function resetAppointmentChangeState(): AppointmentChangeState {
+  return createEmptyAppointmentChangeState();
+}
+
+async function extractAppointmentChangeTurn(input: {
+  tenantId: string;
+  timezone: string;
+  userMessage: string;
+  modeHint?: AppointmentChangeMode | null;
+}): Promise<AppointmentChangeExtraction> {
+  const modeHintText = input.modeHint ?? 'none';
+  const prompt = [
+    'Extract appointment cancellation/reschedule details from a caller message.',
+    `Timezone: ${input.timezone}`,
+    `Today: ${formatTodayForPrompt(input.timezone)}`,
+    'Normalize dates to YYYY-MM-DD and times to HH:MM 24-hour.',
+    `Current mode hint: ${modeHintText}`,
+    'Return JSON only with this exact shape:',
+    JSON.stringify({
+      mode: null,
+      patientName: null,
+      currentDate: null,
+      currentTime: null,
+      preferredNewDate: null,
+      preferredNewTime: null,
+      confirmed: false,
+      declined: false,
+    }, null, 2),
+    '',
+    `Caller message: ${input.userMessage}`,
+  ].join('\n');
+
+  try {
+    const result = await executeLlmWithFailover({
+      workloadType: 'llm',
+      tenantId: input.tenantId,
+      maxLatencyMs: 7000,
+      minReliability: 0.85,
+      llmRequest: {
+        model: 'gpt-4o-mini',
+        tenantId: input.tenantId,
+        temperature: 0.1,
+        maxTokens: 350,
+        messages: [{ role: 'system', content: prompt }],
+      },
+    });
+
+    const parsed = JSON.parse(normalizeJsonBlock(result.content)) as {
+      mode?: AppointmentChangeMode | null;
+      patientName?: string | null;
+      currentDate?: string | null;
+      currentTime?: string | null;
+      preferredNewDate?: string | null;
+      preferredNewTime?: string | null;
+      confirmed?: boolean;
+      declined?: boolean;
+    };
+
+    return {
+      mode: parsed.mode ?? undefined,
+      patientName: parsed.patientName ?? undefined,
+      currentDate: parsed.currentDate ?? undefined,
+      currentTime: parsed.currentTime ?? undefined,
+      preferredNewDate: parsed.preferredNewDate ?? undefined,
+      preferredNewTime: parsed.preferredNewTime ?? undefined,
+      confirmed: Boolean(parsed.confirmed),
+      declined: Boolean(parsed.declined),
+    };
+  } catch (error) {
+    logger.warn({ err: error, tenantId: input.tenantId }, 'Failed to parse appointment change extraction JSON');
+    const fallbackDate = resolveRequestedDateFromMessage(input.userMessage, input.timezone);
+    return {
+      mode: detectAppointmentChangeMode(input.userMessage) ?? input.modeHint ?? undefined,
+      currentDate: fallbackDate,
+      confirmed: isAffirmativeMessage(input.userMessage),
+      declined: isNegativeMessage(input.userMessage),
+    };
+  }
+}
+
+function mergeAppointmentChangeState(
+  state: AppointmentChangeState,
+  extraction: AppointmentChangeExtraction,
+): void {
+  if (extraction.mode) state.mode = extraction.mode;
+  if (extraction.patientName) state.patientName = extraction.patientName.trim();
+  if (extraction.currentDate) state.currentDate = extraction.currentDate;
+  if (extraction.currentTime) state.currentTime = extraction.currentTime;
+  if (extraction.preferredNewDate) state.preferredNewDate = extraction.preferredNewDate;
+  if (extraction.preferredNewTime) state.preferredNewTime = extraction.preferredNewTime;
+}
+
+function getMissingAppointmentChangeField(state: AppointmentChangeState): string | null {
+  if (!state.patientName) return 'patient_name';
+  if (!state.currentDate) return 'current_date';
+  if (state.mode === 'reschedule' && !state.preferredNewDate) return 'new_date';
+  return null;
+}
+
+function buildAppointmentChangeMissingFieldQuestion(state: AppointmentChangeState, missingField: string): string {
+  if (missingField === 'patient_name') {
+    return 'Please share the patient full name on the appointment.';
+  }
+  if (missingField === 'current_date') {
+    return 'Please share the current appointment day you want to change (for example, tomorrow or 2026-03-10).';
+  }
+  if (missingField === 'new_date') {
+    return 'Please share the new day you want instead.';
+  }
+
+  return state.mode === 'cancel'
+    ? 'Please share the patient name and appointment date/time to cancel.'
+    : 'Please share the patient name, current appointment date/time, and preferred new date/time.';
+}
+
+async function executeAppointmentChange(input: {
+  tenantId: string;
+  context: TenantAIContext;
+  state: AppointmentChangeState;
+}): Promise<string> {
+  const timezone = getTimezone(input.context);
+  const patientName = input.state.patientName!;
+  const currentDate = input.state.currentDate!;
+
+  const matchedEvent = await findGoogleCalendarAppointment({
+    tenantId: input.tenantId,
+    timezone,
+    patientName,
+    appointmentDate: currentDate,
+    appointmentTime: input.state.currentTime,
+  });
+
+  if (!matchedEvent) {
+    return 'I could not find that appointment in the live calendar yet. Please confirm the patient full name and exact appointment day/time.';
+  }
+
+  if (input.state.mode === 'cancel') {
+    await cancelGoogleCalendarAppointment({
+      tenantId: input.tenantId,
+      eventId: matchedEvent.eventId,
+    });
+    return `Done — I cancelled ${matchedEvent.label} for ${patientName}.`;
+  }
+
+  const requestedDate = input.state.preferredNewDate!;
+  const requestedTime = input.state.preferredNewTime ?? null;
+  const availability = await findAvailableCalendarSlots({
+    tenantId: input.tenantId,
+    timezone,
+    requestedDate,
+    requestedTime,
+    appointmentDurationMinutes: getAppointmentDuration(input.context),
+    bufferBetweenAppointmentsMinutes: getBufferMinutes(input.context),
+    operatingSchedule: getOperatingSchedule(input.context),
+    closedDates: getClosedDates(input.context),
+    maxSlots: 3,
+    lookAheadDays: 7,
+  });
+
+  const nextSlot = availability.exactMatch ?? availability.suggestedSlots[0];
+  if (!nextSlot) {
+    return 'I could not find an available slot for that new day/time. Please share an alternative day or time and I can try again.';
+  }
+
+  await rescheduleGoogleCalendarAppointment({
+    tenantId: input.tenantId,
+    timezone,
+    eventId: matchedEvent.eventId,
+    newSlot: {
+      startIso: nextSlot.startIso,
+      endIso: nextSlot.endIso,
+    },
+  });
+
+  return `Done — I moved the appointment for ${patientName} to ${nextSlot.label}.`;
+}
+
+async function handleAppointmentChangeTurn(input: {
+  tenantId: string;
+  context: TenantAIContext;
+  userMessage: string;
+  state: AppointmentChangeState;
+  detectedMode: AppointmentChangeMode | null;
+}): Promise<string> {
+  const { state, detectedMode, context, tenantId, userMessage } = input;
+
+  if (!state.active) {
+    state.active = true;
+    state.mode = detectedMode;
+    state.status = 'collecting_details';
+    state.confirmationRequested = false;
+
+    return detectedMode === 'cancel'
+      ? `Absolutely — I can help cancel an appointment at ${clinicName(context)}. Please share the patient full name and appointment day/time.`
+      : `Absolutely — I can help reschedule an appointment at ${clinicName(context)}. Please share the patient full name, current appointment day/time, and preferred new day/time.`;
+  }
+
+  if (detectedMode && state.mode !== detectedMode) {
+    Object.assign(state, createEmptyAppointmentChangeState());
+    state.active = true;
+    state.mode = detectedMode;
+    state.status = 'collecting_details';
+
+    return detectedMode === 'cancel'
+      ? 'Sure, switching to cancellation. Please share the patient full name and appointment day/time.'
+      : 'Sure, switching to rescheduling. Please share the patient full name, current appointment day/time, and preferred new day/time.';
+  }
+
+  const extraction = await extractAppointmentChangeTurn({
+    tenantId,
+    timezone: getTimezone(context),
+    userMessage,
+    modeHint: state.mode,
+  });
+  mergeAppointmentChangeState(state, extraction);
+
+  const missingField = getMissingAppointmentChangeField(state);
+  if (missingField) {
+    state.status = 'collecting_details';
+    return buildAppointmentChangeMissingFieldQuestion(state, missingField);
+  }
+
+  if (!state.confirmationRequested) {
+    state.confirmationRequested = true;
+    state.status = 'awaiting_confirmation';
+
+    if (state.mode === 'cancel') {
+      return `Please confirm: cancel ${state.patientName}'s appointment on ${state.currentDate}${state.currentTime ? ` at ${state.currentTime}` : ''}. Say yes to proceed or no to edit.`;
+    }
+
+    return `Please confirm: move ${state.patientName}'s appointment from ${state.currentDate}${state.currentTime ? ` at ${state.currentTime}` : ''} to ${state.preferredNewDate}${state.preferredNewTime ? ` at ${state.preferredNewTime}` : ''}. Say yes to proceed or no to edit.`;
+  }
+
+  if (extraction.declined || isNegativeMessage(userMessage)) {
+    state.confirmationRequested = false;
+    state.status = 'collecting_details';
+    return state.mode === 'cancel'
+      ? 'No problem. Please share the corrected cancellation details.'
+      : 'No problem. Please share the corrected reschedule details.';
+  }
+
+  if (!(extraction.confirmed || isAffirmativeMessage(userMessage))) {
+    return state.mode === 'cancel'
+      ? 'Please say yes to proceed with cancellation, or no to update details.'
+      : 'Please say yes to proceed with rescheduling, or no to update details.';
+  }
+
+  try {
+    const outcome = await executeAppointmentChange({
+      tenantId,
+      context,
+      state,
+    });
+    Object.assign(state, resetAppointmentChangeState());
+    state.status = 'completed';
+    return `${outcome} Anything else I can help with?`;
+  } catch (error) {
+    logger.error({ err: error, tenantId }, 'Failed to execute appointment change');
+    state.confirmationRequested = false;
+    state.status = 'collecting_details';
+    return 'I ran into an issue updating the live calendar. Please verify the details and try again.';
+  }
+}
+
 function buildDirectReceptionistResponse(
   context: TenantAIContext,
   message: string,
@@ -218,6 +596,7 @@ function resetBookingState(): BookingConversationState {
 export function createInitialReceptionistSessionState(): ReceptionistSessionState {
   return {
     booking: createEmptyBookingState(),
+    appointmentChange: createEmptyAppointmentChangeState(),
   };
 }
 
@@ -231,6 +610,10 @@ function ensureSessionState(state?: ReceptionistSessionState): ReceptionistSessi
         ...createEmptyBookingState().patient,
         ...(state?.booking?.patient ?? {}),
       },
+    },
+    appointmentChange: {
+      ...createEmptyAppointmentChangeState(),
+      ...(state?.appointmentChange ?? {}),
     },
   };
 }
@@ -564,7 +947,27 @@ export async function processReceptionistTurnWithBooking(input: {
 }> {
   const sessionState = ensureSessionState(input.sessionState);
   const bookingState = sessionState.booking;
+  const appointmentChangeState = sessionState.appointmentChange;
   const timezone = getTimezone(input.aiContext);
+
+  const detectedAppointmentChangeMode = detectAppointmentChangeMode(input.userMessage);
+  if (detectedAppointmentChangeMode && bookingState.active) {
+    sessionState.booking = resetBookingState();
+  }
+
+  if (appointmentChangeState.active || detectedAppointmentChangeMode) {
+    return {
+      response: await handleAppointmentChangeTurn({
+        tenantId: input.tenantId,
+        context: input.aiContext,
+        userMessage: input.userMessage,
+        state: appointmentChangeState,
+        detectedMode: detectedAppointmentChangeMode,
+      }),
+      sessionState,
+    };
+  }
+
   const directResponse = buildDirectReceptionistResponse(input.aiContext, input.userMessage);
   if (!bookingState.active && directResponse) {
     return {
@@ -600,17 +1003,24 @@ export async function processReceptionistTurnWithBooking(input: {
   if (extraction.serviceName) {
     bookingState.serviceName = extraction.serviceName.trim();
   }
-  if (requestedDateFromMessage || extraction.requestedDate) {
+  const userIsChoosingTime = extraction.availabilityIntent || extraction.bookingIntent;
+  if ((requestedDateFromMessage || extraction.requestedDate) && userIsChoosingTime) {
     bookingState.requestedDate = requestedDateFromMessage ?? extraction.requestedDate;
     bookingState.selectedSlot = undefined;
     bookingState.offeredSlots = [];
     bookingState.confirmationRequested = false;
   }
-  if (extraction.requestedTime) {
+  if (extraction.requestedTime && userIsChoosingTime) {
     bookingState.requestedTime = extraction.requestedTime;
+    bookingState.selectedSlot = undefined;
+    bookingState.offeredSlots = [];
+    bookingState.confirmationRequested = false;
   }
-  if (extraction.requestedPeriod) {
+  if (extraction.requestedPeriod && userIsChoosingTime) {
     bookingState.requestedPeriod = extraction.requestedPeriod;
+    bookingState.selectedSlot = undefined;
+    bookingState.offeredSlots = [];
+    bookingState.confirmationRequested = false;
   }
 
   const shouldHandleBooking = bookingState.active || extraction.bookingIntent || extraction.availabilityIntent;
@@ -730,7 +1140,9 @@ export async function processReceptionistTurnWithBooking(input: {
     };
   }
 
-  if (!extraction.confirmed) {
+  const isConfirmed = extraction.confirmed || isBookingConfirmationMessage(input.userMessage);
+
+  if (!isConfirmed) {
     bookingState.status = 'awaiting_confirmation';
     return {
       response: 'Whenever you are ready, please say yes and I’ll confirm the appointment.',

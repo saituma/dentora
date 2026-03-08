@@ -2,6 +2,7 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import {
   API_BASE_URL,
   baseQueryWithReauth,
+  ensureFreshAccessToken,
   getAuthHeaders,
   tryRefreshAccessToken,
 } from '@/lib/api';
@@ -202,14 +203,19 @@ export const onboardingApi = createApi({
     generateVoicePreview: builder.mutation<string, VoicePreviewInput>({
       queryFn: async (arg) => {
         try {
-          const buildHeaders = (): HeadersInit => ({
+          const accessToken = await ensureFreshAccessToken();
+          if (!accessToken) {
+            return { error: { status: 401, data: 'Unauthorized' } as const };
+          }
+
+          const buildHeaders = (token: string): HeadersInit => ({
             'Content-Type': 'application/json',
-            ...getAuthHeaders(),
+            Authorization: `Bearer ${token}`,
           });
 
           let res = await fetch(`${API_BASE_URL}/onboarding/voice-preview`, {
             method: 'POST',
-            headers: buildHeaders(),
+            headers: buildHeaders(accessToken),
             body: JSON.stringify(arg),
           });
 
@@ -218,7 +224,7 @@ export const onboardingApi = createApi({
             if (refreshed) {
               res = await fetch(`${API_BASE_URL}/onboarding/voice-preview`, {
                 method: 'POST',
-                headers: buildHeaders(),
+                headers: buildHeaders(refreshed),
                 body: JSON.stringify(arg),
               });
             }

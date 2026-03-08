@@ -31,18 +31,127 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
-import { PhoneIcon, Loader2Icon } from 'lucide-react';
-import { useGetCallsQuery, useGetCallEventsQuery } from '@/features/calls/callsApi';
-import type { CallSession } from '@/features/calls/types';
+import { PhoneIcon } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   completed: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  'in-progress': 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  transferred: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   ringing: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  failed: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  dropped: 'bg-red-500/10 text-red-600 dark:text-red-400',
   voicemail: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
+};
+
+type MockCallEvent = {
+  id: string;
+  eventType: string;
+  timestamp: string;
+  actor?: string;
+  latencyMs?: number;
+};
+
+type MockCallSession = {
+  id: string;
+  callerNumber: string;
+  startedAt: string;
+  status: 'completed' | 'transferred' | 'ringing' | 'dropped' | 'voicemail';
+  durationSeconds?: number;
+  costEstimate?: string;
+  aiProvider?: string;
+  aiModel?: string;
+};
+
+const mockCalls: MockCallSession[] = [
+  {
+    id: 'call_9x1a',
+    callerNumber: '(555) 210-8841',
+    startedAt: '2026-03-08T08:14:00.000Z',
+    status: 'completed',
+    durationSeconds: 282,
+    costEstimate: '0.68',
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-5.3-realtime',
+  },
+  {
+    id: 'call_9w7m',
+    callerNumber: '(555) 339-7710',
+    startedAt: '2026-03-08T08:47:00.000Z',
+    status: 'transferred',
+    durationSeconds: 236,
+    costEstimate: '0.57',
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-5.3-realtime',
+  },
+  {
+    id: 'call_9v3q',
+    callerNumber: '(555) 920-0445',
+    startedAt: '2026-03-08T09:09:00.000Z',
+    status: 'completed',
+    durationSeconds: 194,
+    costEstimate: '0.47',
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-5.3-realtime',
+  },
+  {
+    id: 'call_9u8r',
+    callerNumber: '(555) 117-0398',
+    startedAt: '2026-03-08T10:22:00.000Z',
+    status: 'voicemail',
+    durationSeconds: 51,
+    costEstimate: '0.11',
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-5.3-realtime',
+  },
+  {
+    id: 'call_9t6d',
+    callerNumber: '(555) 702-6604',
+    startedAt: '2026-03-08T11:03:00.000Z',
+    status: 'dropped',
+    durationSeconds: 18,
+    costEstimate: '0.03',
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-5.3-realtime',
+  },
+  {
+    id: 'call_9s0k',
+    callerNumber: '(555) 774-2008',
+    startedAt: '2026-03-08T11:46:00.000Z',
+    status: 'completed',
+    durationSeconds: 325,
+    costEstimate: '0.76',
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-5.3-realtime',
+  },
+];
+
+const mockEventsByCallId: Record<string, MockCallEvent[]> = {
+  call_9x1a: [
+    { id: 'e1', eventType: 'call_started', timestamp: '2026-03-08T08:14:00.000Z', actor: 'system' },
+    { id: 'e2', eventType: 'intent_detected_emergency', timestamp: '2026-03-08T08:14:12.000Z', actor: 'ai', latencyMs: 602 },
+    { id: 'e3', eventType: 'appointment_slot_offered', timestamp: '2026-03-08T08:15:24.000Z', actor: 'ai', latencyMs: 584 },
+    { id: 'e4', eventType: 'appointment_confirmed', timestamp: '2026-03-08T08:17:56.000Z', actor: 'ai', latencyMs: 640 },
+  ],
+  call_9w7m: [
+    { id: 'e5', eventType: 'call_started', timestamp: '2026-03-08T08:47:00.000Z', actor: 'system' },
+    { id: 'e6', eventType: 'insurance_question_detected', timestamp: '2026-03-08T08:47:30.000Z', actor: 'ai', latencyMs: 688 },
+    { id: 'e7', eventType: 'transferred_to_front_desk', timestamp: '2026-03-08T08:50:22.000Z', actor: 'ai', latencyMs: 701 },
+  ],
+  call_9v3q: [
+    { id: 'e8', eventType: 'call_started', timestamp: '2026-03-08T09:09:00.000Z', actor: 'system' },
+    { id: 'e9', eventType: 'new_patient_intake', timestamp: '2026-03-08T09:09:45.000Z', actor: 'ai', latencyMs: 611 },
+    { id: 'e10', eventType: 'consultation_booked', timestamp: '2026-03-08T09:11:54.000Z', actor: 'ai', latencyMs: 632 },
+  ],
+  call_9u8r: [
+    { id: 'e11', eventType: 'voicemail_left', timestamp: '2026-03-08T10:22:51.000Z', actor: 'caller' },
+  ],
+  call_9t6d: [
+    { id: 'e12', eventType: 'call_dropped', timestamp: '2026-03-08T11:03:18.000Z', actor: 'system' },
+  ],
+  call_9s0k: [
+    { id: 'e13', eventType: 'call_started', timestamp: '2026-03-08T11:46:00.000Z', actor: 'system' },
+    { id: 'e14', eventType: 'reschedule_request', timestamp: '2026-03-08T11:46:33.000Z', actor: 'ai', latencyMs: 606 },
+    { id: 'e15', eventType: 'calendar_updated', timestamp: '2026-03-08T11:50:42.000Z', actor: 'ai', latencyMs: 619 },
+  ],
 };
 
 function formatDuration(seconds?: number) {
@@ -65,9 +174,7 @@ export default function CallsPage() {
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-
-  const { data: callsData, isLoading } = useGetCallsQuery({ limit: 100 });
-  const calls = callsData?.data ?? [];
+  const calls = mockCalls;
 
   const filteredCalls = useMemo(() => {
     return calls.filter((call) => {
@@ -86,7 +193,7 @@ export default function CallsPage() {
         <div>
           <h2 className="text-lg font-semibold">Call history</h2>
           <p className="text-sm text-muted-foreground">
-            View call sessions and events
+            Mock operational feed for AI receptionist call handling
           </p>
         </div>
       </div>
@@ -110,26 +217,20 @@ export default function CallsPage() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="transferred">Transferred</SelectItem>
                 <SelectItem value="ringing">Ringing</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="dropped">Dropped</SelectItem>
                 <SelectItem value="voicemail">Voicemail</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : filteredCalls.length === 0 ? (
+          {filteredCalls.length === 0 ? (
             <EmptyState
               icon={PhoneIcon}
-              title="No calls yet"
-              description="Calls answered by your AI receptionist will appear here"
+              title="No calls found"
+              description="Try adjusting filters or search terms"
             />
           ) : (
             <Table>
@@ -197,9 +298,8 @@ export default function CallsPage() {
   );
 }
 
-function CallDetailPanel({ call }: { call: CallSession }) {
-  const { data: eventsData, isLoading } = useGetCallEventsQuery(call.id);
-  const events = eventsData?.data ?? [];
+function CallDetailPanel({ call }: { call: MockCallSession }) {
+  const events = mockEventsByCallId[call.id] ?? [];
 
   return (
     <div className="mt-6 space-y-6">
@@ -230,11 +330,7 @@ function CallDetailPanel({ call }: { call: CallSession }) {
 
       <div>
         <p className="mb-2 text-sm font-medium">Events</p>
-        {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2Icon className="size-4 animate-spin" /> Loading events...
-          </div>
-        ) : events.length === 0 ? (
+        {events.length === 0 ? (
           <p className="text-sm text-muted-foreground">No events recorded</p>
         ) : (
           <div className="space-y-2 max-h-[400px] overflow-y-auto">

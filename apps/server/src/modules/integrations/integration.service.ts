@@ -75,6 +75,22 @@ export interface CreateCalendarAppointmentInput {
   };
 }
 
+export interface FindCalendarAppointmentInput {
+  tenantId: string;
+  timezone: string;
+  patientName: string;
+  appointmentDate: string;
+  appointmentTime?: string | null;
+}
+
+export interface CalendarAppointmentMatch {
+  eventId: string;
+  summary: string;
+  startIso: string;
+  endIso: string;
+  label: string;
+}
+
 function assertGoogleOAuthConfigured(): void {
   if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET || !env.GOOGLE_OAUTH_REDIRECT_URI) {
     throw new ValidationError('Google Calendar OAuth is not configured in environment variables');
@@ -833,4 +849,178 @@ export async function createGoogleCalendarAppointment(
       label: formatSlotLabel(input.slot.startIso, input.timezone),
     },
   };
+}
+
+export async function findGoogleCalendarAppointment(input: FindCalendarAppointmentInput): Promise<CalendarAppointmentMatch | null> {
+  const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
+  if (!integration) {
+    throw new ValidationError('Google Calendar is not connected for this clinic');
+  }
+
+  const { accessToken } = await resolveValidGoogleAccessToken(integration);
+  const config = (integration.config ?? {}) as Record<string, unknown>;
+  const calendarId = typeof config.calendarId === 'string' && config.calendarId.trim()
+    ? config.calendarId
+    : 'primary';
+
+  const [year, month, day] = input.appointmentDate.split('-').map(Number);
+  if (!year || !month || !day) {
+    throw new ValidationError('Invalid appointment date. Expected YYYY-MM-DD.');
+  }
+
+  const rangeStart = makeDateInTimeZone(input.timezone, year, month, day, 0, 0);
+  const rangeEnd = new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
+
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  url.searchParams.set('singleEvents', 'true');
+  url.searchParams.set('orderBy', 'startTime');
+  url.searchParams.set('timeMin', rangeStart.toISOString());
+  url.searchParams.set('timeMax', rangeEnd.toISOString());
+  url.searchParams.set('q', input.patientName);
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!response.ok) {
+    throw new IntegrationError('calendar', 'google_calendar', 'Failed to search Google Calendar events');
+  }
+
+  const payload = (await response.json()) as {
+    items?: Array<{
+      id?: string;
+      status?: string;
+      summary?: string;
+      description?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+    }>;
+  };
+
+  const patientKey = input.patientName.trim().toLowerCase();
+  const requestedTime = parseTimeString(input.appointmentTime ?? null);
+
+  const candidates = (payload.items ?? [])
+    .filter((item) => item.status !== 'cancelled' && item.id)
+    .map((item) => {
+      const startIso = item.start?.dateTime ?? item.start?.date;
+      const endIso = item.end?.dateTime ?? item.end?.date;
+      if (!startIso || !endIso) return null;
+
+      const haystack = `${item.summary ?? ''} ${item.description ?? ''}`.toLowerCase();
+      if (patientKey && !haystack.includes(patientKey)) return null;
+
+      const startDate = new Date(startIso);
+      const startParts = getFormatterParts(startDate, input.timezone);
+      const score = requestedTime
+        ? Math.abs((Number(startParts.hour) * 60 + Number(startParts.minute)) - (requestedTime.hour * 60 + requestedTime.minute))
+        : 0;
+
+      return {
+        eventId: item.id!,
+        summary: item.summary ?? 'Dental appointment',
+        startIso,
+        endIso,
+        label: formatSlotLabel(startIso, input.timezone),
+        score,
+      };
+    })
+    .filter((item): item is {
+      eventId: string;
+      summary: string;
+      startIso: string;
+      endIso: string;
+      label: string;
+      score: number;
+    } => Boolean(item))
+    .sort((left, right) => left.score - right.score);
+
+  if (candidates.length === 0) return null;
+
+  const best = candidates[0];
+  return {
+    eventId: best.eventId,
+    summary: best.summary,
+    startIso: best.startIso,
+    endIso: best.endIso,
+    label: best.label,
+  };
+}
+
+export async function cancelGoogleCalendarAppointment(input: {
+  tenantId: string;
+  eventId: string;
+}): Promise<void> {
+  const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
+  if (!integration) {
+    throw new ValidationError('Google Calendar is not connected for this clinic');
+  }
+
+  const { accessToken } = await resolveValidGoogleAccessToken(integration);
+  const config = (integration.config ?? {}) as Record<string, unknown>;
+  const calendarId = typeof config.calendarId === 'string' && config.calendarId.trim()
+    ? config.calendarId
+    : 'primary';
+
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(input.eventId)}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+
+  if (!response.ok && response.status !== 404) {
+    const errorBody = await response.text();
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      `Failed to cancel Google Calendar event: ${errorBody.slice(0, 500)}`,
+    );
+  }
+}
+
+export async function rescheduleGoogleCalendarAppointment(input: {
+  tenantId: string;
+  timezone: string;
+  eventId: string;
+  newSlot: { startIso: string; endIso: string };
+}): Promise<void> {
+  const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
+  if (!integration) {
+    throw new ValidationError('Google Calendar is not connected for this clinic');
+  }
+
+  const { accessToken } = await resolveValidGoogleAccessToken(integration);
+  const config = (integration.config ?? {}) as Record<string, unknown>;
+  const calendarId = typeof config.calendarId === 'string' && config.calendarId.trim()
+    ? config.calendarId
+    : 'primary';
+
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(input.eventId)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        start: { dateTime: input.newSlot.startIso, timeZone: input.timezone },
+        end: { dateTime: input.newSlot.endIso, timeZone: input.timezone },
+      }),
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      `Failed to reschedule Google Calendar event: ${errorBody.slice(0, 500)}`,
+    );
+  }
 }

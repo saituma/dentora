@@ -66,6 +66,8 @@ const EARLY_TTS_CLAUSE_MIN_CHARS = 36;
 const EARLY_TTS_LONG_PHRASE_MIN_CHARS = 72;
 /** Record in short chunks so we send to STT sooner without hurting STT accuracy too much. */
 const LIVE_AUDIO_RECORD_TIMESLICE_MS = 650;
+const POST_ASSISTANT_AUDIO_COOLDOWN_MS = 900;
+const ASSISTANT_ECHO_WINDOW_MS = 30000;
 
 export default function TestAiReceptionistPage() {
   const { data: voiceProfile } = useGetVoiceProfileQuery();
@@ -119,7 +121,13 @@ export default function TestAiReceptionistPage() {
   const currentAssistantTurnTsRef = useRef<string | null>(null);
   const lastLiveTranscriptRef = useRef('');
   const lastLiveTranscriptAtRef = useRef(0);
+  const lastAssistantUtteranceRef = useRef('');
+  const lastAssistantUtteranceAtRef = useRef(0);
+  const browserTtsVoiceUriRef = useRef<string | null>(null);
   const shouldAutoEndCallRef = useRef(false);
+  const resumeVoiceInputAtRef = useRef(0);
+  const configuredVoicePreviewDisabledRef = useRef(false);
+  const configuredVoicePreviewAuthToastShownRef = useRef(false);
 
   const hasMediaRecorder = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined';
   const supportsWebmOpus = hasMediaRecorder && MediaRecorder.isTypeSupported(LIVE_AUDIO_RECORDER_MIME_TYPE);
@@ -381,6 +389,12 @@ export default function TestAiReceptionistPage() {
           const hadVoice = voiceDetectedRef.current;
           voiceDetectedRef.current = false;
           if (hadVoice) {
+            if (aiRespondingRef.current) {
+              setInterimTranscript('');
+              setIsListening(false);
+              r.stop();
+              return;
+            }
             setInterimTranscript('Listening...');
             if (supportsBrowserSpeechRecognition && isLiveSocketOpen()) {
               // Browser speech recognition is the authoritative transcript path in supported browsers.
@@ -528,6 +542,22 @@ export default function TestAiReceptionistPage() {
     });
   };
 
+  const blockVoiceInputResume = (ms = POST_ASSISTANT_AUDIO_COOLDOWN_MS) => {
+    const nextAllowedAt = Date.now() + ms;
+    if (nextAllowedAt > resumeVoiceInputAtRef.current) {
+      resumeVoiceInputAtRef.current = nextAllowedAt;
+    }
+  };
+
+  const waitForVoiceInputResumeWindow = async () => {
+    const waitMs = resumeVoiceInputAtRef.current - Date.now();
+    if (waitMs > 0) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, waitMs);
+      });
+    }
+  };
+
   const extractSpeakableSegments = (buffer: string, flushRemainder = false) => {
     const segments: string[] = [];
     let start = 0;
@@ -633,12 +663,33 @@ export default function TestAiReceptionistPage() {
   const playConfiguredVoiceFallback = useCallback(async (text: string) => {
     const cleaned = text.trim();
     if (!cleaned) return false;
+    if (configuredVoicePreviewDisabledRef.current) return false;
+
+    const hasAuthorization = Object.keys(getAuthHeaders()).some((header) => header.toLowerCase() === 'authorization');
+    if (!hasAuthorization) {
+      configuredVoicePreviewDisabledRef.current = true;
+      return false;
+    }
 
     try {
       const audioUrl = await synthesizeTtsAudioUrl(cleaned);
       queueAudioUrl(audioUrl);
       return true;
-    } catch {
+    } catch (error) {
+      const status =
+        typeof error === 'object' && error && 'status' in error
+          ? Number((error as { status?: unknown }).status)
+          : Number.NaN;
+      const errorText = String(error ?? '');
+      const isUnauthorized = status === 401 || /unauthorized|401/i.test(errorText);
+
+      if (isUnauthorized) {
+        configuredVoicePreviewDisabledRef.current = true;
+        if (!configuredVoicePreviewAuthToastShownRef.current) {
+          configuredVoicePreviewAuthToastShownRef.current = true;
+          toast.info('Configured voice preview is unavailable for this session. Using browser fallback voice.');
+        }
+      }
       return false;
     }
   }, [queueAudioUrl, synthesizeTtsAudioUrl]);
@@ -648,9 +699,30 @@ export default function TestAiReceptionistPage() {
     if (!cleaned) return;
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
+    const synth = window.speechSynthesis;
+    const voices = synth.getVoices();
+    const byStoredUri = browserTtsVoiceUriRef.current
+      ? voices.find((voice) => voice.voiceURI === browserTtsVoiceUriRef.current)
+      : undefined;
+    const selectedBrowserVoice = byStoredUri
+      ?? voices.find((voice) => voice.lang.toLowerCase() === 'en-us' && !voice.localService)
+      ?? voices.find((voice) => voice.lang.toLowerCase() === 'en-us')
+      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('en'))
+      ?? voices.find((voice) => voice.default)
+      ?? voices[0];
+
+    if (selectedBrowserVoice?.voiceURI) {
+      browserTtsVoiceUriRef.current = selectedBrowserVoice.voiceURI;
+    }
+
     browserSpeechPendingCountRef.current += 1;
     const utterance = new SpeechSynthesisUtterance(cleaned);
-    utterance.lang = 'en-US';
+    if (selectedBrowserVoice) {
+      utterance.voice = selectedBrowserVoice;
+      utterance.lang = selectedBrowserVoice.lang || 'en-US';
+    } else {
+      utterance.lang = 'en-US';
+    }
     utterance.rate = voiceProfile?.speechSpeed ?? 1;
 
     const finish = () => {
@@ -660,7 +732,7 @@ export default function TestAiReceptionistPage() {
 
     utterance.onend = finish;
     utterance.onerror = finish;
-    window.speechSynthesis.speak(utterance);
+    synth.speak(utterance);
   }, [voiceProfile?.speechSpeed]);
 
   const isLiveSocketOpen = () => {
@@ -681,6 +753,73 @@ export default function TestAiReceptionistPage() {
   const normalizeCallTranscript = (value: string) => (
     value.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
   );
+
+  const rememberAssistantUtterance = (value: string) => {
+    const normalized = normalizeCallTranscript(value);
+    if (!normalized) return;
+    lastAssistantUtteranceRef.current = normalized;
+    lastAssistantUtteranceAtRef.current = Date.now();
+  };
+
+  const isLikelyAssistantEcho = (transcript: string): boolean => {
+    const normalized = normalizeCallTranscript(transcript);
+    if (!normalized) return false;
+
+    const lastAssistant = lastAssistantUtteranceRef.current;
+    if (!lastAssistant) return false;
+
+    const heardRecently = Date.now() - lastAssistantUtteranceAtRef.current < ASSISTANT_ECHO_WINDOW_MS;
+    if (!heardRecently) return false;
+
+    const instructionPrefixPattern = /^(please|kindly|sure|absolutely|i can help|let me|can you|share|provide)\b/;
+    if (instructionPrefixPattern.test(normalized) && instructionPrefixPattern.test(lastAssistant)) {
+      const normalizedWords = normalized.split(' ').filter((token) => token.length > 1);
+      const assistantWords = lastAssistant.split(' ').filter((token) => token.length > 1);
+      const prefixLength = Math.min(6, normalizedWords.length, assistantWords.length);
+      if (prefixLength >= 4) {
+        const normalizedPrefix = normalizedWords.slice(0, prefixLength).join(' ');
+        const assistantPrefix = assistantWords.slice(0, prefixLength).join(' ');
+        if (normalizedPrefix === assistantPrefix || assistantPrefix.includes(normalizedPrefix) || normalizedPrefix.includes(assistantPrefix)) {
+          return true;
+        }
+      }
+    }
+
+    if (normalized === lastAssistant) return true;
+    if (normalized.length >= 24 && (normalized.includes(lastAssistant) || lastAssistant.includes(normalized))) {
+      return true;
+    }
+
+    const transcriptWordList = normalized.split(' ').filter((token) => token.length > 2);
+    const assistantWordList = lastAssistant.split(' ').filter((token) => token.length > 2);
+    if (transcriptWordList.length < 3 || assistantWordList.length < 3) return false;
+
+    const transcriptTokens = new Set(transcriptWordList);
+    const assistantTokens = new Set(assistantWordList);
+    const minTokenCount = Math.min(transcriptTokens.size, assistantTokens.size);
+
+    let overlapCount = 0;
+    for (const token of transcriptTokens) {
+      if (assistantTokens.has(token)) overlapCount += 1;
+    }
+
+    const overlapRatio = overlapCount / minTokenCount;
+    if (minTokenCount >= 3 && overlapRatio >= 0.7) {
+      return true;
+    }
+
+    if (transcriptWordList.length >= 4) {
+      const assistantTextWithPadding = ` ${lastAssistant} `;
+      for (let index = 0; index <= transcriptWordList.length - 4; index += 1) {
+        const phrase = transcriptWordList.slice(index, index + 4).join(' ');
+        if (assistantTextWithPadding.includes(` ${phrase} `)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
 
   const openLiveSocket = async (): Promise<boolean> => {
     if (isLiveSocketOpen()) return true;
@@ -745,6 +884,9 @@ export default function TestAiReceptionistPage() {
           case 'assistant_greeting':
             aiRespondingRef.current = true;
             setIsStreamingResponse(true);
+            rememberAssistantUtterance(message.text || '');
+            stopSpeechRecognition();
+            stopFallbackRecorder();
             setTurns([{ speaker: 'receptionist', text: message.text || '', ts: new Date().toISOString() }]);
             return;
 
@@ -759,6 +901,10 @@ export default function TestAiReceptionistPage() {
           case 'transcript_final': {
             const transcript = (message.transcript || '').trim();
             if (!transcript) return;
+            if (isLikelyAssistantEcho(transcript)) {
+              setInterimTranscript('');
+              return;
+            }
             const normalized = normalizeCallTranscript(transcript);
             const duplicate =
               normalized
@@ -781,6 +927,7 @@ export default function TestAiReceptionistPage() {
               { speaker: 'receptionist', text: '', ts: currentAssistantTurnTsRef.current! },
             ]);
             stopSpeechRecognition();
+            stopFallbackRecorder();
             return;
 
           case 'assistant_delta':
@@ -805,6 +952,7 @@ export default function TestAiReceptionistPage() {
 
           case 'assistant_audio_unavailable':
             if (message.text) {
+              rememberAssistantUtterance(message.text);
               if (message.reason === 'paid_plan_required' && message.message) {
                 setVoiceWarning(message.message);
                 setAudioSource('unavailable');
@@ -826,6 +974,7 @@ export default function TestAiReceptionistPage() {
           case 'assistant_done': {
             const response = (message.response || '').trim();
             if (response && currentAssistantTurnTsRef.current) {
+              rememberAssistantUtterance(response);
               setTurns((prev) => prev.map((turn) => (
                 turn.speaker === 'receptionist' && turn.ts === currentAssistantTurnTsRef.current
                   ? { ...turn, text: response }
@@ -833,6 +982,7 @@ export default function TestAiReceptionistPage() {
               )));
             }
             void Promise.all([waitForTtsDrain(), waitForBrowserSpeechDrain()]).then(() => {
+              blockVoiceInputResume();
               if (shouldAutoEndCallRef.current) {
                 shouldAutoEndCallRef.current = false;
                 endCall();
@@ -841,9 +991,14 @@ export default function TestAiReceptionistPage() {
               aiRespondingRef.current = false;
               setIsStreamingResponse(false);
               currentAssistantTurnTsRef.current = null;
-              if (isCallActiveRef.current) {
-                void startSpeechRecognition();
-              }
+              void waitForVoiceInputResumeWindow().then(() => {
+                if (!isCallActiveRef.current) return;
+                if (supportsBrowserSpeechRecognition) {
+                  void startSpeechRecognition();
+                } else if (canUseUploadFallback) {
+                  void startFallbackRecorder();
+                }
+              });
             });
             return;
           }
@@ -922,6 +1077,16 @@ export default function TestAiReceptionistPage() {
     };
 
     recognition.onresult = (event) => {
+      const inAssistantPlaybackWindow =
+        aiRespondingRef.current
+        || browserSpeechPendingCountRef.current > 0
+        || Date.now() < resumeVoiceInputAtRef.current;
+
+      if (inAssistantPlaybackWindow) {
+        setInterimTranscript('');
+        return;
+      }
+
       let interimText = '';
       let finalText = '';
 
@@ -938,6 +1103,10 @@ export default function TestAiReceptionistPage() {
 
       const cleanedInterim = interimText.trim();
       if (cleanedInterim) {
+        if (isLikelyAssistantEcho(cleanedInterim)) {
+          setInterimTranscript('');
+          return;
+        }
         setInterimTranscript(cleanedInterim);
         setIsListening(true);
       } else if (!finalText.trim()) {
@@ -946,6 +1115,11 @@ export default function TestAiReceptionistPage() {
 
       const cleanedFinal = finalText.replace(/\s+/g, ' ').trim();
       if (!cleanedFinal) return;
+
+      if (isLikelyAssistantEcho(cleanedFinal)) {
+        setInterimTranscript('');
+        return;
+      }
 
       setInterimTranscript(cleanedFinal);
       setIsListening(false);
@@ -1003,6 +1177,8 @@ export default function TestAiReceptionistPage() {
     }
 
     await waitForTtsDrain();
+    await waitForBrowserSpeechDrain();
+    await waitForVoiceInputResumeWindow();
 
     if (!enableVoiceInput) {
       return true;
@@ -1163,6 +1339,10 @@ export default function TestAiReceptionistPage() {
       const toSpeak = segments.length > 0 ? segments : (responseText.trim() ? [responseText.trim()] : []);
       queueTtsSegments(toSpeak);
       await waitForTtsDrain();
+      await waitForBrowserSpeechDrain();
+      blockVoiceInputResume();
+      await waitForVoiceInputResumeWindow();
+      rememberAssistantUtterance(responseText);
       setTurns((prev) => prev.map((turn) => (
         turn.speaker === 'receptionist' && turn.ts === receptionistTs
           ? { ...turn, text: responseText }
@@ -1179,7 +1359,7 @@ export default function TestAiReceptionistPage() {
           if (isCallActiveRef.current && !aiRespondingRef.current) {
             void startLiveInput();
           }
-        }, 100);
+        }, 120);
       }
     }
   };
@@ -1202,7 +1382,12 @@ export default function TestAiReceptionistPage() {
     currentAssistantTurnTsRef.current = null;
     lastLiveTranscriptRef.current = '';
     lastLiveTranscriptAtRef.current = 0;
+    lastAssistantUtteranceRef.current = '';
+    lastAssistantUtteranceAtRef.current = 0;
+    resumeVoiceInputAtRef.current = 0;
     shouldAutoEndCallRef.current = false;
+    configuredVoicePreviewDisabledRef.current = false;
+    configuredVoicePreviewAuthToastShownRef.current = false;
     setAudioSource('unknown');
     setVoiceWarning(null);
     setLiveVoiceId(null);
@@ -1235,6 +1420,9 @@ export default function TestAiReceptionistPage() {
     utteranceAudioChunksRef.current = [];
     utteranceAudioBytesRef.current = 0;
     ttsAccumulatorRef.current = '';
+    resumeVoiceInputAtRef.current = 0;
+    configuredVoicePreviewDisabledRef.current = false;
+    configuredVoicePreviewAuthToastShownRef.current = false;
     clearAudioPlayback();
   };
 
