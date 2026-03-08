@@ -116,7 +116,7 @@ export class GoogleTtsProvider implements TtsProvider {
             },
             audioConfig: {
               audioEncoding: 'MP3',
-              speakingRate: 1.0,
+              speakingRate: request.speed ?? 1.0,
               pitch: 0,
             },
           }),

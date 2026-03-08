@@ -430,7 +430,7 @@ async function sendGreeting(session: MediaStreamSession, aiContext: any): Promis
     const voiceSettings = aiContext.voiceProfile as any;
     const greeting = voiceSettings?.greetingMessage
       ?? voiceSettings?.greeting
-      ?? `Thank you for calling ${aiContext.clinicName}. How can I help you today?`;
+      ?? `Hi, welcome to ${aiContext.clinicName}, what can I help you with today?`;
 
     const ttsResult = await executeTtsWithFailover({
       workloadType: 'tts',

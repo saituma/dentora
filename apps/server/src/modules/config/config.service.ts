@@ -16,6 +16,7 @@ import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
 import { NotFoundError, ConfigValidationError, ConflictError } from '../../lib/errors.js';
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import { listAvailableVoices } from '../onboarding/onboarding.service.js';
 
 function normalizeClinicProfile(profile: any) {
   if (!profile) return null;
@@ -48,6 +49,100 @@ function normalizeClinicProfile(profile: any) {
         ? profile.email
         : profile.supportEmail ?? null,
   };
+}
+
+function normalizeVoiceProfile(profile: any) {
+  if (!profile) return null;
+
+  const speechSpeedValue =
+    typeof profile.speechSpeed === 'number'
+      ? profile.speechSpeed
+      : typeof profile.speakingSpeed === 'number'
+        ? profile.speakingSpeed
+        : typeof profile.speakingSpeed === 'string'
+          ? Number(profile.speakingSpeed)
+          : undefined;
+
+  return {
+    ...profile,
+    speechSpeed:
+      typeof speechSpeedValue === 'number' && Number.isFinite(speechSpeedValue)
+        ? speechSpeedValue
+        : undefined,
+  };
+}
+
+function normalizeStoredGreetingMessage(clinicName: string, greetingMessage?: string | null): string | null {
+  const normalized = String(greetingMessage ?? '').trim();
+  const replacement = `Hi, welcome to ${clinicName}, what can I help you with today?`;
+
+  if (!normalized) return replacement;
+
+  const comparable = normalized.toLowerCase().replace(/\s+/g, ' ');
+  if (
+    comparable === 'hi, thank you for calling. how can i help you today?'
+    || comparable === 'hello, thank you for calling. how can i help you today?'
+    || comparable === 'hello, thank you for calling. how may i help you today?'
+  ) {
+    return replacement;
+  }
+
+  return normalized;
+}
+
+async function replacePaidVoiceWithFreeLiveVoice(profile: any) {
+  if (!profile || typeof profile.voiceId !== 'string' || !profile.voiceId.trim()) {
+    return profile;
+  }
+
+  try {
+    const voices = await listAvailableVoices();
+    const configuredVoice = voices.find((voice) => voice.voiceId === profile.voiceId) ?? null;
+
+    if (!configuredVoice || configuredVoice.liveSupported !== false) {
+      return profile;
+    }
+
+    const fallbackVoice = voices.find((voice) => voice.liveSupported !== false) ?? null;
+    if (!fallbackVoice) {
+      return {
+        ...profile,
+        voiceId: 'professional',
+      };
+    }
+
+    return {
+      ...profile,
+      voiceId: fallbackVoice.voiceId,
+      fallbackVoiceId: fallbackVoice.voiceId,
+    };
+  } catch (error) {
+    logger.warn({ err: error, tenantId: profile.tenantId }, 'Failed to replace paid-only voice with free live voice');
+    return profile;
+  }
+}
+
+function mapVoiceProfileInput(data: Record<string, unknown>) {
+  const speechSpeed =
+    typeof data.speechSpeed === 'number'
+      ? data.speechSpeed
+      : typeof data.speakingSpeed === 'number'
+        ? data.speakingSpeed
+        : typeof data.speakingSpeed === 'string'
+          ? Number(data.speakingSpeed)
+          : undefined;
+
+  const mappedData: Record<string, unknown> = {
+    ...data,
+  };
+
+  delete mappedData.speechSpeed;
+
+  if (typeof speechSpeed === 'number' && Number.isFinite(speechSpeed)) {
+    mappedData.speakingSpeed = String(speechSpeed);
+  }
+
+  return mappedData;
 }
 
 export async function upsertClinicProfile(tenantId: string, data: Record<string, unknown>) {
@@ -177,6 +272,7 @@ export async function getPolicies(tenantId: string) {
 }
 
 export async function upsertVoiceProfile(tenantId: string, data: Record<string, unknown>) {
+  const mappedData = await replacePaidVoiceWithFreeLiveVoice(mapVoiceProfileInput(data));
   const [existing] = await db
     .select()
     .from(voiceProfile)
@@ -186,22 +282,27 @@ export async function upsertVoiceProfile(tenantId: string, data: Record<string, 
   if (existing) {
     const [updated] = await db
       .update(voiceProfile)
-      .set({ ...data, updatedAt: new Date() } as any)
+      .set({ ...mappedData, updatedAt: new Date() } as any)
       .where(eq(voiceProfile.tenantId, tenantId))
       .returning();
-    return updated;
+    return normalizeVoiceProfile(updated);
   }
 
   const [created] = await db
     .insert(voiceProfile)
-    .values({ id: generateId(), tenantId, ...data } as any)
+    .values({ id: generateId(), tenantId, ...mappedData } as any)
     .returning();
-  return created;
+  return normalizeVoiceProfile(created);
 }
 
 export async function getVoiceProfile(tenantId: string) {
   const [profile] = await db.select().from(voiceProfile).where(eq(voiceProfile.tenantId, tenantId)).limit(1);
-  return profile ?? null;
+  const [clinic] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  const normalizedProfile = await replacePaidVoiceWithFreeLiveVoice(profile);
+  return normalizeVoiceProfile({
+    ...(normalizedProfile ?? {}),
+    greetingMessage: normalizeStoredGreetingMessage(clinic?.clinicName ?? 'our clinic', normalizedProfile?.greetingMessage),
+  });
 }
 
 export async function addFaq(tenantId: string, data: Record<string, unknown>) {

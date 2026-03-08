@@ -43,8 +43,19 @@ export interface BookingRules {
 export interface Policy {
   id: string;
   tenantId: string;
-  policyType: string;
-  content: string;
+  policyType?: string | null;
+  content?: string | null;
+  escalationConditions?: {
+    type?: string;
+    content?: string;
+  } | null;
+  emergencyDisclaimer?: string | null;
+  sensitiveTopics?: Array<{
+    type?: string;
+    title?: string;
+    mimeType?: string;
+    content?: string;
+  }>;
   createdAt: string;
 }
 

@@ -98,7 +98,7 @@ export function DashboardSidebar() {
                   {clinic?.clinicName ?? 'DentalFlow AI'}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">
-                  Enterprise
+                  {clinic?.phone ?? clinic?.email ?? user?.email ?? 'Dental clinic'}
                 </span>
               </div>
               <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4" />

@@ -497,11 +497,14 @@ export async function executeTtsWithFailover(
   const fallbackCandidates = healthyCandidates.length > 0 ? healthyCandidates : candidates;
   const scored = scoreProviders(qualified.length > 0 ? qualified : fallbackCandidates);
   const preferredProvider = getPreferredTtsProviderForVoiceId(request.ttsRequest.voiceId);
+  const isExactCustomVoice = isCustomTtsVoiceId(request.ttsRequest.voiceId);
   const ordered = preferredProvider
-    ? [
-        ...scored.filter((candidate) => candidate.name === preferredProvider),
-        ...scored.filter((candidate) => candidate.name !== preferredProvider),
-      ]
+    ? isExactCustomVoice
+      ? scored.filter((candidate) => candidate.name === preferredProvider)
+      : [
+          ...scored.filter((candidate) => candidate.name === preferredProvider),
+          ...scored.filter((candidate) => candidate.name !== preferredProvider),
+        ]
     : scored;
 
   if (ordered.length === 0) {

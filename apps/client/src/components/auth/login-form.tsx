@@ -44,10 +44,7 @@ const mapServerStepToClientStep = (step?: string): OnboardingStep => {
   return "clinic-profile";
 };
 
-const getLoginDestination = (step: OnboardingStep): string => {
-  if (step === "complete") return "/dashboard";
-  return `/onboarding/${step}`;
-};
+const getLoginDestination = (_step: OnboardingStep): string => "/dashboard";
 
 export function LoginForm() {
   const dispatch = useAppDispatch();

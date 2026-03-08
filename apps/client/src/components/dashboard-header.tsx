@@ -36,6 +36,7 @@ import {
 const TITLES: Record<string, string> = {
   '/dashboard': 'Overview',
   '/dashboard/ai-receptionist': 'AI Receptionist',
+  '/dashboard/test-ai-receptionist': 'Test AI Receptionist',
   '/dashboard/calls': 'Call History',
   '/dashboard/analytics': 'Analytics',
   '/dashboard/integrations': 'Integrations',
@@ -64,9 +65,12 @@ export function DashboardHeader() {
     dispatch(logout());
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
     }
     router.push('/login');
   };
+
+  const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'User';
 
   const getRelativeTime = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
@@ -170,7 +174,7 @@ export function DashboardHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="size-8">
-                <AvatarFallback>{user?.name?.charAt(0) || 'U'}</AvatarFallback>
+                <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -178,7 +182,7 @@ export function DashboardHeader() {
             <DropdownMenuGroup>
               <DropdownMenuLabel>
                 <div className="flex flex-col">
-                  <span>{user?.name || 'User'}</span>
+                  <span>{displayName}</span>
                   <span className="text-xs font-normal text-muted-foreground">
                     {user?.email}
                   </span>

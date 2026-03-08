@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { MicrophoneDiagnosticsPanel } from '@/components/microphone-diagnostics-panel';
 import { useGetVoiceProfileQuery } from '@/features/aiConfig/aiConfigApi';
 import {
+  useGetAvailableVoicesQuery,
   useGenerateVoicePreviewMutation,
   useTranscribeLiveAudioMutation,
 } from '@/features/onboarding/onboardingApi';
@@ -68,6 +69,7 @@ const LIVE_AUDIO_RECORD_TIMESLICE_MS = 650;
 
 export default function TestAiReceptionistPage() {
   const { data: voiceProfile } = useGetVoiceProfileQuery();
+  const { data: availableVoicesData } = useGetAvailableVoicesQuery();
 
   const [generateVoicePreview, { isLoading: isSpeaking }] = useGenerateVoicePreviewMutation();
   const [transcribeLiveAudio, { isLoading: isTranscribing }] = useTranscribeLiveAudioMutation();
@@ -80,6 +82,10 @@ export default function TestAiReceptionistPage() {
   const [micDiagnostics, setMicDiagnostics] = useState<MicrophoneDiagnosticsResult>(INITIAL_MIC_DIAGNOSTICS);
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [audioSource, setAudioSource] = useState<'elevenlabs' | 'configured-preview' | 'browser-fallback' | 'unavailable' | 'unknown'>('unknown');
+  const [voiceWarning, setVoiceWarning] = useState<string | null>(null);
+  const [liveVoiceId, setLiveVoiceId] = useState<string | null>(null);
+  const [liveVoiceName, setLiveVoiceName] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -129,6 +135,18 @@ export default function TestAiReceptionistPage() {
 
   const selectedVoiceId =
     voiceProfile?.voiceId || TONE_TO_VOICE_ID[voiceProfile?.tone ?? 'professional'] || TONE_TO_VOICE_ID.professional;
+  const availableVoices = availableVoicesData?.data ?? [];
+  const selectedVoice = availableVoices.find((voice) => voice.voiceId === selectedVoiceId) ?? null;
+  const liveVoice = availableVoices.find((voice) => voice.voiceId === liveVoiceId) ?? null;
+  const liveVoiceOverride = selectedVoice?.liveSupported === false
+    ? availableVoices.find((voice) => voice.liveSupported !== false) ?? null
+    : null;
+  const receptionistDisplayName =
+    audioSource === 'elevenlabs' || audioSource === 'configured-preview'
+      ? (liveVoiceName?.trim() || liveVoice?.name?.trim() || selectedVoice?.name?.trim() || 'AI Receptionist')
+      : audioSource === 'browser-fallback'
+        ? 'Browser Voice'
+        : 'AI Receptionist';
 
   useEffect(() => {
     isCallActiveRef.current = isCallActive;
@@ -612,6 +630,19 @@ export default function TestAiReceptionistPage() {
     queueAudioUrl(audioUrl);
   }, [queueAudioUrl]);
 
+  const playConfiguredVoiceFallback = useCallback(async (text: string) => {
+    const cleaned = text.trim();
+    if (!cleaned) return false;
+
+    try {
+      const audioUrl = await synthesizeTtsAudioUrl(cleaned);
+      queueAudioUrl(audioUrl);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [queueAudioUrl, synthesizeTtsAudioUrl]);
+
   const speakWithBrowserSynthesis = useCallback((text: string) => {
     const cleaned = text.trim();
     if (!cleaned) return;
@@ -665,6 +696,9 @@ export default function TestAiReceptionistPage() {
     socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
     socketUrl.pathname = `${socketUrl.pathname.replace(/\/api\/?$/, '')}/api/llm/receptionist-test/live`;
     socketUrl.searchParams.set('token', token);
+    if (liveVoiceOverride?.voiceId) {
+      socketUrl.searchParams.set('overrideVoiceId', liveVoiceOverride.voiceId);
+    }
 
     return new Promise<boolean>((resolve) => {
       let settled = false;
@@ -684,6 +718,11 @@ export default function TestAiReceptionistPage() {
         const message = JSON.parse(String(event.data)) as {
           event?: string;
           sessionId?: string;
+          voiceId?: string;
+          voiceName?: string | null;
+          configuredVoiceId?: string;
+          configuredVoiceName?: string | null;
+          voiceFallbackMessage?: string | null;
           state?: string;
           transcript?: string;
           text?: string;
@@ -691,12 +730,16 @@ export default function TestAiReceptionistPage() {
           response?: string;
           audioBase64?: string;
           mimeType?: string;
+          provider?: string;
           message?: string;
           reason?: string;
         };
 
         switch (message.event) {
           case 'session_ready':
+            setLiveVoiceId(message.voiceId ?? null);
+            setLiveVoiceName(message.voiceName ?? null);
+            setVoiceWarning(message.voiceFallbackMessage ?? null);
             return;
 
           case 'assistant_greeting':
@@ -751,6 +794,10 @@ export default function TestAiReceptionistPage() {
 
           case 'assistant_audio':
             if (message.audioBase64) {
+              setVoiceWarning(null);
+              if (message.voiceId) setLiveVoiceId(message.voiceId);
+              if (message.voiceName) setLiveVoiceName(message.voiceName);
+              setAudioSource(message.provider === 'elevenlabs' ? 'elevenlabs' : 'unknown');
               queueServerAudioSegment(message.audioBase64, message.mimeType || 'audio/mpeg');
               resolveOnce(true);
             }
@@ -758,8 +805,21 @@ export default function TestAiReceptionistPage() {
 
           case 'assistant_audio_unavailable':
             if (message.text) {
-              speakWithBrowserSynthesis(message.text);
-              resolveOnce(true);
+              if (message.reason === 'paid_plan_required' && message.message) {
+                setVoiceWarning(message.message);
+                setAudioSource('unavailable');
+                resolveOnce(true);
+                return;
+              }
+              void playConfiguredVoiceFallback(message.text).then((usedConfiguredVoice) => {
+                if (!usedConfiguredVoice) {
+                  setAudioSource('browser-fallback');
+                  speakWithBrowserSynthesis(message.text!);
+                } else {
+                  setAudioSource('configured-preview');
+                }
+                resolveOnce(true);
+              });
             }
             return;
 
@@ -933,7 +993,7 @@ export default function TestAiReceptionistPage() {
       speechRecognitionRef.current = null;
       return false;
     }
-  }, [canUseUploadFallback, supportsBrowserSpeechRecognition]);
+  }, [canUseUploadFallback, playConfiguredVoiceFallback, speakWithBrowserSynthesis, supportsBrowserSpeechRecognition]);
 
   const startLiveInput = useCallback(async (enableVoiceInput = true) => {
     const socketReady = await openLiveSocket();
@@ -1143,6 +1203,10 @@ export default function TestAiReceptionistPage() {
     lastLiveTranscriptRef.current = '';
     lastLiveTranscriptAtRef.current = 0;
     shouldAutoEndCallRef.current = false;
+    setAudioSource('unknown');
+    setVoiceWarning(null);
+    setLiveVoiceId(null);
+    setLiveVoiceName(null);
 
     const started = await startLiveInput(micReady);
     if (!started) {
@@ -1196,6 +1260,24 @@ export default function TestAiReceptionistPage() {
           <p className="text-sm text-muted-foreground">
             Simulate a live phone call using your microphone and hear the receptionist reply with configured voice settings.
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Configured onboarding voice: {selectedVoice?.name ?? selectedVoiceId}
+            {voiceProfile?.greetingMessage ? ' · greeting synced' : ''}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Live call voice: {liveVoiceName ?? liveVoice?.name ?? selectedVoice?.name ?? selectedVoiceId}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Audio source: {audioSource === 'elevenlabs'
+              ? 'ElevenLabs live voice'
+              : audioSource === 'configured-preview'
+                ? 'Configured ElevenLabs voice preview'
+                : audioSource === 'browser-fallback'
+                  ? 'Browser fallback voice'
+                  : audioSource === 'unavailable'
+                    ? 'No live voice available for selected ElevenLabs voice'
+                  : 'Waiting for call audio'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={isCallActive ? 'default' : 'secondary'}>
@@ -1209,6 +1291,55 @@ export default function TestAiReceptionistPage() {
           </Badge>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configured voice</CardTitle>
+          <CardDescription>
+            This is the voice selected during onboarding for test replies.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="default">{selectedVoice?.name ?? selectedVoiceId}</Badge>
+            {selectedVoice?.gender ? <Badge variant="outline">{selectedVoice.gender}</Badge> : null}
+            {selectedVoice?.accent ? <Badge variant="outline">{selectedVoice.accent}</Badge> : null}
+            {selectedVoice?.locale ? <Badge variant="outline">{selectedVoice.locale}</Badge> : null}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Voice ID: {selectedVoice?.voiceId ?? selectedVoiceId}
+          </p>
+          {liveVoiceId && liveVoiceId !== selectedVoiceId ? (
+            <p className="text-sm text-muted-foreground">
+              Live call fallback voice: {liveVoiceName ?? liveVoice?.name ?? liveVoiceId}
+            </p>
+          ) : null}
+          {voiceWarning ? (
+            <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-700">
+              {voiceWarning}
+            </div>
+          ) : null}
+          {selectedVoice?.previewUrl ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const audio = new Audio(selectedVoice.previewUrl);
+                    await audio.play();
+                  } catch {
+                    toast.error('Could not play the selected onboarding voice sample.');
+                  }
+                }}
+              >
+                Play selected voice sample
+              </Button>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -1302,7 +1433,7 @@ export default function TestAiReceptionistPage() {
                   }`}
                 >
                   <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-                    {turn.speaker === 'caller' ? 'Caller' : 'AI Receptionist'}
+                    {turn.speaker === 'caller' ? 'Caller' : receptionistDisplayName}
                   </p>
                   <p className="whitespace-pre-wrap">{turn.text}</p>
                 </div>

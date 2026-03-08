@@ -67,6 +67,12 @@ export interface PolicyInput {
   content: string;
 }
 
+export interface ContextDocumentInput {
+  name: string;
+  content: string;
+  mimeType?: string;
+}
+
 export interface VoiceProfileInput {
   tone?: 'professional' | 'warm' | 'friendly' | 'calm';
   language?: string;
@@ -101,6 +107,9 @@ export interface AvailableVoiceOption {
   accent?: string;
   locale?: string;
   category?: string;
+  rawCategory?: string;
+  requiresPaidPlan?: boolean;
+  liveSupported?: boolean;
 }
 
 export interface LiveTranscribeInput {
@@ -286,15 +295,16 @@ export const onboardingApi = createApi({
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
 
-    sendConfigChatMessage: builder.mutation<
-      ConfigChatResponse,
-      { message: string; conversationHistory?: Array<{ role: string; content: string; timestamp: string }> }
+    saveContextDocuments: builder.mutation<
+      { success: boolean; count: number },
+      { documents: ContextDocumentInput[] }
     >({
       query: (data) => ({
-        url: '/ai-chat/turn',
+        url: '/onboarding/context-documents',
         method: 'POST',
         body: data,
       }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
   }),
 });
@@ -312,5 +322,5 @@ export const {
   useGenerateVoicePreviewMutation,
   useTranscribeLiveAudioMutation,
   usePublishConfigMutation,
-  useSendConfigChatMessageMutation,
+  useSaveContextDocumentsMutation,
 } = onboardingApi;

@@ -252,6 +252,29 @@ onboardingRouter.post(
 );
 
 onboardingRouter.post(
+  '/context-documents',
+  validate({
+    body: z.object({
+      documents: z.array(
+        z.object({
+          name: z.string().min(1).max(200),
+          content: z.string().min(1).max(40000),
+          mimeType: z.string().optional(),
+        }),
+      ).min(1).max(10),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      await onboardingService.saveContextDocuments(req.tenantContext!.tenantId, req.body.documents);
+      res.json({ success: true, count: req.body.documents.length });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+onboardingRouter.post(
   '/live-transcribe',
   apiRateLimiter,
   liveTranscribeRawParser,

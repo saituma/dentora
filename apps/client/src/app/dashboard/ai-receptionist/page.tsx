@@ -94,6 +94,30 @@ const DEFAULT_SCHEDULE: Record<WeekdayKey, ScheduleRow> = {
   sunday: { enabled: false, start: '09:00', end: '13:00' },
 };
 
+function getPolicyDisplay(policy: {
+  policyType?: string | null;
+  content?: string | null;
+  escalationConditions?: { type?: string; content?: string } | null;
+  emergencyDisclaimer?: string | null;
+}) {
+  const normalizedType =
+    (typeof policy.policyType === 'string' && policy.policyType.trim())
+    || (typeof policy.escalationConditions?.type === 'string' && policy.escalationConditions.type.trim())
+    || (typeof policy.emergencyDisclaimer === 'string' && policy.emergencyDisclaimer.trim() ? 'emergency' : '')
+    || 'structured_policy';
+
+  const normalizedContent =
+    (typeof policy.content === 'string' && policy.content.trim())
+    || (typeof policy.escalationConditions?.content === 'string' && policy.escalationConditions.content.trim())
+    || (typeof policy.emergencyDisclaimer === 'string' && policy.emergencyDisclaimer.trim())
+    || 'Policy details are stored in structured fields.';
+
+  return {
+    title: normalizedType.replace(/_/g, ' '),
+    content: normalizedContent,
+  };
+}
+
 export default function AiReceptionistPage() {
   const { data: clinic, isLoading: clinicLoading } = useGetClinicQuery();
   const { data: voiceProfile, isLoading: voiceLoading } = useGetVoiceProfileQuery();
@@ -145,6 +169,7 @@ export default function AiReceptionistPage() {
   const [newPolicyContent, setNewPolicyContent] = useState('');
 
   const availableVoices = voicesData?.data ?? [];
+  const selectedVoice = availableVoices.find((voice) => voice.voiceId === voiceId) ?? null;
   const calendarIntegration = useMemo(() => (
     integrationsData?.data?.find((integration) => (
       integration.integrationType === 'calendar' && integration.provider === 'google_calendar'
@@ -219,7 +244,7 @@ export default function AiReceptionistPage() {
     try {
       const audioUrl = await generateVoicePreview({
         voiceId,
-        text: greeting.trim() || `Hello, thank you for calling ${clinicName || 'our clinic'}. How may I help you today?`,
+        text: greeting.trim() || `Hi, welcome to ${clinicName || 'our clinic'}, what can I help you with today?`,
         speed: voiceProfile?.speechSpeed ?? 1,
         language,
       }).unwrap();
@@ -233,6 +258,11 @@ export default function AiReceptionistPage() {
 
   const handleSaveVoice = async () => {
     try {
+      if (selectedVoice?.requiresPaidPlan) {
+        toast.error('Choose a live-supported voice. This library voice needs a paid ElevenLabs plan for live call speech.');
+        return;
+      }
+
       await updateVoice({
         greetingMessage: greeting,
         afterHoursMessage,
@@ -488,13 +518,18 @@ export default function AiReceptionistPage() {
                 </div>
               ) : (
                 <FieldGroup>
+                  {selectedVoice?.requiresPaidPlan ? (
+                    <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
+                      This selected ElevenLabs library voice needs a paid ElevenLabs plan for live call speech. Choose a live-supported voice to use it in test calls.
+                    </div>
+                  ) : null}
                   <Field>
                     <FieldLabel>Greeting message</FieldLabel>
                     <Textarea
                       rows={3}
                       value={greeting}
                       onChange={(e) => setGreeting(e.target.value)}
-                      placeholder="Hello, thank you for calling. How can I help you today?"
+                      placeholder="Hi, welcome to our clinic, what can I help you with today?"
                     />
                   </Field>
 
@@ -508,7 +543,7 @@ export default function AiReceptionistPage() {
                         <SelectItem value="professional">Default professional voice</SelectItem>
                         {availableVoices.map((voice) => (
                           <SelectItem key={voice.voiceId} value={voice.voiceId}>
-                            {voice.name}{voice.label ? ` - ${voice.label}` : ''}
+                            {voice.name}{voice.label ? ` - ${voice.label}` : ''}{voice.requiresPaidPlan ? ' (paid plan for live calls)' : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -731,14 +766,17 @@ export default function AiReceptionistPage() {
                 <p className="py-8 text-center text-sm text-muted-foreground">No policies configured yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {policies.map((policy) => (
+                  {policies.map((policy) => {
+                    const policyDisplay = getPolicyDisplay(policy);
+
+                    return (
                     <div key={policy.id} className="rounded-lg border p-3">
                       <div className="flex items-start justify-between">
                         <div>
                           <Badge variant="outline" className="mb-1 capitalize">
-                            {policy.policyType.replace(/_/g, ' ')}
+                            {policyDisplay.title}
                           </Badge>
-                          <p className="text-sm text-muted-foreground">{policy.content || 'Policy details are stored in structured fields.'}</p>
+                          <p className="text-sm text-muted-foreground">{policyDisplay.content}</p>
                         </div>
                         <Button
                           variant="ghost"
@@ -756,7 +794,8 @@ export default function AiReceptionistPage() {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

@@ -41,6 +41,31 @@ export async function createCallSession(input: {
   return session;
 }
 
+export async function createBrowserTestCallSession(input: {
+  tenantId: string;
+  configVersionId?: string | null;
+}): Promise<CallSession> {
+  const id = generateId();
+
+  const [session] = await db
+    .insert(callSessions)
+    .values({
+      id,
+      tenantId: input.tenantId,
+      configVersionId: input.configVersionId ?? null,
+      callerNumber: 'browser-test',
+      clinicNumber: 'browser-test',
+      status: 'started',
+      metadata: {
+        source: 'sidebar-test',
+      },
+    })
+    .returning();
+
+  logger.info({ tenantId: input.tenantId, callId: id }, 'Browser test call session created');
+  return session;
+}
+
 export async function updateCallStatus(
   tenantId: string,
   callId: string,

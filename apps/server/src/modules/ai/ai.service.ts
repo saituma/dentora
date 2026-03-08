@@ -40,6 +40,26 @@ const DAY_LABELS: Record<string, string> = {
   sunday: 'Sunday',
 };
 
+const LEGACY_DEFAULT_GREETINGS = new Set([
+  'hi, thank you for calling. how can i help you today?',
+  'hello, thank you for calling. how can i help you today?',
+  'hello, thank you for calling. how may i help you today?',
+]);
+
+function normalizeGreetingMessage(clinicName: string, greetingMessage?: string | null): string | null {
+  const normalized = String(greetingMessage ?? '').trim();
+  if (!normalized) {
+    return `Hi, welcome to ${clinicName}, what can I help you with today?`;
+  }
+
+  const comparable = normalized.toLowerCase().replace(/\s+/g, ' ');
+  if (LEGACY_DEFAULT_GREETINGS.has(comparable)) {
+    return `Hi, welcome to ${clinicName}, what can I help you with today?`;
+  }
+
+  return normalized;
+}
+
 function formatScheduleValue(schedule?: Record<string, unknown> | null): string {
   if (!schedule || typeof schedule !== 'object') return 'Not provided';
 
@@ -127,6 +147,22 @@ function formatPromotionsForPrompt(policyList: Record<string, unknown>[]): strin
   return promotions.length > 0 ? promotions.join('; ') : 'Not provided';
 }
 
+function formatUploadedContextForPrompt(policyList: Record<string, unknown>[]): string {
+  const contextChunks = policyList
+    .flatMap((policy) => {
+      const rawTopics = (policy as { sensitiveTopics?: unknown }).sensitiveTopics;
+      return Array.isArray(rawTopics) ? rawTopics : [];
+    })
+    .map((topic) => topic as { type?: string; title?: string; content?: string })
+    .filter((topic) => topic.type === 'context_document' && typeof topic.content === 'string' && topic.content.trim())
+    .map((topic) => {
+      const title = topic.title?.trim() || 'Uploaded context';
+      return `${title}: ${topic.content!.trim()}`;
+    });
+
+  return contextChunks.length > 0 ? contextChunks.join(' | ') : 'None provided';
+}
+
 function buildPromptContextBlock(context: TenantAIContext): string[] {
   const clinicData = context.clinic as {
     clinicName?: string;
@@ -149,6 +185,7 @@ function buildPromptContextBlock(context: TenantAIContext): string[] {
   const officeHours = formatScheduleValue(
     clinicData.businessHours ?? bookingData.operatingSchedule ?? null,
   );
+  const uploadedContext = formatUploadedContextForPrompt(context.policies);
   const faqSummary = context.faqs.length > 0
     ? context.faqs
       .map((faq) => faq as { question?: string; answer?: string })
@@ -163,7 +200,8 @@ function buildPromptContextBlock(context: TenantAIContext): string[] {
     `- Services: ${formatServicesForPrompt(context.services)}`,
     `- Contact Info: ${formatContactInfo(context.clinic)}`,
     `- Promotions / Updates: ${formatPromotionsForPrompt(context.policies)}`,
-    `- Greeting: ${voiceData.greetingMessage ?? voiceData.greeting ?? `Hello, thank you for calling ${context.clinicName}. How may I help you today?`}`,
+    `- Uploaded Clinic Context: ${uploadedContext}`,
+    `- Greeting: ${voiceData.greetingMessage ?? voiceData.greeting ?? `Hi, welcome to ${context.clinicName}, what can I help you with today?`}`,
     `- Tone: ${voiceData.tone ?? 'professional'}`,
     `- Timezone: ${clinicData.timezone ?? 'America/New_York'}`,
     `- Booking Rules: default ${bookingData.defaultAppointmentDurationMinutes ?? 30} minutes; minimum notice ${bookingData.minNoticePeriodHours ?? 2} hours; maximum advance ${bookingData.maxAdvanceBookingDays ?? 30} days`,
@@ -268,7 +306,10 @@ export async function loadTenantAIContext(
     services: tenantServices,
     bookingRules: booking ?? {},
     policies: tenantPolicies,
-    voiceProfile: voice ?? {},
+    voiceProfile: {
+      ...(voice ?? {}),
+      greetingMessage: normalizeGreetingMessage(clinic?.clinicName ?? 'our clinic', voice?.greetingMessage),
+    },
     faqs,
   };
 
@@ -295,7 +336,10 @@ export async function loadCurrentTenantAIContext(
     services: tenantServices,
     bookingRules: booking ?? {},
     policies: tenantPolicies,
-    voiceProfile: voice ?? {},
+    voiceProfile: {
+      ...(voice ?? {}),
+      greetingMessage: normalizeGreetingMessage(clinic?.clinicName ?? 'our clinic', voice?.greetingMessage),
+    },
     faqs,
   };
 }

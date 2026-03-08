@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ArrowUpIcon, BotIcon, PauseIcon, PlayIcon, UserIcon } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { PauseIcon, PlayIcon, UploadIcon, XIcon } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch } from '@/store/hooks';
 import { setOnboardingStatus } from '@/features/auth/authSlice';
@@ -37,7 +35,7 @@ import {
   useSaveFaqsMutation,
   usePublishConfigMutation,
   useGetOnboardingStatusQuery,
-  useSendConfigChatMessageMutation,
+  useSaveContextDocumentsMutation,
   useGetAvailableVoicesQuery,
 } from '@/features/onboarding/onboardingApi';
 import type { AvailableVoiceOption } from '@/features/onboarding/onboardingApi';
@@ -48,12 +46,12 @@ import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import {
   useGetBookingRulesQuery,
   useGetFaqsQuery,
+  useGetPoliciesQuery,
   useGetServicesQuery,
   useGetVoiceProfileQuery,
 } from '@/features/aiConfig/aiConfigApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
@@ -84,6 +82,14 @@ interface KnowledgeFaqForm {
   question: string;
   answer: string;
   category: FaqCategory;
+}
+
+interface UploadedContextFile {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  content: string;
 }
 
 type WeekdayKey =
@@ -161,7 +167,7 @@ const STEP_META: Record<
   'ai-chat': {
     title: 'Train your AI receptionist',
     description:
-      'Chat with AI to provide extra context about your clinic tone, workflows, and edge cases.',
+      'Upload reference files and clinic notes so your receptionist can use them as extra context.',
   },
   'test-call': {
     title: 'Run a quick test call',
@@ -238,6 +244,36 @@ function isUkVoice(voice: AvailableVoiceOption): boolean {
     searchable.includes('england') ||
     searchable.includes('scottish') ||
     searchable.includes('welsh')
+  );
+}
+
+function isAgentVoice(voice: AvailableVoiceOption): boolean {
+  const searchable = [voice.category, voice.label, voice.name]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    searchable.includes('agent') ||
+    searchable.includes('conversational') ||
+    searchable.includes('assistant') ||
+    searchable.includes('receptionist') ||
+    searchable.includes('chat') ||
+    searchable.includes('ivr') ||
+    searchable.includes('phone')
+  );
+}
+
+function getSupportedContextFileExtension(fileName: string): string {
+  const parts = fileName.toLowerCase().split('.');
+  return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+
+function isSupportedContextFile(file: File): boolean {
+  const extension = getSupportedContextFileExtension(file.name);
+  return (
+    file.type.startsWith('text/') ||
+    ['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(extension)
   );
 }
 
@@ -339,23 +375,24 @@ export default function OnboardingStepPage() {
   const [saveVoiceProfile, { isLoading: savingVoice }] = useSaveVoiceProfileMutation();
   const [saveFaqs, { isLoading: savingFaqs }] = useSaveFaqsMutation();
   const [publishConfig, { isLoading: publishing }] = usePublishConfigMutation();
+  const [saveContextDocuments, { isLoading: savingContextDocuments }] = useSaveContextDocumentsMutation();
   const { data: onboardingData, refetch: refetchOnboardingStatus } = useGetOnboardingStatusQuery();
   const { data: clinicData } = useGetClinicQuery();
   const { data: voiceProfileData } = useGetVoiceProfileQuery();
   const { data: bookingRulesData } = useGetBookingRulesQuery();
+  const { data: policiesData } = useGetPoliciesQuery();
   const { data: servicesData } = useGetServicesQuery();
   const { data: faqsData } = useGetFaqsQuery();
   const { data: availableVoicesData } = useGetAvailableVoicesQuery();
-  const [sendConfigChatMessage, { isLoading: testingAi }] = useSendConfigChatMessageMutation();
   const [startGoogleCalendarOAuth, { isLoading: startingGoogleOAuth }] = useStartGoogleCalendarOAuthMutation();
 
   const [clinicName, setClinicName] = useState('');
   const [address, setAddress] = useState('');
-  const [timezone, setTimezone] = useState('America/New_York');
+  const [timezone, setTimezone] = useState('Europe/London');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [voiceTone, setVoiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
-  const [greeting, setGreeting] = useState('Hi, thank you for calling. How can I help you today?');
+  const [greeting, setGreeting] = useState('Hi, welcome to our clinic, what can I help you with today?');
   const [selectedVoiceId, setSelectedVoiceId] = useState('professional');
   const [speakingSpeed, setSpeakingSpeed] = useState(1.0);
   const [defaultDuration, setDefaultDuration] = useState(30);
@@ -367,11 +404,9 @@ export default function OnboardingStepPage() {
   const [googleCalendarId, setGoogleCalendarId] = useState('primary');
   const [handledGoogleCallback, setHandledGoogleCallback] = useState(false);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
-  const [configChatInput, setConfigChatInput] = useState('');
-  const chatScrollRef = React.useRef<HTMLDivElement>(null);
-  const [configChatMessages, setConfigChatMessages] = useState<
-    Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>
-  >([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isDraggingContextFiles, setIsDraggingContextFiles] = useState(false);
+  const [contextFiles, setContextFiles] = useState<UploadedContextFile[]>([]);
   const [servicesForm, setServicesForm] = useState<KnowledgeServiceForm[]>([
     {
       serviceName: 'New Patient Exam',
@@ -389,12 +424,22 @@ export default function OnboardingStepPage() {
     },
   ]);
   const allAvailableVoices = availableVoicesData?.data ?? [];
-  const ukVoices = allAvailableVoices.filter(isUkVoice);
-  const availableVoices = ukVoices.length > 0 ? ukVoices : allAvailableVoices;
+  const liveSupportedVoices = allAvailableVoices.filter((voice) => voice.liveSupported !== false);
+  const agentVoices = liveSupportedVoices.filter(isAgentVoice);
+  const ukVoices = liveSupportedVoices.filter(isUkVoice);
+  const ukAgentVoices = agentVoices.filter(isUkVoice);
+  const availableVoices = ukAgentVoices.length > 0
+    ? ukAgentVoices
+    : agentVoices.length > 0
+      ? agentVoices
+      : ukVoices.length > 0
+        ? ukVoices
+        : liveSupportedVoices;
   const selectedVoice =
     availableVoices.find((voice) => voice.voiceId === selectedVoiceId) ??
-    allAvailableVoices.find((voice) => voice.voiceId === selectedVoiceId) ??
+    liveSupportedVoices.find((voice) => voice.voiceId === selectedVoiceId) ??
     null;
+  const selectedVoiceRequiresPaidPlan = Boolean(selectedVoice?.requiresPaidPlan);
 
   useEffect(() => {
     if (!clinicData) return;
@@ -403,7 +448,7 @@ export default function OnboardingStepPage() {
     setAddress(clinicData.address ?? '');
     setPhone(clinicData.phone ?? '');
     setEmail(clinicData.email ?? '');
-    setTimezone(clinicData.timezone ?? 'America/New_York');
+    setTimezone(clinicData.timezone ?? 'Europe/London');
   }, [clinicData]);
 
   useEffect(() => {
@@ -586,121 +631,70 @@ export default function OnboardingStepPage() {
     `Readiness score: ${onboardingData?.readinessScore ?? 0}%`,
   ].join('\n');
 
-  const userTurns = configChatMessages.filter((turn) => turn.role === 'user');
-  const assistantTurns = configChatMessages.filter((turn) => turn.role === 'assistant');
-  const lastUserMessage =
-    userTurns.length > 0 ? userTurns[userTurns.length - 1].content : 'None yet.';
-  const lastAssistantQuestion = [...assistantTurns]
-    .reverse()
-    .find((turn) => turn.content.includes('?'))?.content;
-
-  const aiContextSummary = [
-    `User messages captured: ${userTurns.length}`,
-    `AI responses generated: ${assistantTurns.length}`,
-    `Latest user input: ${lastUserMessage.slice(0, 180)}`,
-    `Current AI focus: ${(lastAssistantQuestion || 'No open question right now.').slice(0, 220)}`,
-  ].join('\n');
-
-  const aiClinicContextMarkdown = [
-    '### 🏥 Clinic Configuration Context',
-    '',
-    '```text',
-    configuratorContext,
-    '```',
-    '',
-    '### 🤖 AI Context Summary',
-    '',
-    aiContextSummary
-      .split('\n')
-      .map((line) => `- ${line}`)
-      .join('\n'),
-  ].join('\n');
-
   useEffect(() => {
-    if (step !== 'ai-chat' || configChatMessages.length > 0) return;
+    if (!policiesData?.data?.length) return;
 
-    const firstQuestion =
-      contextClinicName === 'Not provided yet'
-        ? 'To start, what is your exact clinic name and primary phone number?'
-        : contextServicesCount === 0
-          ? 'What are the top 3 services you want your receptionist to handle first, with duration and price?'
-          : contextFaqCount === 0
-            ? 'What are the most common patient questions you want your receptionist to answer?'
-            : 'What specific workflows or edge cases should your receptionist handle exactly your way?';
+    const documents = policiesData.data
+      .flatMap((policy) => policy.sensitiveTopics ?? [])
+      .filter((topic) => topic.type === 'context_document' && topic.content)
+      .map((topic, index) => ({
+        id: `${topic.title ?? 'document'}-${index}`,
+        name: topic.title ?? `Context file ${index + 1}`,
+        size: topic.content?.length ?? 0,
+        mimeType: topic.mimeType ?? 'text/plain',
+        content: topic.content ?? '',
+      }));
 
-    setConfigChatMessages([
-      {
-        role: 'assistant',
-        content:
-          `Hi! I’m your configuration assistant. I’ll ask focused questions so your DentalFlow receptionist has clear, reliable context for your clinic.\n\n${firstQuestion}`,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  }, [
-    step,
-    configChatMessages.length,
-    contextClinicName,
-    contextFaqCount,
-    contextServicesCount,
-  ]);
+    setContextFiles(documents);
+  }, [policiesData]);
 
-  useEffect(() => {
-    if (step !== 'ai-chat' || !chatScrollRef.current) return;
+  const addContextFiles = async (files: FileList | File[]) => {
+    const selectedFiles = Array.from(files);
+    if (selectedFiles.length === 0) return;
 
-    chatScrollRef.current.scrollTo({
-      top: chatScrollRef.current.scrollHeight,
-      behavior: 'smooth',
+    const nextFiles: UploadedContextFile[] = [];
+    for (const file of selectedFiles) {
+      if (file.size > 1024 * 1024) {
+        toast.error(`${file.name} is too large. Keep each file under 1MB.`);
+        continue;
+      }
+
+      if (!isSupportedContextFile(file)) {
+        toast.error(`${file.name} is not supported yet. Use TXT, MD, CSV, JSON, XML, or HTML files.`);
+        continue;
+      }
+
+      const content = (await file.text()).trim();
+      if (!content) {
+        toast.error(`${file.name} is empty.`);
+        continue;
+      }
+
+      nextFiles.push({
+        id: `${file.name}-${file.lastModified}`,
+        name: file.name,
+        size: file.size,
+        mimeType: file.type || 'text/plain',
+        content: content.slice(0, 30000),
+      });
+    }
+
+    if (nextFiles.length === 0) return;
+
+    setContextFiles((prev) => {
+      const byId = new Map(prev.map((file) => [file.id, file]));
+      for (const file of nextFiles) {
+        byId.set(file.id, file);
+      }
+      return Array.from(byId.values());
     });
-  }, [step, configChatMessages, testingAi]);
+    toast.success(`${nextFiles.length} file${nextFiles.length === 1 ? '' : 's'} added to AI context`);
+  };
 
   if (step === 'complete') {
     goNext('complete');
     return null;
   }
-
-  const sendConfigMessage = async () => {
-    const userMessage = configChatInput.trim();
-    if (!userMessage) {
-      toast.error('Enter configuration instructions first');
-      return;
-    }
-
-    const userTurn = {
-      role: 'user' as const,
-      content: userMessage,
-      timestamp: new Date().toISOString(),
-    };
-
-    setConfigChatMessages((prev) => [...prev, userTurn]);
-    setConfigChatInput('');
-
-    try {
-      const result = await sendConfigChatMessage({
-        message: userMessage,
-        conversationHistory: [
-          {
-            role: 'system',
-            content: `[CONFIG_CONTEXT]\n${configuratorContext}`,
-            timestamp: new Date().toISOString(),
-          },
-          ...configChatMessages,
-        ],
-      }).unwrap();
-
-      setConfigChatMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: result.response,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-
-      toast.success('Configuration response generated');
-    } catch (err: unknown) {
-      toast.error(getUserFriendlyApiError(err));
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -793,10 +787,14 @@ export default function OnboardingStepPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="America/New_York">Eastern</SelectItem>
-                      <SelectItem value="America/Chicago">Central</SelectItem>
-                      <SelectItem value="America/Denver">Mountain</SelectItem>
-                      <SelectItem value="America/Los_Angeles">Pacific</SelectItem>
+                      <SelectItem value="Europe/London">London</SelectItem>
+                      <SelectItem value="Europe/Dublin">Dublin</SelectItem>
+                      <SelectItem value="Europe/Paris">Paris</SelectItem>
+                      <SelectItem value="Europe/Berlin">Berlin</SelectItem>
+                      <SelectItem value="Europe/Madrid">Madrid</SelectItem>
+                      <SelectItem value="Europe/Rome">Rome</SelectItem>
+                      <SelectItem value="Europe/Amsterdam">Amsterdam</SelectItem>
+                      <SelectItem value="Europe/Zurich">Zurich</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -1033,14 +1031,18 @@ export default function OnboardingStepPage() {
             <CardContent>
               {availableVoices.length === 0 ? (
                 <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
-                  No ElevenLabs voices were returned. Add `ELEVENLABS_API_KEY` to the server env and verify the key has access to your voices.
+                  ElevenLabs returned voices for this account, but none of them are free live-supported API voices. On this account, those voices can be previewed, but not used for live call speech.
                 </div>
               ) : (
                 <div className="space-y-4">
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-                    {ukVoices.length > 0
-                      ? 'Showing UK-accent voices only. Voice samples use ElevenLabs preview clips so they still work without paid TTS preview credits.'
-                      : 'No UK-accent voices were returned by ElevenLabs, so all available voices are shown instead.'}
+                    {ukAgentVoices.length > 0
+                      ? 'Showing free UK agent voices first. Voice samples use ElevenLabs preview clips so they still work without paid TTS preview credits.'
+                      : agentVoices.length > 0
+                        ? 'Showing free ElevenLabs agent voices first so the receptionist sounds more natural for live calls.'
+                        : ukVoices.length > 0
+                          ? 'No free agent voices were returned, so free UK-accent voices are shown instead.'
+                          : 'No free UK or agent-specific voices were returned by ElevenLabs, so all free live-supported voices are shown instead.'}
                   </div>
                   <Field>
                     <FieldLabel>Available voices</FieldLabel>
@@ -1097,6 +1099,7 @@ export default function OnboardingStepPage() {
                           {voice.gender && <Badge variant="outline">{voice.gender}</Badge>}
                           {voice.accent && <Badge variant="outline">{voice.accent}</Badge>}
                           {voice.locale && <Badge variant="outline">{voice.locale}</Badge>}
+                          {voice.requiresPaidPlan && <Badge variant="secondary">Paid plan for live calls</Badge>}
                         </div>
                         <div className="mt-4 flex gap-2">
                           <Button
@@ -1186,6 +1189,11 @@ export default function OnboardingStepPage() {
             </CardHeader>
             <CardContent>
               <FieldGroup>
+                {selectedVoiceRequiresPaidPlan ? (
+                  <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
+                    The selected ElevenLabs voice is a library voice and needs a paid ElevenLabs plan for live call speech. You can still use its free sample clip, but choose a live-supported voice before continuing.
+                  </div>
+                ) : null}
                 <Field>
                   <FieldLabel>Greeting</FieldLabel>
                   <Textarea
@@ -1194,7 +1202,7 @@ export default function OnboardingStepPage() {
                       setGreeting(e.target.value);
                     }}
                     rows={3}
-                    placeholder="Hi, thank you for calling Bright Smile Dental. How can I assist you today?"
+                    placeholder="Hi, welcome to Bright Smile Dental, what can I help you with today?"
                   />
                 </Field>
                 <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
@@ -1224,6 +1232,11 @@ export default function OnboardingStepPage() {
               disabled={savingVoice}
               onClick={async () => {
                 try {
+                  if (selectedVoiceRequiresPaidPlan) {
+                    toast.error('Choose a live-supported voice. This library voice needs a paid ElevenLabs plan for live call speech.');
+                    return;
+                  }
+
                   await saveVoiceProfile({
                     voiceId: selectedVoiceId,
                     tone: voiceTone,
@@ -1582,153 +1595,102 @@ export default function OnboardingStepPage() {
       {step === 'ai-chat' && (
         <Card className="border-0 bg-card shadow-lg">
           <CardHeader>
-            <CardTitle className="text-xl">AI configuration chat</CardTitle>
+            <CardTitle className="text-xl">AI context files</CardTitle>
             <CardDescription>
-              Configure receptionist behavior as clinic admin. The AI asks clarifying questions based on your context.
+              Upload documents, SOPs, and reference notes so the receptionist can use them as extra clinic context.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="overflow-hidden rounded-2xl border bg-muted/10">
-                <div className="border-b bg-background/80 px-4 py-3 sm:px-5">
-                  <div className="flex items-center gap-3">
-                    <Avatar size="sm">
-                      <AvatarFallback className="bg-primary/10 text-primary">
-                        <BotIcon className="size-3.5" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">DentalFlow Assistant</p>
-                      <p className="text-xs text-muted-foreground">
-                        Ask for workflows, edge cases, tone, escalation rules, and anything the receptionist should handle your way.
-                      </p>
-                    </div>
-                  </div>
+              <div className="space-y-4 rounded-2xl border bg-muted/10 p-4 sm:p-5">
+                <div className="rounded-xl border bg-background p-4">
+                  <p className="text-sm font-medium">Upload AI context files</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Drag and drop reference material like SOPs, call scripts, pricing notes, insurance notes, or clinic policies. Supported file types: TXT, MD, CSV, JSON, XML, and HTML.
+                  </p>
                 </div>
 
-                <div
-                  ref={chatScrollRef}
-                  className="h-[520px] space-y-6 overflow-y-auto bg-[radial-gradient(circle_at_top,_hsl(var(--muted))_0%,_transparent_55%)] px-4 py-5 sm:px-5"
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.csv,.json,.xml,.html,text/plain,text/markdown,text/csv,application/json,text/xml,text/html"
+                  className="hidden"
+                  onChange={(event) => {
+                    if (event.target.files) {
+                      void addContextFiles(event.target.files);
+                      event.target.value = '';
+                    }
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDraggingContextFiles(true);
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault();
+                    setIsDraggingContextFiles(false);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setIsDraggingContextFiles(false);
+                    void addContextFiles(event.dataTransfer.files);
+                  }}
+                  className={`flex min-h-[220px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${
+                    isDraggingContextFiles
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-background hover:border-primary/40'
+                  }`}
                 >
-                  {configChatMessages.length === 0 ? (
-                    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed bg-background/70 p-6 text-center">
-                      <div className="max-w-md space-y-2">
-                        <p className="text-sm font-medium">Start the conversation</p>
-                        <p className="text-sm text-muted-foreground">
-                          Tell the assistant how your front desk should behave and it will ask follow-up questions like ChatGPT.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    configChatMessages.map((turn, index) => {
-                      const isAssistant = turn.role === 'assistant';
-                      return (
-                        <div
-                          key={`${turn.timestamp}-${index}`}
-                          className={`flex gap-3 ${isAssistant ? 'justify-start' : 'justify-end'}`}
-                        >
-                          {isAssistant && (
-                            <Avatar size="sm" className="mt-1">
-                              <AvatarFallback className="bg-primary/10 text-primary">
-                                <BotIcon className="size-3.5" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
+                  <UploadIcon className="mb-4 size-10 text-primary" />
+                  <p className="text-base font-medium">Drop files here</p>
+                  <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                    Or click to browse and upload documents that should shape how the receptionist answers callers.
+                  </p>
+                </button>
 
-                          <div
-                            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
-                              isAssistant
-                                ? 'border bg-background text-foreground'
-                                : 'bg-primary text-primary-foreground'
-                            }`}
-                          >
-                            <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide opacity-70">
-                              <span>{isAssistant ? 'AI assistant' : 'You'}</span>
-                            </div>
-                            {isAssistant ? (
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  p: ({ children }) => <p className="mb-2 last:mb-0 leading-7">{children}</p>,
-                                  h1: ({ children }) => <h1 className="mb-2 text-base font-semibold">{children}</h1>,
-                                  h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold">{children}</h2>,
-                                  h3: ({ children }) => <h3 className="mb-2 text-sm font-medium">{children}</h3>,
-                                  ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
-                                  ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>,
-                                  li: ({ children }) => <li>{children}</li>,
-                                  code: ({ children }) => (
-                                    <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
-                                  ),
-                                  pre: ({ children }) => (
-                                    <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
-                                  ),
-                                }}
-                              >
-                                {turn.content}
-                              </ReactMarkdown>
-                            ) : (
-                              <p className="whitespace-pre-wrap leading-7">{turn.content}</p>
-                            )}
-                          </div>
-
-                          {!isAssistant && (
-                            <Avatar size="sm" className="mt-1">
-                              <AvatarFallback className="bg-foreground text-background">
-                                <UserIcon className="size-3.5" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-
-                  {testingAi && (
-                    <div className="flex gap-3">
-                      <Avatar size="sm" className="mt-1">
-                        <AvatarFallback className="bg-primary/10 text-primary">
-                          <BotIcon className="size-3.5" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground shadow-sm">
-                        Thinking...
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="border-t bg-background/90 p-4 sm:p-5">
-                  <div className="rounded-2xl border bg-background shadow-sm">
-                    <Textarea
-                      rows={3}
-                      value={configChatInput}
-                      onChange={(e) => setConfigChatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          if (!testingAi && configChatInput.trim()) {
-                            void sendConfigMessage();
-                          }
-                        }
-                      }}
-                      placeholder="Message the assistant with clinic workflows, special instructions, edge cases, or receptionist behavior you want to lock in..."
-                      className="min-h-[110px] resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-                    />
-                    <div className="flex items-center justify-between gap-3 border-t px-3 py-3">
-                      <p className="text-xs text-muted-foreground">
-                        Press `Enter` to send, `Shift+Enter` for a new line.
-                      </p>
-                      <Button
-                        type="button"
-                        onClick={sendConfigMessage}
-                        disabled={testingAi || !configChatInput.trim()}
-                        size="icon"
-                        className="rounded-full"
-                      >
-                        <ArrowUpIcon className="size-4" />
-                      </Button>
-                    </div>
+                <div className="rounded-xl border bg-background p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Files ready for AI context</p>
+                    <Badge variant="outline">{contextFiles.length} file{contextFiles.length === 1 ? '' : 's'}</Badge>
                   </div>
+                  {contextFiles.length === 0 ? (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      No files uploaded yet. Add files here instead of chatting with the assistant.
+                    </p>
+                  ) : (
+                    <div className="mt-4 space-y-3">
+                      {contextFiles.map((file) => (
+                        <div key={file.id} className="rounded-lg border bg-muted/20 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{file.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {file.mimeType || 'text/plain'} · {Math.max(1, Math.round(file.size / 1024))} KB
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                setContextFiles((prev) => prev.filter((item) => item.id !== file.id));
+                              }}
+                            >
+                              <XIcon className="size-4" />
+                            </Button>
+                          </div>
+                          <p className="mt-3 line-clamp-4 text-sm text-muted-foreground">
+                            {file.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1736,30 +1698,16 @@ export default function OnboardingStepPage() {
                 <div className="rounded-2xl border bg-muted/20 p-4">
                   <p className="text-sm font-medium">Best results</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Ask for exact behavior, for example how to handle same-day emergencies, pricing questions, reschedules, insurance uncertainty, or when to escalate to staff.
+                    Upload structured notes the receptionist should follow, such as cancellation rules, same-day emergency handling, payment notes, location details, and escalation instructions.
                   </p>
                 </div>
 
                 <Field>
                   <FieldLabel>AI context about your clinic</FieldLabel>
                   <div className="max-h-[520px] overflow-y-auto rounded-2xl border bg-muted/20 p-4 text-sm">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                        h3: ({ children }) => <h3 className="mb-2 text-sm font-semibold">{children}</h3>,
-                        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>,
-                        li: ({ children }) => <li>{children}</li>,
-                        code: ({ children }) => (
-                          <code className="rounded bg-muted px-1 py-0.5 text-xs">{children}</code>
-                        ),
-                        pre: ({ children }) => (
-                          <pre className="mb-2 overflow-x-auto rounded-md bg-muted p-2 text-xs">{children}</pre>
-                        ),
-                      }}
-                    >
-                      {aiClinicContextMarkdown}
-                    </ReactMarkdown>
+                    <pre className="whitespace-pre-wrap font-mono text-xs leading-6 text-muted-foreground">
+                      {configuratorContext}
+                    </pre>
                   </div>
                 </Field>
               </div>
@@ -1771,10 +1719,33 @@ export default function OnboardingStepPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => goNext('test-call')}
+                  onClick={async () => {
+                    try {
+                      await saveContextDocuments({
+                        documents: contextFiles.map((file) => ({
+                          name: file.name,
+                          content: file.content,
+                          mimeType: file.mimeType,
+                        })),
+                      }).unwrap();
+                      toast.success('AI context files saved');
+                      goNext('test-call');
+                    } catch (err: unknown) {
+                      toast.error(getUserFriendlyApiError(err));
+                    }
+                  }}
+                  disabled={savingContextDocuments || contextFiles.length === 0}
                   className="min-w-40"
                 >
-                  Continue to Test Step
+                  {savingContextDocuments ? 'Saving...' : 'Save & Continue'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => goNext('test-call')}
+                  className="min-w-32"
+                >
+                  Skip for now
                 </Button>
               </div>
             </div>

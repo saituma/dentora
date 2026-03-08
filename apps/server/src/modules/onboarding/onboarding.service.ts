@@ -57,9 +57,124 @@ export interface AvailableVoiceOption {
   accent?: string;
   locale?: string;
   category?: string;
+  rawCategory?: string;
+  requiresPaidPlan?: boolean;
+  liveSupported?: boolean;
 }
 
 const LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/pcm']);
+const PREFERRED_ELEVENLABS_VOICE_IDS = [
+  '7aMcdLeWslXSj6o3RLB6',
+  'lcMyyd2HUfFzxdCaC4Ta',
+  'sLfduly0sixkh8riDzed',
+] as const;
+
+function normalizeVoiceMetadataValue(value?: string | null): string {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function isAgentReadyVoice(input: {
+  name?: string;
+  category?: string;
+  useCase?: string;
+  description?: string;
+}): boolean {
+  const searchable = [
+    input.name,
+    input.category,
+    input.useCase,
+    input.description,
+  ]
+    .map(normalizeVoiceMetadataValue)
+    .filter(Boolean)
+    .join(' ');
+
+  if (!searchable) return false;
+
+  return [
+    'agent',
+    'chat',
+    'conversational',
+    'customer support',
+    'customer service',
+    'assistant',
+    'phone',
+    'ivr',
+    'receptionist',
+  ].some((token) => searchable.includes(token));
+}
+
+function isCreatorStyleVoice(input: {
+  name?: string;
+  category?: string;
+  useCase?: string;
+  description?: string;
+}): boolean {
+  const searchable = [
+    input.name,
+    input.category,
+    input.useCase,
+    input.description,
+  ]
+    .map(normalizeVoiceMetadataValue)
+    .filter(Boolean)
+    .join(' ');
+
+  if (!searchable) return false;
+
+  return [
+    'youtube',
+    'youtuber',
+    'social media',
+    'podcast',
+    'narration',
+    'narrator',
+    'audiobook',
+    'storytelling',
+    'character',
+    'gaming',
+    'advertisement',
+    'commercial',
+    'promo',
+  ].some((token) => searchable.includes(token));
+}
+
+function isUkAccentVoice(input: {
+  name?: string;
+  category?: string;
+  useCase?: string;
+  description?: string;
+  accent?: string;
+  locale?: string;
+}): boolean {
+  const searchable = [
+    input.name,
+    input.category,
+    input.useCase,
+    input.description,
+    input.accent,
+    input.locale,
+  ]
+    .map(normalizeVoiceMetadataValue)
+    .filter(Boolean)
+    .join(' ');
+
+  if (!searchable) return false;
+
+  return [
+    'en-gb',
+    'en_gb',
+    'en-uk',
+    'british',
+    'united kingdom',
+    'england',
+    'english',
+    'london',
+    'scottish',
+    'wales',
+    'welsh',
+  ].some((token) => searchable.includes(token));
+}
 
 function normalizeLiveTranscriptionLanguage(language?: string): string {
   const raw = (language || 'en-US').trim();
@@ -266,6 +381,55 @@ export async function savePolicies(
   }
 
   await updateOnboardingStep(tenantId, 'policies');
+}
+
+export async function saveContextDocuments(
+  tenantId: string,
+  documents: Array<{
+    name: string;
+    content: string;
+    mimeType?: string;
+  }>,
+): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(policies)
+    .where(eq(policies.tenantId, tenantId))
+    .limit(1);
+
+  const existingSensitiveTopics = Array.isArray(existing?.sensitiveTopics)
+    ? (existing.sensitiveTopics as Array<Record<string, unknown>>)
+        .filter((entry) => entry?.type !== 'context_document')
+    : [];
+
+  const documentTopics = documents.map((document) => ({
+    type: 'context_document',
+    title: document.name,
+    mimeType: document.mimeType ?? 'text/plain',
+    content: document.content,
+  }));
+
+  const values = {
+    escalationConditions: existing?.escalationConditions ?? { conditions: [] },
+    emergencyDisclaimer: existing?.emergencyDisclaimer ?? 'In case of emergency, please call 911.',
+    sensitiveTopics: [...existingSensitiveTopics, ...documentTopics],
+    complianceFlags: existing?.complianceFlags ?? {},
+    updatedAt: new Date(),
+  };
+
+  if (existing) {
+    await db.update(policies).set(values).where(eq(policies.id, existing.id));
+  } else {
+    await db.insert(policies).values({
+      id: generateId(),
+      tenantId,
+      configVersion: 1,
+      humanCallbackSlaMinutes: 30,
+      ...values,
+    });
+  }
+
+  await updateOnboardingStep(tenantId, 'review');
 }
 
 export async function saveVoiceProfile(
@@ -638,17 +802,21 @@ export async function listAvailableVoices(): Promise<AvailableVoiceOption[]> {
       preview_url?: string;
       category?: string;
       labels?: Record<string, string>;
+      description?: string;
     }>;
   };
 
-  return (payload.voices ?? [])
+  const allVoices = (payload.voices ?? [])
     .filter((voice) => typeof voice.voice_id === 'string' && typeof voice.name === 'string')
     .map((voice) => {
       const labels = voice.labels ?? {};
       const gender = labels.gender || labels.gender_identity || undefined;
       const accent = labels.accent || undefined;
       const locale = labels.language || labels.locale || undefined;
-      const category = voice.category || labels.use_case || undefined;
+      const useCase = labels.use_case || undefined;
+      const category = useCase || voice.category || undefined;
+      const rawCategory = voice.category || undefined;
+      const requiresPaidPlan = rawCategory === 'library';
       const parts = [gender, accent || locale, category].filter(Boolean);
 
       return {
@@ -660,9 +828,98 @@ export async function listAvailableVoices(): Promise<AvailableVoiceOption[]> {
         accent,
         locale,
         category,
+        rawCategory,
+        requiresPaidPlan,
+        liveSupported: !requiresPaidPlan,
+        useCase,
+        description: voice.description || labels.description || undefined,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  const agentReadyVoices = allVoices.filter((voice) =>
+    isAgentReadyVoice({
+      name: voice.name,
+      category: voice.category,
+      useCase: (voice as { useCase?: string }).useCase,
+      description: (voice as { description?: string }).description,
+    }) && !isCreatorStyleVoice({
+      name: voice.name,
+      category: voice.category,
+      useCase: (voice as { useCase?: string }).useCase,
+      description: (voice as { description?: string }).description,
+    }),
+  );
+
+  const ukAgentReadyVoices = agentReadyVoices.filter((voice) =>
+    isUkAccentVoice({
+      name: voice.name,
+      category: voice.category,
+      useCase: (voice as { useCase?: string }).useCase,
+      description: (voice as { description?: string }).description,
+      accent: voice.accent,
+      locale: voice.locale,
+    }),
+  );
+
+  const creatorFilteredVoices = allVoices.filter((voice) =>
+    !isCreatorStyleVoice({
+      name: voice.name,
+      category: voice.category,
+      useCase: (voice as { useCase?: string }).useCase,
+      description: (voice as { description?: string }).description,
+    }),
+  );
+
+  const ukCreatorFilteredVoices = creatorFilteredVoices.filter((voice) =>
+    isUkAccentVoice({
+      name: voice.name,
+      category: voice.category,
+      useCase: (voice as { useCase?: string }).useCase,
+      description: (voice as { description?: string }).description,
+      accent: voice.accent,
+      locale: voice.locale,
+    }),
+  );
+
+  const preferredVoices = ukAgentReadyVoices.length > 0
+    ? ukAgentReadyVoices
+    : ukCreatorFilteredVoices.length > 0
+      ? ukCreatorFilteredVoices
+      : agentReadyVoices.length > 0
+        ? agentReadyVoices
+        : creatorFilteredVoices.length > 0
+          ? creatorFilteredVoices
+          : allVoices;
+
+  const livePreferredVoices = preferredVoices.filter((voice) => voice.liveSupported !== false);
+  const paidPreferredVoices = preferredVoices.filter((voice) => voice.liveSupported === false);
+  const remainingLiveVoices = allVoices.filter((voice) =>
+    voice.liveSupported !== false
+    && !preferredVoices.some((preferred) => preferred.voiceId === voice.voiceId),
+  );
+  const remainingPaidVoices = allVoices.filter((voice) =>
+    voice.liveSupported === false
+    && !preferredVoices.some((preferred) => preferred.voiceId === voice.voiceId),
+  );
+
+  const explicitlyPreferredVoices = [
+    ...PREFERRED_ELEVENLABS_VOICE_IDS
+      .map((voiceId) => livePreferredVoices.find((voice) => voice.voiceId === voiceId))
+      .filter((voice): voice is NonNullable<typeof voice> => Boolean(voice)),
+  ];
+
+  const orderedVoices = [
+    ...explicitlyPreferredVoices,
+    ...livePreferredVoices.filter(
+      (voice) => !explicitlyPreferredVoices.some((preferred) => preferred.voiceId === voice.voiceId),
+    ),
+    ...paidPreferredVoices,
+    ...remainingLiveVoices,
+    ...remainingPaidVoices,
+  ];
+
+  return orderedVoices.map(({ useCase: _useCase, description: _description, ...voice }) => voice);
 }
 
 export async function transcribeLiveAudio(
@@ -928,5 +1185,7 @@ function getNextStep(completedSteps: string[]): string {
 }
 
 async function updateOnboardingStep(tenantId: string, _step: string): Promise<void> {
+  await cache.invalidateTenantDomain(tenantId, 'ai');
+  await cache.invalidateTenantDomain(tenantId, 'config');
   await cache.invalidateTenantDomain(tenantId, 'onboarding');
 }
