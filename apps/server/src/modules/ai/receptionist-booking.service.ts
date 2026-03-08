@@ -61,6 +61,145 @@ interface BookingTurnExtraction {
 }
 
 const BOOKING_KEYWORDS = /\b(book|booking|schedule|appointment|available|availability|come in|see the dentist|reserve)\b/i;
+const GREETING_PATTERNS = [
+  /\bhi\b/i,
+  /\bhello\b/i,
+  /\bhey\b/i,
+  /\bgood morning\b/i,
+  /\bgood afternoon\b/i,
+  /\bgood evening\b/i,
+];
+const SMALL_TALK_PATTERNS = [
+  /\bhow are you\b/i,
+  /\bhow are you doing\b/i,
+  /\bhow s it going\b/i,
+  /\bthanks\b/i,
+  /\bthank you\b/i,
+];
+const WEEKDAY_KEYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const;
+
+function normalizeMessage(value: string): string {
+  return value.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function getTodayDateString(timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function addDaysToDateString(date: string, daysToAdd: number): string {
+  const base = new Date(`${date}T12:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + daysToAdd);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(base);
+}
+
+function resolveRequestedDateFromMessage(message: string, timezone: string): string | undefined {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return undefined;
+
+  const today = getTodayDateString(timezone);
+  if (/\btoday\b/.test(normalized)) {
+    return today;
+  }
+  if (/\btomorrow\b/.test(normalized)) {
+    return addDaysToDateString(today, 1);
+  }
+
+  const todayDayKey = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'long',
+  }).format(new Date()).toLowerCase() as typeof WEEKDAY_KEYS[number];
+  const todayIndex = WEEKDAY_KEYS.indexOf(todayDayKey);
+  if (todayIndex === -1) return undefined;
+
+  for (const dayKey of WEEKDAY_KEYS) {
+    if (!new RegExp(`\\b${dayKey}\\b`, 'i').test(normalized)) continue;
+
+    const requestedIndex = WEEKDAY_KEYS.indexOf(dayKey);
+    let daysAhead = (requestedIndex - todayIndex + 7) % 7;
+    if (daysAhead === 0 && new RegExp(`\\bnext\\s+${dayKey}\\b`, 'i').test(normalized)) {
+      daysAhead = 7;
+    }
+    return addDaysToDateString(today, daysAhead);
+  }
+
+  return undefined;
+}
+
+function messageLooksBookingRelated(message: string): boolean {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return false;
+
+  return (
+    BOOKING_KEYWORDS.test(normalized)
+    || /\bdoctor\b/.test(normalized)
+    || /\bdentist\b/.test(normalized)
+    || /\bcheckup\b/.test(normalized)
+    || /\bcleaning\b/.test(normalized)
+    || /\btoothache\b/.test(normalized)
+    || /\bpain\b/.test(normalized)
+    || /\bemergency\b/.test(normalized)
+  );
+}
+
+function buildDirectReceptionistResponse(
+  context: TenantAIContext,
+  message: string,
+): string | null {
+  const normalized = normalizeMessage(message);
+  const clinic = context.clinic as {
+    phone?: string;
+    primaryPhone?: string;
+    email?: string;
+    supportEmail?: string;
+    address?: string;
+  };
+  const phone = clinic.phone ?? clinic.primaryPhone;
+  const email = clinic.email ?? clinic.supportEmail;
+  const address = clinic.address;
+
+  if (SMALL_TALK_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    if (/\bthanks\b/i.test(normalized) || /\bthank you\b/i.test(normalized)) {
+      return 'You’re welcome. Is there anything else I can help you with today?';
+    }
+    return 'I’m doing well, thank you for asking. How can I help you today?';
+  }
+
+  if (GREETING_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return `Hello, thank you for calling ${clinicName(context)}. How can I help you today?`;
+  }
+
+  if ((/\bclinic phone\b/i.test(normalized) || /\bphone number\b/i.test(normalized) || /\bcall the clinic\b/i.test(normalized)) && phone) {
+    return `The clinic phone number is ${phone}. Is there anything else I can help you with?`;
+  }
+
+  if ((/\bemail\b/i.test(normalized) || /\bmail\b/i.test(normalized)) && email) {
+    return `The clinic email is ${email}. Is there anything else I can help you with?`;
+  }
+
+  if ((/\baddress\b/i.test(normalized) || /\blocated\b/i.test(normalized) || /\blocation\b/i.test(normalized)) && address) {
+    return `The clinic is located at ${address}. Is there anything else I can help you with?`;
+  }
+
+  return null;
+}
 
 function createEmptyBookingState(): BookingConversationState {
   return {
@@ -70,6 +209,10 @@ function createEmptyBookingState(): BookingConversationState {
     patient: {},
     confirmationRequested: false,
   };
+}
+
+function resetBookingState(): BookingConversationState {
+  return createEmptyBookingState();
 }
 
 export function createInitialReceptionistSessionState(): ReceptionistSessionState {
@@ -262,6 +405,41 @@ function clinicName(context: TenantAIContext): string {
   return context.clinicName || 'the clinic';
 }
 
+function formatDateInTimezone(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function getDayKeyForDate(date: string, timezone: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const localDate = new Date(`${date}T12:00:00Z`);
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'long',
+  }).format(localDate).toLowerCase();
+}
+
+function isClinicOpenOnDate(
+  schedule: Record<string, unknown> | null,
+  closedDates: string[],
+  requestedDate: string,
+  timezone: string,
+): boolean {
+  if (closedDates.includes(requestedDate)) return false;
+  if (!schedule || typeof schedule !== 'object') return false;
+
+  const dayKey = getDayKeyForDate(requestedDate, timezone);
+  if (!dayKey) return false;
+  const rawEntry = schedule[dayKey];
+  if (!rawEntry || typeof rawEntry !== 'object') return false;
+  const entry = rawEntry as { start?: unknown; end?: unknown };
+  return typeof entry.start === 'string' && !!entry.start.trim() && typeof entry.end === 'string' && !!entry.end.trim();
+}
+
 function mergePatientDetails(
   current: PatientBookingDetails,
   incoming: PatientBookingDetails,
@@ -350,6 +528,28 @@ export async function processReceptionistTurnWithBooking(input: {
   const sessionState = ensureSessionState(input.sessionState);
   const bookingState = sessionState.booking;
   const timezone = getTimezone(input.aiContext);
+  const directResponse = buildDirectReceptionistResponse(input.aiContext, input.userMessage);
+  if (!bookingState.active && directResponse) {
+    return {
+      response: directResponse,
+      sessionState,
+    };
+  }
+
+  const shouldAttemptBooking = bookingState.active || messageLooksBookingRelated(input.userMessage);
+  if (!shouldAttemptBooking) {
+    return {
+      response: await generateGeneralReceptionistResponse({
+        tenantId: input.tenantId,
+        sessionId: input.sessionId,
+        systemPrompt: input.systemPrompt,
+        conversationHistory: input.conversationHistory,
+        userMessage: input.userMessage,
+      }),
+      sessionState,
+    };
+  }
+
   const extraction = await extractBookingTurn({
     tenantId: input.tenantId,
     userMessage: input.userMessage,
@@ -357,13 +557,17 @@ export async function processReceptionistTurnWithBooking(input: {
     bookingState,
     conversationHistory: input.conversationHistory,
   });
+  const requestedDateFromMessage = resolveRequestedDateFromMessage(input.userMessage, timezone);
 
   bookingState.patient = mergePatientDetails(bookingState.patient, extraction.patient);
   if (extraction.serviceName) {
     bookingState.serviceName = extraction.serviceName.trim();
   }
-  if (extraction.requestedDate) {
-    bookingState.requestedDate = extraction.requestedDate;
+  if (requestedDateFromMessage || extraction.requestedDate) {
+    bookingState.requestedDate = requestedDateFromMessage ?? extraction.requestedDate;
+    bookingState.selectedSlot = undefined;
+    bookingState.offeredSlots = [];
+    bookingState.confirmationRequested = false;
   }
   if (extraction.requestedTime) {
     bookingState.requestedTime = extraction.requestedTime;
@@ -443,8 +647,23 @@ export async function processReceptionistTurnWithBooking(input: {
     } else if (availability.suggestedSlots.length > 0) {
       bookingState.offeredSlots = availability.suggestedSlots;
       bookingState.status = 'offering_slots';
+      const requestedDate = bookingState.requestedDate;
+      const schedule = getOperatingSchedule(input.aiContext);
+      const closedDates = getClosedDates(input.aiContext);
+      const hasSameDaySuggestion = requestedDate
+        ? availability.suggestedSlots.some((slot) => formatDateInTimezone(new Date(slot.startIso), timezone) === requestedDate)
+        : false;
+      const clinicOpenThatDay = requestedDate
+        ? isClinicOpenOnDate(schedule, closedDates, requestedDate, timezone)
+        : true;
+
+      const intro = requestedDate && !hasSameDaySuggestion
+        ? clinicOpenThatDay
+          ? 'I do not have any more openings today.'
+          : 'Sorry, we are closed today, but I can book you for another day.'
+        : 'I have a few openings.';
       return {
-        response: `I have a few openings. ${buildSlotOptionsText(availability.suggestedSlots)} Which option would you like?`,
+        response: `${intro} ${buildSlotOptionsText(availability.suggestedSlots)} Which option would you like?`,
         sessionState,
       };
     } else {
@@ -538,9 +757,11 @@ export async function processReceptionistTurnWithBooking(input: {
     },
   });
 
-  bookingState.status = 'confirmed';
-  bookingState.eventId = appointment.eventId;
-  bookingState.offeredSlots = [];
+  sessionState.booking = {
+    ...resetBookingState(),
+    status: 'confirmed',
+    eventId: appointment.eventId,
+  };
 
   return {
     response: `You’re all set. I’ve booked ${appointment.slot.label} for ${bookingState.patient.fullName}. We’ll see you then, and if anything changes, please call the clinic.`,

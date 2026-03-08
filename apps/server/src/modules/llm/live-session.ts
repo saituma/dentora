@@ -45,6 +45,15 @@ const DUPLICATE_TRANSCRIPT_WINDOW_MS = 2500;
 const EARLY_TTS_SENTENCE_MIN_CHARS = 12;
 const EARLY_TTS_CLAUSE_MIN_CHARS = 24;
 const EARLY_TTS_LONG_PHRASE_MIN_CHARS = 48;
+const HANG_UP_PATTERNS = [
+  /\bhang\s*up\b/i,
+  /\bhung\s*up\b/i,
+  /\bend (the )?call\b/i,
+  /\bdisconnect\b/i,
+  /\bgoodbye\b/i,
+  /\bbye\b/i,
+  /\bbye bye\b/i,
+];
 
 function sendEvent(ws: WebSocket, event: string, payload: Record<string, unknown> = {}): void {
   if (ws.readyState !== WebSocket.OPEN) return;
@@ -83,6 +92,12 @@ function extractSpeakableSegments(buffer: string, flushRemainder = false): { seg
 
 function normalizeTranscript(transcript: string): string {
   return transcript.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function isHangUpIntent(transcript: string): boolean {
+  const normalized = normalizeTranscript(transcript);
+  if (!normalized) return false;
+  return HANG_UP_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 function clearSilenceTimer(session: BrowserLiveSession): void {
@@ -212,6 +227,22 @@ async function processRecognizedTranscript(
   session.lastTranscriptNormalized = normalizedTranscript;
   session.lastTranscriptAt = Date.now();
   sendEvent(session.ws, 'transcript_final', { transcript });
+
+  if (isHangUpIntent(transcript)) {
+    const goodbye = `Thanks for calling ${session.aiContext.clinicName || 'the clinic'}. Goodbye.`;
+    sendEvent(session.ws, 'assistant_turn_start');
+    sendEvent(session.ws, 'assistant_delta', { delta: goodbye });
+    await sendAssistantAudio(session, goodbye, generationId);
+    if (generationId !== session.generationId) return;
+    session.conversationHistory.push(
+      { role: 'user', content: transcript },
+      { role: 'assistant', content: goodbye },
+    );
+    sendEvent(session.ws, 'assistant_done', { response: goodbye });
+    sendEvent(session.ws, 'session_ended', { reason: 'caller_hangup' });
+    return;
+  }
+
   sendEvent(session.ws, 'assistant_turn_start');
   const turnResult = await processReceptionistTurnWithBooking({
     tenantId: session.tenantId,

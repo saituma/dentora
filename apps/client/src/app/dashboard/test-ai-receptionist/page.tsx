@@ -25,7 +25,7 @@ import {
 } from '@/lib/microphone-diagnostics';
 import { getAudioConstraints } from '@/lib/audio-constraints';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import { API_BASE_URL, getAuthHeaders, tryRefreshAccessToken } from '@/lib/api';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, tryRefreshAccessToken } from '@/lib/api';
 
 type ChatTurn = { speaker: 'caller' | 'receptionist'; text: string; ts: string };
 type QueuedTtsSegment = { text: string; audioUrlPromise: Promise<string> };
@@ -113,6 +113,7 @@ export default function TestAiReceptionistPage() {
   const currentAssistantTurnTsRef = useRef<string | null>(null);
   const lastLiveTranscriptRef = useRef('');
   const lastLiveTranscriptAtRef = useRef(0);
+  const shouldAutoEndCallRef = useRef(false);
 
   const hasMediaRecorder = typeof window !== 'undefined' && typeof MediaRecorder !== 'undefined';
   const supportsWebmOpus = hasMediaRecorder && MediaRecorder.isTypeSupported(LIVE_AUDIO_RECORDER_MIME_TYPE);
@@ -646,11 +647,15 @@ export default function TestAiReceptionistPage() {
     }
   };
 
+  const normalizeCallTranscript = (value: string) => (
+    value.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
+  );
+
   const openLiveSocket = async (): Promise<boolean> => {
     if (isLiveSocketOpen()) return true;
     if (typeof window === 'undefined') return false;
 
-    const token = window.localStorage.getItem('auth_token');
+    const token = await ensureFreshAccessToken();
     if (!token) {
       toast.error('You need to be signed in to start a live test call.');
       return false;
@@ -687,6 +692,7 @@ export default function TestAiReceptionistPage() {
           audioBase64?: string;
           mimeType?: string;
           message?: string;
+          reason?: string;
         };
 
         switch (message.event) {
@@ -710,7 +716,7 @@ export default function TestAiReceptionistPage() {
           case 'transcript_final': {
             const transcript = (message.transcript || '').trim();
             if (!transcript) return;
-            const normalized = transcript.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+            const normalized = normalizeCallTranscript(transcript);
             const duplicate =
               normalized
               && normalized === lastLiveTranscriptRef.current
@@ -767,6 +773,11 @@ export default function TestAiReceptionistPage() {
               )));
             }
             void Promise.all([waitForTtsDrain(), waitForBrowserSpeechDrain()]).then(() => {
+              if (shouldAutoEndCallRef.current) {
+                shouldAutoEndCallRef.current = false;
+                endCall();
+                return;
+              }
               aiRespondingRef.current = false;
               setIsStreamingResponse(false);
               currentAssistantTurnTsRef.current = null;
@@ -776,6 +787,10 @@ export default function TestAiReceptionistPage() {
             });
             return;
           }
+
+          case 'session_ended':
+            shouldAutoEndCallRef.current = true;
+            return;
 
           case 'assistant_interrupted':
             clearAudioPlayback();
@@ -1127,6 +1142,7 @@ export default function TestAiReceptionistPage() {
     currentAssistantTurnTsRef.current = null;
     lastLiveTranscriptRef.current = '';
     lastLiveTranscriptAtRef.current = 0;
+    shouldAutoEndCallRef.current = false;
 
     const started = await startLiveInput(micReady);
     if (!started) {
@@ -1141,6 +1157,7 @@ export default function TestAiReceptionistPage() {
   };
 
   const endCall = () => {
+    shouldAutoEndCallRef.current = false;
     setIsCallActive(false);
     isCallActiveRef.current = false;
     aiRespondingRef.current = false;

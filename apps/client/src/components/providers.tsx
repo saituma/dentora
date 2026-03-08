@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { store } from "@/store";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setCredentials, setHydrated } from "@/features/auth/authSlice";
+import { clearAuthTokens, ensureFreshAccessToken } from "@/lib/api";
 import {
   clearAuthSession,
   loadAuthSession,
@@ -17,48 +18,75 @@ function AuthBootstrap() {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const accessToken = localStorage.getItem("auth_token");
-    const refreshToken = localStorage.getItem("refresh_token");
+    let cancelled = false;
 
-    if (!accessToken || !refreshToken) {
-      clearAuthSession();
-      dispatch(setHydrated());
-      return;
-    }
+    const bootstrap = async () => {
+      const accessToken = localStorage.getItem("auth_token");
+      const refreshToken = localStorage.getItem("refresh_token");
 
-    const persisted = loadAuthSession();
-    if (persisted) {
-      dispatch(
-        setCredentials({
-          user: persisted.user,
-          tenantId: persisted.tenantId,
-          onboardingStatus: persisted.onboardingStatus,
-        })
-      );
-      return;
-    }
+      if (!accessToken || !refreshToken) {
+        clearAuthSession();
+        if (!cancelled) {
+          dispatch(setHydrated());
+        }
+        return;
+      }
 
-    const tokenPayload = parseAccessTokenPayload(accessToken);
-    if (!tokenPayload?.userId) {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
-      clearAuthSession();
-      dispatch(setHydrated());
-      return;
-    }
+      const validAccessToken = await ensureFreshAccessToken();
+      if (!validAccessToken) {
+        clearAuthTokens();
+        clearAuthSession();
+        if (!cancelled) {
+          dispatch(setHydrated());
+        }
+        return;
+      }
 
-    dispatch(
-      setCredentials({
-        user: {
-          id: tokenPayload.userId,
-          email: "",
-          displayName: null,
-          role: tokenPayload.role ?? "admin",
-        },
-        tenantId: tokenPayload.tenantId ?? null,
-        onboardingStatus: "clinic-profile",
-      })
-    );
+      const persisted = loadAuthSession();
+      if (persisted) {
+        if (!cancelled) {
+          dispatch(
+            setCredentials({
+              user: persisted.user,
+              tenantId: persisted.tenantId,
+              onboardingStatus: persisted.onboardingStatus,
+            })
+          );
+        }
+        return;
+      }
+
+      const tokenPayload = parseAccessTokenPayload(validAccessToken);
+      if (!tokenPayload?.userId) {
+        clearAuthTokens();
+        clearAuthSession();
+        if (!cancelled) {
+          dispatch(setHydrated());
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        dispatch(
+          setCredentials({
+            user: {
+              id: tokenPayload.userId,
+              email: "",
+              displayName: null,
+              role: tokenPayload.role ?? "admin",
+            },
+            tenantId: tokenPayload.tenantId ?? null,
+            onboardingStatus: "clinic-profile",
+          })
+        );
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
   return null;

@@ -153,8 +153,8 @@ function getDayKey(date: Date, timezone: string): string {
 function formatSlotLabel(startIso: string, timezone: string): string {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
-    weekday: 'short',
-    month: 'short',
+    weekday: 'long',
+    month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
