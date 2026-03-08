@@ -473,11 +473,48 @@ function buildPatientQuestion(field: keyof PatientBookingDetails): string {
   return 'What is the main reason for the visit today?';
 }
 
-function buildSlotOptionsText(slots: CalendarSlot[]): string {
-  return slots
-    .slice(0, 3)
-    .map((slot, index) => `${index + 1}. ${slot.label}`)
-    .join(' ');
+function formatFullSlotDate(startIso: string, timezone: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date(startIso));
+}
+
+function formatSlotTime(startIso: string, timezone: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(startIso));
+}
+
+function joinWithOr(items: string[]): string {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} or ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, or ${items[items.length - 1]}`;
+}
+
+function buildSlotOptionsText(slots: CalendarSlot[], timezone: string): string {
+  const topSlots = slots.slice(0, 3);
+  if (topSlots.length === 0) return '';
+
+  const sameDate = topSlots.every(
+    (slot) => formatDateInTimezone(new Date(slot.startIso), timezone) === formatDateInTimezone(new Date(topSlots[0].startIso), timezone),
+  );
+
+  if (sameDate) {
+    const dateLabel = formatFullSlotDate(topSlots[0].startIso, timezone);
+    const timeLabels = topSlots.map((slot) => formatSlotTime(slot.startIso, timezone));
+    return `I have openings on ${dateLabel} at ${joinWithOr(timeLabels)}.`;
+  }
+
+  const optionLabels = topSlots.map(
+    (slot) => `${formatFullSlotDate(slot.startIso, timezone)} at ${formatSlotTime(slot.startIso, timezone)}`,
+  );
+  return `I have openings on ${joinWithOr(optionLabels)}.`;
 }
 
 function resolveSelectedSlot(
@@ -663,7 +700,7 @@ export async function processReceptionistTurnWithBooking(input: {
           : 'Sorry, we are closed today, but I can book you for another day.'
         : 'I have a few openings.';
       return {
-        response: `${intro} ${buildSlotOptionsText(availability.suggestedSlots)} Which option would you like?`,
+        response: `${intro} ${buildSlotOptionsText(availability.suggestedSlots, timezone)} Which time would you like?`,
         sessionState,
       };
     } else {
@@ -736,7 +773,7 @@ export async function processReceptionistTurnWithBooking(input: {
     bookingState.status = 'offering_slots';
     return {
       response: finalAvailability.suggestedSlots.length > 0
-        ? `That slot was just taken. I can offer ${buildSlotOptionsText(finalAvailability.suggestedSlots)}. Which one would you like instead?`
+        ? `That slot was just taken. ${buildSlotOptionsText(finalAvailability.suggestedSlots, timezone)} Which time would you like instead?`
         : 'That slot was just taken, and I do not have another immediate opening. Would you like a different day?',
       sessionState,
     };
