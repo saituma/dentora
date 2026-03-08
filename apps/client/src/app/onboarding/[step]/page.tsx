@@ -55,6 +55,7 @@ import { Badge } from '@/components/ui/badge';
 
 const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
+  { id: 'plan', label: 'Plan' },
   { id: 'knowledge-base', label: 'Knowledge' },
   { id: 'voice', label: 'Voice' },
   { id: 'rules', label: 'Rules' },
@@ -138,6 +139,11 @@ const STEP_META: Record<
     title: 'Tell us about your clinic',
     description:
       'Set your core profile details so your AI sounds like your front desk.',
+  },
+  plan: {
+    title: 'Choose your plan',
+    description:
+      'Pick the plan that best fits your clinic. You can change it later.',
   },
   'knowledge-base': {
     title: 'Tell us your clinic knowledge',
@@ -392,6 +398,7 @@ export default function OnboardingStepPage() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [voiceTone, setVoiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
+  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'growth' | 'pro'>('growth');
   const [greeting, setGreeting] = useState('Hi, welcome to our clinic, what can I help you with today?');
   const [selectedVoiceId, setSelectedVoiceId] = useState('professional');
   const [speakingSpeed, setSpeakingSpeed] = useState(1.0);
@@ -739,7 +746,7 @@ export default function OnboardingStepPage() {
                     timezone,
                   }).unwrap();
                   toast.success('Clinic profile saved');
-                  goNext('knowledge-base');
+                  goNext('plan');
                 } catch (err: unknown) {
                   toast.error(getUserFriendlyApiError(err));
                 }
@@ -813,6 +820,80 @@ export default function OnboardingStepPage() {
                 </div>
               </FieldGroup>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 'plan' && (
+        <Card className="border-0 bg-card shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl">Choose a plan</CardTitle>
+            <CardDescription>
+              This is a mock plan selection step for onboarding UX.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                {
+                  id: 'starter' as const,
+                  name: 'Starter',
+                  price: '$49/mo',
+                  detail: 'Best for solo clinics getting started.',
+                },
+                {
+                  id: 'growth' as const,
+                  name: 'Growth',
+                  price: '$149/mo',
+                  detail: 'Best for busy clinics with higher call volume.',
+                },
+                {
+                  id: 'pro' as const,
+                  name: 'Pro',
+                  price: '$299/mo',
+                  detail: 'Best for multi-location clinics and teams.',
+                },
+              ].map((plan) => {
+                const isSelected = selectedPlan === plan.id;
+
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <p className="text-sm font-medium">{plan.name}</p>
+                    <p className="mt-1 text-xl font-semibold">{plan.price}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{plan.detail}</p>
+                    {isSelected && <Badge className="mt-3">Selected</Badge>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goBack}
+                className="min-w-28"
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                className="min-w-28"
+                onClick={() => {
+                  toast.success(`Selected ${selectedPlan} plan`);
+                  goNext('knowledge-base');
+                }}
+              >
+                Continue
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -34,6 +34,8 @@ export function ProtectedRoute({
       const step =
         onboardingStatus === "clinic-profile"
           ? "clinic-profile"
+          : onboardingStatus === "plan"
+            ? "plan"
           : onboardingStatus === "knowledge-base"
             ? "knowledge-base"
             : onboardingStatus === "voice"

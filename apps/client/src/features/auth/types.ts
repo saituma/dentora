@@ -7,6 +7,7 @@ export interface User {
 
 export type OnboardingStep =
   | "clinic-profile"
+  | "plan"
   | "knowledge-base"
   | "voice"
   | "rules"

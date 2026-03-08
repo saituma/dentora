@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 const ONBOARDING_STEPS = [
   'clinic-profile',
+  'plan',
   'knowledge-base',
   'voice',
   'rules',
