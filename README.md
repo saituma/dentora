@@ -30,6 +30,22 @@ A professional starter template for shipping full-stack features quickly with a 
 └─ README.md
 ```
 
+## Architecture Notes
+
+Client:
+- `apps/client/src/app` holds route entrypoints only.
+- `apps/client/src/components` holds reusable UI building blocks.
+- `apps/client/src/features` holds domain logic, API slices, and shared feature helpers.
+- `apps/client/src/hooks`, `apps/client/src/lib`, and `apps/client/src/store` hold cross-cutting behavior and app infrastructure.
+- Business logic should move out of route files into `features`, hooks, or service helpers as pages grow.
+
+Server:
+- `apps/server/src/modules` is the primary domain boundary for routes and business logic.
+- Route files should stay thin and delegate to service modules.
+- Shared infrastructure belongs in `apps/server/src/config`, `apps/server/src/db`, `apps/server/src/lib`, and `apps/server/src/middleware`.
+- Validation, orchestration, and provider-specific logic should be split into focused modules instead of large all-in-one services.
+- Database schema and persistence helpers should stay separate from request handling.
+
 ## Use This Starter For a New Repository
 
 Clone this starter and detach it from the original git history:

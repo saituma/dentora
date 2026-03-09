@@ -1,30 +1,8 @@
 'use client';
-/* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Loader2Icon, PlusIcon, TrashIcon, LinkIcon } from 'lucide-react';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import {
   useGetVoiceProfileQuery,
@@ -50,73 +28,21 @@ import {
   useGetIntegrationsQuery,
   useStartGoogleCalendarOAuthMutation,
 } from '@/features/integrations/integrationsApi';
-
-type WeekdayKey =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
-
-type ScheduleRow = {
-  enabled: boolean;
-  start: string;
-  end: string;
-};
-
-const WEEKDAYS: Array<{ key: WeekdayKey; label: string }> = [
-  { key: 'monday', label: 'Monday' },
-  { key: 'tuesday', label: 'Tuesday' },
-  { key: 'wednesday', label: 'Wednesday' },
-  { key: 'thursday', label: 'Thursday' },
-  { key: 'friday', label: 'Friday' },
-  { key: 'saturday', label: 'Saturday' },
-  { key: 'sunday', label: 'Sunday' },
-];
-
-const DEFAULT_TIMEZONES = [
-  { value: 'America/New_York', label: 'Eastern Time' },
-  { value: 'America/Chicago', label: 'Central Time' },
-  { value: 'America/Denver', label: 'Mountain Time' },
-  { value: 'America/Los_Angeles', label: 'Pacific Time' },
-  { value: 'Europe/London', label: 'London' },
-];
-
-const DEFAULT_SCHEDULE: Record<WeekdayKey, ScheduleRow> = {
-  monday: { enabled: true, start: '09:00', end: '17:00' },
-  tuesday: { enabled: true, start: '09:00', end: '17:00' },
-  wednesday: { enabled: true, start: '09:00', end: '17:00' },
-  thursday: { enabled: true, start: '09:00', end: '17:00' },
-  friday: { enabled: true, start: '09:00', end: '17:00' },
-  saturday: { enabled: false, start: '09:00', end: '13:00' },
-  sunday: { enabled: false, start: '09:00', end: '13:00' },
-};
-
-function getPolicyDisplay(policy: {
-  policyType?: string | null;
-  content?: string | null;
-  escalationConditions?: { type?: string; content?: string } | null;
-  emergencyDisclaimer?: string | null;
-}) {
-  const normalizedType =
-    (typeof policy.policyType === 'string' && policy.policyType.trim())
-    || (typeof policy.escalationConditions?.type === 'string' && policy.escalationConditions.type.trim())
-    || (typeof policy.emergencyDisclaimer === 'string' && policy.emergencyDisclaimer.trim() ? 'emergency' : '')
-    || 'structured_policy';
-
-  const normalizedContent =
-    (typeof policy.content === 'string' && policy.content.trim())
-    || (typeof policy.escalationConditions?.content === 'string' && policy.escalationConditions.content.trim())
-    || (typeof policy.emergencyDisclaimer === 'string' && policy.emergencyDisclaimer.trim())
-    || 'Policy details are stored in structured fields.';
-
-  return {
-    title: normalizedType.replace(/_/g, ' '),
-    content: normalizedContent,
-  };
-}
+import {
+  DEFAULT_SCHEDULE,
+  parseClosedDatesText,
+  toScheduleForm,
+  toSchedulePayload,
+  type ScheduleRow,
+  type WeekdayKey,
+} from '@/features/aiConfig/schedule';
+import { ClinicSetupTab } from '@/app/dashboard/ai-receptionist/clinic-setup-tab';
+import { VoiceTab } from '@/app/dashboard/ai-receptionist/voice-tab';
+import {
+  FaqsTab,
+  PoliciesTab,
+  ServicesTab,
+} from '@/app/dashboard/ai-receptionist/resource-tabs';
 
 export default function AiReceptionistPage() {
   const { data: clinic, isLoading: clinicLoading } = useGetClinicQuery();
@@ -336,521 +262,98 @@ export default function AiReceptionistPage() {
         </TabsList>
 
         <TabsContent value="clinic" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Booking configuration</CardTitle>
-              <CardDescription>
-                Define clinic hours, closed dates, appointment duration, and the live Google Calendar connection used for bookings.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {clinicLoading || bookingLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <Skeleton key={index} className="h-10 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <FieldGroup>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel>Clinic name</FieldLabel>
-                      <Input value={clinicName} onChange={(e) => setClinicName(e.target.value)} />
-                    </Field>
-                    <Field>
-                      <FieldLabel>Timezone</FieldLabel>
-                      <Select value={timezone} onValueChange={(value) => setTimezone(value || 'America/New_York')}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DEFAULT_TIMEZONES.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-4">
-                    <Field>
-                      <FieldLabel>Appointment duration</FieldLabel>
-                      <Input type="number" value={defaultDuration} onChange={(e) => setDefaultDuration(e.target.value)} />
-                    </Field>
-                    <Field>
-                      <FieldLabel>Buffer between appointments</FieldLabel>
-                      <Input type="number" value={bufferMinutes} onChange={(e) => setBufferMinutes(e.target.value)} />
-                    </Field>
-                    <Field>
-                      <FieldLabel>Minimum notice (hours)</FieldLabel>
-                      <Input type="number" value={minNotice} onChange={(e) => setMinNotice(e.target.value)} />
-                    </Field>
-                    <Field>
-                      <FieldLabel>Max advance booking (days)</FieldLabel>
-                      <Input type="number" value={maxAdvance} onChange={(e) => setMaxAdvance(e.target.value)} />
-                    </Field>
-                  </div>
-
-                  <div className="space-y-3">
-                    <FieldLabel>Working schedule</FieldLabel>
-                    {WEEKDAYS.map((day) => (
-                      <div key={day.key} className="grid grid-cols-[140px_120px_120px_1fr] items-center gap-3 rounded-lg border p-3">
-                        <Button
-                          type="button"
-                          variant={schedule[day.key].enabled ? 'default' : 'outline'}
-                          onClick={() => {
-                            setSchedule((current) => ({
-                              ...current,
-                              [day.key]: {
-                                ...current[day.key],
-                                enabled: !current[day.key].enabled,
-                              },
-                            }));
-                          }}
-                        >
-                          {schedule[day.key].enabled ? `${day.label} open` : `${day.label} closed`}
-                        </Button>
-                        <Input
-                          type="time"
-                          value={schedule[day.key].start}
-                          disabled={!schedule[day.key].enabled}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setSchedule((current) => ({
-                              ...current,
-                              [day.key]: { ...current[day.key], start: value },
-                            }));
-                          }}
-                        />
-                        <Input
-                          type="time"
-                          value={schedule[day.key].end}
-                          disabled={!schedule[day.key].enabled}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setSchedule((current) => ({
-                              ...current,
-                              [day.key]: { ...current[day.key], end: value },
-                            }));
-                          }}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {schedule[day.key].enabled
-                            ? `${schedule[day.key].start} to ${schedule[day.key].end}`
-                            : 'No appointments'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Field>
-                    <FieldLabel>Closed dates</FieldLabel>
-                    <Textarea
-                      rows={4}
-                      value={closedDatesText}
-                      onChange={(e) => setClosedDatesText(e.target.value)}
-                      placeholder={'One date per line\n2026-12-25\n2026-12-26'}
-                    />
-                  </Field>
-
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium">Google Calendar</p>
-                        <p className="text-sm text-muted-foreground">
-                          Real appointment availability and bookings are validated against this calendar.
-                        </p>
-                      </div>
-                      <Badge variant={calendarIntegration?.status === 'active' ? 'default' : 'secondary'}>
-                        {calendarIntegration?.status === 'active' ? 'Connected' : 'Not connected'}
-                      </Badge>
-                    </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleConnectCalendar}
-                        disabled={connectingCalendar}
-                      >
-                        {connectingCalendar ? <Loader2Icon className="mr-2 size-4 animate-spin" /> : <LinkIcon className="mr-2 size-4" />}
-                        {calendarIntegration ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
-                      </Button>
-                      {calendarIntegration && (
-                        <span className="text-sm text-muted-foreground">
-                          Provider: {calendarIntegration.provider}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <Button onClick={handleSaveClinicSetup} disabled={saveLoading}>
-                    {saveLoading ? (
-                      <>
-                        <Loader2Icon className="mr-2 size-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save clinic setup'
-                    )}
-                  </Button>
-                </FieldGroup>
-              )}
-            </CardContent>
-          </Card>
+          <ClinicSetupTab
+            clinicLoading={clinicLoading}
+            bookingLoading={bookingLoading}
+            clinicName={clinicName}
+            setClinicName={setClinicName}
+            timezone={timezone}
+            setTimezone={setTimezone}
+            defaultDuration={defaultDuration}
+            setDefaultDuration={setDefaultDuration}
+            bufferMinutes={bufferMinutes}
+            setBufferMinutes={setBufferMinutes}
+            minNotice={minNotice}
+            setMinNotice={setMinNotice}
+            maxAdvance={maxAdvance}
+            setMaxAdvance={setMaxAdvance}
+            schedule={schedule}
+            setSchedule={setSchedule}
+            closedDatesText={closedDatesText}
+            setClosedDatesText={setClosedDatesText}
+            calendarIntegration={calendarIntegration}
+            connectingCalendar={connectingCalendar}
+            handleConnectCalendar={handleConnectCalendar}
+            handleSaveClinicSetup={handleSaveClinicSetup}
+            saveLoading={saveLoading}
+          />
         </TabsContent>
 
         <TabsContent value="voice" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>ElevenLabs voice</CardTitle>
-              <CardDescription>
-                Choose the receptionist voice dynamically from ElevenLabs and use it for previews and live test calls.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {voiceLoading || voicesLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <Skeleton key={index} className="h-10 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <FieldGroup>
-                  {selectedVoice?.requiresPaidPlan ? (
-                    <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
-                      This selected ElevenLabs library voice needs a paid ElevenLabs plan for live call speech. Choose a live-supported voice to use it in test calls.
-                    </div>
-                  ) : null}
-                  <Field>
-                    <FieldLabel>Greeting message</FieldLabel>
-                    <Textarea
-                      rows={3}
-                      value={greeting}
-                      onChange={(e) => setGreeting(e.target.value)}
-                      placeholder="Hi, welcome to our clinic, what can I help you with today?"
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel>Selected voice</FieldLabel>
-                    <Select value={voiceId} onValueChange={(value) => setVoiceId(value || 'professional')}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="professional">Default professional voice</SelectItem>
-                        {availableVoices.map((voice) => (
-                          <SelectItem key={voice.voiceId} value={voice.voiceId}>
-                            {voice.name}{voice.label ? ` - ${voice.label}` : ''}{voice.requiresPaidPlan ? ' (paid plan for live calls)' : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field>
-                      <FieldLabel>Tone</FieldLabel>
-                      <Select value={tone} onValueChange={(value) => setTone((value as typeof tone) || 'professional')}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="professional">Professional</SelectItem>
-                          <SelectItem value="friendly">Friendly</SelectItem>
-                          <SelectItem value="warm">Warm</SelectItem>
-                          <SelectItem value="calm">Calm</SelectItem>
-                          <SelectItem value="formal">Formal</SelectItem>
-                          <SelectItem value="casual">Casual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field>
-                      <FieldLabel>Language</FieldLabel>
-                      <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="en-US" />
-                    </Field>
-                  </div>
-
-                  <Field>
-                    <FieldLabel>After-hours message</FieldLabel>
-                    <Textarea
-                      rows={2}
-                      value={afterHoursMessage}
-                      onChange={(e) => setAfterHoursMessage(e.target.value)}
-                      placeholder="We are currently closed. Please leave a message and our team will return your call."
-                    />
-                  </Field>
-
-                  <div className="flex flex-wrap gap-3">
-                    <Button type="button" variant="outline" onClick={handlePreviewVoice} disabled={previewGenerating}>
-                      {previewGenerating ? <Loader2Icon className="mr-2 size-4 animate-spin" /> : null}
-                      Preview voice
-                    </Button>
-                    <Button onClick={handleSaveVoice} disabled={voiceSaving}>
-                      {voiceSaving ? <Loader2Icon className="mr-2 size-4 animate-spin" /> : null}
-                      Save voice profile
-                    </Button>
-                  </div>
-                </FieldGroup>
-              )}
-            </CardContent>
-          </Card>
+          <VoiceTab
+            voiceLoading={voiceLoading}
+            voicesLoading={voicesLoading}
+            selectedVoice={selectedVoice}
+            greeting={greeting}
+            setGreeting={setGreeting}
+            voiceId={voiceId}
+            setVoiceId={setVoiceId}
+            availableVoices={availableVoices}
+            tone={tone}
+            setTone={setTone}
+            language={language}
+            setLanguage={setLanguage}
+            afterHoursMessage={afterHoursMessage}
+            setAfterHoursMessage={setAfterHoursMessage}
+            handlePreviewVoice={handlePreviewVoice}
+            previewGenerating={previewGenerating}
+            handleSaveVoice={handleSaveVoice}
+            voiceSaving={voiceSaving}
+          />
         </TabsContent>
 
         <TabsContent value="services" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Services</CardTitle>
-              <CardDescription>
-                Active services the receptionist can book.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex gap-2">
-                <Input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder="Service name" className="flex-1" />
-                <Input value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} placeholder="Minutes" type="number" className="w-28" />
-                <Button onClick={handleAddService} disabled={addingService}>
-                  <PlusIcon className="mr-1 size-4" />
-                  Add
-                </Button>
-              </div>
-
-              {servicesLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={index} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : services.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No services configured yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {services.map((service) => (
-                    <div key={service.id} className="flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <p className="text-sm font-medium">{service.serviceName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {service.durationMinutes ? `${service.durationMinutes} min` : 'Duration not set'}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={async () => {
-                          try {
-                            await deleteService(service.id).unwrap();
-                            toast.success('Service removed');
-                          } catch {
-                            toast.error('Failed to remove service');
-                          }
-                        }}
-                      >
-                        <TrashIcon className="size-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ServicesTab
+            newServiceName={newServiceName}
+            setNewServiceName={setNewServiceName}
+            newServiceDuration={newServiceDuration}
+            setNewServiceDuration={setNewServiceDuration}
+            handleAddService={handleAddService}
+            addingService={addingService}
+            servicesLoading={servicesLoading}
+            services={services}
+            deleteService={deleteService}
+          />
         </TabsContent>
 
         <TabsContent value="faqs" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>FAQs</CardTitle>
-              <CardDescription>
-                Common clinic information the receptionist can answer without asking staff.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel>Question</FieldLabel>
-                  <Input value={newQuestion} onChange={(e) => setNewQuestion(e.target.value)} placeholder="Do you accept new patients?" />
-                </Field>
-                <Field>
-                  <FieldLabel>Answer</FieldLabel>
-                  <Textarea value={newAnswer} onChange={(e) => setNewAnswer(e.target.value)} rows={2} placeholder="Yes, we are currently accepting new patients." />
-                </Field>
-                <Button onClick={handleAddFaq} disabled={addingFaq}>
-                  <PlusIcon className="mr-1 size-4" />
-                  Add FAQ
-                </Button>
-              </FieldGroup>
-
-              {faqsLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={index} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : faqs.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No FAQs configured yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {faqs.map((faq) => (
-                    <div key={faq.id} className="rounded-lg border p-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-medium">{faq.question}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">{faq.answer}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={async () => {
-                            try {
-                              await deleteFaq(faq.id).unwrap();
-                              toast.success('FAQ removed');
-                            } catch {
-                              toast.error('Failed to remove FAQ');
-                            }
-                          }}
-                        >
-                          <TrashIcon className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <FaqsTab
+            newQuestion={newQuestion}
+            setNewQuestion={setNewQuestion}
+            newAnswer={newAnswer}
+            setNewAnswer={setNewAnswer}
+            handleAddFaq={handleAddFaq}
+            addingFaq={addingFaq}
+            faqsLoading={faqsLoading}
+            faqs={faqs}
+            deleteFaq={deleteFaq}
+          />
         </TabsContent>
 
         <TabsContent value="policies" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Policies</CardTitle>
-              <CardDescription>
-                Patient-facing policy snippets the receptionist should communicate during calls.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel>Policy type</FieldLabel>
-                  <Select value={newPolicyType} onValueChange={(value) => setNewPolicyType(value || 'cancellation')}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cancellation">Cancellation</SelectItem>
-                      <SelectItem value="no_show">No-show</SelectItem>
-                      <SelectItem value="payment">Payment</SelectItem>
-                      <SelectItem value="insurance">Insurance</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel>Content</FieldLabel>
-                  <Textarea value={newPolicyContent} onChange={(e) => setNewPolicyContent(e.target.value)} rows={2} placeholder="Please cancel at least 24 hours in advance." />
-                </Field>
-                <Button onClick={handleAddPolicy} disabled={addingPolicy}>
-                  <PlusIcon className="mr-1 size-4" />
-                  Add policy
-                </Button>
-              </FieldGroup>
-
-              {policiesLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 2 }).map((_, index) => (
-                    <Skeleton key={index} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : policies.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No policies configured yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {policies.map((policy) => {
-                    const policyDisplay = getPolicyDisplay(policy);
-
-                    return (
-                    <div key={policy.id} className="rounded-lg border p-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <Badge variant="outline" className="mb-1 capitalize">
-                            {policyDisplay.title}
-                          </Badge>
-                          <p className="text-sm text-muted-foreground">{policyDisplay.content}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={async () => {
-                            try {
-                              await deletePolicy(policy.id).unwrap();
-                              toast.success('Policy removed');
-                            } catch {
-                              toast.error('Failed to remove policy');
-                            }
-                          }}
-                        >
-                          <TrashIcon className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <PoliciesTab
+            newPolicyType={newPolicyType}
+            setNewPolicyType={setNewPolicyType}
+            newPolicyContent={newPolicyContent}
+            setNewPolicyContent={setNewPolicyContent}
+            handleAddPolicy={handleAddPolicy}
+            addingPolicy={addingPolicy}
+            policiesLoading={policiesLoading}
+            policies={policies}
+            deletePolicy={deletePolicy}
+          />
         </TabsContent>
       </Tabs>
     </div>
   );
-}
-
-function toScheduleForm(
-  clinicHours?: Record<string, unknown>,
-  bookingSchedule?: Record<string, unknown>,
-  current?: Record<WeekdayKey, ScheduleRow>,
-): Record<WeekdayKey, ScheduleRow> {
-  const source = bookingSchedule ?? clinicHours ?? {};
-  const base = current ?? DEFAULT_SCHEDULE;
-  if (Object.keys(source).length === 0) {
-    return { ...base };
-  }
-  const next = { ...base };
-
-  for (const day of WEEKDAYS) {
-    const rawValue = source?.[day.key];
-    if (!rawValue || typeof rawValue !== 'object') {
-      next[day.key] = { ...base[day.key], enabled: false };
-      continue;
-    }
-
-    const entry = rawValue as { start?: unknown; end?: unknown };
-    if (typeof entry.start === 'string' && typeof entry.end === 'string') {
-      next[day.key] = {
-        enabled: true,
-        start: entry.start,
-        end: entry.end,
-      };
-    }
-  }
-
-  return next;
-}
-
-function toSchedulePayload(schedule: Record<WeekdayKey, ScheduleRow>): Record<string, { start: string; end: string } | null> {
-  return WEEKDAYS.reduce<Record<string, { start: string; end: string } | null>>((acc, day) => {
-    const value = schedule[day.key];
-    acc[day.key] = value.enabled
-      ? { start: value.start, end: value.end }
-      : null;
-    return acc;
-  }, {});
-}
-
-function parseClosedDatesText(value: string): string[] {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
