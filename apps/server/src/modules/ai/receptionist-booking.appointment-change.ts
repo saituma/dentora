@@ -81,6 +81,7 @@ async function extractAppointmentChangeTurn(input: {
 
     const parsed = JSON.parse(normalizeJsonBlock(result.content)) as {
       mode?: AppointmentChangeMode | null;
+      phoneNumber?: string | null;
       patientName?: string | null;
       currentDate?: string | null;
       currentTime?: string | null;
@@ -91,15 +92,15 @@ async function extractAppointmentChangeTurn(input: {
     };
 
     return {
-      mode: parsed.mode ?? undefined,
-      phoneNumber: parsed.phoneNumber ?? undefined,
-      patientName: parsed.patientName ?? undefined,
-      currentDate: parsed.currentDate ?? undefined,
-      currentTime: parsed.currentTime ?? undefined,
-      preferredNewDate: parsed.preferredNewDate ?? undefined,
-      preferredNewTime: parsed.preferredNewTime ?? undefined,
-      confirmed: Boolean(parsed.confirmed),
-      declined: Boolean(parsed.declined),
+        mode: parsed.mode ?? undefined,
+        phoneNumber: parsed.phoneNumber ?? undefined,
+        patientName: parsed.patientName ?? undefined,
+        currentDate: parsed.currentDate ?? undefined,
+        currentTime: parsed.currentTime ?? undefined,
+        preferredNewDate: parsed.preferredNewDate ?? undefined,
+        preferredNewTime: parsed.preferredNewTime ?? undefined,
+        confirmed: Boolean(parsed.confirmed),
+        declined: Boolean(parsed.declined),
     };
   } catch (error) {
     logger.warn({ err: error, tenantId: input.tenantId }, 'Failed to parse appointment change extraction JSON');
@@ -188,7 +189,7 @@ async function executeAppointmentChange(input: {
     tenantId: input.tenantId,
     timezone,
     eventId: matchedEvent.eventId,
-    newSlot: { startIso: nextSlot.startIso, endIso: nextSlot.endIso },
+    slot: { startIso: nextSlot.startIso, endIso: nextSlot.endIso },
   });
 
   return `Done — I moved the appointment for ${input.state.patientName} to ${nextSlot.label}.`;
