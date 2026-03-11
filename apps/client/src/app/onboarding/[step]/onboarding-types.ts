@@ -43,7 +43,6 @@ export const STEPS = [
   { id: 'plan', label: 'Plan' },
   { id: 'knowledge-base', label: 'Knowledge' },
   { id: 'voice', label: 'Voice' },
-  { id: 'rules', label: 'Rules' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'schedule', label: 'Schedule' },
   { id: 'ai-chat', label: 'AI Chat' },
@@ -70,10 +69,6 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
     title: 'Choose voice and personality',
     description: 'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
   },
-  rules: {
-    title: 'Define booking rules',
-    description: 'Configure appointment length and policies your AI should always follow.',
-  },
   integrations: {
     title: 'Connect key tools',
     description: 'Integrate calendar tools now or skip and connect later from settings.',
@@ -83,8 +78,8 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
     description: 'Define real working days, opening hours, and break windows so booking always respects your clinic schedule.',
   },
   'ai-chat': {
-    title: 'Train your AI receptionist',
-    description: 'Upload reference files and clinic notes so your receptionist can use them as extra context.',
+    title: 'AI Chat to upload data',
+    description: 'Upload clinic docs, scripts, pricing, and FAQs so the AI answers like your front desk.',
   },
   'test-call': {
     title: 'Run a quick test call',

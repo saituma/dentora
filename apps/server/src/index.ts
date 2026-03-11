@@ -35,6 +35,9 @@ import { onboardingRouter } from './modules/onboarding/index.js';
 import { aiChatRouter } from './modules/ai-chat/index.js';
 import { llmRouter, attachReceptionistLiveWebSocket } from './modules/llm/index.js';
 import { apiKeyRouter } from './modules/api-keys/index.js';
+import { elevenlabsRouter } from './modules/elevenlabs/index.js';
+import { appointmentsRouter } from './modules/appointments/index.js';
+import { patientsRouter } from './modules/patients/index.js';
 
 const app = express();
 
@@ -108,6 +111,9 @@ app.use('/api/onboarding', onboardingRouter);
 app.use('/api/ai-chat', aiChatRouter);
 app.use('/api/llm', llmRouter);
 app.use('/api/api-keys', apiKeyRouter);
+app.use('/api/elevenlabs', elevenlabsRouter);
+app.use('/api/appointments', appointmentsRouter);
+app.use('/api/patients', patientsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

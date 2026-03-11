@@ -1,6 +1,7 @@
 import type { CalendarSlot } from '../integrations/integration.service.js';
 import type { TenantAIContext } from './ai.service.js';
 import type { PatientBookingDetails } from './receptionist-booking.types.js';
+import { normalizeMessage } from './receptionist-booking.utils.js';
 
 export function getTimezone(context: TenantAIContext): string {
   const clinic = context.clinic as { timezone?: string };
@@ -32,6 +33,64 @@ export function getBufferMinutes(context: TenantAIContext): number {
 
 export function clinicName(context: TenantAIContext): string {
   return context.clinicName || 'the clinic';
+}
+
+type StaffEntry = {
+  name: string;
+  role?: string;
+  phone?: string;
+  status?: 'available' | 'unavailable';
+};
+
+function parseStaffDirectory(context: TenantAIContext): StaffEntry[] {
+  const topics = context.policies
+    .flatMap((policy) => {
+      const rawTopics = (policy as { sensitiveTopics?: unknown }).sensitiveTopics;
+      return Array.isArray(rawTopics) ? rawTopics : [];
+    })
+    .map((topic) => topic as { type?: string; title?: string; content?: string })
+    .filter((topic) => topic.type === 'context_document' && typeof topic.content === 'string' && topic.content.trim())
+    .filter((topic) => (topic.title ?? '').toLowerCase().includes('staff'));
+
+  const entries: StaffEntry[] = [];
+  for (const topic of topics) {
+    const lines = topic.content!.split('\n').map((line) => line.trim()).filter(Boolean);
+    for (const line of lines) {
+      const parts = line.split(/[-•|]/).map((part) => part.trim()).filter(Boolean);
+      const phone = line.replace(/\D/g, '').trim();
+      const status = /\b(unavailable|off|away|out)\b/i.test(line)
+        ? 'unavailable'
+        : /\b(available|on|in)\b/i.test(line)
+          ? 'available'
+          : undefined;
+
+      const name = parts[0] ?? line;
+      const role = parts.length > 1 ? parts[1] : undefined;
+      entries.push({
+        name,
+        role,
+        phone: phone.length >= 7 ? phone : undefined,
+        status,
+      });
+    }
+  }
+
+  return entries;
+}
+
+export function findStaffMember(context: TenantAIContext, message: string): StaffEntry | null {
+  const staff = parseStaffDirectory(context);
+  if (staff.length === 0) return null;
+
+  const normalized = normalizeMessage(message);
+  const explicitMatch = staff.find((entry) => {
+    const nameKey = normalizeMessage(entry.name);
+    return nameKey && normalized.includes(nameKey);
+  });
+  if (explicitMatch) return explicitMatch;
+
+  const available = staff.find((entry) => entry.status !== 'unavailable');
+  return available ?? staff[0];
 }
 
 export function formatDateInTimezone(date: Date, timezone: string): string {

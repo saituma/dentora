@@ -40,10 +40,10 @@ export async function createGoogleCalendarAppointment(input: CreateCalendarAppoi
         summary: input.summary,
         description: [
           `Patient name: ${input.patient.fullName}`,
-          `Age: ${input.patient.age}`,
+          input.patient.age != null ? `Age: ${input.patient.age}` : null,
           `Phone: ${input.patient.phoneNumber}`,
           `Reason for visit: ${input.patient.reasonForVisit}`,
-        ].join('\n'),
+        ].filter(Boolean).join('\n'),
         start: {
           dateTime: input.slot.startIso,
           timeZone: input.timezone,
@@ -80,6 +80,12 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
     throw new ValidationError('Google Calendar is not connected for this clinic');
   }
 
+  const phoneKey = input.phoneNumber ? input.phoneNumber.replace(/\D/g, '') : '';
+  const patientKey = input.patientName?.trim().toLowerCase() ?? '';
+  if (!phoneKey && !patientKey) {
+    return null;
+  }
+
   const { accessToken } = await resolveValidGoogleAccessToken(integration);
   const calendarId = getCalendarId((integration.config ?? {}) as Record<string, unknown>);
   const [year, month, day] = input.appointmentDate.split('-').map(Number);
@@ -95,7 +101,11 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
   url.searchParams.set('orderBy', 'startTime');
   url.searchParams.set('timeMin', rangeStart.toISOString());
   url.searchParams.set('timeMax', rangeEnd.toISOString());
-  url.searchParams.set('q', input.patientName);
+  if (phoneKey) {
+    url.searchParams.set('q', phoneKey);
+  } else if (patientKey) {
+    url.searchParams.set('q', input.patientName ?? '');
+  }
 
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -117,7 +127,6 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
     }>;
   };
 
-  const patientKey = input.patientName.trim().toLowerCase();
   const requestedTime = parseTimeString(input.appointmentTime ?? null);
   const candidates = (payload.items ?? [])
     .filter((item) => item.status !== 'cancelled' && item.id)
@@ -126,8 +135,11 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
       const endIso = item.end?.dateTime ?? item.end?.date;
       if (!startIso || !endIso) return null;
 
-      const haystack = `${item.summary ?? ''} ${item.description ?? ''}`.toLowerCase();
-      if (patientKey && !haystack.includes(patientKey)) return null;
+      const haystack = `${item.summary ?? ''} ${item.description ?? ''}`;
+      const haystackLower = haystack.toLowerCase();
+      const haystackDigits = haystack.replace(/\D/g, '');
+      if (phoneKey && !haystackDigits.includes(phoneKey)) return null;
+      if (patientKey && !haystackLower.includes(patientKey)) return null;
 
       const startDate = new Date(startIso);
       const startParts = getFormatterParts(startDate, input.timezone);
@@ -192,7 +204,7 @@ export async function rescheduleGoogleCalendarAppointment(input: {
   tenantId: string;
   timezone: string;
   eventId: string;
-  newSlot: { startIso: string; endIso: string };
+  slot: { startIso: string; endIso: string };
 }): Promise<void> {
   const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
   if (!integration) {
@@ -210,8 +222,8 @@ export async function rescheduleGoogleCalendarAppointment(input: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        start: { dateTime: input.newSlot.startIso, timeZone: input.timezone },
-        end: { dateTime: input.newSlot.endIso, timeZone: input.timezone },
+        start: { dateTime: input.slot.startIso, timeZone: input.timezone },
+        end: { dateTime: input.slot.endIso, timeZone: input.timezone },
       }),
       signal: AbortSignal.timeout(15_000),
     },

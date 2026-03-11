@@ -30,6 +30,7 @@ import {
   normalizeJsonBlock,
   resolveRequestedDateFromMessage,
 } from './receptionist-booking.utils.js';
+import { findPatientProfileByPhone } from '../patients/patients.service.js';
 
 export function shouldHandleAppointmentChange(state: AppointmentChangeState, detectedMode: AppointmentChangeMode | null, message: string): boolean {
   return state.active || Boolean(detectedMode) || (Boolean(state.mode) && hasUsefulAppointmentDetails(message));
@@ -50,6 +51,7 @@ async function extractAppointmentChangeTurn(input: {
     'Return JSON only with this exact shape:',
     JSON.stringify({
       mode: null,
+      phoneNumber: null,
       patientName: null,
       currentDate: null,
       currentTime: null,
@@ -90,6 +92,7 @@ async function extractAppointmentChangeTurn(input: {
 
     return {
       mode: parsed.mode ?? undefined,
+      phoneNumber: parsed.phoneNumber ?? undefined,
       patientName: parsed.patientName ?? undefined,
       currentDate: parsed.currentDate ?? undefined,
       currentTime: parsed.currentTime ?? undefined,
@@ -111,6 +114,7 @@ async function extractAppointmentChangeTurn(input: {
 
 function mergeAppointmentChangeState(state: AppointmentChangeState, extraction: AppointmentChangeExtraction): void {
   if (extraction.mode) state.mode = extraction.mode;
+  if (extraction.phoneNumber) state.phoneNumber = extraction.phoneNumber.trim();
   if (extraction.patientName) state.patientName = extraction.patientName.trim();
   if (extraction.currentDate) state.currentDate = extraction.currentDate;
   if (extraction.currentTime) state.currentTime = extraction.currentTime;
@@ -119,19 +123,23 @@ function mergeAppointmentChangeState(state: AppointmentChangeState, extraction: 
 }
 
 function getMissingAppointmentChangeField(state: AppointmentChangeState): string | null {
-  if (!state.patientName) return 'patient_name';
+  if (!state.mode) return 'mode';
+  if (!state.phoneNumber) return 'phone_number';
+  if (!state.patientNameConfirmed) return 'patient_name_confirmed';
   if (!state.currentDate) return 'current_date';
   if (state.mode === 'reschedule' && !state.preferredNewDate) return 'new_date';
   return null;
 }
 
 function buildAppointmentChangeMissingFieldQuestion(state: AppointmentChangeState, missingField: string): string {
-  if (missingField === 'patient_name') return 'Please share the patient full name on the appointment.';
+  if (missingField === 'mode') return 'Would you like to reschedule or cancel the appointment?';
+  if (missingField === 'phone_number') return 'Please share the phone number on the appointment.';
+  if (missingField === 'patient_name_confirmed') return `Please confirm: is the appointment under ${state.patientName ?? 'this name'}?`;
   if (missingField === 'current_date') return 'Please share the current appointment day you want to change (for example, tomorrow or 2026-03-10).';
   if (missingField === 'new_date') return 'Please share the new day you want instead.';
   return state.mode === 'cancel'
-    ? 'Please share the patient name and appointment date/time to cancel.'
-    : 'Please share the patient name, current appointment date/time, and preferred new date/time.';
+    ? 'Please share the phone number, patient name, and appointment date/time to cancel.'
+    : 'Please share the phone number, patient name, current appointment date/time, and preferred new date/time.';
 }
 
 async function executeAppointmentChange(input: {
@@ -143,7 +151,8 @@ async function executeAppointmentChange(input: {
   const matchedEvent = await findGoogleCalendarAppointment({
     tenantId: input.tenantId,
     timezone,
-    patientName: input.state.patientName!,
+    patientName: input.state.patientName,
+    phoneNumber: input.state.phoneNumber,
     appointmentDate: input.state.currentDate!,
     appointmentTime: input.state.currentTime,
   });
@@ -199,9 +208,9 @@ export async function handleAppointmentChangeTurn(input: {
     state.mode = detectedMode;
     state.status = 'collecting_details';
     state.confirmationRequested = false;
-    return detectedMode === 'cancel'
-      ? `Absolutely — I can help cancel an appointment at ${clinicName(context)}. Please share the patient full name and appointment day/time.`
-      : `Absolutely — I can help reschedule an appointment at ${clinicName(context)}. Please share the patient full name, current appointment day/time, and preferred new day/time.`;
+    return detectedMode
+      ? `Absolutely — I can help ${detectedMode === 'cancel' ? 'cancel' : 'reschedule'} an appointment at ${clinicName(context)}. Please share the phone number on the appointment.`
+      : `Absolutely — I can help with that at ${clinicName(context)}. Would you like to reschedule or cancel the appointment?`;
   }
 
   if (detectedMode && state.mode !== detectedMode) {
@@ -210,8 +219,8 @@ export async function handleAppointmentChangeTurn(input: {
     state.mode = detectedMode;
     state.status = 'collecting_details';
     return detectedMode === 'cancel'
-      ? 'Sure, switching to cancellation. Please share the patient full name and appointment day/time.'
-      : 'Sure, switching to rescheduling. Please share the patient full name, current appointment day/time, and preferred new day/time.';
+      ? 'Sure, switching to cancellation. Please share the phone number on the appointment.'
+      : 'Sure, switching to rescheduling. Please share the phone number on the appointment.';
   }
 
   const extraction = await extractAppointmentChangeTurn({
@@ -221,6 +230,59 @@ export async function handleAppointmentChangeTurn(input: {
     modeHint: state.mode,
   });
   mergeAppointmentChangeState(state, extraction);
+
+  if (state.phoneNumber && !state.patientName) {
+    const patient = await findPatientProfileByPhone({
+      tenantId,
+      phoneNumber: state.phoneNumber,
+    });
+
+    if (!patient) {
+      Object.assign(state, createEmptyAppointmentChangeState());
+      return 'That phone number is not found in the appointment history. Sorry, please try again.';
+    }
+
+    state.patientName = patient.fullName;
+    state.patientNameConfirmed = false;
+    state.status = 'collecting_details';
+    return `I found ${patient.fullName} for that phone number. Is that the correct patient?`;
+  }
+
+  if (state.patientName && !state.patientNameConfirmed) {
+    if (extraction.confirmed || isAffirmativeMessage(userMessage)) {
+      state.patientNameConfirmed = true;
+      if (!state.mode) {
+        return 'Would you like to reschedule or cancel the appointment?';
+      }
+    } else if (extraction.declined || isNegativeMessage(userMessage)) {
+      Object.assign(state, createEmptyAppointmentChangeState());
+      return 'Thanks for clarifying. Please provide the correct phone number or we can connect you with the front desk.';
+    } else {
+      return `Please confirm if the appointment is under ${state.patientName}.`;
+    }
+  }
+
+  if (!state.mode) {
+    return 'Would you like to reschedule or cancel the appointment?';
+  }
+
+  if (state.phoneNumber && state.currentDate && !state.patientName) {
+    const phoneMatch = await findGoogleCalendarAppointment({
+      tenantId,
+      timezone: getTimezone(context),
+      phoneNumber: state.phoneNumber,
+      appointmentDate: state.currentDate,
+      appointmentTime: state.currentTime,
+    });
+
+    if (!phoneMatch) {
+      state.status = 'collecting_details';
+      return 'I could not find an appointment with that phone number on that day. Please verify the phone number and appointment date/time.';
+    }
+
+    state.status = 'collecting_details';
+    return 'Thanks. Please confirm the patient full name on that appointment.';
+  }
 
   const missingField = getMissingAppointmentChangeField(state);
   if (missingField) {

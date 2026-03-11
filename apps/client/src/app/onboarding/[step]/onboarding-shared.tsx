@@ -91,5 +91,55 @@ function getSupportedContextFileExtension(fileName: string): string {
 
 export function isSupportedContextFile(file: File): boolean {
   const extension = getSupportedContextFileExtension(file.name);
-  return file.type.startsWith('text/') || ['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(extension);
+  return file.type.startsWith('text/') || ['txt', 'md', 'csv', 'json', 'xml', 'html', 'pdf', 'docx', 'xlsx'].includes(extension);
+}
+
+export async function readContextFileContent(file: File): Promise<string> {
+  const extension = getSupportedContextFileExtension(file.name);
+  if (file.type.startsWith('text/') || ['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(extension)) {
+    return (await file.text()).trim();
+  }
+
+  if (extension === 'pdf') {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf');
+    if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url,
+      ).toString();
+    }
+    const data = new Uint8Array(await file.arrayBuffer());
+    const doc = await pdfjs.getDocument({ data }).promise;
+    let text = '';
+    for (let i = 1; i <= doc.numPages; i += 1) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => (typeof (item as { str?: string }).str === 'string' ? (item as { str: string }).str : ''))
+        .join(' ');
+      text += `${pageText}\n`;
+    }
+    return text.trim();
+  }
+
+  if (extension === 'docx') {
+    const mammoth = await import('mammoth/mammoth.browser');
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return (result.value ?? '').trim();
+  }
+
+  if (extension === 'xlsx') {
+    const XLSX = await import('xlsx');
+    const data = new Uint8Array(await file.arrayBuffer());
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheets = workbook.SheetNames.map((name) => {
+      const sheet = workbook.Sheets[name];
+      const csv = XLSX.utils.sheet_to_csv(sheet);
+      return `# ${name}\n${csv}`;
+    });
+    return sheets.join('\n').trim();
+  }
+
+  return '';
 }

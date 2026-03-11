@@ -56,16 +56,18 @@ export interface CreateCalendarAppointmentInput {
   summary: string;
   patient: {
     fullName: string;
-    age: number;
+    age?: number | null;
     phoneNumber: string;
     reasonForVisit: string;
+    dateOfBirth?: string | null;
   };
 }
 
 export interface FindCalendarAppointmentInput {
   tenantId: string;
   timezone: string;
-  patientName: string;
+  patientName?: string;
+  phoneNumber?: string;
   appointmentDate: string;
   appointmentTime?: string | null;
 }

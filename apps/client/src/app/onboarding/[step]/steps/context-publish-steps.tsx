@@ -21,13 +21,13 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
           <div className="space-y-4 rounded-2xl border bg-muted/10 p-4 sm:p-5">
             <div className="rounded-xl border bg-background p-4">
               <p className="text-sm font-medium">Upload AI context files</p>
-              <p className="mt-2 text-sm text-muted-foreground">Drag and drop reference material like SOPs, call scripts, pricing notes, insurance notes, or clinic policies. Supported file types: TXT, MD, CSV, JSON, XML, and HTML.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Drag and drop reference material like SOPs, call scripts, pricing notes, insurance notes, or clinic policies. Supported file types: TXT, MD, CSV, JSON, XML, HTML, PDF, DOCX, and XLSX.</p>
             </div>
             <input
               ref={flow.fileInputRef}
               type="file"
               multiple
-              accept=".txt,.md,.csv,.json,.xml,.html,text/plain,text/markdown,text/csv,application/json,text/xml,text/html"
+              accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.xlsx,text/plain,text/markdown,text/csv,application/json,text/xml,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
               onChange={(event) => {
                 if (event.target.files) {

@@ -4,6 +4,8 @@ import * as onboardingService from './onboarding.service.js';
 import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
 import { z } from 'zod';
 import { ValidationError } from '../../lib/errors.js';
+import { resolveApiKey } from '../api-keys/api-key.service.js';
+import { logger } from '../../lib/logger.js';
 
 export const onboardingRouter = Router();
 
@@ -172,6 +174,7 @@ onboardingRouter.post(
       language: z.string().optional(),
       greeting: z.string().optional(),
       voiceId: z.string().optional(),
+      agentId: z.string().optional(),
       speed: z.number().min(0.5).max(2.0).optional(),
       verbosityLevel: z.enum(['short', 'balanced', 'detailed']).optional(),
       empathyLevel: z.enum(['low', 'medium', 'high']).optional(),
@@ -180,11 +183,41 @@ onboardingRouter.post(
   }),
   async (req, res, next) => {
     try {
-      await onboardingService.saveVoiceProfile(req.tenantContext!.tenantId, req.body);
+      const tenantId = req.tenantContext!.tenantId;
+      const body = { ...req.body } as typeof req.body & { voiceId?: string };
+
+      if (body.agentId) {
+        try {
+          const { apiKey } = await resolveApiKey(tenantId, 'elevenlabs');
+          const agentResponse = await fetch(
+            `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(body.agentId)}`,
+            {
+              headers: { 'xi-api-key': apiKey },
+            },
+          );
+
+          if (agentResponse.ok) {
+            const agentPayload = await agentResponse.json() as {
+              conversation_config?: { tts?: { voice_id?: string } };
+            };
+            const agentVoiceId = agentPayload.conversation_config?.tts?.voice_id;
+            if (agentVoiceId) {
+              body.voiceId = agentVoiceId;
+            }
+          } else {
+            const errorBody = await agentResponse.text();
+            logger.warn({ errorBody, agentId: body.agentId }, 'Failed to resolve ElevenLabs agent voice_id');
+          }
+        } catch (error) {
+          logger.warn({ err: error, agentId: body.agentId }, 'Failed to resolve ElevenLabs agent voice_id');
+        }
+      }
+
+      await onboardingService.saveVoiceProfile(tenantId, body);
       req.audit?.({
         action: 'onboarding.voice_saved',
         entityType: 'voice_profile',
-        afterState: req.body,
+        afterState: body,
       });
       res.json({ success: true, step: 'voice' });
     } catch (err) {

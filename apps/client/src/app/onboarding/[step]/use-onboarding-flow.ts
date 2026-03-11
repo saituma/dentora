@@ -35,7 +35,7 @@ import {
   type BreakableScheduleRow as ScheduleRow,
   type WeekdayKey,
 } from '@/features/aiConfig/schedule';
-import { isAgentVoice, isSupportedContextFile, isUkVoice } from './onboarding-shared';
+import { isAgentVoice, isSupportedContextFile, isUkVoice, readContextFileContent } from './onboarding-shared';
 import type { KnowledgeFaqForm, KnowledgeServiceForm, UploadedContextFile } from './onboarding-types';
 import { STEP_ORDER } from './onboarding-types';
 
@@ -71,6 +71,7 @@ export function useOnboardingFlow() {
   const [selectedPlan, setSelectedPlan] = useState<'starter' | 'growth' | 'pro'>('growth');
   const [greeting, setGreeting] = useState('Hi, welcome to our clinic, what can I help you with today?');
   const [selectedVoiceId, setSelectedVoiceId] = useState('professional');
+  const [selectedAgentId, setSelectedAgentId] = useState('agent_5401kkemwc0sf23tw2km4ct4qpm9');
   const [speakingSpeed, setSpeakingSpeed] = useState(1.0);
   const [defaultDuration, setDefaultDuration] = useState(30);
   const [cancellationHours, setCancellationHours] = useState(24);
@@ -128,6 +129,7 @@ export function useOnboardingFlow() {
   useEffect(() => {
     if (!voiceProfileData) return;
     if (voiceProfileData.voiceId) setSelectedVoiceId(voiceProfileData.voiceId);
+    if (voiceProfileData.voiceAgentId) setSelectedAgentId(voiceProfileData.voiceAgentId);
     if (voiceProfileData.greetingMessage) setGreeting(voiceProfileData.greetingMessage);
     if (voiceProfileData.speechSpeed) setSpeakingSpeed(Number(voiceProfileData.speechSpeed));
   }, [voiceProfileData]);
@@ -220,16 +222,17 @@ export function useOnboardingFlow() {
     const selectedFiles = Array.from(files);
     if (selectedFiles.length === 0) return;
     const nextFiles: UploadedContextFile[] = [];
+    const maxSizeBytes = 5 * 1024 * 1024;
     for (const file of selectedFiles) {
-      if (file.size > 1024 * 1024) {
-        toast.error(`${file.name} is too large. Keep each file under 1MB.`);
+      if (file.size > maxSizeBytes) {
+        toast.error(`${file.name} is too large. Keep each file under 5MB.`);
         continue;
       }
       if (!isSupportedContextFile(file)) {
-        toast.error(`${file.name} is not supported yet. Use TXT, MD, CSV, JSON, XML, or HTML files.`);
+        toast.error(`${file.name} is not supported yet. Use TXT, MD, CSV, JSON, XML, HTML, PDF, DOCX, or XLSX files.`);
         continue;
       }
-      const content = (await file.text()).trim();
+      const content = (await readContextFileContent(file)).trim();
       if (!content) {
         toast.error(`${file.name} is empty.`);
         continue;
@@ -300,6 +303,8 @@ export function useOnboardingFlow() {
     setGreeting,
     selectedVoiceId,
     setSelectedVoiceId,
+    selectedAgentId,
+    setSelectedAgentId,
     speakingSpeed,
     setSpeakingSpeed,
     defaultDuration,

@@ -2,6 +2,7 @@ export interface VoiceProfile {
   id: string;
   tenantId: string;
   voiceId?: string;
+  voiceAgentId?: string;
   greetingMessage?: string;
   tone?: 'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm';
   speechSpeed?: number;

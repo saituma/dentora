@@ -33,6 +33,7 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().default('redis://localhost:6379'),
   REDIS_MAX_CONNECTIONS: z.coerce.number().min(1).max(500).default(50),
+  REDIS_DISABLED: z.coerce.boolean().default(false),
 
   ENCRYPTION_KEY: z.string().length(64).default('0'.repeat(64)),
 

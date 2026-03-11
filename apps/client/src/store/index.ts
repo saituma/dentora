@@ -16,6 +16,9 @@ import { integrationsApi } from "@/features/integrations/integrationsApi";
 import { billingApi } from "@/features/billing/billingApi";
 import { onboardingApi } from "@/features/onboarding/onboardingApi";
 import { llmApi } from "@/features/llm/llmApi";
+import { elevenlabsApi } from "@/features/elevenlabs/elevenlabsApi";
+import { appointmentsApi } from "@/features/appointments/appointmentsApi";
+import { patientsApi } from "@/features/patients/patientsApi";
 
 export const store = configureStore({
   reducer: {
@@ -36,6 +39,9 @@ export const store = configureStore({
     [billingApi.reducerPath]: billingApi.reducer,
     [onboardingApi.reducerPath]: onboardingApi.reducer,
     [llmApi.reducerPath]: llmApi.reducer,
+    [elevenlabsApi.reducerPath]: elevenlabsApi.reducer,
+    [appointmentsApi.reducerPath]: appointmentsApi.reducer,
+    [patientsApi.reducerPath]: patientsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -50,6 +56,9 @@ export const store = configureStore({
       billingApi.middleware,
       onboardingApi.middleware,
       llmApi.middleware,
+      elevenlabsApi.middleware,
+      appointmentsApi.middleware,
+      patientsApi.middleware,
     ),
 });
 

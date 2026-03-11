@@ -225,6 +225,7 @@ export async function saveVoiceProfile(
     language?: string;
     greeting?: string;
     voiceId?: string;
+    agentId?: string;
     speed?: number;
     verbosityLevel?: string;
     empathyLevel?: string;
@@ -242,6 +243,7 @@ export async function saveVoiceProfile(
   const values = {
     tone: normalizedTone ?? 'professional',
     voiceId: data.voiceId ?? 'default',
+    voiceAgentId: typeof data.agentId === 'string' ? data.agentId : undefined,
     speakingSpeed: String(data.speed ?? 1),
     greetingMessage: data.greeting ?? null,
     language: data.language ?? 'en',

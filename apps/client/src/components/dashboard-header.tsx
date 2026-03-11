@@ -36,7 +36,9 @@ import {
 const TITLES: Record<string, string> = {
   '/dashboard': 'Overview',
   '/dashboard/ai-receptionist': 'AI Receptionist',
-  '/dashboard/test-ai-receptionist': 'Test AI Receptionist',
+  '/dashboard/elevenlabs-agent': 'ElevenLabs Agent',
+  '/dashboard/appointments': 'Appointments',
+  '/dashboard/patients': 'Patients',
   '/dashboard/calls': 'Call History',
   '/dashboard/analytics': 'Analytics',
   '/dashboard/integrations': 'Integrations',

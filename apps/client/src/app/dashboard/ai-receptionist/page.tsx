@@ -37,12 +37,14 @@ import {
   type WeekdayKey,
 } from '@/features/aiConfig/schedule';
 import { ClinicSetupTab } from '@/app/dashboard/ai-receptionist/clinic-setup-tab';
+import { ClinicInfoTab } from '@/app/dashboard/ai-receptionist/clinic-info-tab';
 import { VoiceTab } from '@/app/dashboard/ai-receptionist/voice-tab';
 import {
   FaqsTab,
   PoliciesTab,
   ServicesTab,
 } from '@/app/dashboard/ai-receptionist/resource-tabs';
+import { useSaveContextDocumentsMutation } from '@/features/onboarding/onboardingApi';
 
 export default function AiReceptionistPage() {
   const { data: clinic, isLoading: clinicLoading } = useGetClinicQuery();
@@ -71,6 +73,7 @@ export default function AiReceptionistPage() {
   const policies = policiesData?.data ?? [];
   const [addPolicy, { isLoading: addingPolicy }] = useAddPolicyMutation();
   const [deletePolicy] = useDeletePolicyMutation();
+  const [saveContextDocuments, { isLoading: savingContext }] = useSaveContextDocumentsMutation();
 
   const [clinicName, setClinicName] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
@@ -93,6 +96,8 @@ export default function AiReceptionistPage() {
   const [newAnswer, setNewAnswer] = useState('');
   const [newPolicyType, setNewPolicyType] = useState('cancellation');
   const [newPolicyContent, setNewPolicyContent] = useState('');
+  const [staffDirectory, setStaffDirectory] = useState('');
+  const [clinicNotes, setClinicNotes] = useState('');
 
   const availableVoices = voicesData?.data ?? [];
   const selectedVoice = availableVoices.find((voice) => voice.voiceId === voiceId) ?? null;
@@ -131,6 +136,20 @@ export default function AiReceptionistPage() {
     }
   }, [voiceProfile]);
 
+  useEffect(() => {
+    const policy = policiesData?.data?.[0];
+    const contextDocs = (policy?.sensitiveTopics ?? [])
+      .filter((topic) => topic?.type === 'context_document')
+      .map((topic) => ({
+        title: String(topic.title ?? ''),
+        content: String(topic.content ?? ''),
+      }));
+    const staffDoc = contextDocs.find((doc) => doc.title === 'Staff Directory');
+    const notesDoc = contextDocs.find((doc) => doc.title === 'Clinic Notes');
+    if (staffDoc && !staffDirectory) setStaffDirectory(staffDoc.content);
+    if (notesDoc && !clinicNotes) setClinicNotes(notesDoc.content);
+  }, [policiesData?.data, staffDirectory, clinicNotes]);
+
   const handleSaveClinicSetup = async () => {
     const schedulePayload = toSchedulePayload(schedule);
     const closedDates = parseClosedDatesText(closedDatesText);
@@ -159,7 +178,9 @@ export default function AiReceptionistPage() {
 
   const handleConnectCalendar = async () => {
     try {
-      const result = await startGoogleCalendarOAuth({}).unwrap();
+      const result = await startGoogleCalendarOAuth({
+        returnTo: window.location.href,
+      }).unwrap();
       window.location.href = result.authUrl;
     } catch {
       toast.error('Failed to start Google Calendar connection');
@@ -241,6 +262,41 @@ export default function AiReceptionistPage() {
     }
   };
 
+  const handleSaveClinicInfo = async (staffDirectoryOverride?: string) => {
+    const staffValue = staffDirectoryOverride ?? staffDirectory;
+    const policy = policiesData?.data?.[0];
+    const existingDocs = (policy?.sensitiveTopics ?? [])
+      .filter((topic) => topic?.type === 'context_document')
+      .map((topic) => ({
+        name: String(topic.title ?? ''),
+        content: String(topic.content ?? ''),
+        mimeType: String(topic.mimeType ?? 'text/plain'),
+      }));
+    const retained = existingDocs.filter((doc) => doc.name !== 'Staff Directory' && doc.name !== 'Clinic Notes');
+
+    const documents = [
+      ...retained,
+      ...(staffValue.trim()
+        ? [{ name: 'Staff Directory', content: staffValue.trim(), mimeType: 'text/plain' }]
+        : []),
+      ...(clinicNotes.trim()
+        ? [{ name: 'Clinic Notes', content: clinicNotes.trim(), mimeType: 'text/plain' }]
+        : []),
+    ];
+
+    if (documents.length === 0) {
+      toast.error('Add staff details or clinic notes before saving.');
+      return;
+    }
+
+    try {
+      await saveContextDocuments({ documents }).unwrap();
+      toast.success('Clinic info saved');
+    } catch {
+      toast.error('Failed to save clinic info');
+    }
+  };
+
   const saveLoading = clinicSaving || rulesSaving;
 
   return (
@@ -255,6 +311,7 @@ export default function AiReceptionistPage() {
       <Tabs defaultValue="clinic" className="space-y-6">
         <TabsList>
           <TabsTrigger value="clinic">Clinic Setup</TabsTrigger>
+          <TabsTrigger value="info">Clinic Info</TabsTrigger>
           <TabsTrigger value="voice">Voice</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="faqs">FAQs</TabsTrigger>
@@ -286,6 +343,18 @@ export default function AiReceptionistPage() {
             handleConnectCalendar={handleConnectCalendar}
             handleSaveClinicSetup={handleSaveClinicSetup}
             saveLoading={saveLoading}
+          />
+        </TabsContent>
+
+        <TabsContent value="info" className="space-y-6">
+          <ClinicInfoTab
+            loading={policiesLoading}
+            staffDirectory={staffDirectory}
+            setStaffDirectory={setStaffDirectory}
+            clinicNotes={clinicNotes}
+            setClinicNotes={setClinicNotes}
+            onSave={handleSaveClinicInfo}
+            saving={savingContext}
           />
         </TabsContent>
 

@@ -92,6 +92,21 @@ export const clinicProfile = pgTable('clinic_profile', {
   index('clinic_profile_tenant_status_idx').on(table.tenantId, table.status),
 ]);
 
+export const patientProfiles = pgTable('patient_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenantRegistry.id),
+  fullName: text('full_name').notNull(),
+  dateOfBirth: text('date_of_birth'),
+  phoneNumber: text('phone_number').notNull(),
+  lastVisitAt: timestamp('last_visit_at', { withTimezone: true }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('patient_profiles_tenant_phone_idx').on(table.tenantId, table.phoneNumber),
+  uniqueIndex('patient_profiles_tenant_phone_dob_idx').on(table.tenantId, table.phoneNumber, table.dateOfBirth),
+]);
+
 export const services = pgTable('services', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenantRegistry.id),
@@ -158,6 +173,7 @@ export const voiceProfile = pgTable('voice_profile', {
   tenantId: uuid('tenant_id').notNull().references(() => tenantRegistry.id),
   configVersion: integer('config_version'),
   voiceId: text('voice_id'),
+  voiceAgentId: text('voice_agent_id'),
   speakingSpeed: numeric('speaking_speed', { precision: 3, scale: 2 }),
   speechSpeed: numeric('speech_speed', { precision: 3, scale: 2 }),
   tone: voiceToneEnum('tone').default('professional'),
@@ -448,6 +464,7 @@ export const tenantApiKeysRelations = relations(tenantApiKeys, ({ one }) => ({
 export const tenantRegistryRelations = relations(tenantRegistry, ({ many }) => ({
   twilioNumbers: many(twilioNumbers),
   clinicProfiles: many(clinicProfile),
+  patientProfiles: many(patientProfiles),
   services: many(services),
   bookingRules: many(bookingRules),
   policies: many(policies),
@@ -466,6 +483,10 @@ export const twilioNumbersRelations = relations(twilioNumbers, ({ one }) => ({
 
 export const clinicProfileRelations = relations(clinicProfile, ({ one }) => ({
   tenant: one(tenantRegistry, { fields: [clinicProfile.tenantId], references: [tenantRegistry.id] }),
+}));
+
+export const patientProfilesRelations = relations(patientProfiles, ({ one }) => ({
+  tenant: one(tenantRegistry, { fields: [patientProfiles.tenantId], references: [tenantRegistry.id] }),
 }));
 
 export const servicesRelations = relations(services, ({ one }) => ({

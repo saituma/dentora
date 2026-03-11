@@ -9,6 +9,7 @@ export function createEmptyAppointmentChangeState(): AppointmentChangeState {
     active: false,
     mode: null,
     status: 'idle',
+    patientNameConfirmed: false,
     confirmationRequested: false,
   };
 }

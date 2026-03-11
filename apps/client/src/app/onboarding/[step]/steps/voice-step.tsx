@@ -1,117 +1,167 @@
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import { AudioPreviewPlayer } from '../onboarding-shared';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders } from '@/lib/api';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 
+const AGENT_OPTIONS = [
+  { id: 'agent_5401kkemwc0sf23tw2km4ct4qpm9', label: 'UK English • Female', name: 'Receptionist (UK Female)' },
+  { id: 'agent_7401kkf7jzaafm6bxs3h7pehy8g9', label: 'UK English • Male', name: 'Receptionist 2 (UK Male)' },
+  { id: 'agent_1001kkfaz2jzf12vz8aba2qvd5e1', label: 'US English • Female', name: 'Receptionist 3 (US Female)' },
+  { id: 'agent_9401kkfb3cd0fny93awrprn7sr0k', label: 'US English • Male', name: 'Receptionist 4 (US Male)' },
+];
+
 export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
+  const [previewAgentId, setPreviewAgentId] = useState<string | null>(null);
+  const [previewStarting, setPreviewStarting] = useState(false);
+  const [previewLoadingAgentId, setPreviewLoadingAgentId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+
+  const startPreview = async (agentId: string) => {
+    if (previewStarting) return;
+    setPreviewStarting(true);
+    setPreviewLoadingAgentId(agentId);
+    try {
+      const greeting = flow.greeting?.trim() || 'Hi, welcome to our clinic. How can I help you today?';
+      const token = await ensureFreshAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      const auth = token ? { Authorization: `Bearer ${token}` } : getAuthHeaders();
+      if (auth && typeof auth === 'object') {
+        Object.assign(headers, auth as Record<string, string>);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/elevenlabs/convai/agent-voice-preview`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          agentId,
+          text: greeting,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Preview request failed: ${response.status} ${errorBody}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audioUrlRef.current = url;
+      audio.onended = () => {
+        setPreviewAgentId(null);
+        if (audioUrlRef.current === url) {
+          URL.revokeObjectURL(url);
+          audioUrlRef.current = null;
+        }
+      };
+      audio.onerror = () => {
+        setPreviewAgentId(null);
+        if (audioUrlRef.current === url) {
+          URL.revokeObjectURL(url);
+          audioUrlRef.current = null;
+        }
+      };
+      await audio.play();
+      setPreviewAgentId(agentId);
+    } catch (error) {
+      toast.error(getUserFriendlyApiError(error));
+    } finally {
+      setPreviewStarting(false);
+      setPreviewLoadingAgentId(null);
+    }
+  };
+
+  const stopPreview = async () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+      setPreviewAgentId(null);
+      setPreviewLoadingAgentId(null);
+    } catch (error) {
+      toast.error(getUserFriendlyApiError(error));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="border-0 bg-card shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl">Choose a voice</CardTitle>
-          <CardDescription>Choose from the ElevenLabs voices available to your configured API key.</CardDescription>
+          <CardTitle className="text-xl">Choose an agent voice</CardTitle>
+          <CardDescription>Select the ElevenLabs Conversational AI agent that will handle live calls.</CardDescription>
         </CardHeader>
         <CardContent>
-          {flow.availableVoices.length === 0 ? (
-            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
-              ElevenLabs returned voices for this account, but none of them are free live-supported API voices. On this account, those voices can be previewed, but not used for live call speech.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-                {flow.ukAgentVoices.length > 0
-                  ? 'Showing free UK agent voices first. Voice samples use ElevenLabs preview clips so they still work without paid TTS preview credits.'
-                  : flow.agentVoices.length > 0
-                    ? 'Showing free ElevenLabs agent voices first so the receptionist sounds more natural for live calls.'
-                    : flow.ukVoices.length > 0
-                      ? 'No free agent voices were returned, so free UK-accent voices are shown instead.'
-                      : 'No free UK or agent-specific voices were returned by ElevenLabs, so all free live-supported voices are shown instead.'}
-              </div>
-              <Field>
-                <FieldLabel>Available voices</FieldLabel>
-                <Select value={flow.selectedVoiceId} onValueChange={(value) => flow.setSelectedVoiceId(value || 'professional')}>
-                  <SelectTrigger><SelectValue placeholder="Select a voice" /></SelectTrigger>
-                  <SelectContent>
-                    {flow.availableVoices.map((voice) => (
-                      <SelectItem key={voice.voiceId} value={voice.voiceId}>
-                        {voice.name}{voice.label ? ` - ${voice.label}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {flow.availableVoices.map((voice) => (
-                  <div
-                    key={voice.voiceId}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => flow.setSelectedVoiceId(voice.voiceId)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        flow.setSelectedVoiceId(voice.voiceId);
+          <div className="grid gap-4 sm:grid-cols-2">
+            {AGENT_OPTIONS.map((agent) => (
+              <div
+                key={agent.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => flow.setSelectedAgentId(agent.id)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    flow.setSelectedAgentId(agent.id);
+                  }
+                }}
+                className={`rounded-xl border p-4 transition ${flow.selectedAgentId === agent.id ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/40'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{agent.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{agent.label}</p>
+                  </div>
+                  {flow.selectedAgentId === agent.id && <Badge variant="default">Selected</Badge>}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={previewStarting && previewLoadingAgentId !== agent.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (previewAgentId === agent.id) {
+                        void stopPreview();
+                      } else {
+                        void startPreview(agent.id);
                       }
                     }}
-                    className={`rounded-xl border p-4 transition ${flow.selectedVoiceId === voice.voiceId ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-primary/40'}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold">{voice.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{voice.label || 'ElevenLabs voice'}</p>
-                      </div>
-                      {flow.selectedVoiceId === voice.voiceId && <Badge variant="default">Selected</Badge>}
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {voice.gender && <Badge variant="outline">{voice.gender}</Badge>}
-                      {voice.accent && <Badge variant="outline">{voice.accent}</Badge>}
-                      {voice.locale && <Badge variant="outline">{voice.locale}</Badge>}
-                      {voice.requiresPaidPlan && <Badge variant="secondary">Paid plan for live calls</Badge>}
-                    </div>
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!voice.previewUrl}
-                        onClick={async (event) => {
-                          event.stopPropagation();
-                          try {
-                            if (!voice.previewUrl) return;
-                            const audio = new Audio(voice.previewUrl);
-                            await audio.play();
-                          } catch {
-                            toast.error('Could not play the ElevenLabs sample clip. Try again.');
-                          }
-                        }}
-                      >
-                        {voice.previewUrl ? 'Play sample' : 'No sample clip'}
-                      </Button>
-                      {voice.previewUrl && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            window.open(voice.previewUrl, '_blank', 'noopener,noreferrer');
-                          }}
-                        >
-                          ElevenLabs sample
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                    {previewLoadingAgentId === agent.id ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/40 border-t-primary" />
+                        Loading...
+                      </span>
+                    ) : (
+                      previewAgentId === agent.id ? 'Stop preview' : 'Play voice'
+                    )}
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Plays the greeting in this step.</span>
+                </div>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -144,25 +194,13 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
         </CardHeader>
         <CardContent>
           <FieldGroup>
-            {flow.selectedVoiceRequiresPaidPlan && (
-              <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
-                The selected ElevenLabs voice is a library voice and needs a paid ElevenLabs plan for live call speech. You can still use its free sample clip, but choose a live-supported voice before continuing.
-              </div>
-            )}
             <Field>
               <FieldLabel>Greeting</FieldLabel>
               <Textarea value={flow.greeting} onChange={(event) => flow.setGreeting(event.target.value)} rows={3} placeholder="Hi, welcome to Bright Smile Dental, what can I help you with today?" />
             </Field>
-            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-700">
-              Custom greeting preview needs a paid ElevenLabs text-to-speech request. You can still use the selected voice sample below for free.
+            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Use the live voice test above to hear the greeting spoken by the selected agent voice.
             </div>
-            {flow.selectedVoice?.previewUrl ? (
-              <AudioPreviewPlayer src={flow.selectedVoice.previewUrl} idleLabel="Play selected voice sample" playingLabel="Playing selected voice sample..." />
-            ) : (
-              <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                The selected voice does not include a free ElevenLabs sample clip.
-              </div>
-            )}
           </FieldGroup>
         </CardContent>
       </Card>
@@ -173,19 +211,27 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
           disabled={flow.savingVoice}
           onClick={async () => {
             try {
-              if (flow.selectedVoiceRequiresPaidPlan) {
-                toast.error('Choose a live-supported voice. This library voice needs a paid ElevenLabs plan for live call speech.');
-                return;
-              }
               await flow.saveVoiceProfile({
                 voiceId: flow.selectedVoiceId,
+                agentId: flow.selectedAgentId,
                 tone: 'professional',
                 greeting: flow.greeting,
                 speed: flow.speakingSpeed,
                 language: flow.selectedVoice?.locale ?? 'en-US',
               }).unwrap();
+              await flow.saveBookingRules({
+                advanceBookingDays: flow.advanceBookingDays,
+                cancellationHours: flow.cancellationHours,
+                defaultAppointmentDurationMinutes: flow.defaultDuration,
+              }).unwrap();
+              await flow.savePolicies({
+                policies: [
+                  { policyType: 'escalation', content: 'Escalate to a human team member when the caller asks for clinical advice, has unresolved billing disputes, or requests manager intervention.' },
+                  { policyType: 'emergency', content: 'If the caller reports severe pain, bleeding, trauma, or breathing issues, instruct them to call 911 immediately and notify the on-call staff.' },
+                ],
+              }).unwrap();
               toast.success('Voice profile saved');
-              flow.goNext('rules');
+              flow.goNext('integrations');
             } catch (error: unknown) {
               toast.error(getUserFriendlyApiError(error));
             }

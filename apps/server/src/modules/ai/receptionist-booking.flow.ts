@@ -4,6 +4,7 @@ import {
   getActiveGoogleCalendarIntegration,
   type CalendarSlot,
 } from '../integrations/integration.service.js';
+import { upsertPatientProfile } from '../patients/patients.service.js';
 import { processConversationTurn, type TenantAIContext } from './ai.service.js';
 import {
   buildPatientQuestion,
@@ -32,6 +33,7 @@ import {
   isBookingConfirmationMessage,
   isRawBookingIntent,
   messageLooksBookingRelated,
+  normalizeImplicitYearDate,
   normalizeJsonBlock,
   normalizeMessage,
   resolveRequestedDateFromMessage,
@@ -67,6 +69,8 @@ async function extractBookingTurn(input: {
     `Clinic timezone: ${input.timezone}`,
     `Today in clinic timezone: ${formatTodayForPrompt(input.timezone)}`,
     'Resolve relative dates like "tomorrow" into YYYY-MM-DD in the clinic timezone.',
+    'If the caller gives a date without a year (e.g., "April 2nd"), assume the current year in the clinic timezone.',
+    'If that date already passed this year and no year was stated, assume the next upcoming year.',
     'If no specific time is given but the caller says morning, afternoon, or evening, fill requestedPeriod.',
     'Use requestedTime in 24-hour HH:MM only when the caller gave a concrete time.',
     'If the caller selected one of the offered options, fill selectedSlotIndex (1-based) or selectedSlotStartIso.',
@@ -216,7 +220,10 @@ export async function processBookingTurn(input: {
 
   const userIsChoosingTime = extraction.availabilityIntent || extraction.bookingIntent;
   if ((requestedDateFromMessage || extraction.requestedDate) && userIsChoosingTime) {
-    bookingState.requestedDate = requestedDateFromMessage ?? extraction.requestedDate;
+    const rawDate = requestedDateFromMessage ?? extraction.requestedDate;
+    bookingState.requestedDate = rawDate
+      ? normalizeImplicitYearDate(rawDate, input.userMessage, timezone)
+      : rawDate;
     bookingState.selectedSlot = undefined;
     bookingState.offeredSlots = [];
     bookingState.confirmationRequested = false;
@@ -388,6 +395,15 @@ export async function processBookingTurn(input: {
       phoneNumber: bookingState.patient.phoneNumber!,
       reasonForVisit: bookingState.patient.reasonForVisit!,
     },
+  });
+
+  await upsertPatientProfile({
+    tenantId: input.tenantId,
+    fullName: bookingState.patient.fullName!,
+    phoneNumber: bookingState.patient.phoneNumber!,
+    dateOfBirth: null,
+    lastVisitAt: new Date(selectedSlot.startIso),
+    notes: bookingState.patient.reasonForVisit!,
   });
 
   input.sessionState.booking = { ...resetBookingState(), status: 'confirmed', eventId: appointment.eventId };

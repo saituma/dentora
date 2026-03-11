@@ -1,5 +1,5 @@
 import type { TenantAIContext } from './ai.service.js';
-import { clinicName } from './receptionist-booking.context.js';
+import { clinicName, findStaffMember } from './receptionist-booking.context.js';
 import { buildDirectResponseTokens, normalizeMessage } from './receptionist-booking.utils.js';
 
 export function buildDirectReceptionistResponse(context: TenantAIContext, message: string): string | null {
@@ -20,6 +20,14 @@ export function buildDirectReceptionistResponse(context: TenantAIContext, messag
   }
   if (GREETING_PATTERNS.some((pattern) => pattern.test(normalized))) {
     return `Hello, thank you for calling ${clinicName(context)}. How can I help you today?`;
+  }
+  if (/\b(staff|doctor|dentist|assistant|receptionist|front desk|team member|provider)\b/i.test(normalized)) {
+    const staff = findStaffMember(context, message);
+    if (staff) {
+      const phone = staff.phone ? ` at ${staff.phone}` : '';
+      return `I’m forwarding you to ${staff.name}${phone} now. Please hold. How else can I help while I connect you?`;
+    }
+    return 'I can help with that. Who would you like to speak with, or would you like me to take a message for our team?';
   }
   if ((/\bclinic phone\b/i.test(normalized) || /\bphone number\b/i.test(normalized) || /\bcall the clinic\b/i.test(normalized)) && (clinic.phone ?? clinic.primaryPhone)) {
     return `The clinic phone number is ${clinic.phone ?? clinic.primaryPhone}. Is there anything else I can help you with?`;

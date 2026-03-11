@@ -43,7 +43,9 @@ export interface AppointmentChangeState {
   active: boolean;
   mode: AppointmentChangeMode | null;
   status: AppointmentChangeStatus;
+  phoneNumber?: string;
   patientName?: string;
+  patientNameConfirmed?: boolean;
   currentDate?: string;
   currentTime?: string;
   preferredNewDate?: string;
@@ -58,6 +60,7 @@ export interface ReceptionistSessionState {
 
 export interface AppointmentChangeExtraction {
   mode?: AppointmentChangeMode;
+  phoneNumber?: string;
   patientName?: string;
   currentDate?: string;
   currentTime?: string;

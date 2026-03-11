@@ -79,6 +79,7 @@ export interface VoiceProfileInput {
   language?: string;
   greeting?: string;
   voiceId?: string;
+  agentId?: string;
   speed?: number;
   verbosityLevel?: 'short' | 'balanced' | 'detailed';
   empathyLevel?: 'low' | 'medium' | 'high';

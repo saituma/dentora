@@ -81,30 +81,76 @@ export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
 }
 
 export function PlanStep({ flow }: { flow: OnboardingFlow }) {
+  const plans = [
+    {
+      id: 'starter' as const,
+      name: 'Starter',
+      price: '$49/mo',
+      detail: 'Great for solo practices getting started with a reliable AI front desk.',
+      highlights: [
+        '1 clinic location',
+        'Up to 600 calls/month',
+        'Business hours booking',
+        'Basic analytics & call logs',
+        'Email support in 24–48 hrs',
+        'Standard voice & FAQs',
+      ],
+    },
+    {
+      id: 'growth' as const,
+      name: 'Growth',
+      price: '$149/mo',
+      detail: 'Built for growing clinics that need smarter routing and faster responses.',
+      highlights: [
+        'Up to 3 locations',
+        'Up to 2,500 calls/month',
+        'Priority support in 4–8 hrs',
+        'Advanced analytics & insights',
+        'Custom booking rules',
+        'Multi-staff routing',
+      ],
+    },
+    {
+      id: 'pro' as const,
+      name: 'Pro',
+      price: '$299/mo',
+      detail: 'Best for multi-location teams and high-volume practices with complex workflows.',
+      highlights: [
+        'Unlimited locations',
+        'Up to 10,000 calls/month',
+        'Dedicated success manager',
+        'Custom workflows & integrations',
+        'Priority routing + VIP support',
+        'Quarterly performance reviews',
+      ],
+    },
+  ];
+
   return (
     <Card className="border-0 bg-card shadow-lg">
       <CardHeader>
-        <CardTitle className="text-xl">Choose a plan</CardTitle>
-        <CardDescription>This is a mock plan selection step for onboarding UX.</CardDescription>
+        <CardTitle className="text-2xl">Pick the right plan</CardTitle>
+        <CardDescription className="text-base">Transparent pricing. Upgrade or downgrade any time.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3">
-          {[
-            { id: 'starter' as const, name: 'Starter', price: '$49/mo', detail: 'Best for solo clinics getting started.' },
-            { id: 'growth' as const, name: 'Growth', price: '$149/mo', detail: 'Best for busy clinics with higher call volume.' },
-            { id: 'pro' as const, name: 'Pro', price: '$299/mo', detail: 'Best for multi-location clinics and teams.' },
-          ].map((plan) => {
+      <CardContent className="space-y-6">
+        <div className="grid gap-5 md:grid-cols-3">
+          {plans.map((plan) => {
             const isSelected = flow.selectedPlan === plan.id;
             return (
               <button
                 key={plan.id}
                 type="button"
                 onClick={() => flow.setSelectedPlan(plan.id)}
-                className={`rounded-xl border p-4 text-left transition ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                className={`rounded-2xl border p-6 text-left transition ${isSelected ? 'border-primary bg-primary/10 shadow-md' : 'border-border hover:border-primary/40'}`}
               >
-                <p className="text-sm font-medium">{plan.name}</p>
-                <p className="mt-1 text-xl font-semibold">{plan.price}</p>
+                <p className="text-base font-semibold tracking-tight">{plan.name}</p>
+                <p className="mt-2 text-3xl font-semibold">{plan.price}</p>
                 <p className="mt-2 text-sm text-muted-foreground">{plan.detail}</p>
+                <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
+                  {plan.highlights.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
                 {isSelected && <Badge className="mt-3">Selected</Badge>}
               </button>
             );

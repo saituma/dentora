@@ -19,14 +19,15 @@ import { NavUser } from '@/components/nav-user';
 import {
   LayoutDashboardIcon,
   BotIcon,
-  PhoneCallIcon,
   PhoneIcon,
   BarChart3Icon,
   PlugIcon,
   SettingsIcon,
   CreditCardIcon,
+  CalendarIcon,
   Building2Icon,
   ChevronsUpDownIcon,
+  UsersIcon,
 } from 'lucide-react';
 
 const navItems = [
@@ -37,9 +38,19 @@ const navItems = [
     icon: <BotIcon />,
   },
   {
-    title: 'Test AI Receptionist',
-    url: '/dashboard/test-ai-receptionist',
-    icon: <PhoneCallIcon />,
+    title: 'ElevenLabs Agent',
+    url: '/dashboard/elevenlabs-agent',
+    icon: <BotIcon />,
+  },
+  {
+    title: 'Appointments',
+    url: '/dashboard/appointments',
+    icon: <CalendarIcon />,
+  },
+  {
+    title: 'Patients',
+    url: '/dashboard/patients',
+    icon: <UsersIcon />,
   },
   { title: 'Calls', url: '/dashboard/calls', icon: <PhoneIcon /> },
   {

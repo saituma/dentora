@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId } from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { env } from '../../config/env.js';
 
 interface LoginResult {
   accessToken: string;
@@ -47,12 +48,13 @@ export async function login(email: string, password: string): Promise<LoginResul
   });
 
   const refreshToken = signRefreshToken({ userId: user.id, tenantId: tenantId ?? '', sessionId });
+  const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   await db.insert(sessions).values({
     id: sessionId,
     userId: user.id,
     refreshToken,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    expiresAt: new Date(Date.now() + sessionExpiryMs),
     userAgent: null,
     ipAddress: null,
   });
@@ -90,6 +92,7 @@ export async function register(input: {
   const userId = generateId();
   const tenantId = generateId();
   const sessionId = generateId();
+  const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   // Create tenant, user, and link in a transaction
   const result = await db.transaction(async (tx) => {
@@ -136,7 +139,7 @@ export async function register(input: {
       id: sessionId,
       userId,
       refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + sessionExpiryMs),
       userAgent: null,
       ipAddress: null,
     });
@@ -191,12 +194,13 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
   });
 
   const newRefreshToken = signRefreshToken({ userId: user.id, tenantId: tenantId ?? '', sessionId: session.id });
+  const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   await db
     .update(sessions)
     .set({
       refreshToken: newRefreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + sessionExpiryMs),
     })
     .where(eq(sessions.id, session.id));
 

@@ -6,64 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import { WEEKDAYS } from '@/features/aiConfig/schedule';
+import { useDeleteIntegrationMutation, useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 
-export function RulesStep({ flow }: { flow: OnboardingFlow }) {
-  return (
-    <Card className="border-0 bg-card shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-xl">Appointment rules</CardTitle>
-        <CardDescription>Set booking policies your AI should always follow</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <FieldGroup>
-          <Field>
-            <FieldLabel>Default duration (min)</FieldLabel>
-            <Input type="number" value={flow.defaultDuration} onChange={(event) => flow.setDefaultDuration(Number(event.target.value))} />
-          </Field>
-          <Field>
-            <FieldLabel>Advance booking (days)</FieldLabel>
-            <Input type="number" value={flow.advanceBookingDays} onChange={(event) => flow.setAdvanceBookingDays(Number(event.target.value))} />
-          </Field>
-          <Field>
-            <FieldLabel>Cancellation notice (hours)</FieldLabel>
-            <Input type="number" value={flow.cancellationHours} onChange={(event) => flow.setCancellationHours(Number(event.target.value))} />
-          </Field>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-            <Button
-              disabled={flow.savingRules}
-              onClick={async () => {
-                try {
-                  await flow.saveBookingRules({
-                    advanceBookingDays: flow.advanceBookingDays,
-                    cancellationHours: flow.cancellationHours,
-                    defaultAppointmentDurationMinutes: flow.defaultDuration,
-                  }).unwrap();
-                  await flow.savePolicies({
-                    policies: [
-                      { policyType: 'escalation', content: 'Escalate to a human team member when the caller asks for clinical advice, has unresolved billing disputes, or requests manager intervention.' },
-                      { policyType: 'emergency', content: 'If the caller reports severe pain, bleeding, trauma, or breathing issues, instruct them to call 911 immediately and notify the on-call staff.' },
-                    ],
-                  }).unwrap();
-                  toast.success('Booking rules saved');
-                  flow.goNext('integrations');
-                } catch (error: unknown) {
-                  toast.error(getUserFriendlyApiError(error));
-                }
-              }}
-              className="min-w-28"
-            >
-              {flow.savingRules ? 'Saving...' : 'Next'}
-            </Button>
-          </div>
-        </FieldGroup>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function IntegrationsStep({ flow }: { flow: OnboardingFlow }) {
+  const { data: integrationsData } = useGetIntegrationsQuery();
+  const [deleteIntegration, { isLoading: isRemovingIntegration }] = useDeleteIntegrationMutation();
+  const googleIntegration = integrationsData?.data?.find(
+    (integration) => integration.integrationType === 'calendar' && integration.provider === 'google_calendar',
+  );
+  const isCalendarConnected = Boolean(googleIntegration);
+
   return (
     <Card className="border-0 bg-card shadow-lg">
       <CardHeader>
@@ -82,13 +35,33 @@ export function IntegrationsStep({ flow }: { flow: OnboardingFlow }) {
           </Field>
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-            {flow.calendarConnected && (
+            {isCalendarConnected && (
               <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
                 Google Calendar is connected. Continue to clinic hours.
               </div>
             )}
+            {googleIntegration && (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-w-40"
+                disabled={isRemovingIntegration}
+                onClick={async () => {
+                  const confirmed = window.confirm('Remove Google Calendar connection? This will stop live booking until reconnected.');
+                  if (!confirmed) return;
+                  try {
+                    await deleteIntegration(googleIntegration.id).unwrap();
+                    toast.success('Google Calendar connection removed');
+                  } catch (error: unknown) {
+                    toast.error(getUserFriendlyApiError(error));
+                  }
+                }}
+              >
+                {isRemovingIntegration ? 'Removing...' : 'Remove connection'}
+              </Button>
+            )}
             <Button onClick={() => flow.goNext('schedule')} variant="outline" className="min-w-32" type="button">
-              {flow.calendarConnected ? 'Continue' : 'Skip for now'}
+              {isCalendarConnected ? 'Continue' : 'Skip for now'}
             </Button>
             <Button
               type="button"
