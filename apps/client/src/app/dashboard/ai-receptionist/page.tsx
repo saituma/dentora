@@ -87,6 +87,7 @@ export default function AiReceptionistPage() {
   const [greeting, setGreeting] = useState('');
   const [afterHoursMessage, setAfterHoursMessage] = useState('');
   const [voiceId, setVoiceId] = useState('professional');
+  const [agentId, setAgentId] = useState('agent_5401kkemwc0sf23tw2km4ct4qpm9');
   const [tone, setTone] = useState<'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'>('professional');
   const [language, setLanguage] = useState('en-US');
 
@@ -131,6 +132,7 @@ export default function AiReceptionistPage() {
       setGreeting(voiceProfile.greetingMessage ?? '');
       setAfterHoursMessage(voiceProfile.afterHoursMessage ?? '');
       setVoiceId(voiceProfile.voiceId ?? 'professional');
+      setAgentId(voiceProfile.voiceAgentId ?? 'agent_5401kkemwc0sf23tw2km4ct4qpm9');
       setTone(voiceProfile.tone ?? 'professional');
       setLanguage(voiceProfile.language ?? 'en-US');
     }
@@ -214,6 +216,7 @@ export default function AiReceptionistPage() {
         greetingMessage: greeting,
         afterHoursMessage,
         voiceId,
+        voiceAgentId: agentId,
         tone,
         language,
       }).unwrap();
@@ -365,6 +368,8 @@ export default function AiReceptionistPage() {
             selectedVoice={selectedVoice}
             greeting={greeting}
             setGreeting={setGreeting}
+            agentId={agentId}
+            setAgentId={setAgentId}
             voiceId={voiceId}
             setVoiceId={setVoiceId}
             availableVoices={availableVoices}

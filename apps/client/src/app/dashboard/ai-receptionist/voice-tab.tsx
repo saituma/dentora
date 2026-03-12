@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2Icon } from 'lucide-react';
+import { AGENT_OPTIONS } from '@/features/aiConfig/agent-options';
 
 type Tone = 'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm';
 
@@ -29,6 +30,8 @@ export function VoiceTab(props: {
   selectedVoice?: { requiresPaidPlan?: boolean } | null;
   greeting: string;
   setGreeting: (value: string) => void;
+  agentId: string;
+  setAgentId: (value: string) => void;
   voiceId: string;
   setVoiceId: (value: string) => void;
   availableVoices: Array<{ voiceId: string; name: string; label?: string; requiresPaidPlan?: boolean }>;
@@ -49,6 +52,8 @@ export function VoiceTab(props: {
     selectedVoice,
     greeting,
     setGreeting,
+    agentId,
+    setAgentId,
     voiceId,
     setVoiceId,
     availableVoices,
@@ -97,16 +102,15 @@ export function VoiceTab(props: {
             </Field>
 
             <Field>
-              <FieldLabel>Selected voice</FieldLabel>
-              <Select value={voiceId} onValueChange={(value) => setVoiceId(value || 'professional')}>
+              <FieldLabel>Agent voice (live calls)</FieldLabel>
+              <Select value={agentId} onValueChange={(value) => setAgentId(value || AGENT_OPTIONS[0]?.id || '')}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select agent voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="professional">Default professional voice</SelectItem>
-                  {availableVoices.map((voice) => (
-                    <SelectItem key={voice.voiceId} value={voice.voiceId}>
-                      {voice.name}{voice.label ? ` - ${voice.label}` : ''}{voice.requiresPaidPlan ? ' (paid plan for live calls)' : ''}
+                  {AGENT_OPTIONS.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name} {agent.label ? `- ${agent.label}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

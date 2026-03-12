@@ -30,13 +30,15 @@ import {
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import {
   useGetVoiceProfileQuery,
+  useUpdateVoiceProfileMutation,
   useGetServicesQuery,
   useGetFaqsQuery,
   useGetPoliciesQuery,
   useGetBookingRulesQuery,
 } from '@/features/aiConfig/aiConfigApi';
+import { AGENT_OPTIONS } from '@/features/aiConfig/agent-options';
 
-const AGENT_NAME = 'Receptionist';
+const DEFAULT_AGENT_NAME = 'Receptionist';
 
 type LogEntry = {
   id: string;
@@ -204,15 +206,17 @@ export default function ElevenLabsAgentPage() {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [connectionType, setConnectionType] = useState<'webrtc' | 'websocket'>('webrtc');
   const [textOnly, setTextOnly] = useState(false);
-  const [agentNameVar, setAgentNameVar] = useState(AGENT_NAME);
+  const [agentNameVar, setAgentNameVar] = useState(DEFAULT_AGENT_NAME);
   const [clinicNameVar, setClinicNameVar] = useState('DentalFlow Clinic');
   const conversationIdRef = useRef<string | null>(null);
   const [createToken, { isLoading: isCreatingToken }] = useCreateConversationTokenMutation();
   const [createSignedUrl, { isLoading: isCreatingSignedUrl }] = useCreateSignedUrlMutation();
   const [fetchConversationDetails] = useLazyGetConversationDetailsQuery();
+  const [updateVoiceProfile, { isLoading: isSavingAgent }] = useUpdateVoiceProfileMutation();
   const { data: clinic } = useGetClinicQuery();
   const { data: voiceProfile } = useGetVoiceProfileQuery();
-  const agentId = voiceProfile?.voiceAgentId;
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+  const agentId = selectedAgentId;
   const { data: servicesData } = useGetServicesQuery();
   const { data: faqsData } = useGetFaqsQuery();
   const { data: policiesData } = useGetPoliciesQuery();
@@ -236,6 +240,12 @@ export default function ElevenLabsAgentPage() {
       setClinicNameVar(clinic.clinicName);
     }
   }, [clinic?.clinicName, clinicNameVar]);
+
+  useEffect(() => {
+    if (voiceProfile?.voiceAgentId) {
+      setSelectedAgentId(voiceProfile.voiceAgentId);
+    }
+  }, [voiceProfile?.voiceAgentId]);
 
   const callBackend = async <T,>(path: string, body: unknown): Promise<T> => {
     const token = await ensureFreshAccessToken();
@@ -443,7 +453,7 @@ export default function ElevenLabsAgentPage() {
 
   const startConversation = async () => {
     if (!agentId) {
-      toast.error('Select an agent voice in onboarding first.');
+      toast.error('Select an agent voice below before starting.');
       return;
     }
     if (!textOnly) {
@@ -457,7 +467,7 @@ export default function ElevenLabsAgentPage() {
 
     try {
       const dynamicVariables = {
-        agent_name: agentNameVar.trim() || AGENT_NAME,
+        agent_name: agentNameVar.trim() || DEFAULT_AGENT_NAME,
         clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'DentalFlow Clinic',
         clinic_phone: clinic?.phone ?? 'Unknown',
         clinic_email: clinic?.email ?? 'Unknown',
@@ -525,7 +535,7 @@ export default function ElevenLabsAgentPage() {
           }),
         );
       }
-      appendLog({ role: 'system', text: `Session started for ${AGENT_NAME}.` });
+      appendLog({ role: 'system', text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME}.` });
     } catch (error) {
       if (connectionType === 'webrtc') {
         appendLog({ role: 'event', text: 'WebRTC failed, retrying with WebSocket.' });
@@ -539,7 +549,7 @@ export default function ElevenLabsAgentPage() {
             connectionType: 'websocket',
           });
           setConnectionType('websocket');
-          appendLog({ role: 'system', text: `Session started for ${AGENT_NAME} (WebSocket).` });
+          appendLog({ role: 'system', text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME} (WebSocket).` });
           return;
         } catch (fallbackError) {
           appendLog({ role: 'error', text: formatMessage(fallbackError) });
@@ -547,6 +557,19 @@ export default function ElevenLabsAgentPage() {
       }
       appendLog({ role: 'error', text: formatMessage(error) });
       toast.error('Failed to start ElevenLabs session.');
+    }
+  };
+
+  const saveAgentVoice = async () => {
+    if (!selectedAgentId) {
+      toast.error('Select an agent voice first.');
+      return;
+    }
+    try {
+      await updateVoiceProfile({ voiceAgentId: selectedAgentId }).unwrap();
+      toast.success('Agent voice saved');
+    } catch {
+      toast.error('Failed to save agent voice');
     }
   };
 
@@ -573,14 +596,14 @@ export default function ElevenLabsAgentPage() {
         <CardHeader>
           <CardTitle>ElevenLabs Conversational Agent</CardTitle>
           <CardDescription>
-            Live voice session with the {AGENT_NAME} agent using ElevenLabs WebRTC.
+            Live voice session with the {agentNameVar.trim() || DEFAULT_AGENT_NAME} agent using ElevenLabs WebRTC.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
             <Badge variant="outline">{statusLabel}</Badge>
-            <span className="text-sm text-muted-foreground">
-              Agent ID: {agentId ?? 'Not set'}
+            <span className="text-sm text-muted-foreground max-w-full truncate" title={agentId || 'Not set'}>
+              Agent ID: {agentId || 'Not set'}
             </span>
             <span className="text-sm text-muted-foreground">
               Agent state: {conversation.isSpeaking ? 'speaking' : 'listening'}
@@ -592,8 +615,37 @@ export default function ElevenLabsAgentPage() {
             ) : null}
           </div>
 
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-64">
+              <Select
+                value={selectedAgentId}
+                onValueChange={(value) => setSelectedAgentId(value)}
+                disabled={conversation.status === 'connected'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select agent voice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AGENT_OPTIONS.map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name} {agent.label ? `- ${agent.label}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={saveAgentVoice}
+              disabled={isSavingAgent || conversation.status === 'connected'}
+            >
+              {isSavingAgent ? 'Saving...' : 'Save agent voice'}
+            </Button>
+          </div>
+
           <div className="flex flex-wrap gap-3">
-            <div className="w-44">
+            <div className="w-full sm:w-44">
               <Select
                 value={connectionType}
                 onValueChange={(value) => setConnectionType(value as 'webrtc' | 'websocket')}
