@@ -23,11 +23,26 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useGetUpcomingAppointmentsQuery } from '@/features/appointments/appointmentsApi';
 import { useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
+import { skipToken } from '@reduxjs/toolkit/query';
+import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 
 const formatDateTime = (value: string) => {
   if (!value) return 'Unknown';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (!error) return '';
+  const maybeFetchError = error as FetchBaseQueryError;
+  if (typeof maybeFetchError === 'object' && maybeFetchError && 'status' in maybeFetchError) {
+    const data = maybeFetchError.data as any;
+    if (typeof data?.error?.message === 'string') return data.error.message;
+    if (typeof data?.message === 'string') return data.message;
+    if (typeof data === 'string') return data;
+    return `Request failed (${String(maybeFetchError.status)})`;
+  }
+  return 'Request failed';
 };
 
 export default function AppointmentsPage() {
@@ -38,8 +53,15 @@ export default function AppointmentsPage() {
     )) ?? null
   ), [integrationsData?.data]);
 
-  const { data, isLoading, error } = useGetUpcomingAppointmentsQuery({ days: 60 });
+  const hasActiveCalendar = calendarIntegration?.status === 'active';
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useGetUpcomingAppointmentsQuery(hasActiveCalendar ? { days: 60 } : skipToken);
   const events = data?.data?.events ?? [];
+  const errorMessage = getErrorMessage(error);
   const [selectedEvent, setSelectedEvent] = useState<{
     title: string;
     start: string;
@@ -91,17 +113,34 @@ export default function AppointmentsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading calendar events...</p>
-          ) : error ? (
+          {!hasActiveCalendar ? (
             <EmptyState
               icon={CalendarIcon}
-              title="Unable to load appointments"
+              title="Calendar not connected"
               description="Connect Google Calendar in Clinic Setup to view appointments here."
             >
               <Button asChild variant="outline">
                 <a href="/dashboard/ai-receptionist">Go to Clinic Setup</a>
               </Button>
+            </EmptyState>
+          ) : isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading calendar events...</p>
+          ) : error ? (
+            <EmptyState
+              icon={CalendarIcon}
+              title="Unable to load appointments"
+              description={errorMessage
+                ? `Calendar connected but events failed to load. ${errorMessage}`
+                : 'Calendar connected but events failed to load. Reconnect Google Calendar and try again.'}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => refetch()}>
+                  Retry
+                </Button>
+                <Button asChild variant="outline">
+                  <a href="/dashboard/ai-receptionist">Reconnect calendar</a>
+                </Button>
+              </div>
             </EmptyState>
           ) : (
             <div className="rounded-lg border p-2">
@@ -143,17 +182,34 @@ export default function AppointmentsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading calendar events...</p>
-          ) : error ? (
+          {!hasActiveCalendar ? (
             <EmptyState
               icon={CalendarIcon}
-              title="Unable to load appointments"
+              title="Calendar not connected"
               description="Connect Google Calendar in Clinic Setup to view appointments here."
             >
               <Button asChild variant="outline">
                 <a href="/dashboard/ai-receptionist">Go to Clinic Setup</a>
               </Button>
+            </EmptyState>
+          ) : isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading calendar events...</p>
+          ) : error ? (
+            <EmptyState
+              icon={CalendarIcon}
+              title="Unable to load appointments"
+              description={errorMessage
+                ? `Calendar connected but events failed to load. ${errorMessage}`
+                : 'Calendar connected but events failed to load. Reconnect Google Calendar and try again.'}
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => refetch()}>
+                  Retry
+                </Button>
+                <Button asChild variant="outline">
+                  <a href="/dashboard/ai-receptionist">Reconnect calendar</a>
+                </Button>
+              </div>
             </EmptyState>
           ) : events.length === 0 ? (
             <EmptyState

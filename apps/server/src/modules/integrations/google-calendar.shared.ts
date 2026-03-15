@@ -187,14 +187,33 @@ export async function resolveValidGoogleAccessToken(integration: Integration): P
   }
 
   if (!isExpired(accessTokenExpiresAt)) {
-    return { accessToken: decrypt(encryptedAccessToken), integration };
+    try {
+      return { accessToken: decrypt(encryptedAccessToken), integration };
+    } catch (error) {
+      throw new IntegrationError(
+        'calendar',
+        'google_calendar',
+        'Failed to decrypt Google access token. Please reconnect Google Calendar.',
+      );
+    }
   }
 
   if (!encryptedRefreshToken) {
     throw new IntegrationError('calendar', 'google_calendar', 'Google access token expired and no refresh token is available');
   }
 
-  const refreshed = await refreshGoogleAccessToken(decrypt(encryptedRefreshToken));
+  let refreshToken: string;
+  try {
+    refreshToken = decrypt(encryptedRefreshToken);
+  } catch (error) {
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      'Failed to decrypt Google refresh token. Please reconnect Google Calendar.',
+    );
+  }
+
+  const refreshed = await refreshGoogleAccessToken(refreshToken);
   const mergedCredentials = {
     ...credentials,
     encryptedAccessToken: encrypt(refreshed.access_token as string),

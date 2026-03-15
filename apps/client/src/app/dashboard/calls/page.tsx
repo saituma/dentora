@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -33,125 +33,21 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/empty-state';
 import { PhoneIcon } from 'lucide-react';
+import {
+  useGetCallsQuery,
+  useGetCallByIdQuery,
+  useGetCallEventsQuery,
+  useGetCallTranscriptQuery,
+  useGetCallCostsQuery,
+} from '@/features/calls/callsApi';
+import type { CallSession } from '@/features/calls/types';
 
 const statusColors: Record<string, string> = {
   completed: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  transferred: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  ringing: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  dropped: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  voicemail: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
-};
-
-type MockCallEvent = {
-  id: string;
-  eventType: string;
-  timestamp: string;
-  actor?: string;
-  latencyMs?: number;
-};
-
-type MockCallSession = {
-  id: string;
-  callerNumber: string;
-  startedAt: string;
-  status: 'completed' | 'transferred' | 'ringing' | 'dropped' | 'voicemail';
-  durationSeconds?: number;
-  costEstimate?: string;
-  aiProvider?: string;
-  aiModel?: string;
-};
-
-const mockCalls: MockCallSession[] = [
-  {
-    id: 'call_9x1a',
-    callerNumber: '(555) 210-8841',
-    startedAt: '2026-03-08T08:14:00.000Z',
-    status: 'completed',
-    durationSeconds: 282,
-    costEstimate: '0.68',
-    aiProvider: 'OpenAI',
-    aiModel: 'gpt-5.3-realtime',
-  },
-  {
-    id: 'call_9w7m',
-    callerNumber: '(555) 339-7710',
-    startedAt: '2026-03-08T08:47:00.000Z',
-    status: 'transferred',
-    durationSeconds: 236,
-    costEstimate: '0.57',
-    aiProvider: 'OpenAI',
-    aiModel: 'gpt-5.3-realtime',
-  },
-  {
-    id: 'call_9v3q',
-    callerNumber: '(555) 920-0445',
-    startedAt: '2026-03-08T09:09:00.000Z',
-    status: 'completed',
-    durationSeconds: 194,
-    costEstimate: '0.47',
-    aiProvider: 'OpenAI',
-    aiModel: 'gpt-5.3-realtime',
-  },
-  {
-    id: 'call_9u8r',
-    callerNumber: '(555) 117-0398',
-    startedAt: '2026-03-08T10:22:00.000Z',
-    status: 'voicemail',
-    durationSeconds: 51,
-    costEstimate: '0.11',
-    aiProvider: 'OpenAI',
-    aiModel: 'gpt-5.3-realtime',
-  },
-  {
-    id: 'call_9t6d',
-    callerNumber: '(555) 702-6604',
-    startedAt: '2026-03-08T11:03:00.000Z',
-    status: 'dropped',
-    durationSeconds: 18,
-    costEstimate: '0.03',
-    aiProvider: 'OpenAI',
-    aiModel: 'gpt-5.3-realtime',
-  },
-  {
-    id: 'call_9s0k',
-    callerNumber: '(555) 774-2008',
-    startedAt: '2026-03-08T11:46:00.000Z',
-    status: 'completed',
-    durationSeconds: 325,
-    costEstimate: '0.76',
-    aiProvider: 'OpenAI',
-    aiModel: 'gpt-5.3-realtime',
-  },
-];
-
-const mockEventsByCallId: Record<string, MockCallEvent[]> = {
-  call_9x1a: [
-    { id: 'e1', eventType: 'call_started', timestamp: '2026-03-08T08:14:00.000Z', actor: 'system' },
-    { id: 'e2', eventType: 'intent_detected_emergency', timestamp: '2026-03-08T08:14:12.000Z', actor: 'ai', latencyMs: 602 },
-    { id: 'e3', eventType: 'appointment_slot_offered', timestamp: '2026-03-08T08:15:24.000Z', actor: 'ai', latencyMs: 584 },
-    { id: 'e4', eventType: 'appointment_confirmed', timestamp: '2026-03-08T08:17:56.000Z', actor: 'ai', latencyMs: 640 },
-  ],
-  call_9w7m: [
-    { id: 'e5', eventType: 'call_started', timestamp: '2026-03-08T08:47:00.000Z', actor: 'system' },
-    { id: 'e6', eventType: 'insurance_question_detected', timestamp: '2026-03-08T08:47:30.000Z', actor: 'ai', latencyMs: 688 },
-    { id: 'e7', eventType: 'transferred_to_front_desk', timestamp: '2026-03-08T08:50:22.000Z', actor: 'ai', latencyMs: 701 },
-  ],
-  call_9v3q: [
-    { id: 'e8', eventType: 'call_started', timestamp: '2026-03-08T09:09:00.000Z', actor: 'system' },
-    { id: 'e9', eventType: 'new_patient_intake', timestamp: '2026-03-08T09:09:45.000Z', actor: 'ai', latencyMs: 611 },
-    { id: 'e10', eventType: 'consultation_booked', timestamp: '2026-03-08T09:11:54.000Z', actor: 'ai', latencyMs: 632 },
-  ],
-  call_9u8r: [
-    { id: 'e11', eventType: 'voicemail_left', timestamp: '2026-03-08T10:22:51.000Z', actor: 'caller' },
-  ],
-  call_9t6d: [
-    { id: 'e12', eventType: 'call_dropped', timestamp: '2026-03-08T11:03:18.000Z', actor: 'system' },
-  ],
-  call_9s0k: [
-    { id: 'e13', eventType: 'call_started', timestamp: '2026-03-08T11:46:00.000Z', actor: 'system' },
-    { id: 'e14', eventType: 'reschedule_request', timestamp: '2026-03-08T11:46:33.000Z', actor: 'ai', latencyMs: 606 },
-    { id: 'e15', eventType: 'calendar_updated', timestamp: '2026-03-08T11:50:42.000Z', actor: 'ai', latencyMs: 619 },
-  ],
+  escalated: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+  started: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  in_progress: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  failed: 'bg-red-500/10 text-red-600 dark:text-red-400',
 };
 
 function formatDuration(seconds?: number) {
@@ -170,17 +66,30 @@ function formatDate(iso: string) {
   });
 }
 
+function formatMoney(value?: string | number | null) {
+  if (value == null) return '—';
+  const numberValue = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(numberValue)) return '—';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numberValue);
+}
+
+function formatStatusLabel(status?: string | null) {
+  if (!status) return 'Unknown';
+  return status.replace(/_/g, ' ');
+}
+
 export default function CallsPage() {
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const calls = mockCalls;
+  const { data: callsData, isLoading: callsLoading } = useGetCallsQuery({ limit: 50 });
+  const calls = callsData?.data ?? [];
 
   const filteredCalls = useMemo(() => {
     return calls.filter((call) => {
       const matchStatus = statusFilter === 'all' || call.status === statusFilter;
       const matchSearch =
-        !search || call.callerNumber.toLowerCase().includes(search.toLowerCase());
+        !search || (call.callerNumber ?? '').toLowerCase().includes(search.toLowerCase());
       return matchStatus && matchSearch;
     });
   }, [calls, statusFilter, search]);
@@ -193,7 +102,7 @@ export default function CallsPage() {
         <div>
           <h2 className="text-lg font-semibold">Call history</h2>
           <p className="text-sm text-muted-foreground">
-            Mock operational feed for AI receptionist call handling
+            Real-time view of your AI receptionist call activity
           </p>
         </div>
       </div>
@@ -216,17 +125,19 @@ export default function CallsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="started">Started</SelectItem>
+                <SelectItem value="in_progress">In progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="transferred">Transferred</SelectItem>
-                <SelectItem value="ringing">Ringing</SelectItem>
-                <SelectItem value="dropped">Dropped</SelectItem>
-                <SelectItem value="voicemail">Voicemail</SelectItem>
+                <SelectItem value="escalated">Escalated</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
         <CardContent>
-          {filteredCalls.length === 0 ? (
+          {callsLoading ? (
+            <div className="text-sm text-muted-foreground">Loading calls…</div>
+          ) : filteredCalls.length === 0 ? (
             <EmptyState
               icon={PhoneIcon}
               title="No calls found"
@@ -250,18 +161,18 @@ export default function CallsPage() {
                     <TableCell className="text-muted-foreground">
                       {formatDate(call.startedAt)}
                     </TableCell>
-                    <TableCell>{call.callerNumber}</TableCell>
+                    <TableCell>{call.callerNumber ?? 'Unknown'}</TableCell>
                     <TableCell>{formatDuration(call.durationSeconds)}</TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
                         className={statusColors[call.status] ?? ''}
                       >
-                        {call.status}
+                        {formatStatusLabel(call.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {call.costEstimate ? `$${call.costEstimate}` : '—'}
+                      {formatMoney(call.costEstimate)}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -287,9 +198,9 @@ export default function CallsPage() {
         <SheetContent className="sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Call details</SheetTitle>
-            <SheetDescription>
-              {selectedCall?.callerNumber} · {selectedCall ? formatDate(selectedCall.startedAt) : ''}
-            </SheetDescription>
+          <SheetDescription>
+              {(selectedCall?.callerNumber ?? 'Unknown')} · {selectedCall ? formatDate(selectedCall.startedAt) : ''}
+          </SheetDescription>
           </SheetHeader>
           {selectedCall && <CallDetailPanel call={selectedCall} />}
         </SheetContent>
@@ -298,8 +209,40 @@ export default function CallsPage() {
   );
 }
 
-function CallDetailPanel({ call }: { call: MockCallSession }) {
-  const events = mockEventsByCallId[call.id] ?? [];
+function CallDetailPanel({ call }: { call: CallSession }) {
+  const { data: callDetails } = useGetCallByIdQuery(call.id);
+  const { data: eventsData, isLoading: eventsLoading } = useGetCallEventsQuery(call.id);
+  const { data: transcriptData, isLoading: transcriptLoading } = useGetCallTranscriptQuery(call.id);
+  const { data: costData, isLoading: costLoading } = useGetCallCostsQuery(call.id);
+
+  const events = eventsData?.data ?? [];
+  const transcript = transcriptData?.data ?? null;
+  const costs = costData?.data ?? null;
+  const derivedTurns = events
+    .filter((event) => event.eventType === 'conversation.turn')
+    .flatMap((event) => {
+      const payload = (event.payload ?? {}) as Record<string, unknown>;
+      const userText = typeof payload.userText === 'string' ? payload.userText : '';
+      const aiText = typeof payload.aiText === 'string' ? payload.aiText : '';
+      const turns = [];
+      if (userText) {
+        turns.push({
+          role: 'user',
+          content: userText,
+          timestamp: event.timestamp,
+        });
+      }
+      if (aiText) {
+        turns.push({
+          role: 'assistant',
+          content: aiText,
+          timestamp: event.timestamp,
+        });
+      }
+      return turns;
+    });
+  const transcriptTurns =
+    transcript?.fullTranscript?.length ? transcript.fullTranscript : derivedTurns;
 
   return (
     <div className="mt-6 space-y-6">
@@ -307,30 +250,50 @@ function CallDetailPanel({ call }: { call: MockCallSession }) {
         <div>
           <p className="text-sm font-medium">Status</p>
           <Badge variant="secondary" className={statusColors[call.status] ?? ''}>
-            {call.status}
+            {formatStatusLabel(call.status)}
           </Badge>
         </div>
         <div>
           <p className="text-sm font-medium">Duration</p>
           <p className="text-sm text-muted-foreground">{formatDuration(call.durationSeconds)}</p>
         </div>
-        {call.aiProvider && (
+        {callDetails?.aiProvider && (
           <div>
             <p className="text-sm font-medium">AI Provider</p>
-            <p className="text-sm text-muted-foreground">{call.aiProvider} / {call.aiModel}</p>
+            <p className="text-sm text-muted-foreground">{callDetails.aiProvider} / {callDetails.aiModel}</p>
+          </div>
+        )}
+        {callDetails?.twilioCallSid && (
+          <div>
+            <p className="text-sm font-medium">Twilio SID</p>
+            <p className="text-sm text-muted-foreground">{callDetails.twilioCallSid}</p>
+          </div>
+        )}
+        {callDetails?.endReason && (
+          <div>
+            <p className="text-sm font-medium">End reason</p>
+            <p className="text-sm text-muted-foreground">{callDetails.endReason}</p>
+          </div>
+        )}
+        {callDetails?.intentSummary && (
+          <div>
+            <p className="text-sm font-medium">Intent summary</p>
+            <p className="text-sm text-muted-foreground">{callDetails.intentSummary}</p>
           </div>
         )}
         {call.costEstimate && (
           <div>
             <p className="text-sm font-medium">Cost</p>
-            <p className="text-sm text-muted-foreground">${call.costEstimate}</p>
+            <p className="text-sm text-muted-foreground">{formatMoney(call.costEstimate)}</p>
           </div>
         )}
       </div>
 
       <div>
         <p className="mb-2 text-sm font-medium">Events</p>
-        {events.length === 0 ? (
+        {eventsLoading ? (
+          <p className="text-sm text-muted-foreground">Loading events…</p>
+        ) : events.length === 0 ? (
           <p className="text-sm text-muted-foreground">No events recorded</p>
         ) : (
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -348,8 +311,104 @@ function CallDetailPanel({ call }: { call: MockCallSession }) {
                 {event.latencyMs != null && (
                   <p className="text-xs text-muted-foreground">Latency: {event.latencyMs}ms</p>
                 )}
+                {event.eventType === 'conversation.turn' ? (
+                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {typeof event.payload?.userText === 'string' && event.payload.userText ? (
+                      <p>
+                        <span className="font-medium text-foreground">User:</span> {event.payload.userText}
+                      </p>
+                    ) : null}
+                    {typeof event.payload?.aiText === 'string' && event.payload.aiText ? (
+                      <p>
+                        <span className="font-medium text-foreground">AI:</span> {event.payload.aiText}
+                      </p>
+                    ) : null}
+                    {!event.payload?.userText && !event.payload?.aiText ? (
+                      <p>No conversation text recorded for this turn.</p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium">Transcript</p>
+        {transcriptLoading ? (
+          <p className="text-sm text-muted-foreground">Loading transcript…</p>
+        ) : !transcriptTurns.length ? (
+          <p className="text-sm text-muted-foreground">No transcript available.</p>
+        ) : (
+          <div className="space-y-3">
+            {(transcript.summary || transcript.intentDetected || transcript.sentiment) && (
+              <div className="rounded-lg border p-3 text-sm space-y-1">
+                {transcript.summary && (
+                  <p className="text-sm text-muted-foreground">Summary: {transcript.summary}</p>
+                )}
+                {transcript.intentDetected && (
+                  <p className="text-sm text-muted-foreground">Intent: {transcript.intentDetected}</p>
+                )}
+                {transcript.sentiment && (
+                  <p className="text-sm text-muted-foreground">Sentiment: {transcript.sentiment}</p>
+                )}
+              </div>
+            )}
+            {transcriptTurns.length ? (
+              <div className="space-y-2 max-h-[360px] overflow-y-auto">
+                {transcriptTurns.map((turn, index) => (
+                  <div key={`${turn.timestamp ?? 't'}-${index}`} className="rounded-lg border p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline">{turn.role ?? 'unknown'}</Badge>
+                      {turn.timestamp ? (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(turn.timestamp).toLocaleTimeString()}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {turn.content ?? turn.text ?? ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Transcript is empty.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-2 text-sm font-medium">Cost breakdown</p>
+        {costLoading ? (
+          <p className="text-sm text-muted-foreground">Loading costs…</p>
+        ) : !costs ? (
+          <p className="text-sm text-muted-foreground">No cost data recorded.</p>
+        ) : (
+          <div className="space-y-2">
+            <div className="rounded-lg border p-3 text-sm flex items-center justify-between">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-medium">{formatMoney(costs.totalCost)}</span>
+            </div>
+            {costs.lineItems.length > 0 ? (
+              <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                {costs.lineItems.map((item) => (
+                  <div key={item.id} className="rounded-lg border p-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline">{item.service}</Badge>
+                      <span className="text-xs text-muted-foreground">{formatMoney(item.totalCost)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.provider} · {item.units} units @ {formatMoney(item.unitCost)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No line items recorded.</p>
+            )}
           </div>
         )}
       </div>

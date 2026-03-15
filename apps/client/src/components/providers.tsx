@@ -33,14 +33,6 @@ function AuthBootstrap() {
       }
 
       const validAccessToken = await ensureFreshAccessToken();
-      if (!validAccessToken) {
-        clearAuthTokens();
-        clearAuthSession();
-        if (!cancelled) {
-          dispatch(setHydrated());
-        }
-        return;
-      }
 
       const persisted = loadAuthSession();
       if (persisted) {
@@ -56,10 +48,8 @@ function AuthBootstrap() {
         return;
       }
 
-      const tokenPayload = parseAccessTokenPayload(validAccessToken);
+      const tokenPayload = parseAccessTokenPayload(validAccessToken ?? accessToken);
       if (!tokenPayload?.userId) {
-        clearAuthTokens();
-        clearAuthSession();
         if (!cancelled) {
           dispatch(setHydrated());
         }

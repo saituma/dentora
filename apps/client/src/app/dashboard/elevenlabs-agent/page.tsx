@@ -161,6 +161,9 @@ const formatBookingRules = (rules?: {
 };
 
 const buildContextualUpdate = (input: {
+  agentName?: string;
+  todayDate?: string;
+  currentYear?: string;
   clinicName?: string;
   staffDirectory?: string;
   clinicNotes?: string;
@@ -168,11 +171,19 @@ const buildContextualUpdate = (input: {
 }) => {
   const lines = [
     'Context update for the receptionist:',
+    input.agentName ? `Agent name: ${input.agentName}` : null,
+    input.todayDate ? `Today (clinic timezone): ${input.todayDate}` : null,
+    input.currentYear ? `Current year (clinic timezone): ${input.currentYear}` : null,
     input.clinicName ? `Clinic name: ${input.clinicName}` : null,
     input.staffDirectory ? `Staff directory: ${input.staffDirectory}` : null,
     input.clinicNotes ? `Clinic notes: ${input.clinicNotes}` : null,
     input.uploadedContext ? `Uploaded clinic context: ${input.uploadedContext}` : null,
     'Instructions:',
+    input.agentName
+      ? `- Always introduce yourself as ${input.agentName}. Never use any other name.`
+      : '- Always introduce yourself as the receptionist name provided by the user.',
+    '- When the caller gives a date without a year, always assume the current year shown above.',
+    '- If that date already passed in the current year, use the next year.',
     '- Use the staff directory when asked about staff names, roles, phone numbers, or status.',
     '- If asked to connect to a staff member and their phone is listed, say you are forwarding the call to that phone (simulation in test).',
     '- Do not refuse to share staff names if they are listed in the staff directory.',
@@ -466,6 +477,15 @@ export default function ElevenLabsAgentPage() {
     }
 
     try {
+      const clinicTimezone = clinic?.timezone || 'UTC';
+      const todayDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: clinicTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+      const currentYear = todayDate.slice(0, 4);
+
       const dynamicVariables = {
         agent_name: agentNameVar.trim() || DEFAULT_AGENT_NAME,
         clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'DentalFlow Clinic',
@@ -473,7 +493,9 @@ export default function ElevenLabsAgentPage() {
         clinic_email: clinic?.email ?? 'Unknown',
         clinic_address: clinic?.address ?? 'Unknown',
         clinic_website: clinic?.website ?? 'Unknown',
-        clinic_timezone: clinic?.timezone ?? 'Unknown',
+        clinic_timezone: clinicTimezone,
+        today_date: todayDate,
+        current_year: currentYear,
         clinic_description: clinic?.description ?? '',
         clinic_specialties: clinic?.specialties?.join(', ') ?? '',
         business_hours: formatBusinessHours(clinic?.businessHours),
@@ -507,6 +529,9 @@ export default function ElevenLabsAgentPage() {
         appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
         conversation.sendContextualUpdate(
           buildContextualUpdate({
+            agentName: dynamicVariables.agent_name,
+            todayDate,
+            currentYear,
             clinicName: dynamicVariables.clinic_name,
             staffDirectory: String(staffDirectoryDoc?.content ?? ''),
             clinicNotes: String(clinicNotesDoc?.content ?? ''),
@@ -528,6 +553,9 @@ export default function ElevenLabsAgentPage() {
         appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
         conversation.sendContextualUpdate(
           buildContextualUpdate({
+            agentName: dynamicVariables.agent_name,
+            todayDate,
+            currentYear,
             clinicName: dynamicVariables.clinic_name,
             staffDirectory: String(staffDirectoryDoc?.content ?? ''),
             clinicNotes: String(clinicNotesDoc?.content ?? ''),

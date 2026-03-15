@@ -1,6 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/lib/api';
-import type { CallSession, CallEvent } from './types';
+import type { CallSession, CallEvent, CallTranscript, CallCostBreakdown } from './types';
 
 interface GetCallsParams {
   limit?: number;
@@ -30,7 +30,21 @@ export const callsApi = createApi({
       query: (callId) => `/calls/${callId}/events`,
       providesTags: (_, __, callId) => [{ type: 'Calls', id: `events-${callId}` }],
     }),
+    getCallTranscript: builder.query<{ data: CallTranscript | null }, string>({
+      query: (callId) => `/calls/${callId}/transcript`,
+      providesTags: (_, __, callId) => [{ type: 'Calls', id: `transcript-${callId}` }],
+    }),
+    getCallCosts: builder.query<{ data: CallCostBreakdown | null }, string>({
+      query: (callId) => `/calls/${callId}/costs`,
+      providesTags: (_, __, callId) => [{ type: 'Calls', id: `costs-${callId}` }],
+    }),
   }),
 });
 
-export const { useGetCallsQuery, useGetCallByIdQuery, useGetCallEventsQuery } = callsApi;
+export const {
+  useGetCallsQuery,
+  useGetCallByIdQuery,
+  useGetCallEventsQuery,
+  useGetCallTranscriptQuery,
+  useGetCallCostsQuery,
+} = callsApi;

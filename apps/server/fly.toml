@@ -7,7 +7,8 @@ app = 'dental-flow-server'
 primary_region = 'iad'
 
 [build]
-  dockerfile = 'Dockerfile'
+  context = '../..'
+  dockerfile = '../../apps/server/Dockerfile'
 
 [env]
   NODE_ENV = 'production'

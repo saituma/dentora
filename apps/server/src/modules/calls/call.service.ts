@@ -7,7 +7,7 @@ import {
   callCostLineItems,
   callTranscripts,
 } from '../../db/schema.js';
-import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { logger } from '../../lib/logger.js';
 import { NotFoundError } from '../../lib/errors.js';
@@ -194,6 +194,47 @@ export async function getCallEvents(tenantId: string, callSessionId: string) {
     .from(callEvents)
     .where(and(eq(callEvents.callSessionId, callSessionId), eq(callEvents.tenantId, tenantId)))
     .orderBy(callEvents.timestamp);
+}
+
+export async function getCallTranscript(
+  tenantId: string,
+  callSessionId: string,
+) {
+  const [transcript] = await db
+    .select()
+    .from(callTranscripts)
+    .where(and(eq(callTranscripts.callSessionId, callSessionId), eq(callTranscripts.tenantId, tenantId)))
+    .orderBy(desc(callTranscripts.createdAt))
+    .limit(1);
+
+  return transcript ?? null;
+}
+
+export async function getCallCostBreakdown(
+  tenantId: string,
+  callSessionId: string,
+) {
+  const [cost] = await db
+    .select()
+    .from(callCosts)
+    .where(and(eq(callCosts.callSessionId, callSessionId), eq(callCosts.tenantId, tenantId)))
+    .orderBy(desc(callCosts.createdAt))
+    .limit(1);
+
+  if (!cost) return null;
+
+  const lineItems = await db
+    .select()
+    .from(callCostLineItems)
+    .where(
+      and(
+        eq(callCostLineItems.callCostId, cost.id),
+        eq(callCostLineItems.tenantId, tenantId),
+      ),
+    )
+    .orderBy(desc(callCostLineItems.createdAt));
+
+  return { ...cost, lineItems };
 }
 
 export async function saveTranscript(input: {

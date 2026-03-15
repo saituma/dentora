@@ -44,6 +44,9 @@ const envSchema = z.object({
 
   TWILIO_ACCOUNT_SID: z.string().default(''),
   TWILIO_AUTH_TOKEN: z.string().default(''),
+  TWILIO_API_KEY_SID: z.string().default(''),
+  TWILIO_API_KEY_SECRET: z.string().default(''),
+  TWILIO_TWIML_APP_SID: z.string().default(''),
   TWILIO_WEBHOOK_BASE_URL: z.string().default('http://localhost:4000'),
 
   OPENAI_API_KEY: z.string().default(''),

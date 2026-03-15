@@ -6,8 +6,12 @@ import {
 } from "@reduxjs/toolkit/query";
 import { logout } from "@/features/auth/authSlice";
 
-export const API_BASE_URL =
+const rawApiBase =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const trimmedApiBase = rawApiBase.replace(/\/+$/, "");
+export const API_BASE_URL = trimmedApiBase.endsWith("/api")
+  ? trimmedApiBase
+  : `${trimmedApiBase}/api`;
 
 const ACCESS_TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
@@ -133,14 +137,7 @@ export const baseQueryWithReauth: BaseQueryFn<
   const freshToken = await ensureFreshAccessToken();
   const existingToken = typeof window !== "undefined" ? localStorage.getItem(ACCESS_TOKEN_KEY) : null;
   if (existingToken && isAccessTokenExpired(existingToken) && !freshToken) {
-    clearAuthTokens();
-    api.dispatch(logout());
-    return {
-      error: {
-        status: 401,
-        data: "Session expired",
-      },
-    };
+    // Keep the user session for now; the request will likely 401 and the UI can handle it.
   }
 
   let result = await rawBaseQuery(args, api, extraOptions);
@@ -151,8 +148,6 @@ export const baseQueryWithReauth: BaseQueryFn<
 
   const refreshedAccessToken = await tryRefreshAccessToken();
   if (!refreshedAccessToken) {
-    clearAuthTokens();
-    api.dispatch(logout());
     return result;
   }
 

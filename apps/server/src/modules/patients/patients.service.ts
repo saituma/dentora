@@ -1,4 +1,4 @@
-import { and, eq, ilike, or, desc } from 'drizzle-orm';
+import { and, eq, ilike, or, desc, isNull } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { patientProfiles } from '../../db/schema.js';
 
@@ -19,13 +19,18 @@ export async function findPatientProfile(input: {
   phoneNumber: string;
   dateOfBirth?: string | null;
 }): Promise<PatientProfileRecord | null> {
+  const normalizedDob = input.dateOfBirth?.trim() ?? null;
+  const dobFilter = normalizedDob
+    ? eq(patientProfiles.dateOfBirth, normalizedDob)
+    : isNull(patientProfiles.dateOfBirth);
+
   const [row] = await db
     .select()
     .from(patientProfiles)
     .where(and(
       eq(patientProfiles.tenantId, input.tenantId),
       eq(patientProfiles.phoneNumber, input.phoneNumber.trim()),
-      eq(patientProfiles.dateOfBirth, input.dateOfBirth?.trim() ?? null),
+      dobFilter,
     ))
     .limit(1);
 
@@ -74,7 +79,7 @@ export async function upsertPatientProfile(input: {
       .where(and(
         eq(patientProfiles.tenantId, payload.tenantId),
         eq(patientProfiles.phoneNumber, payload.phoneNumber),
-        eq(patientProfiles.dateOfBirth, null),
+        isNull(patientProfiles.dateOfBirth),
       ))
       .limit(1);
 

@@ -63,6 +63,7 @@ app.use(metricsMiddleware);
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
+    if (req.path === '/api/health' || req.path === '/api/health/ready') return;
     const duration = Date.now() - start;
     logger.info({
       method: req.method,
@@ -152,8 +153,8 @@ async function start() {
     }
     logger.info('Database connected');
 
-    const server = app.listen(port, () => {
-      logger.info({ port, env: env.NODE_ENV }, `Dental Flow API listening on port ${port}`);
+    const server = app.listen(port, '0.0.0.0', () => {
+      logger.info({ port, env: env.NODE_ENV }, `Dental Flow API listening on 0.0.0.0:${port}`);
     });
 
     attachMediaStreamWebSocket(server);

@@ -40,10 +40,20 @@ export async function createGoogleCalendarAppointment(input: CreateCalendarAppoi
         summary: input.summary,
         description: [
           `Patient name: ${input.patient.fullName}`,
+          input.patient.dateOfBirth ? `Date of birth: ${input.patient.dateOfBirth}` : null,
           input.patient.age != null ? `Age: ${input.patient.age}` : null,
           `Phone: ${input.patient.phoneNumber}`,
           `Reason for visit: ${input.patient.reasonForVisit}`,
         ].filter(Boolean).join('\n'),
+        extendedProperties: {
+          private: {
+            patientName: input.patient.fullName,
+            dateOfBirth: input.patient.dateOfBirth ?? '',
+            age: input.patient.age != null ? String(input.patient.age) : '',
+            phoneNumber: input.patient.phoneNumber,
+            reasonForVisit: input.patient.reasonForVisit,
+          },
+        },
         start: {
           dateTime: input.slot.startIso,
           timeZone: input.timezone,

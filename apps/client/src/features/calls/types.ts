@@ -25,3 +25,43 @@ export interface CallEvent {
   latencyMs?: number;
   timestamp: string;
 }
+
+export interface CallTranscriptTurn {
+  turn?: number;
+  role?: string;
+  content?: string;
+  text?: string;
+  timestamp?: string;
+}
+
+export interface CallTranscript {
+  id: string;
+  tenantId: string;
+  callSessionId: string;
+  fullTranscript: CallTranscriptTurn[];
+  summary?: string | null;
+  sentiment?: string | null;
+  intentDetected?: string | null;
+  createdAt: string;
+}
+
+export interface CallCostLineItem {
+  id: string;
+  provider: string;
+  service: string;
+  units: number;
+  unitCost: string;
+  totalCost: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface CallCostBreakdown {
+  id: string;
+  tenantId: string;
+  callSessionId: string;
+  totalCost: string;
+  currency: string;
+  createdAt: string;
+  lineItems: CallCostLineItem[];
+}

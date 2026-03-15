@@ -267,7 +267,7 @@ elevenlabsRouter.post(
 
       res.setHeader('Content-Type', ttsResponse.headers.get('Content-Type') ?? 'audio/mpeg');
       res.setHeader('Cache-Control', 'no-store');
-      const stream = Readable.fromWeb(ttsResponse.body as unknown as ReadableStream<Uint8Array>);
+      const stream = Readable.fromWeb(ttsResponse.body as any);
       stream.pipe(res);
     } catch (error) {
       logger.error({ err: error }, 'Failed to generate ElevenLabs voice preview');
@@ -288,7 +288,9 @@ elevenlabsRouter.get(
   convaiRateLimiter,
   async (req, res, next) => {
     try {
-      const conversationId = req.params.conversationId;
+      const conversationId = Array.isArray(req.params.conversationId)
+        ? req.params.conversationId[0]
+        : req.params.conversationId;
       if (!conversationId) {
         throw new ValidationError('Conversation ID is required');
       }

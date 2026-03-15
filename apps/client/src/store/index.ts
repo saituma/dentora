@@ -19,6 +19,7 @@ import { llmApi } from "@/features/llm/llmApi";
 import { elevenlabsApi } from "@/features/elevenlabs/elevenlabsApi";
 import { appointmentsApi } from "@/features/appointments/appointmentsApi";
 import { patientsApi } from "@/features/patients/patientsApi";
+import { telephonyApi } from "@/features/telephony/telephonyApi";
 
 export const store = configureStore({
   reducer: {
@@ -42,6 +43,7 @@ export const store = configureStore({
     [elevenlabsApi.reducerPath]: elevenlabsApi.reducer,
     [appointmentsApi.reducerPath]: appointmentsApi.reducer,
     [patientsApi.reducerPath]: patientsApi.reducer,
+    [telephonyApi.reducerPath]: telephonyApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -59,6 +61,7 @@ export const store = configureStore({
       elevenlabsApi.middleware,
       appointmentsApi.middleware,
       patientsApi.middleware,
+      telephonyApi.middleware,
     ),
 });
 

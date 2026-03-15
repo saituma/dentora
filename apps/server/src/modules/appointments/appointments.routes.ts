@@ -144,6 +144,10 @@ appointmentsRouter.post(
         throw new ValidationError('Clinic timezone is required to check availability');
       }
 
+      const closedDates = Array.isArray(rules?.closedDates)
+        ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
+        : null;
+
       const availability = await findAvailableCalendarSlots({
         tenantId,
         timezone: clinic.timezone,
@@ -155,7 +159,7 @@ appointmentsRouter.post(
           ?? 30,
         bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
         operatingSchedule: rules?.operatingSchedule ?? clinic.businessHours ?? null,
-        closedDates: rules?.closedDates ?? null,
+        closedDates,
         maxSlots: req.body.maxSlots ?? 5,
         lookAheadDays: req.body.lookAheadDays ?? 14,
       });

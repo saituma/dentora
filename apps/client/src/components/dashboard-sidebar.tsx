@@ -42,6 +42,7 @@ const navItems = [
     url: '/dashboard/elevenlabs-agent',
     icon: <BotIcon />,
   },
+  { title: 'Browser Call', url: '/dashboard/browser-call', icon: <PhoneIcon /> },
   {
     title: 'Appointments',
     url: '/dashboard/appointments',

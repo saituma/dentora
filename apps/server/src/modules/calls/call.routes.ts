@@ -52,3 +52,27 @@ callRouter.get('/:callId/events', async (req, res, next) => {
     next(err);
   }
 });
+
+callRouter.get('/:callId/transcript', async (req, res, next) => {
+  try {
+    const transcript = await callService.getCallTranscript(
+      req.tenantContext!.tenantId,
+      req.params.callId,
+    );
+    res.json({ data: transcript });
+  } catch (err) {
+    next(err);
+  }
+});
+
+callRouter.get('/:callId/costs', async (req, res, next) => {
+  try {
+    const costs = await callService.getCallCostBreakdown(
+      req.tenantContext!.tenantId,
+      req.params.callId,
+    );
+    res.json({ data: costs });
+  } catch (err) {
+    next(err);
+  }
+});

@@ -647,7 +647,7 @@ async function cleanupSession(ws: WebSocket): Promise<void> {
         callSessionId: session.analyticsCallSessionId,
         fullTranscript: session.conversationHistory.map((entry) => ({
           role: entry.role,
-          text: entry.content,
+          content: entry.content,
         })),
         summary: lastAssistantUtterance || 'Browser test call completed',
         intentDetected: detectIntentFromTranscript(lastCallerUtterance),
