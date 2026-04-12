@@ -154,7 +154,7 @@ async function start() {
     logger.info('Database connected');
 
     const server = app.listen(port, '0.0.0.0', () => {
-      logger.info({ port, env: env.NODE_ENV }, `Dental Flow API listening on 0.0.0.0:${port}`);
+      logger.info({ port, env: env.NODE_ENV }, `Dentora API listening on 0.0.0.0:${port}`);
     });
 
     attachMediaStreamWebSocket(server);

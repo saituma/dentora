@@ -187,6 +187,15 @@ export function detectAppointmentChangeMode(message: string): AppointmentChangeM
   if (!normalized) return null;
   if (CANCEL_KEYWORDS.test(normalized)) return 'cancel';
   if (RESCHEDULE_KEYWORDS.test(normalized)) return 'reschedule';
+  if (
+    /\b(check|confirm|verify|review)\b/.test(normalized)
+    && /\bappointment(s)?\b/.test(normalized)
+  ) {
+    return 'check';
+  }
+  if (/\b(when|what time)\b/.test(normalized) && /\bappointment(s)?\b/.test(normalized)) {
+    return 'check';
+  }
   return null;
 }
 

@@ -46,6 +46,52 @@ const intentChartConfig = {
   count: { label: 'Requests', color: 'var(--primary)' },
 } satisfies ChartConfig;
 
+const DEMO_MODE = true;
+
+const demoDashboardStats = {
+  totalCalls: 184,
+  completionRate: 94.6,
+  averageDurationSeconds: 206,
+  totalCost: 148.32,
+  callsByStatus: {
+    completed: 174,
+    failed: 6,
+    escalated: 4,
+  },
+  topIntents: [
+    { intent: 'booking', count: 68 },
+    { intent: 'reschedule', count: 29 },
+    { intent: 'insurance', count: 24 },
+    { intent: 'clinic_info', count: 21 },
+    { intent: 'emergency', count: 12 },
+  ],
+};
+
+const demoDailyPerformance = [
+  { day: 'Tue', calls: 18 },
+  { day: 'Wed', calls: 27 },
+  { day: 'Thu', calls: 22 },
+  { day: 'Fri', calls: 31 },
+  { day: 'Sat', calls: 19 },
+  { day: 'Sun', calls: 14 },
+  { day: 'Mon', calls: 53 },
+];
+
+const demoRecentCalls = [
+  { id: 'demo-call-1', callerNumber: '+1 (415) 555-0142', startedAt: '2026-03-31T09:42:00Z', status: 'completed', durationSeconds: 312 },
+  { id: 'demo-call-2', callerNumber: '+1 (628) 555-0188', startedAt: '2026-03-31T09:18:00Z', status: 'completed', durationSeconds: 164 },
+  { id: 'demo-call-3', callerNumber: '+1 (510) 555-0127', startedAt: '2026-03-31T08:56:00Z', status: 'completed', durationSeconds: 241 },
+  { id: 'demo-call-4', callerNumber: '+1 (925) 555-0166', startedAt: '2026-03-31T08:40:00Z', status: 'escalated', durationSeconds: 97 },
+  { id: 'demo-call-5', callerNumber: '+1 (650) 555-0119', startedAt: '2026-03-31T08:11:00Z', status: 'completed', durationSeconds: 188 },
+];
+
+const demoUpcomingEvents = [
+  { id: 'demo-event-1', summary: 'New patient consult - Maya Chen', start: '2026-04-01T09:00:00Z', end: '2026-04-01T09:45:00Z', status: 'confirmed' },
+  { id: 'demo-event-2', summary: 'Invisalign follow-up - Jordan Brooks', start: '2026-04-01T12:30:00Z', end: '2026-04-01T13:00:00Z', status: 'confirmed' },
+  { id: 'demo-event-3', summary: 'Hygiene cleaning - Sofia Martinez', start: '2026-04-02T10:15:00Z', end: '2026-04-02T11:00:00Z', status: 'confirmed' },
+  { id: 'demo-event-4', summary: 'Whitening consult - David Kim', start: '2026-04-03T15:00:00Z', end: '2026-04-03T15:30:00Z', status: 'pending' },
+];
+
 function formatDuration(seconds?: number | null) {
   if (!seconds || seconds <= 0) return '0m 0s';
   const minutes = Math.floor(seconds / 60);
@@ -137,10 +183,35 @@ export default function DashboardOverviewPage() {
   const intentBreakdown = dashboardStats?.topIntents ?? [];
   const recentCalls = callsData?.data ?? [];
   const upcomingEvents = upcomingAppointments?.data?.events ?? [];
+  const showDemoData =
+    DEMO_MODE &&
+    !statsLoading &&
+    !hourlyLoading &&
+    !callsLoading &&
+    (statusEntries.length === 0 || intentBreakdown.length === 0 || recentCalls.length === 0);
+
+  const resolvedDashboardStats = showDemoData ? demoDashboardStats : dashboardStats;
+  const resolvedDailyPerformance = showDemoData ? demoDailyPerformance : dailyPerformance;
+  const resolvedStatusEntries = showDemoData
+    ? Object.entries(demoDashboardStats.callsByStatus).map(([status, count], index) => ({
+        status,
+        label: status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+        value: count,
+        color: `var(--chart-${(index % 5) + 1})`,
+      }))
+    : statusEntries;
+  const resolvedStatusChartConfig: ChartConfig = resolvedStatusEntries.reduce((acc, entry) => {
+    acc[entry.status] = { label: entry.label, color: entry.color };
+    return acc;
+  }, {} as ChartConfig);
+  const resolvedIntentBreakdown = showDemoData ? demoDashboardStats.topIntents : intentBreakdown;
+  const resolvedRecentCalls = showDemoData ? demoRecentCalls : recentCalls;
+  const resolvedUpcomingEvents = showDemoData ? demoUpcomingEvents : upcomingEvents;
+  const showActiveCalendar = hasActiveCalendar || showDemoData;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-xl border bg-card px-5 py-4 shadow-sm">
         <div>
           <h2 className="text-lg font-semibold">Overview</h2>
           <p className="text-sm text-muted-foreground">
@@ -152,23 +223,27 @@ export default function DashboardOverviewPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           title="Total calls"
-          value={dashboardStats ? dashboardStats.totalCalls.toLocaleString() : '--'}
+          value={resolvedDashboardStats ? resolvedDashboardStats.totalCalls.toLocaleString() : '--'}
           description="Inbound calls handled in the last 7 days"
+          className="bg-card"
         />
         <StatsCard
           title="Completion rate"
-          value={dashboardStats ? formatPercent(dashboardStats.completionRate) : '--'}
+          value={resolvedDashboardStats ? formatPercent(resolvedDashboardStats.completionRate) : '--'}
           description="Calls that finished successfully"
+          className="bg-card"
         />
         <StatsCard
           title="Avg call duration"
-          value={dashboardStats ? formatDuration(dashboardStats.averageDurationSeconds) : '--'}
+          value={resolvedDashboardStats ? formatDuration(resolvedDashboardStats.averageDurationSeconds) : '--'}
           description="Average call length"
+          className="bg-card"
         />
         <StatsCard
           title="AI spend"
-          value={dashboardStats ? formatMoney(dashboardStats.totalCost) : '--'}
+          value={resolvedDashboardStats ? formatMoney(resolvedDashboardStats.totalCost) : '--'}
           description="Telephony + AI usage costs"
+          className="bg-card"
         />
       </div>
 
@@ -183,7 +258,7 @@ export default function DashboardOverviewPage() {
               <div className="text-sm text-muted-foreground">Loading weekly volume…</div>
             ) : (
               <ChartContainer config={performanceChartConfig} className="h-[280px] w-full">
-                <AreaChart data={dailyPerformance}>
+                <AreaChart data={resolvedDailyPerformance}>
                   <defs>
                     <linearGradient id="fillCalls" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--color-calls)" stopOpacity={0.4} />
@@ -215,20 +290,20 @@ export default function DashboardOverviewPage() {
           <CardContent>
             {statsLoading ? (
               <div className="text-sm text-muted-foreground">Loading status mix…</div>
-            ) : statusEntries.length === 0 ? (
+            ) : resolvedStatusEntries.length === 0 ? (
               <div className="text-sm text-muted-foreground">No call status data yet.</div>
             ) : (
-              <ChartContainer config={statusChartConfig} className="h-[280px] w-full">
+              <ChartContainer config={resolvedStatusChartConfig} className="h-[280px] w-full">
                 <PieChart>
                   <Pie
-                    data={statusEntries}
+                    data={resolvedStatusEntries}
                     dataKey="value"
                     nameKey="status"
                     innerRadius={56}
                     outerRadius={84}
                     paddingAngle={2}
                   >
-                    {statusEntries.map((entry) => (
+                    {resolvedStatusEntries.map((entry) => (
                       <Cell key={entry.status} fill={entry.color} />
                     ))}
                   </Pie>
@@ -250,11 +325,11 @@ export default function DashboardOverviewPage() {
           <CardContent>
             {statsLoading ? (
               <div className="text-sm text-muted-foreground">Loading intent data…</div>
-            ) : intentBreakdown.length === 0 ? (
+            ) : resolvedIntentBreakdown.length === 0 ? (
               <div className="text-sm text-muted-foreground">No intent data captured yet.</div>
             ) : (
               <ChartContainer config={intentChartConfig} className="h-[260px] w-full">
-                <BarChart data={intentBreakdown} layout="vertical" margin={{ left: 16, right: 12 }}>
+                <BarChart data={resolvedIntentBreakdown} layout="vertical" margin={{ left: 16, right: 12 }}>
                   <CartesianGrid horizontal={false} />
                   <BarXAxis type="number" hide />
                   <YAxis
@@ -281,10 +356,10 @@ export default function DashboardOverviewPage() {
           <CardContent className="space-y-3">
             {callsLoading ? (
               <div className="text-sm text-muted-foreground">Loading recent calls…</div>
-            ) : recentCalls.length === 0 ? (
+            ) : resolvedRecentCalls.length === 0 ? (
               <div className="text-sm text-muted-foreground">No calls yet.</div>
             ) : (
-              recentCalls.map((call) => (
+              resolvedRecentCalls.map((call) => (
                 <div
                   key={call.id}
                   className="flex items-center justify-between rounded-lg border p-3"
@@ -325,20 +400,20 @@ export default function DashboardOverviewPage() {
             <CardDescription>Next 7 days from your connected calendar</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {!hasActiveCalendar ? (
+            {!showActiveCalendar ? (
               <div className="text-sm text-muted-foreground">
                 Connect Google Calendar to show upcoming appointments.
               </div>
-            ) : upcomingLoading ? (
+            ) : upcomingLoading && !showDemoData ? (
               <div className="text-sm text-muted-foreground">Loading upcoming appointments…</div>
-            ) : upcomingError ? (
+            ) : upcomingError && !showDemoData ? (
               <div className="text-sm text-muted-foreground">
                 Unable to load upcoming appointments. Check the calendar integration.
               </div>
-            ) : upcomingEvents.length === 0 ? (
+            ) : resolvedUpcomingEvents.length === 0 ? (
               <div className="text-sm text-muted-foreground">No upcoming appointments found.</div>
             ) : (
-              upcomingEvents.slice(0, 6).map((event) => {
+              resolvedUpcomingEvents.slice(0, 6).map((event) => {
                 const start = new Date(event.start);
                 const end = new Date(event.end);
                 const timeLabel = Number.isNaN(start.getTime())
@@ -373,24 +448,24 @@ export default function DashboardOverviewPage() {
         </Card>
       </div>
 
-      <Card className="border-primary/50 bg-primary/5">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarIcon className="size-5" />
-            {hasActiveCalendar
+            {showActiveCalendar
               ? 'Calendar connected'
               : 'Next step: Connect your calendar'}
           </CardTitle>
           <CardDescription>
-            {hasActiveCalendar
+            {showActiveCalendar
               ? 'Manage calendar sync and connection health from Integrations'
               : 'Connect Google Calendar or Outlook to enable AI appointment booking'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant={hasActiveCalendar ? 'outline' : 'default'} asChild>
+          <Button variant={showActiveCalendar ? 'outline' : 'default'} asChild>
             <Link href="/dashboard/integrations">
-              {hasActiveCalendar ? 'Manage integrations' : 'Connect calendar'}
+              {showActiveCalendar ? 'Manage integrations' : 'Connect calendar'}
             </Link>
           </Button>
         </CardContent>

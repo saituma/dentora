@@ -114,8 +114,9 @@ export async function readContextFileContent(file: File): Promise<string> {
     for (let i = 1; i <= doc.numPages; i += 1) {
       const page = await doc.getPage(i);
       const content = await page.getTextContent();
-      const pageText = content.items
-        .map((item) => (typeof (item as { str?: string }).str === 'string' ? (item as { str: string }).str : ''))
+      const items = content.items as Array<{ str?: string }>;
+      const pageText = items
+        .map((item) => (typeof item.str === 'string' ? item.str : ''))
         .join(' ');
       text += `${pageText}\n`;
     }

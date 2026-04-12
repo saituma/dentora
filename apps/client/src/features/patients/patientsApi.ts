@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/lib/api';
+import type { CallSession } from '@/features/calls/types';
 
 export type PatientProfile = {
   id: string;
@@ -11,6 +12,11 @@ export type PatientProfile = {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type PatientCall = CallSession & {
+  transcriptSummary: string | null;
+  intentDetected: string | null;
 };
 
 export const patientsApi = createApi({
@@ -36,7 +42,21 @@ export const patientsApi = createApi({
         body,
       }),
     }),
+    getPatientById: builder.query<{ data: PatientProfile }, string>({
+      query: (patientId) => `/patients/${patientId}`,
+    }),
+    getPatientCalls: builder.query<{ data: PatientCall[] }, { patientId: string; limit?: number }>({
+      query: ({ patientId, limit }) => ({
+        url: `/patients/${patientId}/calls`,
+        params: limit ? { limit } : undefined,
+      }),
+    }),
   }),
 });
 
-export const { useGetPatientsQuery, useUpsertPatientMutation } = patientsApi;
+export const {
+  useGetPatientsQuery,
+  useUpsertPatientMutation,
+  useGetPatientByIdQuery,
+  useGetPatientCallsQuery,
+} = patientsApi;

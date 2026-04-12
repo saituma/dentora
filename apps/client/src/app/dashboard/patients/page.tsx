@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,30 +25,7 @@ import { EmptyState } from '@/components/empty-state';
 import { useGetPatientsQuery, useUpsertPatientMutation, type PatientProfile } from '@/features/patients/patientsApi';
 import { UsersIcon } from 'lucide-react';
 import { toast } from 'sonner';
-
-const formatDate = (value?: string | null) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-};
+import { formatDate, formatDateTime } from './patient-utils';
 
 const blankPatient: PatientProfile = {
   id: 'new',
@@ -62,6 +40,7 @@ const blankPatient: PatientProfile = {
 };
 
 export default function PatientsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [editingPatient, setEditingPatient] = useState<PatientProfile | null>(null);
   const { data, isLoading, refetch } = useGetPatientsQuery(search ? { search } : undefined);
@@ -152,7 +131,11 @@ export default function PatientsPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredPatients.map((patient) => (
-                    <TableRow key={patient.id}>
+                    <TableRow
+                      key={patient.id}
+                      className="cursor-pointer transition-colors hover:bg-muted/40"
+                      onClick={() => router.push(`/dashboard/patients/${patient.id}`)}
+                    >
                       <TableCell>
                         <div className="font-medium">{patient.fullName}</div>
                         <div className="text-xs text-muted-foreground">{patient.notes || 'No notes'}</div>
@@ -164,7 +147,14 @@ export default function PatientsPage() {
                         <Badge variant="outline">Active</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => setEditingPatient(patient)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setEditingPatient(patient);
+                          }}
+                        >
                           Edit
                         </Button>
                       </TableCell>

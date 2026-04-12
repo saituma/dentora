@@ -240,6 +240,7 @@ function buildSharedReceptionistRules(): string[] {
     '10. If the caller asks to speak to a human, direct them to the clinic\'s main contact line or staff callback process.',
     '11. Do not mention that you are an AI unless explicitly asked.',
     '12. Never invent appointment availability. Any real booking confirmation must come from backend calendar validation.',
+    '13. When stating times, avoid saying "o\'clock". Use natural phrasing like "9 AM" or "9:00 AM".',
   ];
 }
 
@@ -457,10 +458,21 @@ export async function processVoiceTurn(input: {
     },
   });
 
+  const lowConfidenceThreshold = 0.72;
+  const systemPrompt =
+    sttResult.confidence > 0 && sttResult.confidence < lowConfidenceThreshold
+      ? [
+          input.systemPrompt,
+          '',
+          'ASR note: The caller audio was low-confidence. Be extra careful with names, phone numbers, and times.',
+          'If anything is unclear, ask them to repeat slowly and confirm by repeating it back. For numbers, ask for digits one by one.',
+        ].join('\n')
+      : input.systemPrompt;
+
   const llmResult = await processConversationTurn({
     tenantId: input.tenantId,
     callSessionId: input.callSessionId,
-    systemPrompt: input.systemPrompt,
+    systemPrompt,
     conversationHistory: input.conversationHistory,
     userMessage: sttResult.text,
   });

@@ -39,6 +39,8 @@ export function VoiceTab(props: {
   setTone: (value: Tone) => void;
   language: string;
   setLanguage: (value: string) => void;
+  speechSpeed: number;
+  setSpeechSpeed: (value: number) => void;
   afterHoursMessage: string;
   setAfterHoursMessage: (value: string) => void;
   handlePreviewVoice: () => Promise<void>;
@@ -61,6 +63,8 @@ export function VoiceTab(props: {
     setTone,
     language,
     setLanguage,
+    speechSpeed,
+    setSpeechSpeed,
     afterHoursMessage,
     setAfterHoursMessage,
     handlePreviewVoice,
@@ -139,6 +143,33 @@ export function VoiceTab(props: {
                 <Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder="en-US" />
               </Field>
             </div>
+
+            <Field>
+              <FieldLabel>Speaking speed</FieldLabel>
+              <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Slower</span>
+                  <span className="rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                    {speechSpeed.toFixed(1)}x
+                  </span>
+                  <span>Faster</span>
+                </div>
+                <input
+                  type="range"
+                  min={0.8}
+                  max={1.2}
+                  step={0.05}
+                  value={speechSpeed}
+                  onChange={(event) => setSpeechSpeed(parseFloat(event.target.value))}
+                  className="w-full cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>0.8x</span>
+                  <span>1.0x (default)</span>
+                  <span>1.2x</span>
+                </div>
+              </div>
+            </Field>
 
             <Field>
               <FieldLabel>After-hours message</FieldLabel>

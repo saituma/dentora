@@ -33,8 +33,8 @@ export default function LandingPage() {
                 </span>
               </h1>
               <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-                DentalFlow answers every call, books appointments in real time,
-                and handles common patient questions with your clinic’s voice.
+                Our AI answers every call, books appointments in real time, and
+                handles common patient questions with your clinic’s voice.
               </p>
             </div>
 
@@ -219,8 +219,8 @@ export default function LandingPage() {
                 </span>
               </h2>
               <p className="mt-4 text-muted-foreground">
-                Join modern dental practices using DentalFlow to answer faster,
-                book smarter, and grow without adding overhead.
+                Join modern dental practices using an AI receptionist to answer
+                faster, book smarter, and grow without adding overhead.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link

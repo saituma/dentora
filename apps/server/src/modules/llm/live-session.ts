@@ -48,6 +48,7 @@ interface BrowserLiveSession {
   lastTranscriptNormalized: string;
   lastTranscriptAt: number;
   startedAt: number;
+  callerNumber?: string;
 }
 
 const sessions = new Map<WebSocket, BrowserLiveSession>();
@@ -55,8 +56,9 @@ const sessions = new Map<WebSocket, BrowserLiveSession>();
 const SILENCE_TIMEOUT_MS = 300;
 const MIN_AUDIO_BUFFER_BYTES = 1024;
 const DUPLICATE_TRANSCRIPT_WINDOW_MS = 2500;
-const EARLY_TTS_SENTENCE_MIN_CHARS = 48;
-const EARLY_TTS_LONG_PHRASE_MIN_CHARS = 160;
+const EARLY_TTS_SENTENCE_MIN_CHARS = 24;
+const EARLY_TTS_CLAUSE_MIN_CHARS = 36;
+const EARLY_TTS_LONG_PHRASE_MIN_CHARS = 72;
 const HANG_UP_PATTERNS = [
   /\bhang\s*up\b/i,
   /\bhung\s*up\b/i,
@@ -81,9 +83,11 @@ function extractSpeakableSegments(buffer: string, flushRemainder = false): { seg
     const char = buffer[index];
     const currentLength = index + 1 - lastCommittedIndex;
     const isStrongBoundary = char === '.' || char === '!' || char === '?';
+    const isSoftBoundary = (char === ',' || char === ';' || char === ':')
+      && currentLength >= EARLY_TTS_CLAUSE_MIN_CHARS;
     const isLongBoundary = char === ' ' && currentLength >= EARLY_TTS_LONG_PHRASE_MIN_CHARS;
 
-    if ((isStrongBoundary && currentLength >= EARLY_TTS_SENTENCE_MIN_CHARS) || isLongBoundary) {
+    if ((isStrongBoundary && currentLength >= EARLY_TTS_SENTENCE_MIN_CHARS) || isSoftBoundary || isLongBoundary) {
       const segment = buffer.slice(start, index + 1).trim();
       if (segment) segments.push(segment);
       start = index + 1;
@@ -102,6 +106,10 @@ function extractSpeakableSegments(buffer: string, flushRemainder = false): { seg
 
 function normalizeTranscript(transcript: string): string {
   return transcript.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function normalizePhoneCandidate(value: string): string {
+  return value.replace(/\D/g, '');
 }
 
 function detectIntentFromTranscript(transcript: string): string {
@@ -526,6 +534,18 @@ async function processRecognizedTranscript(
   });
   session.sessionState = turnResult.sessionState;
 
+  const bookingPhone = session.sessionState.booking?.patient?.phoneNumber;
+  const changePhone = session.sessionState.appointmentChange?.phoneNumber;
+  const rawPhone = bookingPhone || changePhone || '';
+  const normalizedPhone = normalizePhoneCandidate(rawPhone);
+  if (
+    normalizedPhone.length >= 7
+    && (session.callerNumber == null || session.callerNumber === 'browser-test' || normalizePhoneCandidate(session.callerNumber) !== normalizedPhone)
+  ) {
+    session.callerNumber = rawPhone.trim();
+    await callService.updateCallCallerNumber(session.tenantId, session.analyticsCallSessionId, session.callerNumber);
+  }
+
   if (generationId !== session.generationId) return;
 
   const finalResponseText = turnResult.response.trim();
@@ -609,7 +629,7 @@ async function initializeSession(ws: WebSocket, requestUrl: URL): Promise<Browse
     audioBuffer: [],
     mimeType: 'audio/webm',
     language: String(voiceSettings.language || 'en-US'),
-    speakingSpeed: Number(voiceSettings.speechSpeed || voiceSettings.speakingSpeed || 1.08),
+    speakingSpeed: Number(voiceSettings.speechSpeed || voiceSettings.speakingSpeed || 1.0),
     voiceId: resolvedVoice.voiceId,
     voiceName: resolvedVoice.voiceName,
     configuredVoiceId,
@@ -642,6 +662,15 @@ async function cleanupSession(ws: WebSocket): Promise<void> {
     const lastAssistantUtterance = [...session.conversationHistory].reverse().find((entry) => entry.role === 'assistant')?.content ?? '';
 
     if (session.conversationHistory.length > 0) {
+      const summary =
+        (await callService.generateCallSummary({
+          tenantId: session.tenantId,
+          callSessionId: session.analyticsCallSessionId,
+          transcriptTurns: session.conversationHistory,
+        }))
+        || lastAssistantUtterance
+        || 'Browser test call completed';
+
       await callService.saveTranscript({
         tenantId: session.tenantId,
         callSessionId: session.analyticsCallSessionId,
@@ -649,7 +678,7 @@ async function cleanupSession(ws: WebSocket): Promise<void> {
           role: entry.role,
           content: entry.content,
         })),
-        summary: lastAssistantUtterance || 'Browser test call completed',
+        summary,
         intentDetected: detectIntentFromTranscript(lastCallerUtterance),
       });
     }

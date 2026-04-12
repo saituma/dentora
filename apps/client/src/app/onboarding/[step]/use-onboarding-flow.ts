@@ -99,7 +99,8 @@ export function useOnboardingFlow() {
   }]);
 
   const requestedStep = params.step as string | undefined;
-  const step = STEP_ORDER.includes(requestedStep as OnboardingStep) ? (requestedStep as OnboardingStep) : 'clinic-profile';
+  const normalizedRequestedStep = requestedStep === 'rules' ? 'integrations' : requestedStep;
+  const step = STEP_ORDER.includes(normalizedRequestedStep as OnboardingStep) ? (normalizedRequestedStep as OnboardingStep) : 'clinic-profile';
   const stepIndex = STEP_ORDER.indexOf(step);
   const currentStep = stepIndex >= 0 ? stepIndex : 0;
   const progressPercent = Math.round((currentStep / (STEP_ORDER.length - 1)) * 100);
@@ -193,8 +194,13 @@ export function useOnboardingFlow() {
   };
 
   const goBack = () => {
-    if (currentStep > 0) {
-      router.push(`/onboarding/${STEP_ORDER[currentStep - 1]}`);
+    if (currentStep <= 0) return;
+    let previousIndex = currentStep - 1;
+    while (previousIndex >= 0 && STEP_ORDER[previousIndex] === 'rules') {
+      previousIndex -= 1;
+    }
+    if (previousIndex >= 0) {
+      router.push(`/onboarding/${STEP_ORDER[previousIndex]}`);
     }
   };
 

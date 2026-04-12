@@ -183,6 +183,7 @@ export async function saveContextDocuments(
     mimeType?: string;
   }>,
 ): Promise<void> {
+  const sanitizeText = (value: string) => value.replace(/\u0000/g, '').trim();
   const [existing] = await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(1);
   const existingSensitiveTopics = Array.isArray(existing?.sensitiveTopics)
     ? (existing.sensitiveTopics as Array<Record<string, unknown>>).filter((entry) => entry?.type !== 'context_document')
@@ -192,7 +193,7 @@ export async function saveContextDocuments(
     type: 'context_document',
     title: document.name,
     mimeType: document.mimeType ?? 'text/plain',
-    content: document.content,
+    content: sanitizeText(document.content ?? ''),
   }));
 
   const values = {

@@ -98,13 +98,20 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
 
   const { accessToken } = await resolveValidGoogleAccessToken(integration);
   const calendarId = getCalendarId((integration.config ?? {}) as Record<string, unknown>);
-  const [year, month, day] = input.appointmentDate.split('-').map(Number);
-  if (!year || !month || !day) {
-    throw new ValidationError('Invalid appointment date. Expected YYYY-MM-DD.');
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  if (input.appointmentDate) {
+    const [year, month, day] = input.appointmentDate.split('-').map(Number);
+    if (!year || !month || !day) {
+      throw new ValidationError('Invalid appointment date. Expected YYYY-MM-DD.');
+    }
+    rangeStart = makeDateInTimeZone(input.timezone, year, month, day, 0, 0);
+    rangeEnd = new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
+  } else {
+    const now = new Date();
+    rangeStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    rangeEnd = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
   }
-
-  const rangeStart = makeDateInTimeZone(input.timezone, year, month, day, 0, 0);
-  const rangeEnd = new Date(rangeStart.getTime() + 24 * 60 * 60 * 1000);
 
   const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
   url.searchParams.set('singleEvents', 'true');
@@ -174,7 +181,10 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
       label: string;
       score: number;
     } => Boolean(item))
-    .sort((left, right) => left.score - right.score);
+    .sort((left, right) => {
+      if (requestedTime) return left.score - right.score;
+      return new Date(left.startIso).getTime() - new Date(right.startIso).getTime();
+    });
 
   if (candidates.length === 0) return null;
   const best = candidates[0];

@@ -21,7 +21,7 @@ export function AppShell({ children }: AppShellProps) {
       <DashboardSidebar />
       <SidebarInset>
         <DashboardHeader />
-        <div className="flex flex-1 flex-col overflow-auto">
+        <div className="flex flex-1 flex-col overflow-auto [--border:#c7def0] [--card:#E3F2FD] [--popover:#E3F2FD] dark:[--border:color-mix(in_srgb,var(--brand-bg)_70%,var(--brand-text))] dark:[--card:color-mix(in_srgb,var(--brand-bg)_88%,var(--brand-highlight))] dark:[--popover:color-mix(in_srgb,var(--brand-bg)_86%,var(--brand-highlight))]">
           <div className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
             {children}
           </div>

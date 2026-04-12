@@ -131,7 +131,7 @@ export interface ConfigChatResponse {
 export const onboardingApi = createApi({
   reducerPath: 'onboardingApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['OnboardingStatus', 'Readiness'],
+  tagTypes: ['OnboardingStatus', 'Readiness', 'ContextDocuments'],
   endpoints: (builder) => ({
     getOnboardingStatus: builder.query<OnboardingStatus, void>({
       query: () => '/onboarding/status',
@@ -313,6 +313,26 @@ export const onboardingApi = createApi({
       }),
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
+    uploadContextDocuments: builder.mutation<
+      { success: boolean; count: number },
+      FormData
+    >({
+      query: (formData) => ({
+        url: '/onboarding/context-documents/upload',
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness', 'ContextDocuments'],
+    }),
+    getContextDocuments: builder.query<
+      { data: Array<{ id: string; title: string; mimeType: string; charCount: number; preview: string }> },
+      void
+    >({
+      query: () => ({
+        url: '/onboarding/context-documents',
+      }),
+      providesTags: ['ContextDocuments'],
+    }),
   }),
 });
 
@@ -330,4 +350,6 @@ export const {
   useTranscribeLiveAudioMutation,
   usePublishConfigMutation,
   useSaveContextDocumentsMutation,
+  useUploadContextDocumentsMutation,
+  useGetContextDocumentsQuery,
 } = onboardingApi;

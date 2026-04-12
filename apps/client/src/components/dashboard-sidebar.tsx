@@ -107,7 +107,7 @@ export function DashboardSidebar() {
               </div>
               <div className="min-w-0 flex-1 text-left leading-tight">
                 <span className="block truncate text-sm font-semibold">
-                  {clinic?.clinicName ?? 'DentalFlow AI'}
+                  {clinic?.clinicName ?? 'Your Clinic'}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">
                   {clinic?.phone ?? clinic?.email ?? user?.email ?? 'Dental clinic'}

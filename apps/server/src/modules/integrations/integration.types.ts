@@ -68,7 +68,7 @@ export interface FindCalendarAppointmentInput {
   timezone: string;
   patientName?: string;
   phoneNumber?: string;
-  appointmentDate: string;
+  appointmentDate?: string;
   appointmentTime?: string | null;
 }
 

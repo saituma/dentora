@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
-import { findPatientProfile, listPatientProfiles, upsertPatientProfile } from './patients.service.js';
+import { findPatientProfile, listPatientProfiles, upsertPatientProfile, getPatientProfileById } from './patients.service.js';
+import { listCallSessionsByCaller } from '../calls/call.service.js';
 
 const patientsRateLimiter = rateLimiter({
   maxRequests: 120,
@@ -83,6 +84,67 @@ patientsRouter.post(
       });
 
       res.json({ data: profile });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+patientsRouter.get(
+  '/:patientId',
+  authenticateJwt,
+  resolveTenant,
+  patientsRateLimiter,
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantContext!.tenantId;
+      const profile = await getPatientProfileById({
+        tenantId,
+        patientId: String(req.params.patientId),
+      });
+
+      if (!profile) {
+        res.status(404).json({ error: 'Patient not found' });
+        return;
+      }
+
+      res.json({ data: profile });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+patientsRouter.get(
+  '/:patientId/calls',
+  authenticateJwt,
+  resolveTenant,
+  patientsRateLimiter,
+  validate({
+    query: z.object({
+      limit: z.coerce.number().int().min(1).max(200).optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantContext!.tenantId;
+      const profile = await getPatientProfileById({
+        tenantId,
+        patientId: String(req.params.patientId),
+      });
+
+      if (!profile) {
+        res.status(404).json({ error: 'Patient not found' });
+        return;
+      }
+
+      const calls = await listCallSessionsByCaller({
+        tenantId,
+        phoneNumber: profile.phoneNumber,
+        limit: (req.query as any).limit,
+      });
+
+      res.json({ data: calls });
     } catch (error) {
       next(error);
     }

@@ -43,6 +43,7 @@ export const STEPS = [
   { id: 'plan', label: 'Plan' },
   { id: 'knowledge-base', label: 'Knowledge' },
   { id: 'voice', label: 'Voice' },
+  { id: 'rules', label: 'Rules' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'schedule', label: 'Schedule' },
   { id: 'ai-chat', label: 'AI Chat' },
@@ -68,6 +69,10 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
   voice: {
     title: 'Choose voice and personality',
     description: 'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
+  },
+  rules: {
+    title: 'Set booking rules',
+    description: 'Define the scheduling rules your AI should follow when booking patients.',
   },
   integrations: {
     title: 'Connect key tools',

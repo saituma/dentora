@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { MarketingGuard } from '@/components/auth/marketing-guard';
 
 export default function MarketingLayout({
@@ -11,8 +12,15 @@ export default function MarketingLayout({
       <div className="flex min-h-svh flex-col">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
           <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between">
-            <Link href="/" className="font-semibold">
-              DentalFlow AI
+            <Link href="/" aria-label="Home" className="flex items-center">
+              <Image
+                src="/dentora.png"
+                alt="Dentora"
+                width={678}
+                height={581}
+                priority
+                className="h-8 w-auto"
+              />
             </Link>
             <nav className="flex items-center gap-4">
               <Link
@@ -52,7 +60,7 @@ export default function MarketingLayout({
         <footer className="border-t py-8">
           <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-between gap-4 md:flex-row">
             <p className="text-sm text-muted-foreground">
-              DentalFlow AI. All rights reserved.
+              All rights reserved.
             </p>
             <nav className="flex gap-6">
               <Link

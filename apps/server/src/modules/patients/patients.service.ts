@@ -53,6 +53,22 @@ export async function findPatientProfileByPhone(input: {
   return (row as PatientProfileRecord | undefined) ?? null;
 }
 
+export async function getPatientProfileById(input: {
+  tenantId: string;
+  patientId: string;
+}): Promise<PatientProfileRecord | null> {
+  const [row] = await db
+    .select()
+    .from(patientProfiles)
+    .where(and(
+      eq(patientProfiles.tenantId, input.tenantId),
+      eq(patientProfiles.id, input.patientId),
+    ))
+    .limit(1);
+
+  return (row as PatientProfileRecord | undefined) ?? null;
+}
+
 export async function upsertPatientProfile(input: {
   tenantId: string;
   fullName: string;

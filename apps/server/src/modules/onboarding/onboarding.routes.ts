@@ -1,21 +1,79 @@
 
 import express, { Router } from 'express';
+import multer from 'multer';
+import pdfParse from 'pdf-parse';
+import * as mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 import * as onboardingService from './onboarding.service.js';
 import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
 import { z } from 'zod';
 import { ValidationError } from '../../lib/errors.js';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { logger } from '../../lib/logger.js';
+import { db } from '../../db/index.js';
+import { policies } from '../../db/schema.js';
+import { eq } from 'drizzle-orm';
 
 export const onboardingRouter = Router();
 
 const LIVE_TRANSCRIBE_ALLOWED_MIME_TYPES = new Set(['audio/webm', 'audio/wav', 'audio/pcm']);
 const LIVE_TRANSCRIBE_MAX_BYTES = 1024 * 1024;
+const CONTEXT_DOC_MAX_BYTES = 5 * 1024 * 1024;
+const CONTEXT_DOC_MAX_CHARS = 200000;
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: CONTEXT_DOC_MAX_BYTES, files: 10 },
+});
 
 const liveTranscribeRawParser = express.raw({
   type: ['audio/webm', 'audio/wav', 'audio/pcm', 'audio/webm;codecs=opus'],
   limit: '1mb',
 });
+
+function getFileExtension(fileName: string): string {
+  const parts = fileName.toLowerCase().split('.');
+  return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+
+function sanitizeContextText(value: string): string {
+  if (!value) return '';
+  return value
+    .replace(/\u0000/g, '')
+    .replace(/[^\S\r\n]+$/gm, '')
+    .trim();
+}
+
+async function extractContextText(file: Express.Multer.File): Promise<string> {
+  const extension = getFileExtension(file.originalname);
+  const mimeType = String(file.mimetype || '').toLowerCase();
+
+  if (mimeType.startsWith('text/') || ['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(extension)) {
+    return sanitizeContextText(file.buffer.toString('utf-8'));
+  }
+
+  if (extension === 'pdf') {
+    const parsed = await pdfParse(file.buffer);
+    return sanitizeContextText(parsed.text ?? '');
+  }
+
+  if (extension === 'docx') {
+    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    return sanitizeContextText(result.value ?? '');
+  }
+
+  if (extension === 'xlsx') {
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const sheets = workbook.SheetNames.map((name) => {
+      const sheet = workbook.Sheets[name];
+      const csv = XLSX.utils.sheet_to_csv(sheet);
+      return `# ${name}\n${csv}`;
+    });
+    return sanitizeContextText(sheets.join('\n'));
+  }
+
+  return '';
+}
 
 onboardingRouter.use(authenticateJwt, resolveTenant);
 
@@ -32,6 +90,32 @@ onboardingRouter.get('/readiness', async (req, res, next) => {
   try {
     const scorecard = await onboardingService.computeReadinessScore(req.tenantContext!.tenantId);
     res.json(scorecard);
+  } catch (err) {
+    next(err);
+  }
+});
+
+onboardingRouter.get('/context-documents', async (req, res, next) => {
+  try {
+    const tenantId = req.tenantContext!.tenantId;
+    const [policyRow] = await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(1);
+    const topics = Array.isArray(policyRow?.sensitiveTopics) ? policyRow!.sensitiveTopics as Array<Record<string, unknown>> : [];
+    const documents = topics
+      .filter((topic) => topic?.type === 'context_document')
+      .map((topic, index) => {
+        const title = typeof topic.title === 'string' && topic.title.trim() ? topic.title.trim() : `Document ${index + 1}`;
+        const content = typeof topic.content === 'string' ? topic.content.trim() : '';
+        const preview = content.length > 280 ? `${content.slice(0, 280)}…` : content;
+        return {
+          id: `${index}-${title}`,
+          title,
+          mimeType: typeof topic.mimeType === 'string' ? topic.mimeType : 'text/plain',
+          charCount: content.length,
+          preview,
+        };
+      });
+
+    res.json({ data: documents });
   } catch (err) {
     next(err);
   }
@@ -291,7 +375,7 @@ onboardingRouter.post(
       documents: z.array(
         z.object({
           name: z.string().min(1).max(200),
-          content: z.string().min(1).max(40000),
+          content: z.string().min(1).max(CONTEXT_DOC_MAX_CHARS),
           mimeType: z.string().optional(),
         }),
       ).min(1).max(10),
@@ -301,6 +385,39 @@ onboardingRouter.post(
     try {
       await onboardingService.saveContextDocuments(req.tenantContext!.tenantId, req.body.documents);
       res.json({ success: true, count: req.body.documents.length });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+onboardingRouter.post(
+  '/context-documents/upload',
+  upload.array('files', 10),
+  async (req, res, next) => {
+    try {
+      const files = (req.files ?? []) as Express.Multer.File[];
+      if (!files.length) {
+        throw new ValidationError('No files uploaded.');
+      }
+
+      const documents: Array<{ name: string; content: string; mimeType?: string }> = [];
+      for (const file of files) {
+        const content = await extractContextText(file);
+        if (!content) continue;
+        documents.push({
+          name: file.originalname,
+          content: content.slice(0, CONTEXT_DOC_MAX_CHARS),
+          mimeType: file.mimetype || 'text/plain',
+        });
+      }
+
+      if (documents.length === 0) {
+        throw new ValidationError('No supported content extracted from uploaded files.');
+      }
+
+      await onboardingService.saveContextDocuments(req.tenantContext!.tenantId, documents);
+      res.json({ success: true, count: documents.length });
     } catch (err) {
       next(err);
     }

@@ -75,7 +75,9 @@ const formatServices = (services: Array<{ serviceName?: string; durationMinutes?
   return truncate(lines.join(' | '), 1000);
 };
 
-const formatPolicies = (policies: Array<{ policyType?: string; content?: string }>): string => {
+const formatPolicies = (
+  policies: Array<{ policyType?: string | null; content?: string | null }>,
+): string => {
   if (!policies.length) return '';
   const lines = policies.slice(0, 8).map((policy) => {
     const label = policy.policyType ? `${policy.policyType}: ` : '';
@@ -169,6 +171,12 @@ const buildContextualUpdate = (input: {
   clinicNotes?: string;
   uploadedContext?: string;
 }) => {
+  const maxContextLength = 4000;
+  const safeContext = input.uploadedContext
+    ? (input.uploadedContext.length > maxContextLength
+      ? `${input.uploadedContext.slice(0, maxContextLength)}…`
+      : input.uploadedContext)
+    : '';
   const lines = [
     'Context update for the receptionist:',
     input.agentName ? `Agent name: ${input.agentName}` : null,
@@ -177,11 +185,13 @@ const buildContextualUpdate = (input: {
     input.clinicName ? `Clinic name: ${input.clinicName}` : null,
     input.staffDirectory ? `Staff directory: ${input.staffDirectory}` : null,
     input.clinicNotes ? `Clinic notes: ${input.clinicNotes}` : null,
-    input.uploadedContext ? `Uploaded clinic context: ${input.uploadedContext}` : null,
+    safeContext ? `Uploaded clinic context: ${safeContext}` : null,
     'Instructions:',
     input.agentName
       ? `- Always introduce yourself as ${input.agentName}. Never use any other name.`
       : '- Always introduce yourself as the receptionist name provided by the user.',
+    '- For appointment status, reschedule, or cancellation requests: ask only for the caller phone number. Do not ask for full name or date of birth.',
+    '- After collecting the phone number, confirm whether an appointment exists for that phone and share the appointment time. If no match, say no appointment is found for that number.',
     '- When the caller gives a date without a year, always assume the current year shown above.',
     '- If that date already passed in the current year, use the next year.',
     '- Use the staff directory when asked about staff names, roles, phone numbers, or status.',
@@ -218,7 +228,7 @@ export default function ElevenLabsAgentPage() {
   const [connectionType, setConnectionType] = useState<'webrtc' | 'websocket'>('webrtc');
   const [textOnly, setTextOnly] = useState(false);
   const [agentNameVar, setAgentNameVar] = useState(DEFAULT_AGENT_NAME);
-  const [clinicNameVar, setClinicNameVar] = useState('DentalFlow Clinic');
+  const [clinicNameVar, setClinicNameVar] = useState('Your Clinic');
   const conversationIdRef = useRef<string | null>(null);
   const [createToken, { isLoading: isCreatingToken }] = useCreateConversationTokenMutation();
   const [createSignedUrl, { isLoading: isCreatingSignedUrl }] = useCreateSignedUrlMutation();
@@ -247,7 +257,7 @@ export default function ElevenLabsAgentPage() {
     .join(' | ');
 
   useEffect(() => {
-    if (clinic?.clinicName && clinicNameVar === 'DentalFlow Clinic') {
+    if (clinic?.clinicName && clinicNameVar === 'Your Clinic') {
       setClinicNameVar(clinic.clinicName);
     }
   }, [clinic?.clinicName, clinicNameVar]);
@@ -436,7 +446,7 @@ export default function ElevenLabsAgentPage() {
         });
     },
     onMessage: (message) => {
-      const record = message as Record<string, unknown>;
+      const record = message as unknown as Record<string, unknown>;
       const role = typeof record.role === 'string' ? record.role : 'agent';
       const text = typeof record.message === 'string' ? record.message : formatMessage(message);
       appendLog({ role: role === 'user' ? 'user' : 'agent', text });
@@ -488,7 +498,7 @@ export default function ElevenLabsAgentPage() {
 
       const dynamicVariables = {
         agent_name: agentNameVar.trim() || DEFAULT_AGENT_NAME,
-        clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'DentalFlow Clinic',
+        clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'Your Clinic',
         clinic_phone: clinic?.phone ?? 'Unknown',
         clinic_email: clinic?.email ?? 'Unknown',
         clinic_address: clinic?.address ?? 'Unknown',
@@ -545,7 +555,6 @@ export default function ElevenLabsAgentPage() {
         }
         const conversationId = await conversation.startSession({
           conversationToken: response.data.token,
-          agentId,
           connectionType: 'webrtc',
           dynamicVariables,
         });
@@ -647,7 +656,7 @@ export default function ElevenLabsAgentPage() {
             <div className="w-full sm:w-64">
               <Select
                 value={selectedAgentId}
-                onValueChange={(value) => setSelectedAgentId(value)}
+                onValueChange={(value) => setSelectedAgentId(value ?? '')}
                 disabled={conversation.status === 'connected'}
               >
                 <SelectTrigger>
@@ -729,7 +738,7 @@ export default function ElevenLabsAgentPage() {
               <Input
                 value={clinicNameVar}
                 onChange={(event) => setClinicNameVar(event.target.value)}
-                placeholder="DentalFlow Clinic"
+                placeholder="Your Clinic"
                 disabled={Boolean(clinic?.clinicName)}
               />
             </div>
