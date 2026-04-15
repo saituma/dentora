@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   useGetTelephonyNumbersQuery,
+  useGetTelephonyWebhookBaseQuery,
   useCreateTwilioClientTokenMutation,
 } from '@/features/telephony/telephonyApi';
+import { API_BASE_URL } from '@/lib/api';
 
 const statusColors: Record<string, string> = {
   disconnected: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
@@ -21,6 +23,7 @@ const statusColors: Record<string, string> = {
 
 export default function BrowserCallPage() {
   const { data: telephonyData } = useGetTelephonyNumbersQuery();
+  const { data: webhookBaseData } = useGetTelephonyWebhookBaseQuery();
   const telephonyNumbers = telephonyData?.data ?? [];
   const [createToken, { isLoading: tokenLoading }] = useCreateTwilioClientTokenMutation();
 
@@ -33,6 +36,12 @@ export default function BrowserCallPage() {
     () => telephonyNumbers.map((number) => number.phoneNumber),
     [telephonyNumbers],
   );
+
+  const webhookBase = webhookBaseData?.baseUrl?.replace(/\/+$/, '') || '';
+  const apiRoot = webhookBase
+    ? (webhookBase.endsWith('/api') ? webhookBase : `${webhookBase}/api`)
+    : API_BASE_URL;
+  const apiRootNormalized = apiRoot.replace(/\/+$/, '');
 
   const initializeDevice = async () => {
     try {
@@ -120,7 +129,7 @@ export default function BrowserCallPage() {
           <CardTitle>Call setup</CardTitle>
           <CardDescription>
             Requires a Twilio Voice SDK token and a TwiML App that points to
-            `https://dental-flow-server.fly.dev/api/telephony/webhook/client-voice`.
+            `{apiRootNormalized}/telephony/webhook/client-voice`.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
