@@ -81,6 +81,18 @@ export default function MarketingLayout({
               >
                 Contact
               </Link>
+              <Link
+                href="/privacy"
+                className="text-sm text-muted-foreground hover:underline"
+              >
+                Privacy
+              </Link>
+              <Link
+                href="/terms"
+                className="text-sm text-muted-foreground hover:underline"
+              >
+                Terms
+              </Link>
             </nav>
           </div>
         </footer>
