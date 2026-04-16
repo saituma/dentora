@@ -11,7 +11,7 @@ export default function DashboardLayout({
 }) {
   return (
     <ErrorBoundary>
-      <ProtectedRoute>
+      <ProtectedRoute requireOnboardingComplete>
         <AppShell>{children}</AppShell>
       </ProtectedRoute>
     </ErrorBoundary>
