@@ -72,7 +72,7 @@ export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
             </Field>
             <div className="flex flex-wrap gap-3 pt-2">
               <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-              <Button type="submit" className="min-w-28" disabled={flow.savingProfile}>{flow.savingProfile ? 'Saving...' : 'Next'}</Button>
+              <Button type="submit" className="min-w-28" disabled={flow.savingClinicProfile}>{flow.savingClinicProfile ? 'Saving...' : 'Next'}</Button>
             </div>
           </FieldGroup>
         </form>
