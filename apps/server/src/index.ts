@@ -47,9 +47,27 @@ if (env.NODE_ENV === 'development') {
   const devOrigins = ['http://localhost:3000', 'http://localhost:3001'];
   allowedOrigins = [...new Set([...allowedOrigins, ...devOrigins])];
 }
+
+const allowedOriginSet = new Set(allowedOrigins);
+const vercelDentoraOriginPattern = /^https:\/\/dentora-client(?:-[a-z0-9-]+)?\.vercel\.app$/i;
+
 app.use(
   cors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+    origin: (origin, callback) => {
+      // Allow non-browser clients (no Origin header).
+      if (!origin) return callback(null, true);
+
+      if (allowedOriginSet.has(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow the Dentora client Vercel production + preview deployments.
+      if (vercelDentoraOriginPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
     credentials: true,
     optionsSuccessStatus: 204,
   }),
