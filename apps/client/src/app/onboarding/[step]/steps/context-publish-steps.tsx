@@ -8,6 +8,7 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserFriendlyApiError } from '@/lib/api-error';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders } from '@/lib/api';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 import { STEP_ORDER } from '../onboarding-types';
 
@@ -44,9 +45,16 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
     setDraft('');
     setIsThinking(true);
     try {
-      const response = await fetch('/api/onboarding/ai-chat', {
+      const token = await ensureFreshAccessToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const auth = token ? { Authorization: `Bearer ${token}` } : getAuthHeaders();
+      if (auth && typeof auth === 'object') {
+        Object.assign(headers, auth as Record<string, string>);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/onboarding/ai-chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           messages: nextMessages.map((message) => ({
             role: message.role,
@@ -200,7 +208,7 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
                     documents,
                   }).unwrap();
                   toast.success('AI context saved');
-                  flow.goNext('test-call');
+                  flow.goNext('download');
                 } catch (error: unknown) {
                   toast.error(getUserFriendlyApiError(error));
                 }
@@ -210,9 +218,90 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
             >
               {flow.savingContextDocuments ? 'Saving...' : 'Save & Continue'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => flow.goNext('test-call')} className="min-w-32">Skip for now</Button>
+            <Button type="button" variant="outline" onClick={() => flow.goNext('download')} className="min-w-32">Skip for now</Button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function DownloadDataStep({ flow }: { flow: OnboardingFlow }) {
+  const [downloading, setDownloading] = React.useState(false);
+
+  const downloadPdf = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const token = await ensureFreshAccessToken();
+      const headers: Record<string, string> = {};
+      const auth = token ? { Authorization: `Bearer ${token}` } : getAuthHeaders();
+      if (auth && typeof auth === 'object') {
+        Object.assign(headers, auth as Record<string, string>);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/onboarding/export/pdf`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Download failed: ${response.status} ${errorBody}`);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') || '';
+      const filenameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
+      const filename = filenameMatch?.[1] || 'clinic-context.pdf';
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Downloaded clinic context PDF');
+    } catch (error) {
+      toast.error(getUserFriendlyApiError(error));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-0 bg-card shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl">Download your clinic context</CardTitle>
+          <CardDescription>
+            This PDF includes your full onboarding configuration and saved context documents.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border bg-muted/10 p-4 text-sm text-muted-foreground">
+            <p>
+              Tip: If you added chat notes or uploaded files in the AI Chat step, click <span className="font-medium text-foreground">Save</span> first so they appear in the export.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="secondary" onClick={() => void downloadPdf()} disabled={downloading}>
+              {downloading ? 'Preparing…' : 'Download your data'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => flow.goNext('test-call')}>
+              Continue
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => flow.goNext('test-call')}>
+              Skip
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
       </div>
     </div>
   );
