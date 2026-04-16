@@ -677,6 +677,33 @@ onboardingRouter.post(
 );
 
 onboardingRouter.post(
+  '/staff',
+  validate({
+    body: z.object({
+      staffMembers: z.array(
+        z.object({
+          name: z.string().min(1),
+          role: z.string().optional(),
+        })
+      ),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      await onboardingService.saveStaffMembers(req.tenantContext!.tenantId, req.body.staffMembers);
+      req.audit?.({
+        action: 'onboarding.staff_saved',
+        entityType: 'clinic_profile',
+        afterState: { count: req.body.staffMembers.length },
+      });
+      res.json({ success: true, step: 'knowledge-base' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+onboardingRouter.post(
   '/voice-preview',
   apiRateLimiter,
   validate({

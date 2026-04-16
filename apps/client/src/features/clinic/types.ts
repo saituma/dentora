@@ -12,6 +12,7 @@ export interface ClinicProfile {
   businessHours?: Record<string, { start: string; end: string } | null>;
   status?: string;
   specialties?: string[];
+  staffMembers?: Array<{ name: string; role: string }>;
   description?: string;
   createdAt: string;
   updatedAt: string;

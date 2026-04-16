@@ -99,6 +99,7 @@ const createSignedUrlSchema = z.object({
 const agentVoicePreviewSchema = z.object({
   agentId: z.string().min(1).max(120),
   text: z.string().min(1).max(400),
+  speed: z.number().min(0.7).max(1.3).optional(),
 });
 
 /**
@@ -181,7 +182,7 @@ elevenlabsRouter.post(
   validate({ body: agentVoicePreviewSchema }),
   async (req, res, next) => {
     try {
-      const { agentId, text } = req.body as z.infer<typeof agentVoicePreviewSchema>;
+      const { agentId, text, speed } = req.body as z.infer<typeof agentVoicePreviewSchema>;
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
@@ -241,6 +242,7 @@ elevenlabsRouter.post(
               similarity_boost: ttsConfig?.similarity_boost ?? 0.8,
               style: ttsConfig?.style ?? 0,
               use_speaker_boost: true,
+              speed: speed ?? 1.0,
             },
           }),
         },

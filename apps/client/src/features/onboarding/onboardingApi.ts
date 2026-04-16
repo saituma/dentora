@@ -86,6 +86,11 @@ export interface VoiceProfileInput {
   greetingStyle?: 'formal' | 'friendly';
 }
 
+export interface StaffMemberInput {
+  name: string;
+  role: string;
+}
+
 export interface FaqInput {
   id?: string;
   question: string;
@@ -195,6 +200,15 @@ export const onboardingApi = createApi({
     saveFaqs: builder.mutation<{ success: boolean; step: string }, { faqs: FaqInput[] }>({
       query: (data) => ({
         url: '/onboarding/faqs',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    saveStaffMembers: builder.mutation<{ success: boolean; step: string }, { staffMembers: StaffMemberInput[] }>({
+      query: (data) => ({
+        url: '/onboarding/staff',
         method: 'POST',
         body: data,
       }),
@@ -346,6 +360,7 @@ export const {
   useSavePoliciesMutation,
   useSaveVoiceProfileMutation,
   useSaveFaqsMutation,
+  useSaveStaffMembersMutation,
   useGenerateVoicePreviewMutation,
   useTranscribeLiveAudioMutation,
   usePublishConfigMutation,

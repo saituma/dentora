@@ -39,12 +39,21 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
                   answer: faq.answer.trim(),
                   category: faq.category,
                 }));
+              const validStaff = flow.staffForm
+                .filter((staff) => staff.name.trim().length > 0)
+                .map((staff) => ({
+                  name: staff.name.trim(),
+                  role: staff.role.trim() || 'Staff',
+                }));
               if (validServices.length === 0 || validFaqs.length === 0) {
                 toast.error('Add at least one service and one FAQ');
                 return;
               }
               await flow.saveServices({ services: validServices }).unwrap();
               await flow.saveFaqs({ faqs: validFaqs }).unwrap();
+              if (validStaff.length > 0) {
+                await flow.saveStaffMembers({ staffMembers: validStaff }).unwrap();
+              }
               toast.success('Knowledge base saved');
               flow.goNext('voice');
             } catch (error: unknown) {
@@ -128,9 +137,30 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
                 </div>
               ))}
             </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Staff Members</p>
+                <Button type="button" variant="outline" onClick={flow.addStaffRow}>Add staff</Button>
+              </div>
+              {flow.staffForm.map((staff, index) => (
+                <div key={`staff-${index}`} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start">
+                  <Field className="flex-1">
+                    <FieldLabel>Name</FieldLabel>
+                    <Input placeholder="Dr. Sarah Connor" required value={staff.name} onChange={(event) => flow.updateStaffRow(index, 'name', event.target.value)} />
+                  </Field>
+                  <Field className="flex-1">
+                    <FieldLabel>Role / Specialization</FieldLabel>
+                    <Input placeholder="Lead Dentist" value={staff.role} onChange={(event) => flow.updateStaffRow(index, 'role', event.target.value)} />
+                  </Field>
+                  <Button type="button" variant="outline" className="mt-6 sm:self-start" onClick={() => flow.removeStaffRow(index)} disabled={flow.staffForm.length === 1}>Remove</Button>
+                </div>
+              ))}
+            </div>
+
             <div className="flex flex-wrap gap-3 pt-2">
               <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-              <Button type="submit" className="min-w-28" disabled={flow.savingServices || flow.savingFaqs}>{flow.savingServices || flow.savingFaqs ? 'Saving...' : 'Next'}</Button>
+              <Button type="submit" className="min-w-28" disabled={flow.savingServices || flow.savingFaqs || flow.savingStaff}>{flow.savingServices || flow.savingFaqs || flow.savingStaff ? 'Saving...' : 'Next'}</Button>
             </div>
           </FieldGroup>
         </form>

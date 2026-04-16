@@ -56,6 +56,19 @@ export async function saveClinicIdentity(
   await updateOnboardingStep(tenantId, 'clinic-profile');
 }
 
+export async function saveStaffMembers(
+  tenantId: string,
+  staffMembers: Array<{ name: string; role: string }>
+): Promise<void> {
+  const [existing] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  if (existing) {
+    await db
+      .update(clinicProfile)
+      .set({ staffMembers, updatedAt: new Date() })
+      .where(eq(clinicProfile.id, existing.id));
+  }
+}
+
 export async function saveServices(
   tenantId: string,
   serviceList: Array<{

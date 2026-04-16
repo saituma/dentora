@@ -164,7 +164,16 @@ async function buildConvaiContext(tenantId: string) {
     .flatMap((policy: any) => Array.isArray(policy?.sensitiveTopics) ? policy.sensitiveTopics : [])
     .filter((topic: any) => topic?.type === 'context_document');
 
-  const staffDirectory = contextDocs.find((doc: any) => doc?.title === 'Staff Directory')?.content ?? '';
+  const formatStaffMembers = (staff: Array<{ name?: string; role?: string }>) => {
+    if (!staff || !staff.length) return '';
+    return staff.map((s) => `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`).join(' | ');
+  };
+
+  const legacyStaffDirectory = contextDocs.find((doc: any) => doc?.title === 'Staff Directory')?.content ?? '';
+  const staffDirectory = Array.isArray(clinic?.staffMembers) && clinic.staffMembers.length > 0
+    ? truncate(formatStaffMembers(clinic.staffMembers), 1000)
+    : legacyStaffDirectory;
+
   const clinicNotes = contextDocs.find((doc: any) => doc?.title === 'Clinic Notes')?.content ?? '';
 
   const normalizedBookingRules = bookingRules

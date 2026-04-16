@@ -16,6 +16,11 @@ export type FaqCategory =
   | 'preparation'
   | 'other';
 
+export interface KnowledgeStaffForm {
+  name: string;
+  role: string;
+}
+
 export interface KnowledgeServiceForm {
   serviceName: string;
   category: ServiceCategory;
