@@ -72,7 +72,13 @@ app.use(
     optionsSuccessStatus: 204,
   }),
 );
-app.use(express.json({ limit: '1mb' }));
+app.use((req, res, next) => {
+  // Skip JSON parsing for Stripe webhook — needs raw body for signature verification
+  if (req.path === '/api/billing/webhook') {
+    return next();
+  }
+  express.json({ limit: '1mb' })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(requestId);
 app.use(auditMiddleware);
