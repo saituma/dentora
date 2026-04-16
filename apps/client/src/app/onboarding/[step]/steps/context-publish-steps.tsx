@@ -404,7 +404,7 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
           <Button
-            disabled={flow.publishing || (flow.onboardingData && !flow.onboardingData.isReady)}
+            disabled={flow.publishingConfig || (flow.onboardingData && !flow.onboardingData.isReady)}
             onClick={async () => {
               try {
                 await flow.publishConfig().unwrap();
@@ -416,7 +416,7 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
             }}
             className="min-w-36"
           >
-            {flow.publishing ? 'Publishing...' : 'Publish & Go Live'}
+            {flow.publishingConfig ? 'Publishing...' : 'Publish & Go Live'}
           </Button>
         </div>
       </CardContent>
