@@ -95,6 +95,16 @@ function isStripeApiError(err: unknown): err is { message: string; statusCode?: 
   return typeof o.type === 'string' && typeof o.message === 'string';
 }
 
+function messageForUnknownStripePrice(stripeMessage: string): string | null {
+  if (!/no such price/i.test(stripeMessage)) return null;
+  const idMatch = stripeMessage.match(/price_[A-Za-z0-9]+/);
+  const id = idMatch?.[0] ?? 'that price id';
+  return (
+    `Stripe rejected price id ${id}. It must belong to the same Stripe account and mode (test vs live) as STRIPE_SECRET_KEY. ` +
+    `In the Stripe Dashboard, toggle test/live to match your key, open the product, copy the Price id (price_...), and update the matching STRIPE_*_PRICE_ID in Render.`
+  );
+}
+
 function rethrowStripeAsAppError(err: unknown): never {
   if (err instanceof AppError) {
     throw err;
@@ -104,6 +114,12 @@ function rethrowStripeAsAppError(err: unknown): never {
       { stripeMessage: err.message, stripeCode: err.code, stripeType: err.type },
       'Stripe API error',
     );
+    const unknownPrice = messageForUnknownStripePrice(err.message);
+    if (unknownPrice) {
+      throw new AppError(unknownPrice, 400, 'STRIPE_PRICE_NOT_FOUND', true, {
+        stripeCode: err.code ?? 'resource_missing',
+      });
+    }
     const status =
       err.statusCode !== undefined && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 502;
     throw new AppError(err.message || 'Stripe request failed', status, 'STRIPE_API_ERROR', true, {
