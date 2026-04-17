@@ -1,4 +1,4 @@
-CREATE TABLE "patient_profiles" (
+CREATE TABLE IF NOT EXISTS "patient_profiles" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "tenant_id" uuid NOT NULL,
   "full_name" text NOT NULL,
@@ -10,7 +10,12 @@ CREATE TABLE "patient_profiles" (
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 
-ALTER TABLE "patient_profiles" ADD CONSTRAINT "patient_profiles_tenant_id_tenant_registry_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenant_registry"("id") ON DELETE no action ON UPDATE no action;
+DO $$
+BEGIN
+  ALTER TABLE "patient_profiles" ADD CONSTRAINT "patient_profiles_tenant_id_tenant_registry_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "public"."tenant_registry"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END$$;
 
-CREATE INDEX "patient_profiles_tenant_phone_idx" ON "patient_profiles" USING btree ("tenant_id","phone_number");
-CREATE UNIQUE INDEX "patient_profiles_tenant_phone_dob_idx" ON "patient_profiles" USING btree ("tenant_id","phone_number","date_of_birth");
+CREATE INDEX IF NOT EXISTS "patient_profiles_tenant_phone_idx" ON "patient_profiles" USING btree ("tenant_id","phone_number");
+CREATE UNIQUE INDEX IF NOT EXISTS "patient_profiles_tenant_phone_dob_idx" ON "patient_profiles" USING btree ("tenant_id","phone_number","date_of_birth");

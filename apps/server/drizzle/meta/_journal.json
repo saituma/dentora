@@ -57,6 +57,13 @@
       "when": 1776375800261,
       "tag": "0007_spotty_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776375900000,
+      "tag": "0008_tenant_users_rls_insert",
+      "breakpoints": true
     }
   ]
 }

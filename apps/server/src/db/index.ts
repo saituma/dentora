@@ -15,14 +15,28 @@ function buildConnectionString(rawUrl: string): string {
   return parsedUrl.toString();
 }
 
+function hostLooksLikeManagedPostgres(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return (
+    h.includes('render.com') ||
+    h.includes('neon.tech') ||
+    h.includes('amazonaws.com') ||
+    h.includes('supabase.co') ||
+    h.includes('pooler.supabase.com')
+  );
+}
+
 /**
  * SSL for node-postgres. Prefer sslmode on the URL (common on Neon / Render),
- * then DATABASE_SSL_MODE.
+ * then DATABASE_SSL_MODE, then require TLS for known managed Postgres hosts.
  */
 function resolvePgSsl(connectionString: string): boolean | { rejectUnauthorized: boolean } | undefined {
   const url = new URL(connectionString);
   const fromUrl = url.searchParams.get('sslmode');
-  const mode = fromUrl ?? env.DATABASE_SSL_MODE;
+  let mode = fromUrl ?? env.DATABASE_SSL_MODE;
+  if (!fromUrl && hostLooksLikeManagedPostgres(url.hostname) && mode === 'disable') {
+    mode = 'require';
+  }
 
   if (mode === 'disable' || mode === 'allow' || mode === 'prefer') {
     return undefined;
