@@ -1,26 +1,118 @@
 import Stripe from 'stripe';
+import { env } from '../../config/env.js';
 import { db } from '../../db/index.js';
 import { tenantRegistry } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { logger } from '../../lib/logger.js';
+import { AppError } from '../../lib/errors.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: Stripe.API_VERSION,
-});
+type DbTenantPlan = 'starter' | 'professional' | 'enterprise';
 
-type StripeEvent = ReturnType<typeof stripe.webhooks.constructEvent>;
-type StripeCheckoutSession = Awaited<ReturnType<typeof stripe.checkout.sessions.retrieve>>;
-type StripeSubscription = Awaited<ReturnType<typeof stripe.subscriptions.retrieve>>;
+/** Checkout / marketing plan ids → `tenant_registry.plan` enum values */
+function checkoutPlanToDbPlan(plan: string | undefined): DbTenantPlan {
+  switch (plan) {
+    case 'growth':
+      return 'professional';
+    case 'pro':
+      return 'enterprise';
+    case 'starter':
+    default:
+      return 'starter';
+  }
+}
 
-const PLAN_PRICE_MAP: Record<string, string> = {
-  starter: process.env.STRIPE_STARTER_PRICE_ID || '',
-  growth: process.env.STRIPE_GROWTH_PRICE_ID || '',
-  pro: process.env.STRIPE_PRO_PRICE_ID || '',
-};
+type StripeClient = InstanceType<typeof Stripe>;
 
-const PRICE_PLAN_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(PLAN_PRICE_MAP).map(([plan, priceId]) => [priceId, plan]),
-);
+let stripeSingleton: StripeClient | null = null;
+
+function getStripe(): StripeClient {
+  const key = env.STRIPE_SECRET_KEY?.trim();
+  if (!key) {
+    throw new AppError(
+      'Payments are not configured: set STRIPE_SECRET_KEY on the server (e.g. in Render environment variables).',
+      503,
+      'STRIPE_NOT_CONFIGURED',
+    );
+  }
+  stripeSingleton ??= new Stripe(key, { apiVersion: Stripe.API_VERSION });
+  return stripeSingleton;
+}
+
+function priceIdForCheckoutPlan(planId: string): string {
+  const id =
+    planId === 'starter'
+      ? env.STRIPE_STARTER_PRICE_ID
+      : planId === 'growth'
+        ? env.STRIPE_GROWTH_PRICE_ID
+        : planId === 'pro'
+          ? env.STRIPE_PRO_PRICE_ID
+          : '';
+  return (id ?? '').trim();
+}
+
+function assertPriceConfigured(planId: string): string {
+  const priceId = priceIdForCheckoutPlan(planId);
+  if (!priceId) {
+    const envName =
+      planId === 'starter'
+        ? 'STRIPE_STARTER_PRICE_ID'
+        : planId === 'growth'
+          ? 'STRIPE_GROWTH_PRICE_ID'
+          : planId === 'pro'
+            ? 'STRIPE_PRO_PRICE_ID'
+            : 'STRIPE_*_PRICE_ID';
+    throw new AppError(
+      `Payments are not configured for plan "${planId}": set ${envName} to your Stripe Price id (price_...) in the server environment.`,
+      503,
+      'STRIPE_PRICE_NOT_CONFIGURED',
+      true,
+      { planId, envName },
+    );
+  }
+  return priceId;
+}
+
+const PRICE_PLAN_MAP: Record<string, string> = (() => {
+  const entries: Array<[string, string]> = [];
+  const pairs: Array<[string, string]> = [
+    [env.STRIPE_STARTER_PRICE_ID?.trim() ?? '', 'starter'],
+    [env.STRIPE_GROWTH_PRICE_ID?.trim() ?? '', 'growth'],
+    [env.STRIPE_PRO_PRICE_ID?.trim() ?? '', 'pro'],
+  ];
+  for (const [priceId, plan] of pairs) {
+    if (priceId) entries.push([priceId, plan]);
+  }
+  return Object.fromEntries(entries);
+})();
+
+type StripeEvent = ReturnType<StripeClient['webhooks']['constructEvent']>;
+type StripeCheckoutSession = Awaited<ReturnType<StripeClient['checkout']['sessions']['retrieve']>>;
+type StripeSubscription = Awaited<ReturnType<StripeClient['subscriptions']['retrieve']>>;
+
+function isStripeApiError(err: unknown): err is { message: string; statusCode?: number; code?: string; type?: string } {
+  if (typeof err !== 'object' || err === null) return false;
+  const o = err as Record<string, unknown>;
+  return typeof o.type === 'string' && typeof o.message === 'string';
+}
+
+function rethrowStripeAsAppError(err: unknown): never {
+  if (err instanceof AppError) {
+    throw err;
+  }
+  if (isStripeApiError(err)) {
+    logger.warn(
+      { stripeMessage: err.message, stripeCode: err.code, stripeType: err.type },
+      'Stripe API error',
+    );
+    const status =
+      err.statusCode !== undefined && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 502;
+    throw new AppError(err.message || 'Stripe request failed', status, 'STRIPE_API_ERROR', true, {
+      stripeCode: err.code,
+      stripeType: err.type,
+    });
+  }
+  throw err;
+}
 
 export async function createCheckoutSession(input: {
   tenantId: string;
@@ -28,10 +120,7 @@ export async function createCheckoutSession(input: {
   successUrl: string;
   cancelUrl: string;
 }): Promise<{ url: string }> {
-  const priceId = PLAN_PRICE_MAP[input.planId];
-  if (!priceId) {
-    throw new Error(`Unknown plan: ${input.planId}`);
-  }
+  const priceId = assertPriceConfigured(input.planId);
 
   const [tenant] = await db
     .select({
@@ -44,36 +133,42 @@ export async function createCheckoutSession(input: {
 
   let customerId = tenant?.stripeCustomerId ?? undefined;
 
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      metadata: { tenantId: input.tenantId },
-      name: tenant?.clinicName ?? undefined,
-    });
-    customerId = customer.id;
+  try {
+    const stripe = getStripe();
 
-    await db
-      .update(tenantRegistry)
-      .set({ stripeCustomerId: customerId, updatedAt: new Date() })
-      .where(eq(tenantRegistry.id, input.tenantId));
-  }
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        metadata: { tenantId: input.tenantId },
+        name: tenant?.clinicName ?? undefined,
+      });
+      customerId = customer.id;
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: 'subscription',
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: input.successUrl,
-    cancel_url: input.cancelUrl,
-    metadata: { tenantId: input.tenantId, planId: input.planId },
-    subscription_data: {
+      await db
+        .update(tenantRegistry)
+        .set({ stripeCustomerId: customerId, updatedAt: new Date() })
+        .where(eq(tenantRegistry.id, input.tenantId));
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
       metadata: { tenantId: input.tenantId, planId: input.planId },
-    },
-  });
+      subscription_data: {
+        metadata: { tenantId: input.tenantId, planId: input.planId },
+      },
+    });
 
-  if (!session.url) {
-    throw new Error('Failed to create Stripe checkout session');
+    if (!session.url) {
+      throw new AppError('Stripe did not return a checkout URL', 502, 'STRIPE_CHECKOUT_NO_URL');
+    }
+
+    return { url: session.url };
+  } catch (err) {
+    rethrowStripeAsAppError(err);
   }
-
-  return { url: session.url };
 }
 
 export async function createBillingPortalSession(input: {
@@ -87,15 +182,22 @@ export async function createBillingPortalSession(input: {
     .limit(1);
 
   if (!tenant?.stripeCustomerId) {
-    throw new Error('No Stripe customer found. Please subscribe to a plan first.');
+    throw new AppError(
+      'No Stripe customer found. Complete checkout first.',
+      400,
+      'STRIPE_CUSTOMER_MISSING',
+    );
   }
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: tenant.stripeCustomerId,
-    return_url: input.returnUrl,
-  });
-
-  return { url: session.url };
+  try {
+    const session = await getStripe().billingPortal.sessions.create({
+      customer: tenant.stripeCustomerId,
+      return_url: input.returnUrl,
+    });
+    return { url: session.url };
+  } catch (err) {
+    rethrowStripeAsAppError(err);
+  }
 }
 
 export async function getSubscriptionStatus(tenantId: string): Promise<{
@@ -116,7 +218,7 @@ export async function getSubscriptionStatus(tenantId: string): Promise<{
     .limit(1);
 
   if (!tenant) {
-    throw new Error('Tenant not found');
+    throw new AppError('Tenant not found', 404, 'TENANT_NOT_FOUND', true, { tenantId });
   }
 
   let currentPeriodEnd: string | null = null;
@@ -124,7 +226,7 @@ export async function getSubscriptionStatus(tenantId: string): Promise<{
 
   if (tenant.stripeSubscriptionId) {
     try {
-      const sub = await stripe.subscriptions.retrieve(tenant.stripeSubscriptionId);
+      const sub = await getStripe().subscriptions.retrieve(tenant.stripeSubscriptionId);
       status = sub.status;
       const periodEndUnix = sub.items.data[0]?.current_period_end;
       if (periodEndUnix != null) {
@@ -169,7 +271,7 @@ export async function handleWebhookEvent(event: StripeEvent): Promise<void> {
         .set({
           stripeCustomerId: customerId ?? undefined,
           stripeSubscriptionId: subscriptionId ?? undefined,
-          plan: (planId as any) ?? 'starter',
+          plan: checkoutPlanToDbPlan(planId),
           updatedAt: new Date(),
         })
         .where(eq(tenantRegistry.id, tenantId));
@@ -184,19 +286,20 @@ export async function handleWebhookEvent(event: StripeEvent): Promise<void> {
       if (!tenantId) return;
 
       const priceId = subscription.items.data[0]?.price?.id;
-      const planId = priceId ? PRICE_PLAN_MAP[priceId] : undefined;
+      const checkoutPlan = priceId ? PRICE_PLAN_MAP[priceId] : undefined;
+      const dbPlan = checkoutPlan ? checkoutPlanToDbPlan(checkoutPlan) : undefined;
 
       await db
         .update(tenantRegistry)
         .set({
           stripeSubscriptionId: subscription.id,
           stripePriceId: priceId ?? undefined,
-          ...(planId ? { plan: planId as any } : {}),
+          ...(dbPlan ? { plan: dbPlan } : {}),
           updatedAt: new Date(),
         })
         .where(eq(tenantRegistry.id, tenantId));
 
-      logger.info({ tenantId, planId, status: subscription.status }, 'Subscription updated');
+      logger.info({ tenantId, checkoutPlan, status: subscription.status }, 'Subscription updated');
       break;
     }
 
@@ -225,5 +328,13 @@ export async function handleWebhookEvent(event: StripeEvent): Promise<void> {
 }
 
 export function constructWebhookEvent(payload: Buffer, signature: string): StripeEvent {
-  return stripe.webhooks.constructEvent(payload, signature, process.env.STRIPE_WEBHOOK_SECRET || '');
+  const secret = env.STRIPE_WEBHOOK_SECRET?.trim();
+  if (!secret) {
+    throw new AppError(
+      'Stripe webhooks are not configured: set STRIPE_WEBHOOK_SECRET on the server.',
+      503,
+      'STRIPE_WEBHOOK_NOT_CONFIGURED',
+    );
+  }
+  return getStripe().webhooks.constructEvent(payload, signature, secret);
 }
