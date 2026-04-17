@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,9 +8,16 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function VerifyEmailPage() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+export const dynamic = "force-dynamic";
+
+export default async function VerifyEmailPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ token?: string | string[] }>;
+}) {
+  const resolvedParams = await searchParams;
+  const token =
+    typeof resolvedParams?.token === "string" ? resolvedParams.token : null;
 
   return (
     <Card className="w-full max-w-md">

@@ -127,8 +127,15 @@ export function isClinicOpenOnDate(
 }
 
 export function mergePatientDetails(current: PatientBookingDetails, incoming: PatientBookingDetails): PatientBookingDetails {
+  const incomingName = incoming.fullName?.trim();
+  const nameChanged = Boolean(incomingName && incomingName !== current.fullName);
+
   return {
-    fullName: incoming.fullName?.trim() || current.fullName,
+    fullName: incomingName || current.fullName,
+    nameConfirmed: nameChanged
+      ? undefined
+      : (typeof incoming.nameConfirmed === 'boolean' ? incoming.nameConfirmed : current.nameConfirmed),
+    namePronunciation: incoming.namePronunciation?.trim() || current.namePronunciation,
     age: typeof incoming.age === 'number' ? incoming.age : current.age,
     phoneNumber: incoming.phoneNumber?.trim() || current.phoneNumber,
     reasonForVisit: incoming.reasonForVisit?.trim() || current.reasonForVisit,
@@ -141,6 +148,19 @@ export function getMissingPatientField(patient: PatientBookingDetails): keyof Pa
   if (!patient.phoneNumber) return 'phoneNumber';
   if (!patient.reasonForVisit) return 'reasonForVisit';
   return null;
+}
+
+export function extractPronunciationFromNotes(notes?: string | null): string | null {
+  if (!notes) return null;
+  const match = notes.match(/pronunciation:\s*([^|]+)/i);
+  return match ? match[1].trim() : null;
+}
+
+export function buildPatientNotes(reasonForVisit?: string, namePronunciation?: string): string | null {
+  const parts: string[] = [];
+  if (reasonForVisit?.trim()) parts.push(`Reason: ${reasonForVisit.trim()}`);
+  if (namePronunciation?.trim()) parts.push(`Pronunciation: ${namePronunciation.trim()}`);
+  return parts.length > 0 ? parts.join(' | ') : null;
 }
 
 export function buildPatientQuestion(field: keyof PatientBookingDetails): string {

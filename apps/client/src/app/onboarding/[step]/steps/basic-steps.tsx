@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import type { OnboardingFlow } from '../use-onboarding-flow';
+import { useCreateCheckoutSessionMutation } from '@/features/billing/billingApi';
 
 export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
   return (
@@ -71,7 +72,7 @@ export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
             </Field>
             <div className="flex flex-wrap gap-3 pt-2">
               <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-              <Button type="submit" className="min-w-28" disabled={flow.savingProfile}>{flow.savingProfile ? 'Saving...' : 'Next'}</Button>
+              <Button type="submit" className="min-w-28" disabled={flow.savingClinicProfile}>{flow.savingClinicProfile ? 'Saving...' : 'Next'}</Button>
             </div>
           </FieldGroup>
         </form>
@@ -81,6 +82,8 @@ export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
 }
 
 export function PlanStep({ flow }: { flow: OnboardingFlow }) {
+  const [createCheckout, { isLoading: checkoutLoading }] = useCreateCheckoutSessionMutation();
+
   const plans = [
     {
       id: 'starter' as const,
@@ -126,6 +129,22 @@ export function PlanStep({ flow }: { flow: OnboardingFlow }) {
     },
   ];
 
+  const handleContinue = async () => {
+    try {
+      const origin = window.location.origin;
+      const result = await createCheckout({
+        planId: flow.selectedPlan,
+        successUrl: `${origin}/onboarding/knowledge-base?checkout=success`,
+        cancelUrl: `${origin}/onboarding/plan?checkout=cancelled`,
+      }).unwrap();
+
+      // Redirect to Stripe Checkout
+      window.location.href = result.url;
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyApiError(error));
+    }
+  };
+
   return (
     <Card className="border-0 bg-card shadow-lg">
       <CardHeader>
@@ -161,12 +180,10 @@ export function PlanStep({ flow }: { flow: OnboardingFlow }) {
           <Button
             type="button"
             className="min-w-28"
-            onClick={() => {
-              toast.success(`Selected ${flow.selectedPlan} plan`);
-              flow.goNext('knowledge-base');
-            }}
+            disabled={checkoutLoading}
+            onClick={handleContinue}
           >
-            Continue
+            {checkoutLoading ? 'Redirecting...' : 'Continue to Payment'}
           </Button>
         </div>
       </CardContent>

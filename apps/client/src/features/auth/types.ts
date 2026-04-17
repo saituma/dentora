@@ -14,6 +14,7 @@ export type OnboardingStep =
   | "integrations"
   | "schedule"
   | "ai-chat"
+  | "download"
   | "test-call"
   | "complete";
 

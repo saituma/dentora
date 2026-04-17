@@ -47,14 +47,38 @@ if (env.NODE_ENV === 'development') {
   const devOrigins = ['http://localhost:3000', 'http://localhost:3001'];
   allowedOrigins = [...new Set([...allowedOrigins, ...devOrigins])];
 }
+
+const allowedOriginSet = new Set(allowedOrigins);
+const vercelDentoraOriginPattern = /^https:\/\/dentora-client(?:-[a-z0-9-]+)?\.vercel\.app$/i;
+
 app.use(
   cors({
-    origin: allowedOrigins.length > 0 ? allowedOrigins : false,
+    origin: (origin, callback) => {
+      // Allow non-browser clients (no Origin header).
+      if (!origin) return callback(null, true);
+
+      if (allowedOriginSet.has(origin)) {
+        return callback(null, true);
+      }
+
+      // Allow the Dentora client Vercel production + preview deployments.
+      if (vercelDentoraOriginPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(null, false);
+    },
     credentials: true,
     optionsSuccessStatus: 204,
   }),
 );
-app.use(express.json({ limit: '1mb' }));
+app.use((req, res, next) => {
+  // Skip JSON parsing for Stripe webhook — needs raw body for signature verification
+  if (req.path === '/api/billing/webhook') {
+    return next();
+  }
+  express.json({ limit: '1mb' })(req, res, next);
+});
 app.use(express.urlencoded({ extended: true }));
 app.use(requestId);
 app.use(auditMiddleware);
@@ -154,7 +178,7 @@ async function start() {
     logger.info('Database connected');
 
     const server = app.listen(port, '0.0.0.0', () => {
-      logger.info({ port, env: env.NODE_ENV }, `Dental Flow API listening on 0.0.0.0:${port}`);
+      logger.info({ port, env: env.NODE_ENV }, `Dentora API listening on 0.0.0.0:${port}`);
     });
 
     attachMediaStreamWebSocket(server);

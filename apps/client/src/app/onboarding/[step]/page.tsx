@@ -7,7 +7,7 @@ import { ClinicProfileStep, PlanStep } from './steps/basic-steps';
 import { KnowledgeBaseStep } from './steps/knowledge-step';
 import { VoiceStep } from './steps/voice-step';
 import { IntegrationsStep, ScheduleStep } from './steps/operations-steps';
-import { AiChatStep, TestCallStep } from './steps/context-publish-steps';
+import { AiChatStep, DownloadDataStep, TestCallStep } from './steps/context-publish-steps';
 
 function OnboardingStepContent() {
   const flow = useOnboardingFlow();
@@ -42,6 +42,7 @@ function OnboardingStepContent() {
       {flow.step === 'integrations' && <IntegrationsStep flow={flow} />}
       {flow.step === 'schedule' && <ScheduleStep flow={flow} />}
       {flow.step === 'ai-chat' && <AiChatStep flow={flow} />}
+      {flow.step === 'download' && <DownloadDataStep flow={flow} />}
       {flow.step === 'test-call' && <TestCallStep flow={flow} />}
     </div>
   );

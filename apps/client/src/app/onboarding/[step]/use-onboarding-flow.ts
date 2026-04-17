@@ -17,6 +17,7 @@ import {
   useGetOnboardingStatusQuery,
   useSaveContextDocumentsMutation,
   useGetAvailableVoicesQuery,
+  useSaveStaffMembersMutation,
 } from '@/features/onboarding/onboardingApi';
 import { useStartGoogleCalendarOAuthMutation } from '@/features/integrations/integrationsApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
@@ -36,7 +37,7 @@ import {
   type WeekdayKey,
 } from '@/features/aiConfig/schedule';
 import { isAgentVoice, isSupportedContextFile, isUkVoice, readContextFileContent } from './onboarding-shared';
-import type { KnowledgeFaqForm, KnowledgeServiceForm, UploadedContextFile } from './onboarding-types';
+import type { KnowledgeFaqForm, KnowledgeServiceForm, KnowledgeStaffForm, UploadedContextFile } from './onboarding-types';
 import { STEP_ORDER } from './onboarding-types';
 
 export function useOnboardingFlow() {
@@ -50,6 +51,7 @@ export function useOnboardingFlow() {
   const [savePolicies, policiesState] = useSavePoliciesMutation();
   const [saveVoiceProfile, voiceState] = useSaveVoiceProfileMutation();
   const [saveFaqs, faqsState] = useSaveFaqsMutation();
+  const [saveStaffMembers, staffState] = useSaveStaffMembersMutation();
   const [publishConfig, publishState] = usePublishConfigMutation();
   const [saveContextDocuments, contextDocumentsState] = useSaveContextDocumentsMutation();
   const { data: onboardingData, refetch: refetchOnboardingStatus } = useGetOnboardingStatusQuery();
@@ -97,9 +99,14 @@ export function useOnboardingFlow() {
     answer: 'We accept most major PPO plans. Please call us with your insurance details so we can verify coverage.',
     category: 'insurance',
   }]);
+  const [staffForm, setStaffForm] = useState<KnowledgeStaffForm[]>([{
+    name: 'Dr. John Doe',
+    role: 'Lead Dentist',
+  }]);
 
   const requestedStep = params.step as string | undefined;
-  const step = STEP_ORDER.includes(requestedStep as OnboardingStep) ? (requestedStep as OnboardingStep) : 'clinic-profile';
+  const normalizedRequestedStep = requestedStep === 'rules' ? 'integrations' : requestedStep;
+  const step = STEP_ORDER.includes(normalizedRequestedStep as OnboardingStep) ? (normalizedRequestedStep as OnboardingStep) : 'clinic-profile';
   const stepIndex = STEP_ORDER.indexOf(step);
   const currentStep = stepIndex >= 0 ? stepIndex : 0;
   const progressPercent = Math.round((currentStep / (STEP_ORDER.length - 1)) * 100);
@@ -124,6 +131,10 @@ export function useOnboardingFlow() {
     setPhone(clinicData.phone ?? '');
     setEmail(clinicData.email ?? '');
     setTimezone(clinicData.timezone ?? 'Europe/London');
+    
+    if (clinicData.staffMembers && clinicData.staffMembers.length > 0) {
+      setStaffForm(clinicData.staffMembers);
+    }
   }, [clinicData]);
 
   useEffect(() => {
@@ -193,8 +204,13 @@ export function useOnboardingFlow() {
   };
 
   const goBack = () => {
-    if (currentStep > 0) {
-      router.push(`/onboarding/${STEP_ORDER[currentStep - 1]}`);
+    if (currentStep <= 0) return;
+    let previousIndex = currentStep - 1;
+    while (previousIndex >= 0 && STEP_ORDER[previousIndex] === 'rules') {
+      previousIndex -= 1;
+    }
+    if (previousIndex >= 0) {
+      router.push(`/onboarding/${STEP_ORDER[previousIndex]}`);
     }
   };
 
@@ -207,6 +223,11 @@ export function useOnboardingFlow() {
   const removeFaqRow = (index: number) => setFaqsForm((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
   const updateFaqRow = <K extends keyof KnowledgeFaqForm>(index: number, key: K, value: KnowledgeFaqForm[K]) => {
     setFaqsForm((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
+  };
+  const addStaffRow = () => setStaffForm((prev) => [...prev, { name: '', role: '' }]);
+  const removeStaffRow = (index: number) => setStaffForm((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  const updateStaffRow = <K extends keyof KnowledgeStaffForm>(index: number, key: K, value: KnowledgeStaffForm[K]) => {
+    setStaffForm((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   };
 
   const connectGoogleCalendar = async () => {
@@ -328,6 +349,7 @@ export function useOnboardingFlow() {
     setContextFiles,
     servicesForm,
     faqsForm,
+    staffForm,
     availableVoices,
     ukAgentVoices,
     agentVoices,
@@ -345,6 +367,9 @@ export function useOnboardingFlow() {
     addFaqRow,
     removeFaqRow,
     updateFaqRow,
+    addStaffRow,
+    removeStaffRow,
+    updateStaffRow,
     goNext,
     goBack,
     connectGoogleCalendar,
@@ -358,15 +383,17 @@ export function useOnboardingFlow() {
     savePolicies,
     saveVoiceProfile,
     saveFaqs,
+    saveStaffMembers,
     publishConfig,
     saveContextDocuments,
-    savingProfile: clinicProfileState.isLoading,
+    savingClinicProfile: clinicProfileState.isLoading,
     savingServices: servicesState.isLoading,
     savingRules: bookingRulesState.isLoading,
     savingPolicies: policiesState.isLoading,
     savingVoice: voiceState.isLoading,
     savingFaqs: faqsState.isLoading,
-    publishing: publishState.isLoading,
+    savingStaff: staffState.isLoading,
+    publishingConfig: publishState.isLoading,
     savingContextDocuments: contextDocumentsState.isLoading,
     startingGoogleOAuth: googleOAuthState.isLoading,
   };

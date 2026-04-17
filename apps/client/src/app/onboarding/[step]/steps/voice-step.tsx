@@ -17,12 +17,12 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
-  const startPreview = async (agentId: string) => {
+  const startPreview = async (agentId: string, customText?: string) => {
     if (previewStarting) return;
     setPreviewStarting(true);
     setPreviewLoadingAgentId(agentId);
     try {
-      const greeting = flow.greeting?.trim() || 'Hi, welcome to our clinic. How can I help you today?';
+      const textToPlay = customText || flow.greeting?.trim() || 'Hi, welcome to our clinic. How can I help you today?';
       const token = await ensureFreshAccessToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -37,7 +37,8 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
         headers,
         body: JSON.stringify({
           agentId,
-          text: greeting,
+          text: textToPlay,
+          speed: flow.speakingSpeed,
         }),
       });
 
@@ -171,7 +172,26 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
               <span className="rounded-md bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">{flow.speakingSpeed.toFixed(1)}x</span>
               <span className="text-sm text-muted-foreground">Faster</span>
             </div>
-            <input type="range" min={0.8} max={1.2} step={0.05} value={flow.speakingSpeed} onChange={(event) => flow.setSpeakingSpeed(parseFloat(event.target.value))} className="w-full cursor-pointer accent-primary" />
+            <div className="flex items-center gap-4">
+              <input type="range" min={0.8} max={1.2} step={0.05} value={flow.speakingSpeed} onChange={(event) => flow.setSpeakingSpeed(parseFloat(event.target.value))} className="w-full cursor-pointer accent-primary" />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={!flow.selectedAgentId || previewStarting}
+                onClick={() => {
+                  if (flow.selectedAgentId) {
+                    if (previewAgentId === flow.selectedAgentId) {
+                      void stopPreview();
+                    } else {
+                      void startPreview(flow.selectedAgentId, "This is how fast I talk right now.");
+                    }
+                  }
+                }}
+              >
+                {previewAgentId ? 'Stop' : 'Test Speed'}
+              </Button>
+            </div>
             <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>0.8x</span>
               <span>1.0x (default)</span>
@@ -192,8 +212,25 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
               <FieldLabel>Greeting</FieldLabel>
               <Textarea value={flow.greeting} onChange={(event) => flow.setGreeting(event.target.value)} rows={3} placeholder="Hi, welcome to Bright Smile Dental, what can I help you with today?" />
             </Field>
-            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-              Use the live voice test above to hear the greeting spoken by the selected agent voice.
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 p-4">
+              <span className="text-sm text-muted-foreground">Hear how your greeting sounds with the selected voice and speed.</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={!flow.selectedAgentId || !flow.greeting?.trim() || previewStarting}
+                onClick={() => {
+                  if (flow.selectedAgentId && flow.greeting?.trim()) {
+                    if (previewAgentId === flow.selectedAgentId) {
+                      void stopPreview();
+                    } else {
+                      void startPreview(flow.selectedAgentId, flow.greeting);
+                    }
+                  }
+                }}
+              >
+                {previewAgentId ? 'Stop' : 'Test Greeting'}
+              </Button>
             </div>
           </FieldGroup>
         </CardContent>

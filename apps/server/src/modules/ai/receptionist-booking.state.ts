@@ -20,6 +20,9 @@ export function createEmptyBookingState(): BookingConversationState {
     status: 'idle',
     offeredSlots: [],
     patient: {},
+    nameConfirmationRequested: false,
+    namePronunciationRequested: false,
+    namePronunciationLoaded: false,
     confirmationRequested: false,
   };
 }

@@ -43,7 +43,7 @@ export default function OnboardingLayout({
       <div className="relative w-full max-w-4xl">
         <div className="mb-4 flex items-center justify-center">
           <div className="inline-flex items-center rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
-            DentalFlow AI · Onboarding
+            Onboarding
           </div>
         </div>
         {children}

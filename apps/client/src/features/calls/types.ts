@@ -11,6 +11,8 @@ export interface CallSession {
   aiProvider?: string;
   aiModel?: string;
   costEstimate?: string;
+  endReason?: string | null;
+  intentSummary?: string | null;
   metadata?: Record<string, unknown>;
   createdAt: string;
 }

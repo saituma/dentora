@@ -1,0 +1,124 @@
+# render.yaml
+# Render Blueprint for Dental Flow (COMPLETE FREE TIER VERSION)
+services:
+  # 1. API Server (Express)
+  - type: web
+    name: dental-flow-server
+    env: docker
+    dockerContext: .
+    dockerfilePath: apps/server/Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: NODE_ENV
+        value: production
+      - key: PLATFORM_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+
+      # Redis Configuration
+      - key: REDIS_DISABLED
+        value: "true"
+      - key: REDIS_URL
+        value: "redis://localhost:6379"
+
+      # Database Configuration
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SSL_MODE
+        value: require
+      - key: DATABASE_POOL_SIZE
+        value: "20"
+
+      # Security & Auth
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ISSUER
+        value: "dental-flow"
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://dental-flow-client.onrender.com
+
+      # Primary AI Providers
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        value: "" # Optional
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      
+      # Additional AI & TTS
+      - key: GOOGLE_AI_API_KEY
+        value: ""
+      - key: ASSEMBLYAI_API_KEY
+        value: ""
+      - key: TTS_PROVIDER
+        value: "elevenlabs"
+      - key: GOOGLE_TTS_API_KEY
+        value: ""
+
+      # Twilio Telephony (Main)
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_TWIML_APP_SID
+        sync: false
+      - key: TWILIO_WEBHOOK_BASE_URL
+        value: https://dental-flow-server.onrender.com
+      
+      # Twilio API Keys (Used for Client Voice SDK)
+      - key: TWILIO_API_KEY_SID
+        value: ""
+      - key: TWILIO_API_KEY_SECRET
+        value: ""
+
+      # Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_OAUTH_REDIRECT_URI
+        value: https://dental-flow-server.onrender.com/api/integrations/google/calendar/oauth/callback
+      - key: GOOGLE_OAUTH_SUCCESS_REDIRECT
+        value: https://dental-flow-client.onrender.com/onboarding/test-call
+      - key: GOOGLE_OAUTH_ERROR_REDIRECT
+        value: https://dental-flow-client.onrender.com/onboarding/test-call
+
+      # S3 Storage (For Call Recordings)
+      - key: S3_BUCKET
+        value: ""
+      - key: S3_REGION
+        value: "us-east-1"
+      - key: S3_ACCESS_KEY
+        value: ""
+      - key: S3_SECRET_KEY
+        value: ""
+
+      # Monitoring
+      - key: SENTRY_DSN
+        value: ""
+
+  # 2. Frontend (Next.js)
+  - type: web
+    name: dental-flow-client
+    env: docker
+    dockerContext: .
+    dockerfilePath: apps/client/Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://dental-flow-server.onrender.com

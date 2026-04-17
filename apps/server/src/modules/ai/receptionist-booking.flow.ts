@@ -4,12 +4,13 @@ import {
   getActiveGoogleCalendarIntegration,
   type CalendarSlot,
 } from '../integrations/integration.service.js';
-import { upsertPatientProfile } from '../patients/patients.service.js';
+import { findPatientProfileByPhone, upsertPatientProfile } from '../patients/patients.service.js';
 import { processConversationTurn, type TenantAIContext } from './ai.service.js';
 import {
   buildPatientQuestion,
   buildSlotOptionsText,
   clinicName,
+  extractPronunciationFromNotes,
   formatDateInTimezone,
   getAppointmentDuration,
   getBufferMinutes,
@@ -18,6 +19,7 @@ import {
   getOperatingSchedule,
   getTimezone,
   isClinicOpenOnDate,
+  buildPatientNotes,
   mergePatientDetails,
 } from './receptionist-booking.context.js';
 import { resetBookingState } from './receptionist-booking.state.js';
@@ -96,6 +98,8 @@ async function extractBookingTurn(input: {
       selectedSlotStartIso: null,
       confirmed: false,
       declined: false,
+      nameConfirmed: null,
+      namePronunciation: null,
       patient: {
         fullName: null,
         age: null,
@@ -131,6 +135,8 @@ async function extractBookingTurn(input: {
       selectedSlotStartIso?: string | null;
       confirmed?: boolean;
       declined?: boolean;
+      nameConfirmed?: boolean | null;
+      namePronunciation?: string | null;
       patient?: { fullName?: string | null; age?: number | null; phoneNumber?: string | null; reasonForVisit?: string | null };
     };
 
@@ -145,6 +151,8 @@ async function extractBookingTurn(input: {
       selectedSlotStartIso: parsed.selectedSlotStartIso ?? undefined,
       confirmed: Boolean(parsed.confirmed),
       declined: Boolean(parsed.declined),
+      nameConfirmed: typeof parsed.nameConfirmed === 'boolean' ? parsed.nameConfirmed : undefined,
+      namePronunciation: parsed.namePronunciation ?? undefined,
       patient: {
         fullName: parsed.patient?.fullName ?? undefined,
         age: typeof parsed.patient?.age === 'number' ? parsed.patient.age : undefined,
@@ -159,6 +167,11 @@ async function extractBookingTurn(input: {
       availabilityIntent: /available|availability|opening|slot/i.test(input.userMessage),
       confirmed: /\b(yes|confirm|that works|book it|sounds good)\b/i.test(input.userMessage),
       declined: /\b(no|different time|another time|not that one)\b/i.test(input.userMessage),
+      nameConfirmed: /\b(yes|correct|that's right|that is right|yep|yeah)\b/i.test(input.userMessage)
+        ? true
+        : /\b(no|incorrect|not quite|not right)\b/i.test(input.userMessage)
+          ? false
+          : undefined,
       patient: {},
     };
   }
@@ -217,6 +230,38 @@ export async function processBookingTurn(input: {
 
   bookingState.patient = mergePatientDetails(bookingState.patient, extraction.patient);
   if (extraction.serviceName) bookingState.serviceName = extraction.serviceName.trim();
+
+  const nameAttempted = /\b(my name is|this is|it is|it's|i am|i'm)\b/i.test(input.userMessage);
+
+  if (bookingState.patient.phoneNumber && !bookingState.namePronunciationLoaded) {
+    bookingState.namePronunciationLoaded = true;
+    const existing = await findPatientProfileByPhone({
+      tenantId: input.tenantId,
+      phoneNumber: bookingState.patient.phoneNumber,
+    });
+    if (existing?.fullName && !bookingState.patient.fullName) {
+      bookingState.patient.fullName = existing.fullName;
+    }
+    const pronunciation = extractPronunciationFromNotes(existing?.notes);
+    if (pronunciation && !bookingState.patient.namePronunciation) {
+      bookingState.patient.namePronunciation = pronunciation;
+    }
+  }
+
+  if (bookingState.namePronunciationRequested && !bookingState.patient.fullName) {
+    const pronunciation = extraction.namePronunciation ?? input.userMessage.trim();
+    if (pronunciation) {
+      bookingState.patient.fullName = pronunciation;
+      bookingState.patient.namePronunciation = pronunciation;
+      bookingState.patient.nameConfirmed = true;
+      bookingState.namePronunciationRequested = false;
+    } else {
+      return {
+        response: "Sorry, I didn't catch your name. Could you pronounce it slowly for me?",
+        sessionState: input.sessionState,
+      };
+    }
+  }
 
   const userIsChoosingTime = extraction.availabilityIntent || extraction.bookingIntent;
   if ((requestedDateFromMessage || extraction.requestedDate) && userIsChoosingTime) {
@@ -332,6 +377,57 @@ export async function processBookingTurn(input: {
   }
 
   const missingField = getMissingPatientField(bookingState.patient);
+  if (!bookingState.patient.fullName && nameAttempted) {
+    if (!bookingState.namePronunciationRequested) {
+      bookingState.namePronunciationRequested = true;
+      return {
+        response: "Sorry, I didn't catch your name. Could you pronounce it slowly for me?",
+        sessionState: input.sessionState,
+      };
+    }
+  }
+  if (bookingState.patient.fullName && !bookingState.patient.nameConfirmed) {
+    if (bookingState.namePronunciationRequested) {
+      const pronunciation = extraction.namePronunciation ?? input.userMessage.trim();
+      if (pronunciation) {
+        bookingState.patient.namePronunciation = pronunciation;
+        bookingState.patient.nameConfirmed = true;
+        bookingState.namePronunciationRequested = false;
+      } else {
+        return {
+          response: 'Sorry about that. Could you please pronounce the name so we can say it correctly?',
+          sessionState: input.sessionState,
+        };
+      }
+    }
+
+    if (!bookingState.patient.nameConfirmed) {
+      if (!bookingState.nameConfirmationRequested) {
+        bookingState.nameConfirmationRequested = true;
+        return {
+          response: `Thanks! I heard the name as ${bookingState.patient.fullName}. Is that correct?`,
+          sessionState: input.sessionState,
+        };
+      }
+
+      if (extraction.nameConfirmed === true) {
+        bookingState.patient.nameConfirmed = true;
+        bookingState.nameConfirmationRequested = false;
+      } else if (extraction.nameConfirmed === false) {
+        bookingState.nameConfirmationRequested = false;
+        bookingState.namePronunciationRequested = true;
+        return {
+          response: 'Thanks for correcting me. How do you pronounce the name?',
+          sessionState: input.sessionState,
+        };
+      } else {
+        return {
+          response: `Just to confirm, is the name ${bookingState.patient.fullName}?`,
+          sessionState: input.sessionState,
+        };
+      }
+    }
+  }
   if (missingField) {
     bookingState.status = 'collecting_patient';
     return { response: buildPatientQuestion(missingField), sessionState: input.sessionState };
@@ -403,7 +499,7 @@ export async function processBookingTurn(input: {
     phoneNumber: bookingState.patient.phoneNumber!,
     dateOfBirth: null,
     lastVisitAt: new Date(selectedSlot.startIso),
-    notes: bookingState.patient.reasonForVisit!,
+    notes: buildPatientNotes(bookingState.patient.reasonForVisit, bookingState.patient.namePronunciation),
   });
 
   input.sessionState.booking = { ...resetBookingState(), status: 'confirmed', eventId: appointment.eventId };

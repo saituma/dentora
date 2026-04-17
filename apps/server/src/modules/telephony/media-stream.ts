@@ -124,6 +124,7 @@ const buildContextualUpdate = (input: {
   clinicName?: string;
   staffDirectory?: string;
   clinicNotes?: string;
+  speechSpeedInstruction?: string;
 }): string => {
   const lines = [
     'Context update for the receptionist:',
@@ -137,6 +138,7 @@ const buildContextualUpdate = (input: {
     input.agentName
       ? `- Always introduce yourself as ${input.agentName}. Never use any other name.`
       : '- Always introduce yourself as the receptionist name provided by the clinic.',
+    input.speechSpeedInstruction ? `- ${input.speechSpeedInstruction}` : null,
     '- When the caller gives a date without a year, always assume the current year shown above.',
     '- If that date already passed in the current year, use the next year.',
     '- Use the staff directory when asked about staff names, roles, phone numbers, or status.',
@@ -162,7 +164,16 @@ async function buildConvaiContext(tenantId: string) {
     .flatMap((policy: any) => Array.isArray(policy?.sensitiveTopics) ? policy.sensitiveTopics : [])
     .filter((topic: any) => topic?.type === 'context_document');
 
-  const staffDirectory = contextDocs.find((doc: any) => doc?.title === 'Staff Directory')?.content ?? '';
+  const formatStaffMembers = (staff: Array<{ name?: string; role?: string }>) => {
+    if (!staff || !staff.length) return '';
+    return staff.map((s) => `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`).join(' | ');
+  };
+
+  const legacyStaffDirectory = contextDocs.find((doc: any) => doc?.title === 'Staff Directory')?.content ?? '';
+  const staffDirectory = Array.isArray(clinic?.staffMembers) && clinic.staffMembers.length > 0
+    ? truncate(formatStaffMembers(clinic.staffMembers), 1000)
+    : legacyStaffDirectory;
+
   const clinicNotes = contextDocs.find((doc: any) => doc?.title === 'Clinic Notes')?.content ?? '';
 
   const normalizedBookingRules = bookingRules
@@ -183,9 +194,33 @@ async function buildConvaiContext(tenantId: string) {
   }).format(new Date());
   const currentYear = todayDate.slice(0, 4);
 
+  const speechSpeedValue =
+    typeof voiceProfile?.speechSpeed === 'number'
+      ? voiceProfile.speechSpeed
+      : typeof voiceProfile?.speakingSpeed === 'number'
+        ? voiceProfile.speakingSpeed
+        : typeof voiceProfile?.speakingSpeed === 'string'
+          ? Number(voiceProfile.speakingSpeed)
+          : undefined;
+
+  const normalizedSpeechSpeed =
+    typeof speechSpeedValue === 'number' && Number.isFinite(speechSpeedValue)
+      ? speechSpeedValue
+      : undefined;
+
+  const speechSpeedInstruction = normalizedSpeechSpeed === undefined
+    ? 'Speak slightly slower than normal and pause between sentences.'
+    : normalizedSpeechSpeed <= 0.9
+      ? 'Speak at a slow, deliberate pace and pause between sentences.'
+      : normalizedSpeechSpeed < 1.0
+        ? 'Speak slightly slower than normal and pause between sentences.'
+        : normalizedSpeechSpeed <= 1.1
+          ? 'Speak at a natural, steady pace with clear pauses between sentences.'
+          : 'Speak at a brisk, efficient pace while staying easy to understand.';
+
   const dynamicVariables = {
     agent_name: 'Receptionist',
-    clinic_name: clinic?.clinicName ?? 'DentalFlow Clinic',
+    clinic_name: clinic?.clinicName ?? 'Dentora Clinic',
     clinic_phone: clinic?.phone ?? clinic?.primaryPhone ?? 'Unknown',
     clinic_email: clinic?.email ?? clinic?.supportEmail ?? 'Unknown',
     clinic_address: clinic?.address ?? 'Unknown',
@@ -203,6 +238,7 @@ async function buildConvaiContext(tenantId: string) {
     voice_tone: voiceProfile?.tone ?? '',
     voice_language: voiceProfile?.language ?? '',
     voice_id: voiceProfile?.voiceId ?? '',
+    speech_speed: normalizedSpeechSpeed ?? '',
     greeting_message: voiceProfile?.greetingMessage ?? '',
     after_hours_message: voiceProfile?.afterHoursMessage ?? '',
     hold_music: voiceProfile?.holdMusic ?? '',
@@ -219,6 +255,7 @@ async function buildConvaiContext(tenantId: string) {
     clinicName: dynamicVariables.clinic_name as string,
     staffDirectory: String(staffDirectory ?? ''),
     clinicNotes: String(clinicNotes ?? ''),
+    speechSpeedInstruction,
   });
 
   return { dynamicVariables, contextualUpdate, voiceProfile };
@@ -712,6 +749,14 @@ async function handleStreamEnd(callSessionId: string, endReason: string): Promis
       'Twilio media stream ending',
     );
     if (session.conversationHistory.length > 0) {
+      const summary =
+        (await callService.generateCallSummary({
+          tenantId: session.tenantId,
+          callSessionId,
+          transcriptTurns: session.conversationHistory,
+        }))
+        || `Call with ${session.turnCount} turns`;
+
       await callService.saveTranscript({
         tenantId: session.tenantId,
         callSessionId,
@@ -721,7 +766,7 @@ async function handleStreamEnd(callSessionId: string, endReason: string): Promis
           content: turn.content,
           timestamp: turn.timestamp,
         })),
-        summary: `Call with ${session.turnCount} turns`,
+        summary,
       });
     }
 

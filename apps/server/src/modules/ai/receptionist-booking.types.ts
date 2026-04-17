@@ -8,7 +8,7 @@ export type BookingStatus =
   | 'awaiting_confirmation'
   | 'confirmed';
 
-export type AppointmentChangeMode = 'cancel' | 'reschedule';
+export type AppointmentChangeMode = 'cancel' | 'reschedule' | 'check';
 
 export type AppointmentChangeStatus =
   | 'idle'
@@ -20,6 +20,8 @@ export type RequestedPeriod = 'morning' | 'afternoon' | 'evening';
 
 export interface PatientBookingDetails {
   fullName?: string;
+  nameConfirmed?: boolean;
+  namePronunciation?: string;
   age?: number;
   phoneNumber?: string;
   reasonForVisit?: string;
@@ -35,6 +37,9 @@ export interface BookingConversationState {
   offeredSlots: CalendarSlot[];
   selectedSlot?: CalendarSlot;
   patient: PatientBookingDetails;
+  nameConfirmationRequested?: boolean;
+  namePronunciationRequested?: boolean;
+  namePronunciationLoaded?: boolean;
   confirmationRequested: boolean;
   eventId?: string;
 }
@@ -81,5 +86,7 @@ export interface BookingTurnExtraction {
   selectedSlotStartIso?: string;
   confirmed: boolean;
   declined: boolean;
+  nameConfirmed?: boolean;
+  namePronunciation?: string;
   patient: PatientBookingDetails;
 }

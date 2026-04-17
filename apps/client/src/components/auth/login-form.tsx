@@ -102,7 +102,7 @@ export function LoginForm() {
       <CardHeader>
         <CardTitle>Welcome back</CardTitle>
         <CardDescription>
-          Sign in to your DentalFlow AI account
+          Sign in to your account
         </CardDescription>
       </CardHeader>
       <CardContent>

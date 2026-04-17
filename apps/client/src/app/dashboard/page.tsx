@@ -140,7 +140,7 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-xl border bg-card px-5 py-4 shadow-sm">
         <div>
           <h2 className="text-lg font-semibold">Overview</h2>
           <p className="text-sm text-muted-foreground">
@@ -154,21 +154,25 @@ export default function DashboardOverviewPage() {
           title="Total calls"
           value={dashboardStats ? dashboardStats.totalCalls.toLocaleString() : '--'}
           description="Inbound calls handled in the last 7 days"
+          className="bg-card"
         />
         <StatsCard
           title="Completion rate"
           value={dashboardStats ? formatPercent(dashboardStats.completionRate) : '--'}
           description="Calls that finished successfully"
+          className="bg-card"
         />
         <StatsCard
           title="Avg call duration"
           value={dashboardStats ? formatDuration(dashboardStats.averageDurationSeconds) : '--'}
           description="Average call length"
+          className="bg-card"
         />
         <StatsCard
           title="AI spend"
           value={dashboardStats ? formatMoney(dashboardStats.totalCost) : '--'}
           description="Telephony + AI usage costs"
+          className="bg-card"
         />
       </div>
 
@@ -373,7 +377,7 @@ export default function DashboardOverviewPage() {
         </Card>
       </div>
 
-      <Card className="border-primary/50 bg-primary/5">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarIcon className="size-5" />

@@ -74,6 +74,14 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   OTEL_EXPORTER_ENDPOINT: z.string().default(''),
   SENTRY_DSN: z.string().default(''),
+
+  // Stripe
+  STRIPE_SECRET_KEY: z.string().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  STRIPE_STARTER_PRICE_ID: z.string().default(''),
+  STRIPE_GROWTH_PRICE_ID: z.string().default(''),
+  STRIPE_PRO_PRICE_ID: z.string().default(''),
+  CLIENT_URL: z.string().default('http://localhost:3000'),
 });
 
 function loadEnv() {

@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, SVGProps } from 'react';
+import type { CSSProperties, ReactElement, SVGProps } from 'react';
 
 type ClinicBrand = {
   name: string;
   color: string;
-  Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element;
+  Icon: (props: SVGProps<SVGSVGElement>) => ReactElement;
 };
 
 const brands: ClinicBrand[] = [

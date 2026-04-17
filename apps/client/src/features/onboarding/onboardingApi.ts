@@ -86,6 +86,11 @@ export interface VoiceProfileInput {
   greetingStyle?: 'formal' | 'friendly';
 }
 
+export interface StaffMemberInput {
+  name: string;
+  role: string;
+}
+
 export interface FaqInput {
   id?: string;
   question: string;
@@ -131,7 +136,7 @@ export interface ConfigChatResponse {
 export const onboardingApi = createApi({
   reducerPath: 'onboardingApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['OnboardingStatus', 'Readiness'],
+  tagTypes: ['OnboardingStatus', 'Readiness', 'ContextDocuments'],
   endpoints: (builder) => ({
     getOnboardingStatus: builder.query<OnboardingStatus, void>({
       query: () => '/onboarding/status',
@@ -195,6 +200,15 @@ export const onboardingApi = createApi({
     saveFaqs: builder.mutation<{ success: boolean; step: string }, { faqs: FaqInput[] }>({
       query: (data) => ({
         url: '/onboarding/faqs',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness'],
+    }),
+
+    saveStaffMembers: builder.mutation<{ success: boolean; step: string }, { staffMembers: StaffMemberInput[] }>({
+      query: (data) => ({
+        url: '/onboarding/staff',
         method: 'POST',
         body: data,
       }),
@@ -313,6 +327,26 @@ export const onboardingApi = createApi({
       }),
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
+    uploadContextDocuments: builder.mutation<
+      { success: boolean; count: number },
+      FormData
+    >({
+      query: (formData) => ({
+        url: '/onboarding/context-documents/upload',
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['OnboardingStatus', 'Readiness', 'ContextDocuments'],
+    }),
+    getContextDocuments: builder.query<
+      { data: Array<{ id: string; title: string; mimeType: string; charCount: number; preview: string }> },
+      void
+    >({
+      query: () => ({
+        url: '/onboarding/context-documents',
+      }),
+      providesTags: ['ContextDocuments'],
+    }),
   }),
 });
 
@@ -326,8 +360,11 @@ export const {
   useSavePoliciesMutation,
   useSaveVoiceProfileMutation,
   useSaveFaqsMutation,
+  useSaveStaffMembersMutation,
   useGenerateVoicePreviewMutation,
   useTranscribeLiveAudioMutation,
   usePublishConfigMutation,
   useSaveContextDocumentsMutation,
+  useUploadContextDocumentsMutation,
+  useGetContextDocumentsQuery,
 } = onboardingApi;

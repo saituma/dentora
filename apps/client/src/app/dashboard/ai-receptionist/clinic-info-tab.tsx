@@ -170,7 +170,10 @@ export function ClinicInfoTab(props: {
                         <Select
                           value={entry.status || 'Available'}
                           onValueChange={(value) => {
-                            setStaffEntries((prev) => prev.map((row, idx) => (idx === index ? { ...row, status: value } : row)));
+                            const nextStatus = value ?? 'Available';
+                            setStaffEntries((prev) =>
+                              prev.map((row, idx) => (idx === index ? { ...row, status: nextStatus } : row)),
+                            );
                           }}
                         >
                           <SelectTrigger>

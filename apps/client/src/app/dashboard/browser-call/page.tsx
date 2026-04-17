@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Device, type Connection } from '@twilio/voice-sdk';
+import { Device, type Call } from '@twilio/voice-sdk';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   useGetTelephonyNumbersQuery,
-  useGetTelephonyWebhookBaseQuery,
   useCreateTwilioClientTokenMutation,
 } from '@/features/telephony/telephonyApi';
-import { API_BASE_URL } from '@/lib/api';
 
 const statusColors: Record<string, string> = {
   disconnected: 'bg-gray-500/10 text-gray-600 dark:text-gray-400',
@@ -23,12 +21,11 @@ const statusColors: Record<string, string> = {
 
 export default function BrowserCallPage() {
   const { data: telephonyData } = useGetTelephonyNumbersQuery();
-  const { data: webhookBaseData } = useGetTelephonyWebhookBaseQuery();
   const telephonyNumbers = telephonyData?.data ?? [];
   const [createToken, { isLoading: tokenLoading }] = useCreateTwilioClientTokenMutation();
 
   const [device, setDevice] = useState<Device | null>(null);
-  const [connection, setConnection] = useState<Connection | null>(null);
+  const [connection, setConnection] = useState<Call | null>(null);
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [selectedNumber, setSelectedNumber] = useState<string>('');
 
@@ -36,12 +33,6 @@ export default function BrowserCallPage() {
     () => telephonyNumbers.map((number) => number.phoneNumber),
     [telephonyNumbers],
   );
-
-  const webhookBase = webhookBaseData?.baseUrl?.replace(/\/+$/, '') || '';
-  const apiRoot = webhookBase
-    ? (webhookBase.endsWith('/api') ? webhookBase : `${webhookBase}/api`)
-    : API_BASE_URL;
-  const apiRootNormalized = apiRoot.replace(/\/+$/, '');
 
   const initializeDevice = async () => {
     try {
@@ -129,12 +120,17 @@ export default function BrowserCallPage() {
           <CardTitle>Call setup</CardTitle>
           <CardDescription>
             Requires a Twilio Voice SDK token and a TwiML App that points to
-            `{apiRootNormalized}/telephony/webhook/client-voice`.
+            `https://dental-flow-server.fly.dev/api/telephony/webhook/client-voice`.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Select value={selectedNumber} onValueChange={setSelectedNumber}>
+            <Select
+              value={selectedNumber}
+              onValueChange={(value) => {
+                setSelectedNumber(value ?? '');
+              }}
+            >
               <SelectTrigger className="w-[260px]">
                 <SelectValue placeholder="Select Twilio number" />
               </SelectTrigger>

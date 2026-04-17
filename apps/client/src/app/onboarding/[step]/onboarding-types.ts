@@ -16,6 +16,11 @@ export type FaqCategory =
   | 'preparation'
   | 'other';
 
+export interface KnowledgeStaffForm {
+  name: string;
+  role: string;
+}
+
 export interface KnowledgeServiceForm {
   serviceName: string;
   category: ServiceCategory;
@@ -43,9 +48,11 @@ export const STEPS = [
   { id: 'plan', label: 'Plan' },
   { id: 'knowledge-base', label: 'Knowledge' },
   { id: 'voice', label: 'Voice' },
+  { id: 'rules', label: 'Rules' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'schedule', label: 'Schedule' },
   { id: 'ai-chat', label: 'AI Chat' },
+  { id: 'download', label: 'Download' },
   { id: 'test-call', label: 'Test' },
   { id: 'complete', label: 'Done' },
 ] as const;
@@ -69,6 +76,10 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
     title: 'Choose voice and personality',
     description: 'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
   },
+  rules: {
+    title: 'Set booking rules',
+    description: 'Define the scheduling rules your AI should follow when booking patients.',
+  },
   integrations: {
     title: 'Connect key tools',
     description: 'Integrate calendar tools now or skip and connect later from settings.',
@@ -80,6 +91,10 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
   'ai-chat': {
     title: 'AI Chat to upload data',
     description: 'Upload clinic docs, scripts, pricing, and FAQs so the AI answers like your front desk.',
+  },
+  download: {
+    title: 'Download your clinic context',
+    description: 'Download a PDF of your full onboarding data for review, record-keeping, and updates.',
   },
   'test-call': {
     title: 'Run a quick test call',

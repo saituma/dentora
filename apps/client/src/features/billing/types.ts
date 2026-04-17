@@ -16,3 +16,11 @@ export interface PlanLimits {
   currentUsage: { calls: number; cost: string };
   plan: string;
 }
+
+export interface SubscriptionStatus {
+  plan: string;
+  status: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  currentPeriodEnd: string | null;
+}

@@ -86,6 +86,7 @@ export const clinicProfile = pgTable('clinic_profile', {
   brandingColors: jsonb('branding_colors'),
   businessHours: jsonb('business_hours'),
   specialties: jsonb('specialties'),
+  staffMembers: jsonb('staff_members').notNull().default([]),
   description: text('description'),
   status: clinicProfileStatusEnum('status').notNull().default('draft'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,128 +1,309 @@
-import { UploadIcon, XIcon } from 'lucide-react';
+import React from 'react';
+import { BotIcon, PaperclipIcon, SendHorizontalIcon, UserIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { getUserFriendlyApiError } from '@/lib/api-error';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders } from '@/lib/api';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 import { STEP_ORDER } from '../onboarding-types';
 
 export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
+  const [draft, setDraft] = React.useState('');
+  const [isThinking, setIsThinking] = React.useState(false);
+  const [messages, setMessages] = React.useState<Array<{ id: string; role: 'assistant' | 'user'; content: string }>>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content:
+        'Share details about your clinic, policies, pricing, scheduling, or scripts. I will turn everything into structured context for your AI receptionist.',
+    },
+  ]);
+  const endOfMessagesRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isThinking]);
+
+  const userMessageCount = messages.filter((message) => message.role === 'user').length;
+  const hasChatContext = userMessageCount > 0;
+
+  const sendMessage = async () => {
+    const next = draft.trim();
+    if (!next || isThinking) return;
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user' as const,
+      content: next,
+    };
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    setDraft('');
+    setIsThinking(true);
+    try {
+      const token = await ensureFreshAccessToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const auth = token ? { Authorization: `Bearer ${token}` } : getAuthHeaders();
+      if (auth && typeof auth === 'object') {
+        Object.assign(headers, auth as Record<string, string>);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/onboarding/ai-chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          messages: nextMessages.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          clinicContext: flow.configuratorContext,
+        }),
+      });
+      const payload = (await response.json()) as { reply?: string; error?: string };
+      if (!response.ok || !payload.reply) {
+        throw new Error(payload.error || 'Could not generate AI response.');
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: payload.reply as string,
+        },
+      ]);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not generate AI response.';
+      toast.error(message);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  const chatContextDocumentContent = React.useMemo(() => {
+    if (!hasChatContext) return '';
+    const transcript = messages
+      .filter((message) => message.role === 'assistant' || message.role === 'user')
+      .map((message) => `### ${message.role === 'user' ? 'Clinic team' : 'AI context assistant'}\n${message.content}`)
+      .join('\n\n');
+    return `# AI Chat Context\n\n${transcript}\n\n# Clinic Snapshot\n${flow.configuratorContext}\n`;
+  }, [flow.configuratorContext, hasChatContext, messages]);
+
   return (
-    <Card className="border-0 bg-card shadow-lg">
-      <CardHeader>
-        <CardTitle className="text-xl">AI context files</CardTitle>
-        <CardDescription>Upload documents, SOPs, and reference notes so the receptionist can use them as extra clinic context.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-4 rounded-2xl border bg-muted/10 p-4 sm:p-5">
-            <div className="rounded-xl border bg-background p-4">
-              <p className="text-sm font-medium">Upload AI context files</p>
-              <p className="mt-2 text-sm text-muted-foreground">Drag and drop reference material like SOPs, call scripts, pricing notes, insurance notes, or clinic policies. Supported file types: TXT, MD, CSV, JSON, XML, HTML, PDF, DOCX, and XLSX.</p>
-            </div>
-            <input
-              ref={flow.fileInputRef}
-              type="file"
-              multiple
-              accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.xlsx,text/plain,text/markdown,text/csv,application/json,text/xml,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="hidden"
-              onChange={(event) => {
-                if (event.target.files) {
-                  void flow.addContextFiles(event.target.files);
-                  event.target.value = '';
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => flow.fileInputRef.current?.click()}
-              onDragOver={(event) => {
-                event.preventDefault();
-                flow.setIsDraggingContextFiles(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                flow.setIsDraggingContextFiles(false);
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                flow.setIsDraggingContextFiles(false);
-                void flow.addContextFiles(event.dataTransfer.files);
-              }}
-              className={`flex min-h-[220px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${flow.isDraggingContextFiles ? 'border-primary bg-primary/5' : 'border-border bg-background hover:border-primary/40'}`}
-            >
-              <UploadIcon className="mb-4 size-10 text-primary" />
-              <p className="text-base font-medium">Drop files here</p>
-              <p className="mt-2 max-w-md text-sm text-muted-foreground">Or click to browse and upload documents that should shape how the receptionist answers callers.</p>
-            </button>
-            <div className="rounded-xl border bg-background p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium">Files ready for AI context</p>
-                <Badge variant="outline">{flow.contextFiles.length} file{flow.contextFiles.length === 1 ? '' : 's'}</Badge>
-              </div>
-              {flow.contextFiles.length === 0 ? (
-                <p className="mt-3 text-sm text-muted-foreground">No files uploaded yet. Add files here instead of chatting with the assistant.</p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  {flow.contextFiles.map((file) => (
-                    <div key={file.id} className="rounded-lg border bg-muted/20 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{file.name}</p>
-                          <p className="text-xs text-muted-foreground">{file.mimeType || 'text/plain'} · {Math.max(1, Math.round(file.size / 1024))} KB</p>
-                        </div>
-                        <Button type="button" size="icon" variant="ghost" onClick={() => flow.setContextFiles((prev) => prev.filter((item) => item.id !== file.id))}>
-                          <XIcon className="size-4" />
-                        </Button>
-                      </div>
-                      <p className="mt-3 line-clamp-4 text-sm text-muted-foreground">{file.content}</p>
-                    </div>
-                  ))}
+    <div className="w-full">
+      <input
+        ref={flow.fileInputRef}
+        type="file"
+        multiple
+        accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.xlsx,text/plain,text/markdown,text/csv,application/json,text/xml,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="hidden"
+        onChange={(event) => {
+          if (event.target.files) {
+            void flow.addContextFiles(event.target.files);
+            event.target.value = '';
+          }
+        }}
+      />
+      <div className="flex min-h-[680px] flex-col overflow-hidden rounded-2xl border bg-background">
+          <div className="border-b bg-muted/20 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Tell me everything your receptionist should know. Press Enter to send.</p>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto bg-muted/10 p-4 sm:p-6">
+            {messages.map((message) => (
+              <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                {message.role === 'assistant' && (
+                  <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                    <BotIcon className="size-4" />
+                  </div>
+                )}
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'border bg-background text-foreground'}`}>
+                  <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
-              )}
-            </div>
-          </div>
-          <div className="space-y-4">
-            <div className="rounded-2xl border bg-muted/20 p-4">
-              <p className="text-sm font-medium">Best results</p>
-              <p className="mt-2 text-sm text-muted-foreground">Upload structured notes the receptionist should follow, such as cancellation rules, same-day emergency handling, payment notes, location details, and escalation instructions.</p>
-            </div>
-            <Field>
-              <FieldLabel>AI context about your clinic</FieldLabel>
-              <div className="max-h-[520px] overflow-y-auto rounded-2xl border bg-muted/20 p-4 text-sm">
-                <pre className="whitespace-pre-wrap font-mono text-xs leading-6 text-muted-foreground">{flow.configuratorContext}</pre>
+                {message.role === 'user' && (
+                  <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                    <UserIcon className="size-4" />
+                  </div>
+                )}
               </div>
-            </Field>
+            ))}
+            {isThinking && (
+              <div className="flex items-start gap-3">
+                <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                  <BotIcon className="size-4" />
+                </div>
+                <div className="rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground">
+                  Thinking...
+                </div>
+              </div>
+            )}
+            <div ref={endOfMessagesRef} />
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="border-t bg-background p-3 sm:p-4">
+            <div className="flex items-end gap-2">
+              <Button type="button" variant="outline" size="icon" onClick={() => flow.fileInputRef.current?.click()} aria-label="Attach context files">
+                <PaperclipIcon className="size-4" />
+              </Button>
+              <Textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Type clinic details, scripts, rules, pricing, FAQs, or escalation instructions..."
+                className="min-h-[52px] max-h-40 resize-y"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    void sendMessage();
+                  }
+                }}
+              />
+              <Button type="button" onClick={() => void sendMessage()} disabled={isThinking || draft.trim().length === 0} aria-label="Send message">
+                <SendHorizontalIcon className="size-4" />
+                Send
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">Enter to send, Shift+Enter for new line.</p>
+            <div className="mt-4 rounded-2xl border bg-muted/10 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Attached files</p>
+              <Badge variant="outline">{flow.contextFiles.length}</Badge>
+            </div>
+            {flow.contextFiles.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">No files uploaded yet. Chat alone also works.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {flow.contextFiles.map((file) => (
+                  <div key={file.id} className="rounded-lg border bg-background p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{file.name}</p>
+                        <p className="text-xs text-muted-foreground">{Math.max(1, Math.round(file.size / 1024))} KB</p>
+                      </div>
+                      <Button type="button" size="icon-sm" variant="ghost" onClick={() => flow.setContextFiles((prev) => prev.filter((item) => item.id !== file.id))} aria-label={`Remove ${file.name}`}>
+                        <XIcon className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
             <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
             <Button
               type="button"
               variant="secondary"
               onClick={async () => {
                 try {
+                  const documents = [
+                    ...flow.contextFiles.map((file) => ({ name: file.name, content: file.content, mimeType: file.mimeType })),
+                    ...(chatContextDocumentContent ? [{ name: 'chat-context-notes.md', content: chatContextDocumentContent, mimeType: 'text/markdown' }] : []),
+                  ];
+                  if (documents.length === 0) {
+                    toast.error('Add chat notes or files before saving.');
+                    return;
+                  }
                   await flow.saveContextDocuments({
-                    documents: flow.contextFiles.map((file) => ({ name: file.name, content: file.content, mimeType: file.mimeType })),
+                    documents,
                   }).unwrap();
-                  toast.success('AI context files saved');
-                  flow.goNext('test-call');
+                  toast.success('AI context saved');
+                  flow.goNext('download');
                 } catch (error: unknown) {
                   toast.error(getUserFriendlyApiError(error));
                 }
               }}
-              disabled={flow.savingContextDocuments || flow.contextFiles.length === 0}
+              disabled={flow.savingContextDocuments || (!hasChatContext && flow.contextFiles.length === 0)}
               className="min-w-40"
             >
               {flow.savingContextDocuments ? 'Saving...' : 'Save & Continue'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => flow.goNext('test-call')} className="min-w-32">Skip for now</Button>
+            <Button type="button" variant="outline" onClick={() => flow.goNext('download')} className="min-w-32">Skip for now</Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  );
+}
+
+export function DownloadDataStep({ flow }: { flow: OnboardingFlow }) {
+  const [downloading, setDownloading] = React.useState(false);
+
+  const downloadPdf = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const token = await ensureFreshAccessToken();
+      const headers: Record<string, string> = {};
+      const auth = token ? { Authorization: `Bearer ${token}` } : getAuthHeaders();
+      if (auth && typeof auth === 'object') {
+        Object.assign(headers, auth as Record<string, string>);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/onboarding/export/pdf`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Download failed: ${response.status} ${errorBody}`);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') || '';
+      const filenameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
+      const filename = filenameMatch?.[1] || 'clinic-context.pdf';
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Downloaded clinic context PDF');
+    } catch (error) {
+      toast.error(getUserFriendlyApiError(error));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="border-0 bg-card shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-xl">Download your clinic context</CardTitle>
+          <CardDescription>
+            This PDF includes your full onboarding configuration and saved context documents.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-xl border bg-muted/10 p-4 text-sm text-muted-foreground">
+            <p>
+              Tip: If you added chat notes or uploaded files in the AI Chat step, click <span className="font-medium text-foreground">Save</span> first so they appear in the export.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="secondary" onClick={() => void downloadPdf()} disabled={downloading}>
+              {downloading ? 'Preparing…' : 'Download your data'}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => flow.goNext('test-call')}>
+              Continue
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => flow.goNext('test-call')}>
+              Skip
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
+      </div>
+    </div>
   );
 }
 
@@ -223,7 +404,7 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
           <Button
-            disabled={flow.publishing || (flow.onboardingData && !flow.onboardingData.isReady)}
+            disabled={flow.publishingConfig || (flow.onboardingData && !flow.onboardingData.isReady)}
             onClick={async () => {
               try {
                 await flow.publishConfig().unwrap();
@@ -235,7 +416,7 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
             }}
             className="min-w-36"
           >
-            {flow.publishing ? 'Publishing...' : 'Publish & Go Live'}
+            {flow.publishingConfig ? 'Publishing...' : 'Publish & Go Live'}
           </Button>
         </div>
       </CardContent>

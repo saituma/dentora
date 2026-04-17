@@ -39,12 +39,13 @@ import {
 import { ClinicSetupTab } from '@/app/dashboard/ai-receptionist/clinic-setup-tab';
 import { ClinicInfoTab } from '@/app/dashboard/ai-receptionist/clinic-info-tab';
 import { VoiceTab } from '@/app/dashboard/ai-receptionist/voice-tab';
+import { DocumentsTab } from '@/app/dashboard/ai-receptionist/documents-tab';
 import {
   FaqsTab,
   PoliciesTab,
   ServicesTab,
 } from '@/app/dashboard/ai-receptionist/resource-tabs';
-import { useSaveContextDocumentsMutation } from '@/features/onboarding/onboardingApi';
+import { useSaveContextDocumentsMutation, useUploadContextDocumentsMutation } from '@/features/onboarding/onboardingApi';
 
 export default function AiReceptionistPage() {
   const { data: clinic, isLoading: clinicLoading } = useGetClinicQuery();
@@ -74,6 +75,7 @@ export default function AiReceptionistPage() {
   const [addPolicy, { isLoading: addingPolicy }] = useAddPolicyMutation();
   const [deletePolicy] = useDeletePolicyMutation();
   const [saveContextDocuments, { isLoading: savingContext }] = useSaveContextDocumentsMutation();
+  const [uploadContextDocuments, { isLoading: uploadingDocuments }] = useUploadContextDocumentsMutation();
 
   const [clinicName, setClinicName] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
@@ -90,6 +92,7 @@ export default function AiReceptionistPage() {
   const [agentId, setAgentId] = useState('agent_5401kkemwc0sf23tw2km4ct4qpm9');
   const [tone, setTone] = useState<'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'>('professional');
   const [language, setLanguage] = useState('en-US');
+  const [speechSpeed, setSpeechSpeed] = useState(1.0);
 
   const [newServiceName, setNewServiceName] = useState('');
   const [newServiceDuration, setNewServiceDuration] = useState('30');
@@ -135,6 +138,7 @@ export default function AiReceptionistPage() {
       setAgentId(voiceProfile.voiceAgentId ?? 'agent_5401kkemwc0sf23tw2km4ct4qpm9');
       setTone(voiceProfile.tone ?? 'professional');
       setLanguage(voiceProfile.language ?? 'en-US');
+      setSpeechSpeed(typeof voiceProfile.speechSpeed === 'number' ? voiceProfile.speechSpeed : 1.0);
     }
   }, [voiceProfile]);
 
@@ -194,7 +198,7 @@ export default function AiReceptionistPage() {
       const audioUrl = await generateVoicePreview({
         voiceId,
         text: greeting.trim() || `Hi, welcome to ${clinicName || 'our clinic'}, what can I help you with today?`,
-        speed: voiceProfile?.speechSpeed ?? 1,
+        speed: speechSpeed || 1,
         language,
       }).unwrap();
       const audio = new Audio(audioUrl);
@@ -219,6 +223,7 @@ export default function AiReceptionistPage() {
         voiceAgentId: agentId,
         tone,
         language,
+        speechSpeed,
       }).unwrap();
       toast.success('Voice profile saved');
     } catch {
@@ -300,6 +305,10 @@ export default function AiReceptionistPage() {
     }
   };
 
+  const handleSaveDocuments = async (formData: FormData) => {
+    await uploadContextDocuments(formData).unwrap();
+  };
+
   const saveLoading = clinicSaving || rulesSaving;
 
   return (
@@ -315,6 +324,7 @@ export default function AiReceptionistPage() {
         <TabsList>
           <TabsTrigger value="clinic">Clinic Setup</TabsTrigger>
           <TabsTrigger value="info">Clinic Info</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="voice">Voice</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
           <TabsTrigger value="faqs">FAQs</TabsTrigger>
@@ -361,6 +371,13 @@ export default function AiReceptionistPage() {
           />
         </TabsContent>
 
+        <TabsContent value="documents" className="space-y-6">
+          <DocumentsTab
+            onUpload={handleSaveDocuments}
+            saving={uploadingDocuments}
+          />
+        </TabsContent>
+
         <TabsContent value="voice" className="space-y-6">
           <VoiceTab
             voiceLoading={voiceLoading}
@@ -377,6 +394,8 @@ export default function AiReceptionistPage() {
             setTone={setTone}
             language={language}
             setLanguage={setLanguage}
+            speechSpeed={speechSpeed}
+            setSpeechSpeed={setSpeechSpeed}
             afterHoursMessage={afterHoursMessage}
             setAfterHoursMessage={setAfterHoursMessage}
             handlePreviewVoice={handlePreviewVoice}
