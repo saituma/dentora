@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import * as billingService from './billing.service.js';
 import * as stripeService from './stripe.js';
+import { env } from '../../config/env.js';
 import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
 import { z } from 'zod';
 import { logger } from '../../lib/logger.js';
@@ -68,7 +69,7 @@ billingRouter.post(
     try {
       const result = await stripeService.createBillingPortalSession({
         tenantId: req.tenantContext!.tenantId,
-        returnUrl: req.body.returnUrl || `${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard/billing`,
+        returnUrl: req.body.returnUrl || `${env.CLIENT_URL.replace(/\/$/, '')}/dashboard/billing`,
       });
       res.json(result);
     } catch (err) {

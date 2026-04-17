@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import { env } from '../../config/env.js';
 import { db } from '../../db/index.js';
-import { tenantRegistry } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { clinicProfile, tenantRegistry } from '../../db/schema.js';
+import { desc, eq } from 'drizzle-orm';
 import { logger } from '../../lib/logger.js';
 import { AppError } from '../../lib/errors.js';
 
@@ -147,6 +147,19 @@ export async function createCheckoutSession(input: {
     .where(eq(tenantRegistry.id, input.tenantId))
     .limit(1);
 
+  const [profileRow] = await db
+    .select({
+      supportEmail: clinicProfile.supportEmail,
+      email: clinicProfile.email,
+    })
+    .from(clinicProfile)
+    .where(eq(clinicProfile.tenantId, input.tenantId))
+    .orderBy(desc(clinicProfile.updatedAt))
+    .limit(1);
+
+  const clinicBillingEmail =
+    profileRow?.supportEmail?.trim() || profileRow?.email?.trim() || undefined;
+
   let customerId = tenant?.stripeCustomerId ?? undefined;
 
   try {
@@ -156,6 +169,7 @@ export async function createCheckoutSession(input: {
       const customer = await stripe.customers.create({
         metadata: { tenantId: input.tenantId },
         name: tenant?.clinicName ?? undefined,
+        email: clinicBillingEmail,
       });
       customerId = customer.id;
 

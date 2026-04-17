@@ -43,6 +43,24 @@ services:
         generateValue: true
       - key: CORS_ORIGIN
         value: https://dental-flow-client.onrender.com
+      # If the Next.js app is another *.onrender.com service, set true so the API accepts that Origin.
+      - key: CORS_ALLOW_ONRENDER
+        value: "false"
+      # Public URL of the web app (billing portal return URL, no trailing slash).
+      - key: CLIENT_URL
+        value: https://dental-flow-client.onrender.com
+
+      # Stripe (test: sk_test_ + price_ from Test mode; live: sk_live_ + live prices)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_STARTER_PRICE_ID
+        sync: false
+      - key: STRIPE_GROWTH_PRICE_ID
+        sync: false
+      - key: STRIPE_PRO_PRICE_ID
+        sync: false
 
       # Primary AI Providers
       - key: OPENAI_API_KEY
@@ -120,5 +138,6 @@ services:
         value: 3000
       - key: NODE_ENV
         value: production
+      # Base URL of the API (no /api suffix; the client appends /api).
       - key: NEXT_PUBLIC_API_URL
         value: https://dental-flow-server.onrender.com

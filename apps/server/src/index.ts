@@ -50,6 +50,7 @@ if (env.NODE_ENV === 'development') {
 
 const allowedOriginSet = new Set(allowedOrigins);
 const vercelDentoraOriginPattern = /^https:\/\/dentora-client(?:-[a-z0-9-]+)?\.vercel\.app$/i;
+const renderWebOriginPattern = /^https:\/\/[a-z0-9-][a-z0-9-]*\.onrender\.com$/i;
 
 app.use(
   cors({
@@ -63,6 +64,11 @@ app.use(
 
       // Allow the Dentora client Vercel production + preview deployments.
       if (vercelDentoraOriginPattern.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Frontend hosted on Render (separate service from API): set CORS_ALLOW_ONRENDER=true on the API.
+      if (env.CORS_ALLOW_ONRENDER && renderWebOriginPattern.test(origin)) {
         return callback(null, true);
       }
 

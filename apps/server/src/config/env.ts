@@ -21,6 +21,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  /** When true, allow browser requests from any https://*.onrender.com origin (API still requires JWT). */
+  CORS_ALLOW_ONRENDER: z.coerce.boolean().default(false),
 
   PLATFORM_ENV: z.enum(['local', 'ci', 'staging', 'production']).default('local'),
   PLATFORM_VERSION: z.string().default('0.1.0'),

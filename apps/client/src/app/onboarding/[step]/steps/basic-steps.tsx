@@ -175,6 +175,9 @@ export function PlanStep({ flow }: { flow: OnboardingFlow }) {
             );
           })}
         </div>
+        <p className="text-xs text-muted-foreground">
+          You will be redirected to Stripe Checkout (test mode uses cards like 4242 4242 4242 4242). Your clinic email from the previous step is sent to Stripe when available.
+        </p>
         <div className="flex flex-wrap gap-3 pt-2">
           <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
           <Button

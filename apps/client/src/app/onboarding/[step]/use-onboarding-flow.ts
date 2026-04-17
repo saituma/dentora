@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch } from '@/store/hooks';
@@ -83,6 +83,7 @@ export function useOnboardingFlow() {
   const [googleCalendarEmail, setGoogleCalendarEmail] = useState('');
   const [googleCalendarId, setGoogleCalendarId] = useState('primary');
   const [handledGoogleCallback, setHandledGoogleCallback] = useState(false);
+  const stripeCheckoutReturnHandled = useRef(false);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
   const [isDraggingContextFiles, setIsDraggingContextFiles] = useState(false);
   const [contextFiles, setContextFiles] = useState<UploadedContextFile[]>([]);
@@ -176,6 +177,29 @@ export function useOnboardingFlow() {
       toast.error(reason ? `Google Calendar connect failed: ${reason}` : 'Google Calendar connect failed');
     }
   }, [handledGoogleCallback, refetchOnboardingStatus, searchParams]);
+
+  useEffect(() => {
+    const checkout = searchParams.get('checkout');
+    if (!checkout) {
+      stripeCheckoutReturnHandled.current = false;
+      return;
+    }
+    if (stripeCheckoutReturnHandled.current) return;
+    stripeCheckoutReturnHandled.current = true;
+
+    if (checkout === 'cancelled' && step === 'plan') {
+      toast.info('Payment was cancelled. You can choose a plan and try again when you are ready.');
+      dispatch(setOnboardingStatus('plan'));
+      router.replace('/onboarding/plan');
+      return;
+    }
+
+    if (checkout === 'success' && step === 'knowledge-base') {
+      toast.success('Checkout complete. Continue with your clinic knowledge.');
+      dispatch(setOnboardingStatus('knowledge-base'));
+      router.replace('/onboarding/knowledge-base');
+    }
+  }, [step, searchParams, router, dispatch]);
 
   useEffect(() => {
     if (!policiesData?.data?.length) return;
