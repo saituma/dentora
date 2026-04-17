@@ -7,24 +7,33 @@ import { useAppSelector } from "@/store/hooks";
 export function MarketingGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isHydrated } = useAppSelector(
+  const { isAuthenticated, isHydrated, onboardingStatus } = useAppSelector(
     (state) => state.auth
   );
 
   const isPublicAllowed = pathname === "/privacy" || pathname === "/terms";
+  const onboardingComplete = onboardingStatus === "complete";
 
   useEffect(() => {
     if (!isHydrated) return;
-    if (isAuthenticated && !isPublicAllowed) {
+    // Users still in setup may browse the marketing site (e.g. home, pricing).
+    // Only skip marketing once onboarding is finished.
+    if (isAuthenticated && onboardingComplete && !isPublicAllowed) {
       router.replace("/dashboard");
     }
-  }, [isAuthenticated, isHydrated, router, isPublicAllowed]);
+  }, [
+    isAuthenticated,
+    isHydrated,
+    onboardingComplete,
+    router,
+    isPublicAllowed,
+  ]);
 
   if (!isHydrated) {
     return null;
   }
 
-  if (isAuthenticated && !isPublicAllowed) {
+  if (isAuthenticated && onboardingComplete && !isPublicAllowed) {
     return null;
   }
 
