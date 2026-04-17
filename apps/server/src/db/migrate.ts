@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { migrate } from 'drizzle-orm/neon-http/migrator';
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 function getRawMigrationUrl(): string {
   return (
@@ -30,17 +30,40 @@ function buildMigrationDatabaseUrl(rawUrl: string, sslMode?: string): string {
   return parsedUrl.toString();
 }
 
+function resolvePgSsl(connectionString: string): boolean | { rejectUnauthorized: boolean } | undefined {
+  const url = new URL(connectionString);
+  const mode = url.searchParams.get('sslmode') ?? 'require';
+  if (mode === 'disable' || mode === 'allow' || mode === 'prefer') {
+    return undefined;
+  }
+  if (mode === 'require') {
+    return { rejectUnauthorized: false };
+  }
+  if (mode === 'verify-ca' || mode === 'verify-full') {
+    return { rejectUnauthorized: true };
+  }
+  return undefined;
+}
+
 async function main(): Promise<void> {
   const connectionString = buildMigrationDatabaseUrl(
     getRawMigrationUrl(),
     process.env.DATABASE_SSL_MODE,
   );
 
-  const sql = neon(connectionString);
-  const db = drizzle(sql);
+  const pool = new Pool({
+    connectionString,
+    ssl: resolvePgSsl(connectionString),
+  });
 
-  await migrate(db, { migrationsFolder: 'drizzle' });
-  console.log('Migration completed');
+  const db = drizzle(pool);
+
+  try {
+    await migrate(db, { migrationsFolder: 'drizzle' });
+    console.log('Migration completed');
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch((error) => {

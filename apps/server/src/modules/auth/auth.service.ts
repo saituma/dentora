@@ -7,6 +7,15 @@ import { AuthenticationError, ConflictError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
 
+function isPostgresUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: string }).code === '23505'
+  );
+}
+
 interface LoginResult {
   accessToken: string;
   refreshToken: string;
@@ -95,57 +104,71 @@ export async function register(input: {
   const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   // Create tenant, user, and link in a transaction
-  const result = await db.transaction(async (tx) => {
-    // 1. Create tenant
-    await tx.insert(tenantRegistry).values({
-      id: tenantId,
-      clinicName: input.clinicName,
-      clinicSlug: input.clinicName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '') + '-' + userId.slice(0, 6),
-      plan: 'starter',
-      status: 'active',
+  let result: {
+    accessToken: string;
+    refreshToken: string;
+    user: typeof users.$inferSelect;
+  };
+  try {
+    result = await db.transaction(async (tx) => {
+      // 1. Create tenant
+      await tx.insert(tenantRegistry).values({
+        id: tenantId,
+        clinicName: input.clinicName,
+        clinicSlug: input.clinicName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') + '-' + userId.slice(0, 6),
+        plan: 'starter',
+        status: 'active',
+      });
+
+      // 2. Create user
+      const [user] = await tx.insert(users).values({
+        id: userId,
+        email: input.email,
+        passwordHash,
+        displayName: input.displayName ?? input.clinicName,
+        role: 'admin',
+      }).returning();
+
+      // 3. Link user to tenant
+      await tx.insert(tenantUsers).values({
+        id: generateId(),
+        tenantId,
+        userId,
+        role: 'admin',
+      });
+
+      // 4. Create tokens
+      const accessToken = signAccessToken({
+        userId,
+        role: 'admin',
+        tenantId,
+      });
+
+      const refreshToken = signRefreshToken({ userId, tenantId, sessionId });
+
+      // 5. Create session
+      await tx.insert(sessions).values({
+        id: sessionId,
+        userId,
+        refreshToken,
+        expiresAt: new Date(Date.now() + sessionExpiryMs),
+        userAgent: null,
+        ipAddress: null,
+      });
+
+      return { accessToken, refreshToken, user };
     });
-
-    // 2. Create user
-    const [user] = await tx.insert(users).values({
-      id: userId,
-      email: input.email,
-      passwordHash,
-      displayName: input.displayName ?? input.clinicName,
-      role: 'admin',
-    }).returning();
-
-    // 3. Link user to tenant
-    await tx.insert(tenantUsers).values({
-      id: generateId(),
-      tenantId,
-      userId,
-      role: 'admin',
-    });
-
-    // 4. Create tokens
-    const accessToken = signAccessToken({
-      userId,
-      role: 'admin',
-      tenantId,
-    });
-
-    const refreshToken = signRefreshToken({ userId, tenantId, sessionId });
-
-    // 5. Create session
-    await tx.insert(sessions).values({
-      id: sessionId,
-      userId,
-      refreshToken,
-      expiresAt: new Date(Date.now() + sessionExpiryMs),
-      userAgent: null,
-      ipAddress: null,
-    });
-
-    return { accessToken, refreshToken, user };
-  });
+  } catch (err: unknown) {
+    if (isPostgresUniqueViolation(err)) {
+      throw new ConflictError(
+        'That email or clinic URL is already in use. Try signing in, or use a different email or clinic name.',
+      );
+    }
+    throw err;
+  }
 
   logger.info({ userId, tenantId, clinicName: input.clinicName }, 'User registered');
 

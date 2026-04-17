@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { Client } from '@neondatabase/serverless';
+import pg from 'pg';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -11,7 +11,7 @@ if (!databaseUrl) {
 const journal = JSON.parse(fs.readFileSync(new URL('../drizzle/meta/_journal.json', import.meta.url), 'utf8'));
 const ignorableErrorCodes = new Set(['42710', '42P07', '42701', '42P06']);
 
-const client = new Client({ connectionString: databaseUrl });
+const client = new pg.Client({ connectionString: databaseUrl });
 
 try {
   await client.connect();

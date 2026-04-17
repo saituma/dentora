@@ -147,9 +147,6 @@ importers:
 
   apps/server:
     dependencies:
-      '@neondatabase/serverless':
-        specifier: ^1.0.2
-        version: 1.0.2
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -6743,6 +6740,7 @@ snapshots:
     dependencies:
       '@types/node': 22.19.13
       '@types/pg': 8.20.0
+    optional: true
 
   '@next/env@16.1.6': {}
 
@@ -7466,6 +7464,7 @@ snapshots:
   '@types/node@22.19.13':
     dependencies:
       undici-types: 6.21.0
+    optional: true
 
   '@types/node@25.6.0':
     dependencies:
