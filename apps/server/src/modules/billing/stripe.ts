@@ -105,6 +105,24 @@ function messageForUnknownStripePrice(stripeMessage: string): string | null {
   );
 }
 
+function isNoSuchStripeCustomerError(err: unknown): boolean {
+  if (!isStripeApiError(err)) return false;
+  if (/no such customer/i.test(err.message)) return true;
+  return err.code === 'resource_missing' && String((err as { param?: unknown }).param ?? '').includes('customer');
+}
+
+async function clearStripeBillingIdsForTenant(tenantId: string): Promise<void> {
+  await db
+    .update(tenantRegistry)
+    .set({
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      stripePriceId: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tenantRegistry.id, tenantId));
+}
+
 function rethrowStripeAsAppError(err: unknown): never {
   if (err instanceof AppError) {
     throw err;
@@ -165,6 +183,23 @@ export async function createCheckoutSession(input: {
   try {
     const stripe = getStripe();
 
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch (retrieveErr: unknown) {
+        if (isNoSuchStripeCustomerError(retrieveErr)) {
+          logger.warn(
+            { tenantId: input.tenantId, customerId },
+            'Stale Stripe customer id (wrong account/mode); clearing and creating a new customer',
+          );
+          await clearStripeBillingIdsForTenant(input.tenantId);
+          customerId = undefined;
+        } else {
+          rethrowStripeAsAppError(retrieveErr);
+        }
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         metadata: { tenantId: input.tenantId },
@@ -220,7 +255,26 @@ export async function createBillingPortalSession(input: {
   }
 
   try {
-    const session = await getStripe().billingPortal.sessions.create({
+    const stripe = getStripe();
+    try {
+      await stripe.customers.retrieve(tenant.stripeCustomerId);
+    } catch (retrieveErr: unknown) {
+      if (isNoSuchStripeCustomerError(retrieveErr)) {
+        logger.warn(
+          { tenantId: input.tenantId, customerId: tenant.stripeCustomerId },
+          'Stale Stripe customer for billing portal; clearing ids',
+        );
+        await clearStripeBillingIdsForTenant(input.tenantId);
+        throw new AppError(
+          'Your saved Stripe customer is no longer valid for this environment. Please complete checkout again to subscribe.',
+          400,
+          'STRIPE_CUSTOMER_STALE',
+        );
+      }
+      rethrowStripeAsAppError(retrieveErr);
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
       customer: tenant.stripeCustomerId,
       return_url: input.returnUrl,
     });
