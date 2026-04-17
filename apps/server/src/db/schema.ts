@@ -44,6 +44,9 @@ export const tenantRegistry = pgTable('tenant_registry', {
   clinicSlug: text('clinic_slug').notNull().unique(),
   plan: tenantPlanEnum('plan').notNull().default('starter'),
   status: tenantStatusEnum('status').notNull().default('active'),
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  stripePriceId: text('stripe_price_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
