@@ -17,7 +17,7 @@ interface StepperProps {
 export function Stepper({ steps, currentStep, className }: StepperProps) {
   return (
     <nav aria-label="Progress" className={cn('w-full', className)}>
-      <ol className="flex items-start justify-between">
+      <ol className="flex items-start justify-between gap-1 sm:gap-2">
         {steps.map((step, index) => {
           const isComplete = index < currentStep;
           const isCurrent = index === currentStep;
@@ -27,7 +27,7 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
               key={step.id}
               className={cn(
                 'relative flex flex-1 items-start',
-                index !== steps.length - 1 && 'pr-8 sm:pr-12'
+                index !== steps.length - 1 && 'pr-3 sm:pr-4'
               )}
             >
               <div className="flex flex-col items-center gap-2">
@@ -35,12 +35,12 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
                   className={cn(
                     'flex size-9 items-center justify-center rounded-full border-2 text-sm transition-colors',
                     isComplete &&
-                      'border-primary bg-primary text-primary-foreground',
+                    'border-primary bg-primary text-primary-foreground',
                     isCurrent &&
-                      'border-primary bg-primary/15 text-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.15)]',
+                    'border-primary bg-primary/15 text-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.15)]',
                     !isComplete &&
-                      !isCurrent &&
-                      'border-muted-foreground/20 bg-background text-muted-foreground'
+                    !isCurrent &&
+                    'border-muted-foreground/20 bg-background text-muted-foreground'
                   )}
                 >
                   {isComplete ? (
