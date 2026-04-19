@@ -16,8 +16,8 @@ interface StepperProps {
 
 export function Stepper({ steps, currentStep, className }: StepperProps) {
   return (
-    <nav aria-label="Progress" className={cn('w-full', className)}>
-      <ol className="flex items-start justify-between gap-1 sm:gap-2">
+    <nav aria-label="Progress" className={cn('w-full min-w-0', className)}>
+      <ol className="flex min-w-0 items-start justify-between gap-0">
         {steps.map((step, index) => {
           const isComplete = index < currentStep;
           const isCurrent = index === currentStep;
@@ -26,14 +26,14 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
             <li
               key={step.id}
               className={cn(
-                'relative flex flex-1 items-start',
-                index !== steps.length - 1 && 'pr-3 sm:pr-4'
+                'relative flex min-w-0 flex-1 items-start',
+                index !== steps.length - 1 && 'pr-0.5 sm:pr-1'
               )}
             >
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex w-full min-w-0 flex-col items-center gap-1 sm:gap-1.5">
                 <div
                   className={cn(
-                    'flex size-9 items-center justify-center rounded-full border-2 text-sm transition-colors',
+                    'flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs transition-colors',
                     isComplete &&
                     'border-primary bg-primary text-primary-foreground',
                     isCurrent &&
@@ -44,14 +44,14 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
                   )}
                 >
                   {isComplete ? (
-                    <CheckIcon className="size-4" />
+                    <CheckIcon className="size-3.5 sm:size-4" />
                   ) : (
                     <span className="font-medium">{index + 1}</span>
                   )}
                 </div>
                 <span
                   className={cn(
-                    'text-center text-[11px] font-medium leading-tight',
+                    'max-w-full break-words text-center text-[9px] font-medium leading-tight sm:text-[10px]',
                     isCurrent ? 'text-foreground' : 'text-muted-foreground'
                   )}
                 >
@@ -61,10 +61,10 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
               {index !== steps.length - 1 && (
                 <div
                   className={cn(
-                    'absolute left-9 top-[18px] h-0.5 w-full -translate-y-1/2',
+                    'absolute left-8 top-4 h-0.5 -translate-y-1/2',
                     isComplete ? 'bg-primary' : 'bg-border'
                   )}
-                  style={{ width: 'calc(100% - 2.25rem)' }}
+                  style={{ width: 'calc(100% - 2rem)' }}
                 />
               )}
             </li>
