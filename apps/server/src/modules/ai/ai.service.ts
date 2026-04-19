@@ -132,6 +132,35 @@ function formatContactInfo(clinic: Record<string, unknown>): string {
   return items.length > 0 ? items.join('; ') : 'Not provided';
 }
 
+function formatClinicDescriptionForPrompt(clinic: Record<string, unknown>): string {
+  const d = clinic.description;
+  return typeof d === 'string' && d.trim() ? d.trim() : 'Not provided';
+}
+
+/** Avoid embedding base64 image payloads in LLM prompts. */
+function formatClinicLogoForPrompt(clinic: Record<string, unknown>): string {
+  const raw = clinic.logo;
+  if (typeof raw !== 'string' || !raw.trim()) return 'Not provided';
+  if (raw.startsWith('data:image')) return 'Provided (clinic image on file)';
+  return `Logo URL: ${raw.trim()}`;
+}
+
+function formatBookableStaffForPrompt(clinic: Record<string, unknown>): string {
+  const raw = clinic.staffMembers;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return 'Not configured — add providers under Dashboard → Staff.';
+  }
+  const lines = raw
+    .map((row) => row as { name?: string; role?: string; acceptsAppointments?: boolean })
+    .filter((row) => typeof row.name === 'string' && row.name.trim().length > 0)
+    .filter((row) => row.acceptsAppointments !== false)
+    .map((row) => {
+      const role = typeof row.role === 'string' && row.role.trim() ? row.role.trim() : 'Staff';
+      return `${row.name!.trim()} (${role})`;
+    });
+  return lines.length > 0 ? lines.join('; ') : 'No staff marked for appointments — enable in Dashboard → Staff.';
+}
+
 function formatPromotionsForPrompt(policyList: Record<string, unknown>[]): string {
   const promotions = policyList
     .map((policy) => policy as { policyType?: string; content?: string })
@@ -157,10 +186,10 @@ function formatUploadedContextForPrompt(policyList: Record<string, unknown>[]): 
     .filter((topic) => topic.type === 'context_document' && typeof topic.content === 'string' && topic.content.trim())
     .map((topic) => {
       const title = topic.title?.trim() || 'Uploaded context';
-      return `${title}: ${topic.content!.trim()}`;
+      return `${title}:\n${topic.content!.trim()}`;
     });
 
-  return contextChunks.length > 0 ? contextChunks.join(' | ') : 'None provided';
+  return contextChunks.length > 0 ? contextChunks.join('\n---\n') : 'None provided';
 }
 
 function buildPromptContextBlock(context: TenantAIContext): string[] {
@@ -199,6 +228,9 @@ function buildPromptContextBlock(context: TenantAIContext): string[] {
     `- Office Hours: ${officeHours}`,
     `- Services: ${formatServicesForPrompt(context.services)}`,
     `- Contact Info: ${formatContactInfo(context.clinic)}`,
+    `- Clinic description: ${formatClinicDescriptionForPrompt(context.clinic)}`,
+    `- Clinic photo/logo: ${formatClinicLogoForPrompt(context.clinic)}`,
+    `- Bookable providers (staff): ${formatBookableStaffForPrompt(context.clinic)}`,
     `- Promotions / Updates: ${formatPromotionsForPrompt(context.policies)}`,
     `- Uploaded Clinic Context: ${uploadedContext}`,
     `- Greeting: ${voiceData.greetingMessage ?? voiceData.greeting ?? `Hi, welcome to ${context.clinicName}, what can I help you with today?`}`,

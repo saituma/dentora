@@ -530,13 +530,14 @@ export default function ElevenLabsAgentPage() {
         if (!response?.data?.signedUrl) {
           throw new Error('Signed URL missing from server response.');
         }
-        const conversationId = await (conversation.startSession({
+        const conversationIdResult = await (conversation.startSession({
           signedUrl: response.data.signedUrl,
           connectionType: 'websocket',
           dynamicVariables,
-        }) as Promise<any>);
-        conversationIdRef.current = conversationId || null;
-        appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
+        }) as unknown as Promise<unknown>);
+        const conversationId = typeof conversationIdResult === 'string' ? conversationIdResult : null;
+        conversationIdRef.current = conversationId;
+        if (conversationId) appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
         conversation.sendContextualUpdate(
           buildContextualUpdate({
             agentName: dynamicVariables.agent_name,
@@ -553,13 +554,14 @@ export default function ElevenLabsAgentPage() {
         if (!response?.data?.token) {
           throw new Error('Conversation token missing from server response.');
         }
-        const conversationId = await (conversation.startSession({
+        const conversationIdResult = await (conversation.startSession({
           conversationToken: response.data.token,
           connectionType: 'webrtc',
           dynamicVariables,
-        }) as Promise<any>);
-        conversationIdRef.current = conversationId || null;
-        appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
+        }) as unknown as Promise<unknown>);
+        const conversationId = typeof conversationIdResult === 'string' ? conversationIdResult : null;
+        conversationIdRef.current = conversationId;
+        if (conversationId) appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
         conversation.sendContextualUpdate(
           buildContextualUpdate({
             agentName: dynamicVariables.agent_name,

@@ -172,6 +172,7 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
       .set({ ...mappedData, updatedAt: new Date() } as any)
       .where(eq(clinicProfile.tenantId, tenantId))
       .returning();
+    await cache.invalidateTenantDomain(tenantId, 'ai');
     return normalizeClinicProfile(updated);
   }
 
@@ -179,6 +180,7 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
     .insert(clinicProfile)
     .values({ id: generateId(), tenantId, ...mappedData } as any)
     .returning();
+  await cache.invalidateTenantDomain(tenantId, 'ai');
   return normalizeClinicProfile(created);
 }
 

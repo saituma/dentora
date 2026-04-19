@@ -1,5 +1,5 @@
 import React from 'react';
-import { BotIcon, PaperclipIcon, SendHorizontalIcon, UserIcon, XIcon } from 'lucide-react';
+import { BotIcon, CameraIcon, CheckCircle2Icon, GlobeIcon, PaperclipIcon, SendHorizontalIcon, UserIcon, XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,44 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders } from '@/lib/api';
+import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
+import type { ClinicProfile } from '@/features/clinic/types';
+import { useRouter } from 'next/navigation';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 import { STEP_ORDER } from '../onboarding-types';
 
+const MAX_CLINIC_PHOTO_BYTES = 1_500_000;
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
+  const { data: clinic } = useGetClinicQuery();
+  const [updateClinic, { isLoading: savingClinicMaterials }] = useUpdateClinicMutation();
+  const [website, setWebsite] = React.useState('');
+  const [logoPreview, setLogoPreview] = React.useState<string | undefined>(undefined);
+  const [logoTouched, setLogoTouched] = React.useState(false);
+  const aboutClinicFileRef = React.useRef<HTMLInputElement>(null);
+  const websiteHydratedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!clinic || websiteHydratedRef.current) return;
+    setWebsite((clinic.website ?? '').trim());
+    websiteHydratedRef.current = true;
+  }, [clinic]);
+
+  React.useEffect(() => {
+    if (!logoTouched) {
+      setLogoPreview(clinic?.logo ?? undefined);
+    }
+  }, [clinic?.logo, logoTouched]);
+
   const [draft, setDraft] = React.useState('');
   const [isThinking, setIsThinking] = React.useState(false);
   const [messages, setMessages] = React.useState<Array<{ id: string; role: 'assistant' | 'user'; content: string }>>([
@@ -91,6 +125,70 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
       .join('\n\n');
     return `# AI Chat Context\n\n${transcript}\n\n# Clinic Snapshot\n${flow.configuratorContext}\n`;
   }, [flow.configuratorContext, hasChatContext, messages]);
+
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
+
+  const normalizeWebsite = (raw: string) => {
+    const t = raw.trim();
+    if (!t) return '';
+    const withProto = t.includes('://') ? t : `https://${t}`;
+    try {
+      const u = new URL(withProto);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+      return u.toString();
+    } catch {
+      return null;
+    }
+  };
+
+  const saveClinicMaterials = async () => {
+    const normalized = normalizeWebsite(website);
+    if (website.trim() && normalized === null) {
+      toast.error('Enter a valid website URL (for example https://yourclinic.com).');
+      return;
+    }
+    const serverWebsite = (clinic?.website ?? '').trim();
+    const websiteChanged = (normalized || '') !== serverWebsite;
+    if (!websiteChanged && !logoTouched) {
+      toast.info('No changes to save.');
+      return;
+    }
+    try {
+      const body: Partial<ClinicProfile> = {};
+      if (websiteChanged) {
+        body.website = normalized ?? '';
+      }
+      if (logoTouched) {
+        body.logo = logoPreview ?? '';
+      }
+      await updateClinic(body).unwrap();
+      setLogoTouched(false);
+      toast.success('Website and clinic photo saved.');
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyApiError(error));
+    }
+  };
+
+  const onClinicPhotoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image (PNG, JPG, or WebP).');
+      return;
+    }
+    if (file.size > MAX_CLINIC_PHOTO_BYTES) {
+      toast.error('Image must be about 1.5 MB or smaller.');
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setLogoTouched(true);
+      setLogoPreview(dataUrl);
+    } catch {
+      toast.error('Could not read the image.');
+    }
+  };
 
   return (
     <div className="w-full">
@@ -222,6 +320,97 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
           </div>
         </div>
       </div>
+
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(event) => void onClinicPhotoSelected(event)}
+      />
+      <input
+        ref={aboutClinicFileRef}
+        type="file"
+        accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.xlsx,text/plain,text/markdown,text/csv,application/json,text/xml,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="hidden"
+        onChange={(event) => {
+          if (event.target.files) {
+            void flow.addContextFiles(event.target.files);
+            event.target.value = '';
+          }
+        }}
+      />
+
+      <Card className="mt-6 border bg-card/80 shadow-sm backdrop-blur">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-lg">Clinic photo, website & documents</CardTitle>
+          <CardDescription>
+            Your website and photo are stored on your clinic profile. Upload a brochure or overview file here and it joins the same{' '}
+            <span className="font-medium text-foreground">Attached files</span> list in the chat panel above for AI context.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+            <div className="flex shrink-0 flex-col items-start gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Clinic photo</p>
+              <div className="relative size-24 overflow-hidden rounded-xl border bg-muted">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="" className="size-full object-cover" />
+                ) : (
+                  <div className="flex size-full items-center justify-center text-muted-foreground">
+                    <CameraIcon className="size-8 opacity-60" aria-hidden />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => photoInputRef.current?.click()}>
+                  {logoPreview ? 'Replace photo' : 'Upload photo'}
+                </Button>
+                {logoPreview ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setLogoTouched(true);
+                      setLogoPreview(undefined);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <Field className="min-w-0 flex-1">
+              <FieldLabel className="flex items-center gap-1.5">
+                <GlobeIcon className="size-3.5" aria-hidden />
+                Website
+              </FieldLabel>
+              <Input
+                type="url"
+                placeholder="https://yourclinic.com"
+                value={website}
+                onChange={(event) => setWebsite(event.target.value)}
+                autoComplete="url"
+              />
+            </Field>
+          </div>
+
+          <div className="rounded-xl border border-dashed bg-muted/15 p-4">
+            <p className="text-sm font-medium">About your clinic (file)</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Optional PDF, Word doc, or text describing your practice—processed like other context attachments.
+            </p>
+            <Button type="button" variant="secondary" className="mt-3" onClick={() => aboutClinicFileRef.current?.click()}>
+              Choose file
+            </Button>
+          </div>
+
+          <Button type="button" onClick={() => void saveClinicMaterials()} disabled={savingClinicMaterials}>
+            {savingClinicMaterials ? 'Saving…' : 'Save website & photo'}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -304,6 +493,65 @@ export function DownloadDataStep({ flow }: { flow: OnboardingFlow }) {
         <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
       </div>
     </div>
+  );
+}
+
+export function OnboardingCompleteStep({
+  allowSuccess,
+  isCheckingServer,
+}: {
+  allowSuccess: boolean;
+  isCheckingServer?: boolean;
+}) {
+  const router = useRouter();
+
+  if (isCheckingServer) {
+    return (
+      <Card className="border-0 bg-card shadow-lg">
+        <CardContent className="py-10">
+          <p className="text-center text-sm text-muted-foreground">Checking your account…</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!allowSuccess) {
+    return (
+      <Card className="border-0 bg-card shadow-lg">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-xl">Finish onboarding first</CardTitle>
+          <CardDescription>
+            Publish your configuration from the review step to mark onboarding complete. Then you will see the success screen and can open the dashboard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button type="button" variant="secondary" className="min-w-44" onClick={() => router.push('/onboarding/test-call')}>
+            Back to Review &amp; Go Live
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-0 bg-card shadow-lg">
+      <CardHeader className="space-y-4 text-center sm:text-left">
+        <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary sm:mx-0">
+          <CheckCircle2Icon className="size-9" aria-hidden />
+        </div>
+        <div className="space-y-2">
+          <CardTitle className="text-2xl font-semibold tracking-tight">You completed onboarding</CardTitle>
+          <CardDescription className="text-base text-muted-foreground">
+            Your configuration is saved and your session is ready. Use the dashboard to manage your clinic, review calls, and tune your AI receptionist anytime.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Button type="button" className="min-w-48" size="lg" onClick={() => router.push('/dashboard')}>
+          Continue to dashboard
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

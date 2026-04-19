@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -33,7 +33,15 @@ import {
 } from 'recharts';
 import { PhoneIcon, CalendarIcon } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useGetDashboardStatsQuery, useGetHourlyVolumeQuery } from '@/features/analytics/analyticsApi';
+import type { HourlyVolume } from '@/features/analytics/types';
 import { useGetCallsQuery } from '@/features/calls/callsApi';
 import { useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
 import { useGetUpcomingAppointmentsQuery } from '@/features/appointments/appointmentsApi';
@@ -45,6 +53,237 @@ const performanceChartConfig = {
 const intentChartConfig = {
   count: { label: 'Requests', color: 'var(--primary)' },
 } satisfies ChartConfig;
+
+const PERIOD_OPTIONS = [
+  { value: '24h' as const, label: 'Last 24 hours' },
+  { value: '7d' as const, label: 'Last 7 days' },
+  { value: '30d' as const, label: 'Last 30 days' },
+  { value: '6m' as const, label: 'Last 6 months' },
+  { value: '1y' as const, label: 'Last year' },
+  { value: 'lifetime' as const, label: 'Lifetime' },
+];
+
+type PeriodPreset = (typeof PERIOD_OPTIONS)[number]['value'];
+
+function getDateRangeForPreset(preset: PeriodPreset): { startDate: string; endDate: string } {
+  const end = new Date();
+  const start = new Date(end);
+  switch (preset) {
+    case '24h':
+      start.setTime(end.getTime() - 24 * 60 * 60 * 1000);
+      break;
+    case '7d':
+      start.setDate(start.getDate() - 7);
+      break;
+    case '30d':
+      start.setDate(start.getDate() - 30);
+      break;
+    case '6m':
+      start.setMonth(start.getMonth() - 6);
+      break;
+    case '1y':
+      start.setFullYear(start.getFullYear() - 1);
+      break;
+    case 'lifetime':
+      start.setTime(0);
+      break;
+    default:
+      start.setDate(start.getDate() - 7);
+  }
+  return { startDate: start.toISOString(), endDate: end.toISOString() };
+}
+
+function periodSummaryLine(preset: PeriodPreset): string {
+  switch (preset) {
+    case '24h':
+      return 'the past 24 hours';
+    case '7d':
+      return 'the last 7 days';
+    case '30d':
+      return 'the last 30 days';
+    case '6m':
+      return 'the last 6 months';
+    case '1y':
+      return 'the last year';
+    case 'lifetime':
+      return 'all time';
+    default:
+      return 'the selected period';
+  }
+}
+
+function statsCardPeriodPhrase(preset: PeriodPreset): string {
+  switch (preset) {
+    case '24h':
+      return 'Past 24 hours';
+    case '7d':
+      return 'Last 7 days';
+    case '30d':
+      return 'Last 30 days';
+    case '6m':
+      return 'Last 6 months';
+    case '1y':
+      return 'Last year';
+    case 'lifetime':
+      return 'All time';
+    default:
+      return 'Selected period';
+  }
+}
+
+function aggregateDailyFromHourly(hourlyRows: HourlyVolume[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of hourlyRows) {
+    const parsed = new Date(row.hour);
+    if (Number.isNaN(parsed.getTime())) continue;
+    const key = parsed.toISOString().slice(0, 10);
+    map.set(key, (map.get(key) ?? 0) + row.calls);
+  }
+  return map;
+}
+
+function eachCalendarDayInclusive(start: Date, end: Date): Date[] {
+  const days: Date[] = [];
+  const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  while (cur <= last) {
+    days.push(new Date(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+function startOfWeekMonday(d: Date): Date {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
+function buildVolumeChartData(
+  preset: PeriodPreset,
+  rangeStart: Date,
+  rangeEnd: Date,
+  hourlyRows: HourlyVolume[],
+): Array<{ label: string; calls: number }> {
+  if (preset === '24h') {
+    const points: Array<{ label: string; calls: number }> = [];
+    const anchor = new Date(rangeEnd);
+    anchor.setMinutes(0, 0, 0);
+    anchor.setSeconds(0, 0);
+    anchor.setMilliseconds(0);
+    for (let i = 23; i >= 0; i--) {
+      const slotStart = new Date(anchor);
+      slotStart.setHours(anchor.getHours() - i);
+      const keyPrefix = slotStart.toISOString().slice(0, 13);
+      let calls = 0;
+      for (const row of hourlyRows) {
+        const t = new Date(row.hour);
+        if (Number.isNaN(t.getTime())) continue;
+        if (t.toISOString().slice(0, 13) === keyPrefix) {
+          calls += row.calls;
+        }
+      }
+      points.push({
+        label: slotStart.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }),
+        calls,
+      });
+    }
+    return points;
+  }
+
+  const dailyMap = aggregateDailyFromHourly(hourlyRows);
+
+  if (preset === '7d') {
+    const anchor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+    return Array.from({ length: 7 }).map((_, index) => {
+      const date = new Date(anchor);
+      date.setDate(anchor.getDate() + index);
+      return {
+        label: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        calls: dailyMap.get(date.toISOString().slice(0, 10)) ?? 0,
+      };
+    });
+  }
+
+  if (preset === '30d') {
+    const anchor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate());
+    return Array.from({ length: 30 }).map((_, index) => {
+      const date = new Date(anchor);
+      date.setDate(anchor.getDate() + index);
+      return {
+        label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        calls: dailyMap.get(date.toISOString().slice(0, 10)) ?? 0,
+      };
+    });
+  }
+
+  if (preset === '6m') {
+    const days = eachCalendarDayInclusive(rangeStart, rangeEnd);
+    return days.map((date) => ({
+      label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      calls: dailyMap.get(date.toISOString().slice(0, 10)) ?? 0,
+    }));
+  }
+
+  if (preset === '1y') {
+    const weekMap = new Map<string, number>();
+    for (const [dayKey, calls] of dailyMap) {
+      const d = new Date(`${dayKey}T12:00:00`);
+      const wk = startOfWeekMonday(d).toISOString().slice(0, 10);
+      weekMap.set(wk, (weekMap.get(wk) ?? 0) + calls);
+    }
+    return Array.from(weekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([wk, calls]) => ({
+        label: new Date(`${wk}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        calls,
+      }));
+  }
+
+  const monthMap = new Map<string, number>();
+  for (const [dayKey, calls] of dailyMap) {
+    const mk = dayKey.slice(0, 7);
+    monthMap.set(mk, (monthMap.get(mk) ?? 0) + calls);
+  }
+  return Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([mk, calls]) => {
+      const [y, m] = mk.split('-');
+      const date = new Date(Number(y), Number(m) - 1, 1);
+      return {
+        label: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        calls,
+      };
+    });
+}
+
+function volumeChartTitle(preset: PeriodPreset): string {
+  switch (preset) {
+    case '24h':
+      return 'Hourly call volume';
+    case '1y':
+      return 'Weekly call volume';
+    case 'lifetime':
+      return 'Monthly call volume';
+    default:
+      return 'Daily call volume';
+  }
+}
+
+function volumeChartDescription(preset: PeriodPreset): string {
+  switch (preset) {
+    case '24h':
+      return 'Inbound calls by hour for the past 24 hours';
+    case '1y':
+      return 'Calls aggregated by week over the last year';
+    case 'lifetime':
+      return 'Calls aggregated by month across all history';
+    default:
+      return 'Inbound calls per day across the selected range';
+  }
+}
 
 function formatDuration(seconds?: number | null) {
   if (!seconds || seconds <= 0) return '0m 0s';
@@ -65,6 +304,10 @@ function formatPercent(value?: number | null) {
 }
 
 export default function DashboardOverviewPage() {
+  const [period, setPeriod] = useState<PeriodPreset>('7d');
+
+  const dateRange = useMemo(() => getDateRangeForPreset(period), [period]);
+
   const { data: integrationData } = useGetIntegrationsQuery();
   const integrations = integrationData?.data ?? [];
   const hasActiveCalendar = integrations.some(
@@ -73,16 +316,6 @@ export default function DashboardOverviewPage() {
       integration.provider === 'google_calendar' &&
       integration.status === 'active',
   );
-
-  const dateRange = useMemo(() => {
-    const now = new Date();
-    const startDate = new Date(now);
-    startDate.setDate(now.getDate() - 7);
-    return {
-      startDate: startDate.toISOString(),
-      endDate: now.toISOString(),
-    };
-  }, []);
 
   const { data: dashboardStats, isLoading: statsLoading } = useGetDashboardStatsQuery(dateRange);
   const { data: hourlyVolume, isLoading: hourlyLoading } = useGetHourlyVolumeQuery(dateRange);
@@ -95,30 +328,14 @@ export default function DashboardOverviewPage() {
     hasActiveCalendar ? { days: 7 } : skipToken,
   );
 
-  const dailyVolumeMap = new Map<string, { date: Date; calls: number }>();
-  (hourlyVolume?.data ?? []).forEach((row) => {
-    const parsed = new Date(row.hour);
-    if (Number.isNaN(parsed.getTime())) return;
-    const key = parsed.toISOString().slice(0, 10);
-    const existing = dailyVolumeMap.get(key);
-    if (existing) {
-      existing.calls += row.calls;
-    } else {
-      dailyVolumeMap.set(key, { date: parsed, calls: row.calls });
-    }
-  });
-
   const rangeStart = useMemo(() => new Date(dateRange.startDate), [dateRange.startDate]);
-  const dailyPerformance = Array.from({ length: 7 }).map((_, index) => {
-    const date = new Date(rangeStart);
-    date.setDate(rangeStart.getDate() + index);
-    const key = date.toISOString().slice(0, 10);
-    const entry = dailyVolumeMap.get(key);
-    return {
-      day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-      calls: entry?.calls ?? 0,
-    };
-  });
+  const rangeEnd = useMemo(() => new Date(dateRange.endDate), [dateRange.endDate]);
+
+  const dailyPerformance = useMemo(
+    () =>
+      buildVolumeChartData(period, rangeStart, rangeEnd, hourlyVolume?.data ?? []),
+    [period, rangeStart, rangeEnd, hourlyVolume?.data],
+  );
 
   const statusEntries = Object.entries(dashboardStats?.callsByStatus ?? {})
     .map(([status, count], index) => ({
@@ -140,12 +357,26 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between rounded-xl border bg-card px-5 py-4 shadow-sm">
-        <div>
+      <div className="flex flex-col gap-4 rounded-xl border bg-card px-5 py-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold">Overview</h2>
           <p className="text-sm text-muted-foreground">
-            Real-time performance across calls, outcomes, and AI availability for the last 7 days
+            Performance across calls, outcomes, and AI usage for {periodSummaryLine(period)}
           </p>
+        </div>
+        <div className="flex shrink-0 justify-end sm:pt-0.5">
+          <Select value={period} onValueChange={(value) => setPeriod((value as PeriodPreset) ?? '7d')}>
+            <SelectTrigger className="w-[min(100%,200px)] min-w-[160px]" size="sm" aria-label="Time range">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -153,25 +384,25 @@ export default function DashboardOverviewPage() {
         <StatsCard
           title="Total calls"
           value={dashboardStats ? dashboardStats.totalCalls.toLocaleString() : '--'}
-          description="Inbound calls handled in the last 7 days"
+          description={`Inbound calls — ${statsCardPeriodPhrase(period)}`}
           className="bg-card"
         />
         <StatsCard
           title="booked appointment rate"
           value={dashboardStats ? formatPercent(dashboardStats.completionRate) : '--'}
-          description="Calls that finished successfully"
+          description={`Calls that finished successfully (${statsCardPeriodPhrase(period)})`}
           className="bg-card"
         />
         <StatsCard
           title="Avg call duration"
           value={dashboardStats ? formatDuration(dashboardStats.averageDurationSeconds) : '--'}
-          description="Average call length"
+          description={`Average call length (${statsCardPeriodPhrase(period)})`}
           className="bg-card"
         />
         <StatsCard
-          title="AI spend"
+          title="ROI using AI"
           value={dashboardStats ? formatMoney(dashboardStats.totalCost) : '--'}
-          description="Telephony + AI usage costs"
+          description={`Telephony + AI usage (${statsCardPeriodPhrase(period)})`}
           className="bg-card"
         />
       </div>
@@ -179,12 +410,12 @@ export default function DashboardOverviewPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Weekly call volume</CardTitle>
-            <CardDescription>Daily inbound calls across the last 7 days</CardDescription>
+            <CardTitle>{volumeChartTitle(period)}</CardTitle>
+            <CardDescription>{volumeChartDescription(period)}</CardDescription>
           </CardHeader>
           <CardContent>
             {hourlyLoading ? (
-              <div className="text-sm text-muted-foreground">Loading weekly volume…</div>
+              <div className="text-sm text-muted-foreground">Loading call volume…</div>
             ) : (
               <ChartContainer config={performanceChartConfig} className="h-[280px] w-full">
                 <AreaChart data={dailyPerformance}>
@@ -195,7 +426,13 @@ export default function DashboardOverviewPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} />
-                  <BarXAxis dataKey="day" tickLine={false} axisLine={false} />
+                  <BarXAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    interval="preserveStartEnd"
+                    tick={{ fontSize: 11 }}
+                  />
                   <YAxis tickLine={false} axisLine={false} width={28} />
                   <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
                   <Area

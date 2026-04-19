@@ -1,7 +1,15 @@
 
 import type { Request, Response, NextFunction } from 'express';
+import * as Sentry from '@sentry/node';
+import { env } from '../config/env.js';
 import { AppError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
+
+function captureForSentry(err: unknown): void {
+  if (!env.SENTRY_DSN) return;
+  if (err instanceof AppError && err.statusCode < 500) return;
+  Sentry.captureException(err);
+}
 
 export function notFoundHandler(req: Request, _res: Response, next: NextFunction): void {
   const err = new AppError(`Route not found: ${req.method} ${req.path}`, 404, 'ROUTE_NOT_FOUND');
@@ -18,6 +26,7 @@ export function errorHandler(
 
   if (err instanceof AppError) {
     if (err.statusCode >= 500) {
+      captureForSentry(err);
       logger.error({ err, correlationId, path: req.path }, err.message);
     } else {
       logger.warn({ err, correlationId, path: req.path }, err.message);
@@ -34,6 +43,7 @@ export function errorHandler(
     return;
   }
 
+  captureForSentry(err);
   logger.error({ err, correlationId, path: req.path }, 'Unhandled error');
 
   res.status(500).json({

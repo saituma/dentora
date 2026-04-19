@@ -402,6 +402,16 @@ onboardingRouter.post(
         : [];
       const clinicContext = typeof req.body.clinicContext === 'string' ? req.body.clinicContext : '';
 
+      const serverContext = await onboardingService.buildOnboardingAiChatServerContext(req.tenantContext!.tenantId);
+      const mergedClinicContext = [
+        serverContext.trim(),
+        clinicContext.trim()
+          ? `## Live wizard snapshot (includes unsaved edits in this browser session)\n${clinicContext.trim()}`
+          : '',
+      ]
+        .filter((block) => block.length > 0)
+        .join('\n\n');
+
       const messages = incomingMessages
         .filter((message: OnboardingAiChatMessage) => message && (message.role === 'assistant' || message.role === 'user'))
         .map((message: OnboardingAiChatMessage) => ({
@@ -422,7 +432,8 @@ onboardingRouter.post(
         'Never start with phrases like "Noted:", "Summary:", "Observation:", or "User said:".',
         'Ask for missing operational details when useful.',
         'Keep responses practical and short (2-5 sentences).',
-        clinicContext ? `Clinic context snapshot:\n${clinicContext}` : '',
+        'Use the clinic context below: prefer facts under "Saved ... (database)" as authoritative; the live wizard snapshot may include not-yet-saved form state.',
+        mergedClinicContext ? `Clinic context snapshot:\n${mergedClinicContext}` : '',
       ]
         .filter(Boolean)
         .join('\n\n');
@@ -682,8 +693,10 @@ onboardingRouter.post(
     body: z.object({
       staffMembers: z.array(
         z.object({
+          id: z.string().optional(),
           name: z.string().min(1),
           role: z.string().optional(),
+          acceptsAppointments: z.boolean().optional(),
         })
       ),
     }),

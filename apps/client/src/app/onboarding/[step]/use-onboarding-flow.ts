@@ -217,13 +217,12 @@ export function useOnboardingFlow() {
   }, [policiesData]);
 
   const goNext = (nextStep: OnboardingStep) => {
-    dispatch(setOnboardingStatus(nextStep));
     if (nextStep === 'complete') {
       dispatch(setOnboardingStatus('complete'));
-      toast.success('Setup complete!');
-      router.push('/dashboard');
+      router.push('/onboarding/complete');
       return;
     }
+    dispatch(setOnboardingStatus(nextStep));
     router.push(`/onboarding/${nextStep}`);
   };
 
@@ -310,11 +309,16 @@ export function useOnboardingFlow() {
   const contextAdvanceBookingDays = bookingRulesData?.maxAdvanceBookingDays ?? advanceBookingDays;
   const contextServicesCount = servicesData?.data?.length ?? servicesForm.filter((service) => service.serviceName.trim().length > 0).length;
   const contextFaqCount = faqsData?.data?.length ?? faqsForm.filter((faq) => faq.question.trim().length > 0 && faq.answer.trim().length > 0).length;
+  const contextWebsite = (clinicData?.website ?? '').trim() || 'Not provided yet';
+  const contextLogo = clinicData?.logo ? 'provided (image on file)' : 'not provided yet';
+
   const configuratorContext = [
     `Clinic name: ${contextClinicName}`,
     `Timezone: ${contextTimezone}`,
     `Primary phone: ${contextPhone}`,
     `Support email: ${contextEmail}`,
+    `Website: ${contextWebsite}`,
+    `Clinic photo / logo: ${contextLogo}`,
     `Voice tone: ${contextVoiceTone}`,
     `Greeting: ${contextGreeting}`,
     `Default appointment duration: ${contextDefaultDuration} minutes`,

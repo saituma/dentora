@@ -15,6 +15,8 @@ export interface OnboardingStatus {
   validationErrors: Array<{ domain: string; field?: string; message: string; severity: string }>;
   validationWarnings: Array<{ domain: string; field?: string; message: string; severity: string }>;
   isReady: boolean;
+  /** Present when API supports it: true after at least one successful Publish / Go Live. */
+  hasPublishedConfig?: boolean;
 }
 
 export interface ReadinessScorecard {
@@ -87,8 +89,10 @@ export interface VoiceProfileInput {
 }
 
 export interface StaffMemberInput {
+  id?: string;
   name: string;
   role: string;
+  acceptsAppointments?: boolean;
 }
 
 export interface FaqInput {

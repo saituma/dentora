@@ -13,6 +13,7 @@ export {
   getOnboardingStatus,
   publishOnboardingConfig,
 } from './readiness.js';
+export { buildOnboardingAiChatServerContext } from './onboarding-ai-context.js';
 export { listAvailableVoices } from './voice-catalog.js';
 export {
   generateVoicePreview,

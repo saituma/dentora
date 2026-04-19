@@ -1,5 +1,8 @@
 import 'dotenv/config';
 
+import { initSentry, closeSentry } from './instrument-sentry.js';
+initSentry();
+
 import { initTelemetry, shutdownTelemetry } from './lib/telemetry.js';
 if (process.env.OTEL_ENABLED === 'true') {
   initTelemetry();
@@ -7,6 +10,7 @@ if (process.env.OTEL_ENABLED === 'true') {
 
 import cors from 'cors';
 import express from 'express';
+import * as Sentry from '@sentry/node';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { db, checkDbHealth, closeDb } from './db/index.js';
@@ -204,6 +208,7 @@ async function start() {
         logger.info('HTTP server closed');
         await closeDb();
         await closeRedis();
+        await closeSentry();
         if (process.env.OTEL_ENABLED === 'true') {
           await shutdownTelemetry();
         }
@@ -221,10 +226,18 @@ async function start() {
     process.on('SIGINT', () => shutdown('SIGINT'));
 
     process.on('unhandledRejection', (reason) => {
+      if (env.SENTRY_DSN) {
+        Sentry.captureException(
+          reason instanceof Error ? reason : new Error(String(reason)),
+        );
+      }
       logger.error({ err: reason }, 'Unhandled rejection');
     });
 
     process.on('uncaughtException', (err) => {
+      if (env.SENTRY_DSN) {
+        Sentry.captureException(err);
+      }
       logger.fatal({ err }, 'Uncaught exception — shutting down');
       process.exit(1);
     });

@@ -28,6 +28,7 @@ import {
   Building2Icon,
   ChevronsUpDownIcon,
   UsersIcon,
+  StethoscopeIcon,
 } from "lucide-react";
 
 const navItems = [
@@ -56,6 +57,11 @@ const navItems = [
     title: "Patients",
     url: "/dashboard/patients",
     icon: <UsersIcon />,
+  },
+  {
+    title: "Staff",
+    url: "/dashboard/staff",
+    icon: <StethoscopeIcon />,
   },
   { title: "Calls", url: "/dashboard/calls", icon: <PhoneIcon /> },
   {

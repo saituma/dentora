@@ -28,6 +28,7 @@
     "@opentelemetry/sdk-trace-node": "^2.5.1",
     "@opentelemetry/semantic-conventions": "^1.40.0",
     "@repo/shared": "workspace:*",
+    "@sentry/node": "^10.49.0",
     "@types/pdfkit": "^0.17.5",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.70.1",

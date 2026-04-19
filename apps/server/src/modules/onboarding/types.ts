@@ -6,6 +6,8 @@ export interface OnboardingStatus {
   validationErrors: ValidationIssue[];
   validationWarnings: ValidationIssue[];
   isReady: boolean;
+  /** True when at least one config version has been published (Go Live). */
+  hasPublishedConfig: boolean;
 }
 
 export interface ValidationIssue {

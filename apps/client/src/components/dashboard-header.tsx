@@ -39,6 +39,7 @@ const TITLES: Record<string, string> = {
   '/dashboard/elevenlabs-agent': 'ElevenLabs Agent',
   '/dashboard/appointments': 'Appointments',
   '/dashboard/patients': 'Patients',
+  '/dashboard/staff': 'Staff',
   '/dashboard/calls': 'Call History',
   '/dashboard/analytics': 'Analytics',
   '/dashboard/integrations': 'Integrations',

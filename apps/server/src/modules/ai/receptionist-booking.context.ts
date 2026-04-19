@@ -40,7 +40,23 @@ type StaffEntry = {
   role?: string;
   phone?: string;
   status?: 'available' | 'unavailable';
+  /** From clinic profile; false means do not assign new appointments to this provider. */
+  acceptsAppointments?: boolean;
 };
+
+function parseStaffFromClinicProfile(clinic: Record<string, unknown>): StaffEntry[] {
+  const raw = clinic.staffMembers;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => row as { name?: string; role?: string; acceptsAppointments?: boolean })
+    .filter((row) => typeof row.name === 'string' && row.name.trim().length > 0)
+    .map((row) => ({
+      name: row.name!.trim(),
+      role: typeof row.role === 'string' ? row.role.trim() : undefined,
+      status: 'available' as const,
+      acceptsAppointments: row.acceptsAppointments !== false,
+    }));
+}
 
 function parseStaffDirectory(context: TenantAIContext): StaffEntry[] {
   const topics = context.policies
@@ -79,7 +95,9 @@ function parseStaffDirectory(context: TenantAIContext): StaffEntry[] {
 }
 
 export function findStaffMember(context: TenantAIContext, message: string): StaffEntry | null {
-  const staff = parseStaffDirectory(context);
+  const fromClinic = parseStaffFromClinicProfile(context.clinic);
+  const fromDocs = parseStaffDirectory(context);
+  const staff = fromClinic.length > 0 ? fromClinic : fromDocs;
   if (staff.length === 0) return null;
 
   const normalized = normalizeMessage(message);
@@ -89,8 +107,11 @@ export function findStaffMember(context: TenantAIContext, message: string): Staf
   });
   if (explicitMatch) return explicitMatch;
 
-  const available = staff.find((entry) => entry.status !== 'unavailable');
-  return available ?? staff[0];
+  const bookableFirst = staff.filter((entry) => entry.acceptsAppointments !== false);
+  const pool = bookableFirst.length > 0 ? bookableFirst : staff;
+
+  const available = pool.find((entry) => entry.status !== 'unavailable');
+  return available ?? pool[0];
 }
 
 export function formatDateInTimezone(date: Date, timezone: string): string {

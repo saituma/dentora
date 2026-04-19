@@ -156,6 +156,14 @@ export async function getOnboardingStatus(tenantId: string): Promise<OnboardingS
   const completedSteps = await detectCompletedSteps(tenantId);
   const currentStep = getNextStep(completedSteps);
 
+  const [activeConfigRow] = await db
+    .select()
+    .from(tenantActiveConfig)
+    .where(eq(tenantActiveConfig.tenantId, tenantId))
+    .limit(1);
+  const hasPublishedConfig =
+    typeof activeConfigRow?.activeVersion === 'number' && activeConfigRow.activeVersion > 0;
+
   const allIssues = [
     ...scorecard.clinicProfile.issues,
     ...scorecard.serviceCatalog.issues,
@@ -173,6 +181,7 @@ export async function getOnboardingStatus(tenantId: string): Promise<OnboardingS
     validationErrors: allIssues.filter((issue) => issue.severity === 'error'),
     validationWarnings: allIssues.filter((issue) => issue.severity === 'warning'),
     isReady: scorecard.isDeployable,
+    hasPublishedConfig,
   };
 
   await cache.setTenantScoped(tenantId, 'onboarding', cacheKey, JSON.stringify(status), 60);

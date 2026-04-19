@@ -10,6 +10,7 @@ import {
 } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
+import { cache } from '../../lib/cache.js';
 import { updateOnboardingStep } from './progress.js';
 
 export async function saveClinicIdentity(
@@ -58,7 +59,7 @@ export async function saveClinicIdentity(
 
 export async function saveStaffMembers(
   tenantId: string,
-  staffMembers: Array<{ name: string; role: string }>
+  staffMembers: Array<{ id?: string; name: string; role: string; acceptsAppointments?: boolean }>
 ): Promise<void> {
   const [existing] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
   if (existing) {
@@ -229,6 +230,7 @@ export async function saveContextDocuments(
     });
   }
 
+  await cache.invalidateTenantDomain(tenantId, 'ai');
   await updateOnboardingStep(tenantId, 'review');
 }
 

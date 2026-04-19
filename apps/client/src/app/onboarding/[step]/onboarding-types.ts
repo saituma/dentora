@@ -101,7 +101,7 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
     description: 'Make sure everything works before going live with patient traffic.',
   },
   complete: {
-    title: 'Complete setup',
-    description: 'Final step before entering your dashboard.',
+    title: 'Setup complete',
+    description: 'You finished onboarding. Continue to your dashboard to manage your clinic.',
   },
 };
