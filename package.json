@@ -21,6 +21,8 @@
     "db:studio": "pnpm --filter @repo/server db:studio"
   },
   "devDependencies": {
-    "concurrently": "^9.2.0"
+    "@tailwindcss/postcss": "^4",
+    "concurrently": "^9.2.0",
+    "tailwindcss": "^4"
   }
 }

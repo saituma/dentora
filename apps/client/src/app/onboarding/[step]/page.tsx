@@ -18,7 +18,7 @@ function OnboardingStepContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="min-w-0 max-w-full rounded-2xl border bg-card/80 p-5 shadow-sm backdrop-blur sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>

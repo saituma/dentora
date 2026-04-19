@@ -157,7 +157,7 @@ export default function DashboardOverviewPage() {
           className="bg-card"
         />
         <StatsCard
-          title="Completion rate"
+          title="booked appointment rate"
           value={dashboardStats ? formatPercent(dashboardStats.completionRate) : '--'}
           description="Calls that finished successfully"
           className="bg-card"
