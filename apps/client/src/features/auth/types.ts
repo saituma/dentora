@@ -10,6 +10,7 @@ export type OnboardingStep =
   | "plan"
   | "knowledge-base"
   | "voice"
+  | "phone-number"
   | "rules"
   | "integrations"
   | "schedule"

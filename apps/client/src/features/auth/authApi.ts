@@ -43,6 +43,42 @@ interface ChangePasswordRequest {
   newPassword: string;
 }
 
+interface SendEmailOtpRequest {
+  email: string;
+}
+
+interface SendEmailOtpResponse {
+  challengeId: string;
+  expiresInSeconds: number;
+}
+
+interface VerifyEmailOtpRequest {
+  email: string;
+  code: string;
+  clinicName?: string;
+  displayName?: string;
+  password?: string;
+}
+
+interface SendPhoneOtpRequest {
+  phoneNumber: string;
+}
+
+interface SendPhoneOtpResponse {
+  status: string;
+}
+
+interface VerifyPhoneOtpRequest {
+  phoneNumber: string;
+  code: string;
+  clinicName: string;
+  displayName?: string;
+}
+
+interface GoogleStartResponse {
+  authUrl: string;
+}
+
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
@@ -63,6 +99,42 @@ export const authApi = createApi({
         method: 'POST',
         body: credentials,
       }),
+    }),
+    sendEmailOtp: builder.mutation<SendEmailOtpResponse, SendEmailOtpRequest>({
+      query: (body) => ({
+        url: '/auth/email/send-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+    verifyEmailOtp: builder.mutation<LoginResponse, VerifyEmailOtpRequest>({
+      query: (body) => ({
+        url: '/auth/email/verify-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+    sendPhoneOtp: builder.mutation<SendPhoneOtpResponse, SendPhoneOtpRequest>({
+      query: (body) => ({
+        url: '/auth/phone/send-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+    verifyPhoneOtp: builder.mutation<LoginResponse, VerifyPhoneOtpRequest>({
+      query: (body) => ({
+        url: '/auth/phone/verify-otp',
+        method: 'POST',
+        body,
+      }),
+    }),
+    getGoogleStartUrl: builder.query<GoogleStartResponse, { returnTo?: string } | void>({
+      query: (arg) => {
+        const params = new URLSearchParams();
+        if (arg?.returnTo) params.set('returnTo', arg.returnTo);
+        const qs = params.toString();
+        return `/auth/google/start${qs ? `?${qs}` : ''}`;
+      },
     }),
     refresh: builder.mutation<RefreshResponse, RefreshRequest>({
       query: (body) => ({
@@ -91,6 +163,11 @@ export const authApi = createApi({
 export const {
   useRegisterMutation,
   useLoginMutation,
+  useSendEmailOtpMutation,
+  useVerifyEmailOtpMutation,
+  useSendPhoneOtpMutation,
+  useVerifyPhoneOtpMutation,
+  useLazyGetGoogleStartUrlQuery,
   useRefreshMutation,
   useLogoutMutation,
   useChangePasswordMutation,

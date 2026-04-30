@@ -18,7 +18,8 @@
     "db:migrate": "pnpm --filter @repo/server db:migrate",
     "db:push": "pnpm --filter @repo/server db:push",
     "db:check": "pnpm --filter @repo/server db:check",
-    "db:studio": "pnpm --filter @repo/server db:studio"
+    "db:studio": "pnpm --filter @repo/server db:studio",
+    "test:sentry": "pnpm --filter @repo/server test:sentry"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

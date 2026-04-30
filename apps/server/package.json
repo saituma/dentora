@@ -14,7 +14,8 @@
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "simulate:twilio": "tsx scripts/simulate-twilio-webhooks.ts",
-    "simulate:twilio:media": "tsx scripts/simulate-twilio-media-stream.ts"
+    "simulate:twilio:media": "tsx scripts/simulate-twilio-media-stream.ts",
+    "test:sentry": "tsx scripts/test-sentry.ts"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -42,6 +43,7 @@
     "morgan": "^1.10.1",
     "multer": "1.4.5-lts.2",
     "nanoid": "^5.1.6",
+    "nodemailer": "^8.0.7",
     "pdf-parse": "^1.1.4",
     "pdfkit": "^0.18.0",
     "pg": "latest",
@@ -64,6 +66,7 @@
     "@types/morgan": "^1.9.10",
     "@types/multer": "^1.4.12",
     "@types/node": "latest",
+    "@types/nodemailer": "^8.0.0",
     "@types/pdf-parse": "^1.1.4",
     "@types/pg": "latest",
     "@types/uuid": "^11.0.0",

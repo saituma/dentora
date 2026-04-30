@@ -10,7 +10,7 @@ import { useOnboardingFlow } from './use-onboarding-flow';
 import { ClinicProfileStep, PlanStep } from './steps/basic-steps';
 import { KnowledgeBaseStep } from './steps/knowledge-step';
 import { VoiceStep } from './steps/voice-step';
-import { IntegrationsStep, ScheduleStep } from './steps/operations-steps';
+import { IntegrationsStep, PhoneNumberStep, ScheduleStep } from './steps/operations-steps';
 import { AiChatStep, DownloadDataStep, OnboardingCompleteStep, TestCallStep } from './steps/context-publish-steps';
 import { DentoraProgressLogo } from './dentora-progress-logo';
 
@@ -97,6 +97,7 @@ function OnboardingStepContent() {
       {flow.step === 'plan' && <PlanStep flow={flow} />}
       {flow.step === 'knowledge-base' && <KnowledgeBaseStep flow={flow} />}
       {flow.step === 'voice' && <VoiceStep flow={flow} />}
+      {flow.step === 'phone-number' && <PhoneNumberStep flow={flow} />}
       {flow.step === 'integrations' && <IntegrationsStep flow={flow} />}
       {flow.step === 'schedule' && <ScheduleStep flow={flow} />}
       {flow.step === 'ai-chat' && <AiChatStep flow={flow} />}

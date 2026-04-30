@@ -48,6 +48,7 @@ export const STEPS = [
   { id: 'plan', label: 'Plan' },
   { id: 'knowledge-base', label: 'Knowledge' },
   { id: 'voice', label: 'Voice' },
+  { id: 'phone-number', label: 'Number' },
   { id: 'rules', label: 'Rules' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'schedule', label: 'Schedule' },
@@ -75,6 +76,10 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
   voice: {
     title: 'Choose voice and personality',
     description: 'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
+  },
+  'phone-number': {
+    title: 'Choose your clinic phone number',
+    description: 'Select one available Twilio number for this clinic. Each clinic can have only one active number.',
   },
   rules: {
     title: 'Set booking rules',

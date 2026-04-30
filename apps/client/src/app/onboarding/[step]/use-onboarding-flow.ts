@@ -20,6 +20,11 @@ import {
   useSaveStaffMembersMutation,
 } from '@/features/onboarding/onboardingApi';
 import { useStartGoogleCalendarOAuthMutation } from '@/features/integrations/integrationsApi';
+import {
+  useAssignTelephonyNumberMutation,
+  useGetTelephonyNumbersQuery,
+  useGetTwilioIncomingNumbersQuery,
+} from '@/features/telephony/telephonyApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import {
   useGetBookingRulesQuery,
@@ -63,6 +68,9 @@ export function useOnboardingFlow() {
   const { data: faqsData } = useGetFaqsQuery();
   const { data: availableVoicesData } = useGetAvailableVoicesQuery();
   const [startGoogleCalendarOAuth, googleOAuthState] = useStartGoogleCalendarOAuthMutation();
+  const { data: telephonyData } = useGetTelephonyNumbersQuery();
+  const { data: twilioIncomingData } = useGetTwilioIncomingNumbersQuery();
+  const [assignTelephonyNumber, assignTelephonyNumberState] = useAssignTelephonyNumberMutation();
 
   const [clinicName, setClinicName] = useState('');
   const [address, setAddress] = useState('');
@@ -85,6 +93,7 @@ export function useOnboardingFlow() {
   const [handledGoogleCallback, setHandledGoogleCallback] = useState(false);
   const stripeCheckoutReturnHandled = useRef(false);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
+  const [selectedPhoneNumber, setSelectedPhoneNumber] = useState('');
   const [isDraggingContextFiles, setIsDraggingContextFiles] = useState(false);
   const [contextFiles, setContextFiles] = useState<UploadedContextFile[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -113,6 +122,9 @@ export function useOnboardingFlow() {
   const progressPercent = Math.round((currentStep / (STEP_ORDER.length - 1)) * 100);
   const allAvailableVoices = availableVoicesData?.data ?? [];
   const liveSupportedVoices = allAvailableVoices.filter((voice) => voice.liveSupported !== false);
+  const assignedTelephonyNumbers = telephonyData?.data ?? [];
+  const activeAssignedNumber = assignedTelephonyNumbers.find((number) => number.status === 'active') ?? assignedTelephonyNumbers[0] ?? null;
+  const twilioIncomingNumbers = twilioIncomingData?.data ?? [];
   const agentVoices = liveSupportedVoices.filter(isAgentVoice);
   const ukVoices = liveSupportedVoices.filter(isUkVoice);
   const ukAgentVoices = agentVoices.filter(isUkVoice);
@@ -151,6 +163,16 @@ export function useOnboardingFlow() {
       setSelectedVoiceId(availableVoices[0].voiceId);
     }
   }, [availableVoices, selectedVoiceId]);
+
+  useEffect(() => {
+    if (activeAssignedNumber?.phoneNumber) {
+      setSelectedPhoneNumber(activeAssignedNumber.phoneNumber);
+      return;
+    }
+    if (!selectedPhoneNumber && twilioIncomingNumbers.length > 0) {
+      setSelectedPhoneNumber(twilioIncomingNumbers[0].phoneNumber);
+    }
+  }, [activeAssignedNumber?.phoneNumber, selectedPhoneNumber, twilioIncomingNumbers]);
 
   useEffect(() => {
     if (!bookingRulesData) return;
@@ -371,6 +393,8 @@ export function useOnboardingFlow() {
     googleCalendarId,
     setGoogleCalendarId,
     googleCalendarConnected,
+    selectedPhoneNumber,
+    setSelectedPhoneNumber,
     isDraggingContextFiles,
     setIsDraggingContextFiles,
     contextFiles,
@@ -385,6 +409,9 @@ export function useOnboardingFlow() {
     liveSupportedVoices,
     selectedVoice,
     selectedVoiceRequiresPaidPlan,
+    assignedTelephonyNumbers,
+    activeAssignedNumber,
+    twilioIncomingNumbers,
     calendarConnected,
     hasIntegrationWarning,
     hasMissingPoliciesError,
@@ -414,6 +441,7 @@ export function useOnboardingFlow() {
     saveStaffMembers,
     publishConfig,
     saveContextDocuments,
+    assignTelephonyNumber,
     savingClinicProfile: clinicProfileState.isLoading,
     savingServices: servicesState.isLoading,
     savingRules: bookingRulesState.isLoading,
@@ -423,6 +451,7 @@ export function useOnboardingFlow() {
     savingStaff: staffState.isLoading,
     publishingConfig: publishState.isLoading,
     savingContextDocuments: contextDocumentsState.isLoading,
+    assigningPhoneNumber: assignTelephonyNumberState.isLoading,
     startingGoogleOAuth: googleOAuthState.isLoading,
   };
 }

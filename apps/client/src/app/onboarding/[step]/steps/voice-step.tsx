@@ -262,7 +262,7 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
                 ],
               }).unwrap();
               toast.success('Voice profile saved');
-              flow.goNext('integrations');
+              flow.goNext('phone-number');
             } catch (error: unknown) {
               toast.error(getUserFriendlyApiError(error));
             }

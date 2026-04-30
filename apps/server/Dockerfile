@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 # Copy workspace config
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json turbo.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 
 # Copy shared package
 COPY packages/shared/ packages/shared/
@@ -14,11 +14,11 @@ COPY packages/shared/ packages/shared/
 # Copy server package
 COPY apps/server/ apps/server/
 
-# Install dependencies
+# Install all dependencies (including devDependencies for the build step)
 RUN pnpm install --frozen-lockfile
 
-# Build shared package first, then server
-RUN pnpm --filter @repo/shared build 2>/dev/null || true
+# Build server (shared is consumed as raw TS via "main": "src/index.ts",
+# so it does not need a separate build step — tsc resolves the .ts sources)
 RUN pnpm --filter @repo/server build
 
 # ---- Production Stage ----
@@ -33,14 +33,13 @@ ENV NODE_ENV=production
 # Copy workspace config
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 
-# Copy built shared package
+# Copy shared package (raw TS sources — resolved at build time, not runtime)
 COPY --from=builder /app/packages/shared/ packages/shared/
 
 # Copy built server
 COPY --from=builder /app/apps/server/package.json apps/server/package.json
 COPY --from=builder /app/apps/server/dist/ apps/server/dist/
 COPY --from=builder /app/apps/server/drizzle/ apps/server/drizzle/
-COPY --from=builder /app/apps/server/drizzle.config.ts apps/server/drizzle.config.ts
 
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod

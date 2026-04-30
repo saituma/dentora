@@ -120,6 +120,20 @@ services:
       - key: S3_SECRET_KEY
         value: ""
 
+      # Stripe Billing
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_STARTER_PRICE_ID
+        value: ""
+      - key: STRIPE_GROWTH_PRICE_ID
+        value: ""
+      - key: STRIPE_PRO_PRICE_ID
+        value: ""
+      - key: CLIENT_URL
+        value: https://dental-flow-client.onrender.com
+
       # Monitoring
       - key: SENTRY_DSN
         value: ""

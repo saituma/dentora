@@ -9,6 +9,84 @@ import { WEEKDAYS } from '@/features/aiConfig/schedule';
 import { useDeleteIntegrationMutation, useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 
+export function PhoneNumberStep({ flow }: { flow: OnboardingFlow }) {
+  const hasIncomingNumbers = flow.twilioIncomingNumbers.length > 0;
+
+  return (
+    <Card className="border-0 bg-card shadow-lg">
+      <CardHeader>
+        <CardTitle className="text-xl">Clinic phone number</CardTitle>
+        <CardDescription>Select one Twilio number for this clinic. You can change it later from settings.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <FieldGroup>
+          {flow.activeAssignedNumber ? (
+            <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700">
+              Active number: {flow.activeAssignedNumber.phoneNumber}
+            </div>
+          ) : null}
+
+          <Field>
+            <FieldLabel>Available Twilio numbers</FieldLabel>
+            {hasIncomingNumbers ? (
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={flow.selectedPhoneNumber}
+                onChange={(event) => flow.setSelectedPhoneNumber(event.target.value)}
+              >
+                {flow.twilioIncomingNumbers.map((number) => (
+                  <option key={number.sid} value={number.phoneNumber}>
+                    {number.phoneNumber}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-muted-foreground">No purchased Twilio numbers found in this account yet.</p>
+            )}
+          </Field>
+
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
+            <Button
+              variant="outline"
+              className="min-w-32"
+              onClick={() => flow.goNext('integrations')}
+            >
+              Skip for now
+            </Button>
+            <Button
+              className="min-w-40"
+              disabled={!flow.selectedPhoneNumber || !hasIncomingNumbers || flow.assigningPhoneNumber}
+              onClick={async () => {
+                try {
+                  const selected = flow.twilioIncomingNumbers.find(
+                    (number) => number.phoneNumber === flow.selectedPhoneNumber,
+                  );
+                  if (!selected) {
+                    toast.error('Select a valid Twilio number');
+                    return;
+                  }
+                  await flow.assignTelephonyNumber({
+                    phoneNumber: selected.phoneNumber,
+                    twilioSid: selected.sid,
+                    friendlyName: selected.friendlyName ?? selected.phoneNumber,
+                  }).unwrap();
+                  toast.success('Phone number assigned');
+                  flow.goNext('integrations');
+                } catch (error: unknown) {
+                  toast.error(getUserFriendlyApiError(error));
+                }
+              }}
+            >
+              {flow.assigningPhoneNumber ? 'Assigning...' : 'Assign number'}
+            </Button>
+          </div>
+        </FieldGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function IntegrationsStep({ flow }: { flow: OnboardingFlow }) {
   const { data: integrationsData } = useGetIntegrationsQuery();
   const [deleteIntegration, { isLoading: isRemovingIntegration }] = useDeleteIntegrationMutation();

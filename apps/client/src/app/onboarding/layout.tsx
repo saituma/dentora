@@ -9,6 +9,7 @@ const ONBOARDING_STEPS = [
   'plan',
   'knowledge-base',
   'voice',
+  'phone-number',
   'rules',
   'integrations',
   'schedule',

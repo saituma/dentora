@@ -20,6 +20,149 @@ type TwilioIncomingNumber = {
   capabilities?: Record<string, boolean> | null;
 };
 
+type TwilioIncomingPhoneNumberApiItem = {
+  sid: string;
+  phone_number: string;
+  friendly_name?: string | null;
+  capabilities?: Record<string, boolean> | null;
+};
+
+type TwilioIncomingPhoneNumberPage = {
+  incoming_phone_numbers?: TwilioIncomingPhoneNumberApiItem[];
+  next_page_uri?: string | null;
+};
+
+function buildTwilioWebhookUrls(): {
+  voiceUrl: string;
+  statusCallback: string;
+} {
+  const baseUrl = (env.TWILIO_WEBHOOK_BASE_URL || '').trim().replace(/\/$/, '');
+  if (!baseUrl) {
+    throw new TelephonyError('TWILIO_WEBHOOK_BASE_URL is not configured');
+  }
+
+  return {
+    voiceUrl: `${baseUrl}/api/telephony/webhook/voice`,
+    statusCallback: `${baseUrl}/api/telephony/webhook/status`,
+  };
+}
+
+function createTwilioRestClient() {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
+    throw new TelephonyError('Twilio credentials are not configured');
+  }
+
+  return twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
+}
+
+function toAbsoluteTwilioUrl(pathOrUrl: string): string {
+  if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+  return `https://api.twilio.com${pathOrUrl}`;
+}
+
+async function fetchAllTwilioIncomingNumbers(): Promise<TwilioIncomingNumber[]> {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
+    throw new TelephonyError('Twilio credentials are not configured');
+  }
+
+  const authToken = Buffer.from(
+    `${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`,
+    'utf8',
+  ).toString('base64');
+
+  const all: TwilioIncomingNumber[] = [];
+  let url = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/IncomingPhoneNumbers.json?PageSize=1000`;
+
+  while (url) {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Basic ${authToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      let detail = response.statusText;
+      try {
+        const body = await response.json();
+        if (body?.message) detail = body.message;
+      } catch {
+        // ignore parsing failures
+      }
+      throw new TelephonyError(`Failed to fetch Twilio numbers: ${detail}`);
+    }
+
+    const page = await response.json() as TwilioIncomingPhoneNumberPage;
+    const pageNumbers = Array.isArray(page?.incoming_phone_numbers)
+      ? page.incoming_phone_numbers
+      : [];
+
+    for (const number of pageNumbers) {
+      all.push({
+        sid: number.sid,
+        phoneNumber: number.phone_number,
+        friendlyName: number.friendly_name ?? null,
+        capabilities: number.capabilities ?? null,
+      });
+    }
+
+    if (!page.next_page_uri) break;
+    url = toAbsoluteTwilioUrl(page.next_page_uri);
+  }
+
+  return all;
+}
+
+async function configureTwilioNumberWebhooks(input: {
+  twilioSid: string;
+  phoneNumber: string;
+  tenantId: string;
+}): Promise<void> {
+  const { voiceUrl, statusCallback } = buildTwilioWebhookUrls();
+  const client = createTwilioRestClient();
+  const useTwimlAppRouting = Boolean(env.TWILIO_TWIML_APP_SID);
+
+  try {
+    if (useTwimlAppRouting) {
+      await client.incomingPhoneNumbers(input.twilioSid).update({
+        voiceApplicationSid: env.TWILIO_TWIML_APP_SID,
+        statusCallback,
+        statusCallbackMethod: 'POST',
+      });
+    } else {
+      await client.incomingPhoneNumbers(input.twilioSid).update({
+        voiceUrl,
+        voiceMethod: 'POST',
+        statusCallback,
+        statusCallbackMethod: 'POST',
+      });
+    }
+
+    logger.info(
+      {
+        tenantId: input.tenantId,
+        phoneNumber: input.phoneNumber,
+        twilioSid: input.twilioSid,
+        voiceRoutingMode: useTwimlAppRouting ? 'twiml_app' : 'voice_url',
+        twimlAppSid: useTwimlAppRouting ? env.TWILIO_TWIML_APP_SID : null,
+        voiceUrl,
+        statusCallback,
+      },
+      'Twilio number webhook configuration updated',
+    );
+  } catch (error) {
+    logger.error(
+      {
+        err: error,
+        tenantId: input.tenantId,
+        phoneNumber: input.phoneNumber,
+        twilioSid: input.twilioSid,
+      },
+      'Failed to update Twilio number webhook configuration',
+    );
+    throw new TelephonyError('Failed to configure Twilio number webhooks');
+  }
+}
+
 export async function getPublicNumberStatus(input: {
   phoneNumber: string;
 }): Promise<{
@@ -74,62 +217,154 @@ export async function assignPhoneNumber(input: {
   friendlyName?: string;
   capabilities?: Record<string, boolean>;
 }): Promise<TwilioNumber> {
-  const [existing] = await db
-    .select()
-    .from(twilioNumbers)
-    .where(eq(twilioNumbers.phoneNumber, input.phoneNumber))
-    .limit(1);
+  return await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('telephony_number_assignment'))`);
 
-  if (existing) {
-    if (existing.tenantId !== input.tenantId) {
-      throw new TelephonyError('Phone number is already assigned to another clinic');
+    const [activeTenantNumber] = await tx
+      .select()
+      .from(twilioNumbers)
+      .where(and(eq(twilioNumbers.tenantId, input.tenantId), eq(twilioNumbers.status, 'active')))
+      .limit(1);
+
+    if (activeTenantNumber && activeTenantNumber.phoneNumber !== input.phoneNumber) {
+      throw new TelephonyError('Tenant already has an active phone number');
     }
 
-    const [updated] = await db
-      .update(twilioNumbers)
-      .set({
+    const [existing] = await tx
+      .select()
+      .from(twilioNumbers)
+      .where(eq(twilioNumbers.phoneNumber, input.phoneNumber))
+      .limit(1);
+
+    if (existing) {
+      if (existing.tenantId !== input.tenantId) {
+        throw new TelephonyError('Phone number is already assigned to another clinic');
+      }
+
+      await configureTwilioNumberWebhooks({
+        tenantId: input.tenantId,
+        twilioSid: input.twilioSid,
+        phoneNumber: input.phoneNumber,
+      });
+
+      const [updated] = await tx
+        .update(twilioNumbers)
+        .set({
+          twilioSid: input.twilioSid,
+          friendlyName: input.friendlyName,
+          capabilities: input.capabilities ?? existing.capabilities ?? { voice: true, sms: false },
+          status: 'active',
+          updatedAt: new Date(),
+        })
+        .where(eq(twilioNumbers.id, existing.id))
+        .returning();
+
+      await cache.setPhoneMapping(input.phoneNumber, input.tenantId);
+
+      logger.info(
+        { tenantId: input.tenantId, phoneNumber: input.phoneNumber },
+        'Phone number reassigned to tenant',
+      );
+
+      return updated;
+    }
+
+    const id = generateId();
+
+    await configureTwilioNumberWebhooks({
+      tenantId: input.tenantId,
+      twilioSid: input.twilioSid,
+      phoneNumber: input.phoneNumber,
+    });
+
+    const [number] = await tx
+      .insert(twilioNumbers)
+      .values({
+        id,
+        tenantId: input.tenantId,
+        phoneNumber: input.phoneNumber,
         twilioSid: input.twilioSid,
         friendlyName: input.friendlyName,
-        capabilities: input.capabilities ?? existing.capabilities ?? { voice: true, sms: false },
+        capabilities: input.capabilities ?? { voice: true, sms: false },
         status: 'active',
-        updatedAt: new Date(),
       })
-      .where(eq(twilioNumbers.id, existing.id))
       .returning();
 
     await cache.setPhoneMapping(input.phoneNumber, input.tenantId);
 
     logger.info(
       { tenantId: input.tenantId, phoneNumber: input.phoneNumber },
-      'Phone number reassigned to tenant',
+      'Phone number assigned to tenant',
     );
 
-    return updated;
-  }
+    return number;
+  });
+}
 
-  const id = generateId();
+export async function autoAssignPhoneNumberForTenant(tenantId: string): Promise<TwilioNumber> {
+  return await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('telephony_number_assignment'))`);
 
-  const [number] = await db
-    .insert(twilioNumbers)
-    .values({
-      id,
-      tenantId: input.tenantId,
-      phoneNumber: input.phoneNumber,
-      twilioSid: input.twilioSid,
-      friendlyName: input.friendlyName,
-      capabilities: input.capabilities ?? { voice: true, sms: false },
-      status: 'active',
-    })
-    .returning();
+    const [activeTenantNumber] = await tx
+      .select()
+      .from(twilioNumbers)
+      .where(and(eq(twilioNumbers.tenantId, tenantId), eq(twilioNumbers.status, 'active')))
+      .limit(1);
 
-  await cache.setPhoneMapping(input.phoneNumber, input.tenantId);
+    if (activeTenantNumber) {
+      return activeTenantNumber;
+    }
 
-  logger.info(
-    { tenantId: input.tenantId, phoneNumber: input.phoneNumber },
-    'Phone number assigned to tenant',
-  );
+    const twilioNumbersFromAccount = await fetchAllTwilioIncomingNumbers();
+    if (twilioNumbersFromAccount.length === 0) {
+      throw new TelephonyError('No purchased Twilio numbers found');
+    }
 
-  return number;
+    const assignedNumbers = await tx.select().from(twilioNumbers);
+    const activeAssignedPhoneSet = new Set(
+      assignedNumbers
+        .filter((row) => row.status === 'active')
+        .map((row) => row.phoneNumber),
+    );
+
+    const candidate = twilioNumbersFromAccount.find(
+      (number) => !activeAssignedPhoneSet.has(number.phoneNumber),
+    );
+
+    if (!candidate) {
+      throw new TelephonyError('No unassigned Twilio numbers are available');
+    }
+
+    await configureTwilioNumberWebhooks({
+      tenantId,
+      twilioSid: candidate.sid,
+      phoneNumber: candidate.phoneNumber,
+    });
+
+    const id = generateId();
+
+    const [number] = await tx
+      .insert(twilioNumbers)
+      .values({
+        id,
+        tenantId,
+        phoneNumber: candidate.phoneNumber,
+        twilioSid: candidate.sid,
+        friendlyName: candidate.friendlyName ?? undefined,
+        capabilities: candidate.capabilities ?? { voice: true, sms: false },
+        status: 'active',
+      })
+      .returning();
+
+    await cache.setPhoneMapping(candidate.phoneNumber, tenantId);
+
+    logger.info(
+      { tenantId, phoneNumber: candidate.phoneNumber, twilioSid: candidate.sid },
+      'Phone number auto-assigned to tenant',
+    );
+
+    return number;
+  });
 }
 
 export async function resolveTenantByPhone(phoneNumber: string): Promise<string> {
@@ -186,44 +421,7 @@ export async function listPhoneNumbers(tenantId: string): Promise<TwilioNumber[]
 }
 
 export async function fetchTwilioIncomingNumbers(): Promise<TwilioIncomingNumber[]> {
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
-    throw new TelephonyError('Twilio credentials are not configured');
-  }
-
-  const authToken = Buffer.from(
-    `${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`,
-    'utf8',
-  ).toString('base64');
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/IncomingPhoneNumbers.json?PageSize=20`;
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Basic ${authToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    let detail = response.statusText;
-    try {
-      const body = await response.json();
-      if (body?.message) detail = body.message;
-    } catch {
-      // ignore parsing failures
-    }
-    throw new TelephonyError(`Failed to fetch Twilio numbers: ${detail}`);
-  }
-
-  const data = await response.json();
-  const numbers = Array.isArray(data?.incoming_phone_numbers)
-    ? data.incoming_phone_numbers
-    : [];
-
-  return numbers.map((number: any) => ({
-    sid: number.sid,
-    phoneNumber: number.phone_number,
-    friendlyName: number.friendly_name ?? null,
-    capabilities: number.capabilities ?? null,
-  }));
+  return await fetchAllTwilioIncomingNumbers();
 }
 
 export function createClientAccessToken(input: {

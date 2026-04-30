@@ -49,6 +49,7 @@ const envSchema = z.object({
   TWILIO_API_KEY_SID: z.string().default(''),
   TWILIO_API_KEY_SECRET: z.string().default(''),
   TWILIO_TWIML_APP_SID: z.string().default(''),
+  TWILIO_VERIFY_SERVICE_SID: z.string().default(''),
   TWILIO_WEBHOOK_BASE_URL: z.string().default('http://localhost:4000'),
 
   OPENAI_API_KEY: z.string().default(''),
@@ -67,6 +68,14 @@ const envSchema = z.object({
   GOOGLE_OAUTH_REDIRECT_URI: z.string().default('http://localhost:4000/api/integrations/google/calendar/oauth/callback'),
   GOOGLE_OAUTH_SUCCESS_REDIRECT: z.string().default('http://localhost:3000/onboarding/ai-chat'),
   GOOGLE_OAUTH_ERROR_REDIRECT: z.string().default('http://localhost:3000/onboarding/ai-chat'),
+  GOOGLE_AUTH_REDIRECT_URI: z.string().default('http://localhost:4000/api/auth/google/callback'),
+
+  SMTP_HOST: z.string().default(''),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASS: z.string().default(''),
+  SMTP_FROM: z.string().default(''),
 
   S3_BUCKET: z.string().default(''),
   S3_REGION: z.string().default('us-east-1'),

@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/store/hooks";
 import { setCredentials } from "@/features/auth/authSlice";
-import { useRegisterMutation } from "@/features/auth/authApi";
+import {
+  useLazyGetGoogleStartUrlQuery,
+  useSendEmailOtpMutation,
+  useVerifyEmailOtpMutation,
+} from "@/features/auth/authApi";
 import { toast } from "sonner";
 import { getUserFriendlyApiError } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
@@ -27,18 +31,32 @@ import { Input } from "@/components/ui/input";
 export function SignupForm() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const [register, { isLoading }] = useRegisterMutation();
+  const [sendEmailOtp, { isLoading: sendingOtp }] = useSendEmailOtpMutation();
+  const [verifyEmailOtp, { isLoading: verifyingOtp }] = useVerifyEmailOtpMutation();
+  const [getGoogleStartUrl, { isFetching: googleLoading }] = useLazyGetGoogleStartUrlQuery();
+
   const [clinicName, setClinicName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await register({
+      await sendEmailOtp({ email }).unwrap();
+      setOtpSent(true);
+      toast.success("Verification code sent to your email.");
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err));
+    }
+  };
+
+  const handleVerifyAndCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const result = await verifyEmailOtp({
         email,
-        password,
+        code,
         clinicName,
         displayName: clinicName,
       }).unwrap();
@@ -51,10 +69,19 @@ export function SignupForm() {
           onboardingStatus: "clinic-profile",
         })
       );
-      toast.success("Account created! Complete your setup.");
+      toast.success("Account created. Complete your setup.");
       router.push("/onboarding/clinic-profile");
     } catch (err: unknown) {
-      toast.error(getUserFriendlyApiError(err, { operation: "signup" }));
+      toast.error(getUserFriendlyApiError(err));
+    }
+  };
+
+  const startGoogle = async () => {
+    try {
+      const result = await getGoogleStartUrl({ returnTo: window.location.origin }).unwrap();
+      window.location.assign(result.authUrl);
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err));
     }
   };
 
@@ -63,11 +90,11 @@ export function SignupForm() {
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
         <CardDescription>
-          Start your 14-day free trial. No credit card required.
+          Start your 14-day free trial with email verification.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={otpSent ? handleVerifyAndCreate : handleSendOtp}>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="clinicName">Clinic name</FieldLabel>
@@ -90,31 +117,28 @@ export function SignupForm() {
                 required
               />
             </Field>
+            {otpSent ? (
+              <Field>
+                <FieldLabel htmlFor="code">Verification code</FieldLabel>
+                <Input
+                  id="code"
+                  placeholder="123456"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                />
+              </Field>
+            ) : null}
             <Field>
-              <FieldLabel htmlFor="phone">Phone (optional)</FieldLabel>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1 (555) 000-0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
+              <Button type="submit" className="w-full" disabled={sendingOtp || verifyingOtp}>
+                {otpSent
+                  ? (verifyingOtp ? "Verifying..." : "Verify and create account")
+                  : (sendingOtp ? "Sending code..." : "Send verification code")}
+              </Button>
             </Field>
             <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-              />
-            </Field>
-            <Field>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating account..." : "Create account"}
+              <Button type="button" variant="outline" className="w-full" onClick={startGoogle} disabled={googleLoading}>
+                {googleLoading ? "Redirecting..." : "Continue with Google"}
               </Button>
             </Field>
             <FieldDescription className="text-center">

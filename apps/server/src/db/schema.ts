@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 export const tenantStatusEnum = pgEnum('tenant_status', ['active', 'suspended', 'archived']);
 export const twilioNumberStatusEnum = pgEnum('twilio_number_status', ['active', 'pending', 'released']);
@@ -37,6 +37,7 @@ export const tenantPlanEnum = pgEnum('tenant_plan', ['starter', 'professional', 
 
 export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
 export const aiProviderNameEnum = pgEnum('ai_provider_name', ['openai', 'anthropic', 'deepgram', 'elevenlabs', 'google-stt', 'google-tts']);
+export const authIdentityProviderEnum = pgEnum('auth_identity_provider', ['email', 'phone', 'google']);
 
 export const tenantRegistry = pgTable('tenant_registry', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -66,6 +67,9 @@ export const twilioNumbers = pgTable('twilio_numbers', {
 }, (table) => [
   uniqueIndex('twilio_numbers_phone_e164_idx').on(table.phoneNumber),
   index('twilio_numbers_tenant_status_idx').on(table.tenantId, table.status),
+  uniqueIndex('twilio_numbers_tenant_active_unique_idx')
+    .on(table.tenantId)
+    .where(sql`${table.status} = 'active'`),
 ]);
 
 export const clinicProfile = pgTable('clinic_profile', {
@@ -267,6 +271,33 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex('users_email_idx').on(table.email),
+]);
+
+export const authIdentities = pgTable('auth_identities', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  provider: authIdentityProviderEnum('provider').notNull(),
+  providerUserId: text('provider_user_id').notNull(),
+  verified: boolean('verified').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('auth_identities_provider_user_idx').on(table.provider, table.providerUserId),
+  uniqueIndex('auth_identities_user_provider_idx').on(table.userId, table.provider),
+]);
+
+export const otpChallenges = pgTable('otp_challenges', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  channel: authIdentityProviderEnum('channel').notNull(),
+  target: text('target').notNull(),
+  codeHash: text('code_hash'),
+  metadata: jsonb('metadata').notNull().default({}),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  attempts: integer('attempts').notNull().default(0),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('otp_challenges_target_idx').on(table.channel, table.target, table.createdAt),
 ]);
 
 export const tenantUsers = pgTable('tenant_users', {

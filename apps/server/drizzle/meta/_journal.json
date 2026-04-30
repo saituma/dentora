@@ -64,6 +64,20 @@
       "when": 1776375900000,
       "tag": "0008_tenant_users_rls_insert",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777564800000,
+      "tag": "0009_twilio_active_number_uniqueness",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777568400000,
+      "tag": "0010_auth_otp_identities",
+      "breakpoints": true
     }
   ]
 }

@@ -80,6 +80,29 @@ telephonyRouter.post(
   },
 );
 
+telephonyRouter.post(
+  '/numbers/auto-assign',
+  authenticateJwt,
+  resolveTenant,
+  apiRateLimiter,
+  async (req, res, next) => {
+    try {
+      const number = await telephonyService.autoAssignPhoneNumberForTenant(
+        req.tenantContext!.tenantId,
+      );
+      req.audit?.({
+        action: 'telephony.number_auto_assigned',
+        entityType: 'twilio_number',
+        entityId: number.id,
+        afterState: { phoneNumber: number.phoneNumber },
+      });
+      res.status(201).json(number);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 telephonyRouter.get(
   '/numbers',
   authenticateJwt,
