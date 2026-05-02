@@ -77,6 +77,7 @@ async function main(): Promise<void> {
       return 'unknown-host';
     }
   })();
+  // eslint-disable-next-line no-console
   console.log(`Running migrations against: ${safeHost}`);
 
   const maxAttempts = Math.max(1, Number(process.env.MIGRATION_RETRY_ATTEMPTS ?? '3'));
@@ -94,6 +95,7 @@ async function main(): Promise<void> {
 
     try {
       await migrate(db, { migrationsFolder: 'drizzle' });
+      // eslint-disable-next-line no-console
       console.log('Migration completed');
       await pool.end();
       return;

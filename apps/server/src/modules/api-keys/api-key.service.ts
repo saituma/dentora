@@ -10,7 +10,6 @@ import {
   MissingProviderKeyError,
   InvalidProviderError,
   NotFoundError,
-  ConflictError,
 } from '../../lib/errors.js';
 import { generateId } from '../../lib/crypto.js';
 

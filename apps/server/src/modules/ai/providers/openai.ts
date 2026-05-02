@@ -47,7 +47,11 @@ export class OpenAIProvider implements LlmProvider {
         );
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as {
+        choices: Array<{ message?: { content?: string }; finish_reason?: string }>;
+        model: string;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
       const latencyMs = Date.now() - start;
 
       return {

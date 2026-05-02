@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import * as tenantService from './tenant.service.js';
-import { authenticateJwt, requireRole, requirePlatformAdmin, validate, resolveTenant } from '../../middleware/index.js';
+import { authenticateJwt, requirePlatformAdmin, validate } from '../../middleware/index.js';
 import { apiRateLimiter } from '../../middleware/rateLimit.js';
 import { z } from 'zod';
 
@@ -46,7 +46,7 @@ tenantRouter.get(
   }),
   async (req, res, next) => {
     try {
-      const { limit, offset } = req.query as any;
+      const { limit, offset } = req.query as unknown as { limit: number; offset: number };
       const tenants = await tenantService.listTenants({ limit, offset });
       res.json({ data: tenants });
     } catch (err) {

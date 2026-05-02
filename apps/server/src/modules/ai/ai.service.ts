@@ -4,7 +4,7 @@ import { tenantConfigVersions, voiceProfile, faqLibrary, services, policies, boo
 import { eq, and } from 'drizzle-orm';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
-import { ConfigNotFoundError, ProviderError } from '../../lib/errors.js';
+import { ConfigNotFoundError } from '../../lib/errors.js';
 import { executeLlmWithFailover, type SelectionResult } from './engine/index.js';
 import type { LlmMessage } from './providers/base.js';
 

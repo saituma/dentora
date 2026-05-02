@@ -13,14 +13,13 @@ import express from 'express';
 import * as Sentry from '@sentry/node';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
-import { db, checkDbHealth, closeDb } from './db/index.js';
+import { checkDbHealth, closeDb } from './db/index.js';
 import { initRedis, closeRedis } from './lib/cache.js';
 import { getMetrics, getMetricsContentType } from './lib/metrics.js';
 
 import { requestId } from './middleware/requestId.js';
 import { auditMiddleware } from './middleware/audit.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import { apiRateLimiter } from './middleware/rateLimit.js';
 import { metricsMiddleware } from './middleware/metrics.js';
 
 import { tenantRouter } from './modules/tenants/index.js';

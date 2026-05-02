@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import * as configService from './config.service.js';
-import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
+import { authenticateJwt, resolveTenant, validate } from '../../middleware/index.js';
 import { configWriteRateLimiter } from '../../middleware/rateLimit.js';
 import { z } from 'zod';
 

@@ -20,7 +20,7 @@ callRouter.get(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
-      const { limit, offset } = req.query as any;
+      const { limit, offset } = req.query as unknown as { limit: number; offset: number };
       const calls = await callService.listCallSessions({ tenantId, limit, offset });
       res.json({ data: calls });
     } catch (err) {

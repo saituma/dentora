@@ -2,16 +2,8 @@
 import { db } from '../../db/index.js';
 import {
   tenantRegistry,
-  clinicProfile,
   tenantConfigVersions,
   tenantActiveConfig,
-  twilioNumbers,
-  services,
-  bookingRules,
-  policies,
-  voiceProfile,
-  faqLibrary,
-  integrations,
   users,
   tenantUsers,
 } from '../../db/schema.js';
@@ -19,10 +11,9 @@ import { eq, and, desc } from 'drizzle-orm';
 import { hashPassword, generateId } from '../../lib/crypto.js';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
-import { TenantNotFoundError, ConflictError, ValidationError } from '../../lib/errors.js';
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import { TenantNotFoundError, ConflictError } from '../../lib/errors.js';
+import type { InferSelectModel } from 'drizzle-orm';
 
-type NewTenant = InferInsertModel<typeof tenantRegistry>;
 type Tenant = InferSelectModel<typeof tenantRegistry>;
 
 export async function createTenant(input: {
@@ -54,7 +45,7 @@ export async function createTenant(input: {
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-|-$/g, ''),
-        plan: (input.plan as any) ?? 'starter',
+        plan: (input.plan as 'starter' | 'professional' | 'enterprise') ?? 'starter',
         status: 'active',
       })
       .returning();

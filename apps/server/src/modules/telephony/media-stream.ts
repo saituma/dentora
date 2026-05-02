@@ -9,6 +9,90 @@ import { resolveApiKey } from '../api-keys/api-key.service.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
 
+interface SensitiveTopic {
+  type?: string;
+  title?: string;
+  content?: string;
+}
+
+interface PolicyRecord {
+  policyType?: string | null;
+  content?: string | null;
+  emergencyDisclaimer?: string | null;
+  escalationConditions?: { type?: string; content?: string } | null;
+  sensitiveTopics?: unknown;
+}
+
+interface TwilioStartMessage {
+  event: 'start';
+  streamSid: string;
+  start?: {
+    callSid?: string;
+    accountSid?: string;
+    mediaFormat?: Record<string, unknown>;
+    tracks?: string[];
+    customParameters?: Record<string, string>;
+  };
+}
+
+interface TwilioMediaMessage {
+  event: 'media';
+  media?: {
+    payload?: string;
+  };
+}
+
+interface ElevenLabsConversationInitMetadata {
+  type: 'conversation_initiation_metadata';
+  conversation_initiation_metadata_event?: {
+    conversation_id?: string;
+    user_input_audio_format?: string;
+    agent_output_audio_format?: string;
+  };
+}
+
+interface ElevenLabsAudioEvent {
+  type: 'audio';
+  audio_event?: { audio_base_64?: string };
+}
+
+interface ElevenLabsUserTranscript {
+  type: 'user_transcript';
+  user_transcription_event?: { user_transcript?: string };
+}
+
+interface ElevenLabsAgentResponse {
+  type: 'agent_response';
+  agent_response_event?: { agent_response?: string };
+}
+
+interface ElevenLabsClientToolCall {
+  type: 'client_tool_call';
+  client_tool_call?: {
+    tool_name?: string;
+    tool_call_id?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+interface ElevenLabsAgentToolResponse {
+  type: 'agent_tool_response';
+  agent_tool_response?: { tool_name?: string };
+}
+
+interface ElevenLabsInterruption {
+  type: 'interruption';
+}
+
+type ElevenLabsMessage =
+  | ElevenLabsConversationInitMetadata
+  | ElevenLabsAudioEvent
+  | ElevenLabsUserTranscript
+  | ElevenLabsAgentResponse
+  | ElevenLabsClientToolCall
+  | ElevenLabsAgentToolResponse
+  | ElevenLabsInterruption;
+
 interface MediaStreamSession {
   callSessionId: string;
   tenantId: string;
@@ -161,20 +245,20 @@ async function buildConvaiContext(tenantId: string) {
   ]);
 
   const contextDocs = (policies ?? [])
-    .flatMap((policy: any) => Array.isArray(policy?.sensitiveTopics) ? policy.sensitiveTopics : [])
-    .filter((topic: any) => topic?.type === 'context_document');
+    .flatMap((policy) => Array.isArray((policy as PolicyRecord)?.sensitiveTopics) ? (policy as PolicyRecord).sensitiveTopics as SensitiveTopic[] : [])
+    .filter((topic: SensitiveTopic) => topic?.type === 'context_document');
 
   const formatStaffMembers = (staff: Array<{ name?: string; role?: string }>) => {
     if (!staff || !staff.length) return '';
     return staff.map((s) => `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`).join(' | ');
   };
 
-  const legacyStaffDirectory = contextDocs.find((doc: any) => doc?.title === 'Staff Directory')?.content ?? '';
+  const legacyStaffDirectory = contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Staff Directory')?.content ?? '';
   const staffDirectory = Array.isArray(clinic?.staffMembers) && clinic.staffMembers.length > 0
     ? truncate(formatStaffMembers(clinic.staffMembers), 1000)
     : legacyStaffDirectory;
 
-  const clinicNotes = contextDocs.find((doc: any) => doc?.title === 'Clinic Notes')?.content ?? '';
+  const clinicNotes = contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Clinic Notes')?.content ?? '';
 
   const normalizedBookingRules = bookingRules
     ? {
@@ -194,13 +278,14 @@ async function buildConvaiContext(tenantId: string) {
   }).format(new Date());
   const currentYear = todayDate.slice(0, 4);
 
+  const vp = voiceProfile as Record<string, unknown> | null;
   const speechSpeedValue =
     typeof voiceProfile?.speechSpeed === 'number'
       ? voiceProfile.speechSpeed
-      : typeof voiceProfile?.speakingSpeed === 'number'
-        ? voiceProfile.speakingSpeed
-        : typeof voiceProfile?.speakingSpeed === 'string'
-          ? Number(voiceProfile.speakingSpeed)
+      : typeof vp?.speakingSpeed === 'number'
+        ? vp.speakingSpeed
+        : typeof vp?.speakingSpeed === 'string'
+          ? Number(vp.speakingSpeed)
           : undefined;
 
   const normalizedSpeechSpeed =
@@ -230,20 +315,20 @@ async function buildConvaiContext(tenantId: string) {
     current_year: currentYear,
     clinic_description: clinic?.description ?? '',
     clinic_specialties: Array.isArray(clinic?.specialties) ? clinic.specialties.join(', ') : '',
-    business_hours: formatBusinessHours(clinic?.businessHours as any),
-    services_list: formatServices((services ?? []) as any),
-    policies_list: formatPolicies((policies ?? []) as any),
-    faqs_list: formatFaqs((faqs ?? []) as any),
+    business_hours: formatBusinessHours(clinic?.businessHours as Record<string, { start: string; end: string } | null> | undefined),
+    services_list: formatServices((services ?? []) as Array<{ serviceName?: string; durationMinutes?: number; price?: string }>),
+    policies_list: formatPolicies((policies ?? []) as Array<{ policyType?: string; content?: string }>),
+    faqs_list: formatFaqs((faqs ?? []) as Array<{ question?: string; answer?: string }>),
     booking_rules: formatBookingRules(normalizedBookingRules),
-    voice_tone: voiceProfile?.tone ?? '',
-    voice_language: voiceProfile?.language ?? '',
-    voice_id: voiceProfile?.voiceId ?? '',
+    voice_tone: (vp?.tone as string) ?? '',
+    voice_language: (vp?.language as string) ?? '',
+    voice_id: (vp?.voiceId as string) ?? '',
     speech_speed: normalizedSpeechSpeed ?? '',
-    greeting_message: voiceProfile?.greetingMessage ?? '',
-    after_hours_message: voiceProfile?.afterHoursMessage ?? '',
-    hold_music: voiceProfile?.holdMusic ?? '',
-    emergency_disclaimer: formatEmergencyInfo((policies ?? []) as any),
-    escalation_conditions: formatEscalationInfo((policies ?? []) as any),
+    greeting_message: (vp?.greetingMessage as string) ?? '',
+    after_hours_message: (vp?.afterHoursMessage as string) ?? '',
+    hold_music: (vp?.holdMusic as string) ?? '',
+    emergency_disclaimer: formatEmergencyInfo((policies ?? []) as Array<{ emergencyDisclaimer?: string | null }>),
+    escalation_conditions: formatEscalationInfo((policies ?? []) as Array<{ escalationConditions?: { type?: string; content?: string } | null }>),
     staff_directory: String(staffDirectory ?? ''),
     clinic_notes: String(clinicNotes ?? ''),
   } as Record<string, unknown>;
@@ -394,7 +479,7 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
 async function handleStreamStart(
   ws: WebSocket,
   callSessionId: string,
-  message: any,
+  message: TwilioStartMessage,
 ): Promise<void> {
   const { streamSid, start: startData } = message;
   logger.info(
@@ -464,7 +549,7 @@ async function handleStreamStart(
       payload: { streamSid },
     });
 
-    const agentId = (voiceProfile as any)?.voiceAgentId as string | undefined;
+    const agentId = (voiceProfile as Record<string, unknown> | null)?.voiceAgentId as string | undefined;
     if (!agentId) {
       logger.error({ tenantId, callSessionId }, 'No ElevenLabs agent ID configured for tenant');
       ws.close();
@@ -503,10 +588,10 @@ async function handleStreamStart(
 }
 
 async function handleElevenLabsMessage(session: MediaStreamSession, raw: string): Promise<void> {
-  let message: any;
+  let message: ElevenLabsMessage & Record<string, unknown>;
   try {
-    message = JSON.parse(raw);
-  } catch (error) {
+    message = JSON.parse(raw) as ElevenLabsMessage & Record<string, unknown>;
+  } catch {
     logger.debug({ raw }, 'Ignoring non-JSON ElevenLabs message');
     return;
   }
@@ -664,7 +749,7 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
   }
 }
 
-function handleMediaPayload(callSessionId: string, message: any): void {
+function handleMediaPayload(callSessionId: string, message: TwilioMediaMessage): void {
   const session = activeSessions.get(callSessionId);
   if (!session) {
     logger.warn({ callSessionId }, 'Media payload for unknown session');

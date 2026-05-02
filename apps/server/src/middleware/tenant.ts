@@ -11,7 +11,6 @@ import {
   TenantNotFoundError,
   TenantSuspendedError,
   TenantArchivedError,
-  ConfigNotFoundError,
 } from '../lib/errors.js';
 import { createTenantLogger, logger } from '../lib/logger.js';
 import {

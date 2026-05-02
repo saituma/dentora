@@ -23,7 +23,7 @@ export class GoogleSttProvider implements SttProvider {
     try {
       const audioBuffer = request.audio instanceof Buffer
         ? request.audio
-        : Buffer.from(await new Response(request.audio as any).arrayBuffer());
+        : Buffer.from(await new Response(request.audio as ReadableStream).arrayBuffer());
 
       const audioContent = audioBuffer.toString('base64');
 
@@ -55,9 +55,10 @@ export class GoogleSttProvider implements SttProvider {
         );
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as Record<string, unknown>;
       const latencyMs = Date.now() - start;
-      const result = data.results?.[0]?.alternatives?.[0];
+      const results = data.results as Array<{ alternatives?: Array<{ transcript?: string; confidence?: number }> }> | undefined;
+      const result = results?.[0]?.alternatives?.[0];
 
       return {
         text: result?.transcript ?? '',
@@ -133,7 +134,7 @@ export class GoogleTtsProvider implements TtsProvider {
         );
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as { audioContent: string };
       const latencyMs = Date.now() - start;
       const audio = Buffer.from(data.audioContent, 'base64');
 

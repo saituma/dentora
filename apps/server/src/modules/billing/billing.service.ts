@@ -1,8 +1,7 @@
 
 import { db } from '../../db/index.js';
 import { callCosts, callCostLineItems, callSessions, tenantRegistry } from '../../db/schema.js';
-import { eq, and, gte, lte, sql, desc, sum } from 'drizzle-orm';
-import { logger } from '../../lib/logger.js';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 
 export async function getTenantBillingSummary(input: {
   tenantId: string;

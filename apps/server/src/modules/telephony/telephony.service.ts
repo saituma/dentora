@@ -1,6 +1,6 @@
 
 import { db } from '../../db/index.js';
-import { twilioNumbers, tenantRegistry, callSessions, tenantActiveConfig } from '../../db/schema.js';
+import { twilioNumbers, callSessions, tenantActiveConfig } from '../../db/schema.js';
 import { eq, and, sql, or } from 'drizzle-orm';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';

@@ -25,9 +25,9 @@ billingRouter.post(
       const event = stripeService.constructWebhookEvent(req.body, signature);
       await stripeService.handleWebhookEvent(event);
       res.json({ received: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error({ err }, 'Stripe webhook error');
-      res.status(400).json({ error: err.message });
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Unknown error' });
     }
   },
 );

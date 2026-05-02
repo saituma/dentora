@@ -23,7 +23,7 @@ export class DeepgramProvider implements SttProvider {
     try {
       const audioBuffer = request.audio instanceof Buffer
         ? request.audio
-        : Buffer.from(await new Response(request.audio as any).arrayBuffer());
+        : Buffer.from(await new Response(request.audio as ReadableStream).arrayBuffer());
 
       const response = await fetch(
         `${this.baseUrl}/listen?model=${model}&language=${request.language}&smart_format=true`,
@@ -33,7 +33,7 @@ export class DeepgramProvider implements SttProvider {
             Authorization: `Token ${this.apiKey}`,
             'Content-Type': 'audio/wav',
           },
-          body: new Uint8Array(audioBuffer.buffer, audioBuffer.byteOffset, audioBuffer.byteLength) as any,
+          body: new Uint8Array(audioBuffer.buffer, audioBuffer.byteOffset, audioBuffer.byteLength) as BodyInit,
           signal: AbortSignal.timeout(10_000),
         },
       );
@@ -47,7 +47,10 @@ export class DeepgramProvider implements SttProvider {
         );
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as {
+        results?: { channels?: Array<{ alternatives?: Array<{ transcript?: string; confidence?: number }> }> };
+        metadata?: { duration?: number };
+      };
       const latencyMs = Date.now() - start;
       const channel = data.results?.channels?.[0];
       const alternative = channel?.alternatives?.[0];

@@ -1,19 +1,16 @@
 
 import { db } from '../../../db/index.js';
-import { providerRegistry, providerHealthLog, providerPricing } from '../../../db/schema.js';
-import { eq, and, desc, gte } from 'drizzle-orm';
+import { providerRegistry, providerPricing } from '../../../db/schema.js';
+import { eq, and } from 'drizzle-orm';
 import { cache } from '../../../lib/cache.js';
 import { logger } from '../../../lib/logger.js';
-import { AllProvidersFailedError, ProviderError } from '../../../lib/errors.js';
+import { AllProvidersFailedError } from '../../../lib/errors.js';
 import { resolveApiKey } from '../../api-keys/api-key.service.js';
 import { getPreferredTtsProviderForVoiceId, isCustomTtsVoiceId } from '../providers/voice-routing.js';
 import {
   getLlmAdapter,
   getSttAdapter,
   getTtsAdapter,
-  type LlmProvider,
-  type SttProvider,
-  type TtsProvider,
   type LlmRequest,
   type LlmResponse,
   type SttRequest,
@@ -55,8 +52,6 @@ export interface SelectionResult {
   fallbackCount: number;
 }
 
-const HEALTH_WINDOW_MINUTES = 10;
-const HEALTH_MIN_SAMPLES = 3;
 const DEFAULT_MAX_LATENCY_MS = 5000;
 const DEFAULT_MIN_RELIABILITY = 0.9;
 const MAX_FAILOVER_ATTEMPTS = 2;
@@ -195,7 +190,6 @@ export async function recordProviderOutcome(
   latencyMs: number,
   error?: string,
 ): Promise<void> {
-  const key = `provider-health:${providerName}`;
   try {
     const existing = await getProviderHealthFromRedis(providerName);
     const sampleCount = (existing?.sampleCount ?? 0) + 1;
@@ -221,7 +215,6 @@ export async function recordProviderOutcome(
 }
 
 async function buildCandidates(workloadType: WorkloadType): Promise<ProviderCandidate[]> {
-  const cacheKey = `provider-candidates:${workloadType}`;
   const cached = await cache.getGlobal('provider-candidates', workloadType);
   if (cached) {
     try {
@@ -234,7 +227,7 @@ async function buildCandidates(workloadType: WorkloadType): Promise<ProviderCand
         { workloadType },
         'Ignoring empty cached provider candidates and rebuilding',
       );
-    } catch { }
+    } catch { /* ignore parse errors */ }
   }
 
   const providers = await db
@@ -423,7 +416,7 @@ export async function executeLlmWithFailover(
       };
     } catch (error) {
       lastError = error as Error;
-      const latency = (error as any).latencyMs ?? 0;
+      const latency = (error instanceof Error && 'latencyMs' in error) ? (error as Error & { latencyMs: number }).latencyMs : 0;
       await recordProviderOutcome(candidate.name, false, latency, (error as Error).message);
 
       logger.warn(

@@ -15,7 +15,12 @@
     "db:studio": "drizzle-kit studio",
     "simulate:twilio": "tsx scripts/simulate-twilio-webhooks.ts",
     "simulate:twilio:media": "tsx scripts/simulate-twilio-media-stream.ts",
-    "test:sentry": "tsx scripts/test-sentry.ts"
+    "test:sentry": "tsx scripts/test-sentry.ts",
+    "test:load-voice": "tsx scripts/load-test-voice.ts",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -59,6 +64,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bcryptjs": "^3.0.0",
     "@types/cors": "latest",
     "@types/express": "latest",
@@ -71,8 +77,12 @@
     "@types/pg": "latest",
     "@types/uuid": "^11.0.0",
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "^4.1.5",
     "drizzle-kit": "^0.31.9",
+    "eslint": "^9.39.3",
     "tsx": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "typescript-eslint": "^8.59.1",
+    "vitest": "^4.1.5"
   }
 }

@@ -544,7 +544,7 @@ export async function loginOrRegisterWithGoogleCode(input: {
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-  const payload = verifyRefreshToken(refreshToken) as any;
+  const payload = verifyRefreshToken(refreshToken);
   if (!payload?.userId) throw new AuthenticationError('Invalid refresh token');
 
   const [session] = await db

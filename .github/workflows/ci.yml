@@ -39,11 +39,17 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @repo/shared build
 
-      - name: Lint
+      - name: Lint client
         run: pnpm --filter @repo/client lint
+
+      - name: Lint server
+        run: pnpm --filter @repo/server lint
 
       - name: Typecheck server
         run: pnpm --filter @repo/server exec tsc --noEmit
+
+      - name: Test server
+        run: pnpm --filter @repo/server test
 
   # ── Build ──────────────────────────────────────────────
   build:

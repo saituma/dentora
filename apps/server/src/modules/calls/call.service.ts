@@ -11,7 +11,7 @@ import { eq, and, desc, ilike, or } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { logger } from '../../lib/logger.js';
 import { NotFoundError } from '../../lib/errors.js';
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import { executeLlmWithFailover } from '../ai/engine/index.js';
 import type { LlmMessage } from '../ai/providers/base.js';
 
@@ -74,7 +74,7 @@ export async function updateCallStatus(
   status: string,
   metadata?: Record<string, unknown>,
 ): Promise<CallSession> {
-  const updates: Record<string, any> = { status, updatedAt: new Date() };
+  const updates: Record<string, unknown> = { status, updatedAt: new Date() };
 
   if (status === 'completed' || status === 'failed' || status === 'escalated') {
     updates.endedAt = new Date();
@@ -123,7 +123,7 @@ export async function logCallEvent(input: {
     tenantId: input.tenantId,
     callSessionId: input.callSessionId,
     eventType: input.eventType,
-    actor: input.actor as any,
+    actor: input.actor,
     payload: input.payload ?? {},
     latencyMs: input.latencyMs,
   });
@@ -192,7 +192,7 @@ export async function listCallSessions(opts: {
   startDate?: Date;
   endDate?: Date;
 }) {
-  let query = db
+  const query = db
     .select()
     .from(callSessions)
     .where(eq(callSessions.tenantId, opts.tenantId))
@@ -314,7 +314,7 @@ export async function saveTranscript(input: {
     callSessionId: input.callSessionId,
     fullTranscript: input.fullTranscript,
     summary: input.summary,
-    sentiment: input.sentiment as any,
+    sentiment: input.sentiment,
     intentDetected: input.intentDetected,
   });
 }

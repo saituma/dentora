@@ -141,7 +141,7 @@ patientsRouter.get(
       const calls = await listCallSessionsByCaller({
         tenantId,
         phoneNumber: profile.phoneNumber,
-        limit: (req.query as any).limit,
+        limit: (req.query as unknown as { limit?: number }).limit,
       });
 
       res.json({ data: calls });

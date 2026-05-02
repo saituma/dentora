@@ -1,8 +1,7 @@
 
 import { db } from '../../db/index.js';
 import { callSessions, callEvents, callCosts, callTranscripts } from '../../db/schema.js';
-import { eq, and, gte, lte, sql, desc, count } from 'drizzle-orm';
-import { logger } from '../../lib/logger.js';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
 
 export interface DashboardStats {
   totalCalls: number;
@@ -157,7 +156,7 @@ export async function getHourlyCallVolume(input: {
   return results;
 }
 
-export async function getProviderPerformance(input: {
+export async function getProviderPerformance(_input: {
   startDate: Date;
   endDate: Date;
 }): Promise<Array<{ provider: string; avgLatencyMs: number; totalCalls: number; failureRate: number }>> {

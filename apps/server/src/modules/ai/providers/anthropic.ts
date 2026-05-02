@@ -53,7 +53,12 @@ export class AnthropicProvider implements LlmProvider {
         );
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as {
+        content?: Array<{ text?: string }>;
+        model: string;
+        usage?: { input_tokens?: number; output_tokens?: number };
+        stop_reason?: string;
+      };
       const latencyMs = Date.now() - start;
 
       return {

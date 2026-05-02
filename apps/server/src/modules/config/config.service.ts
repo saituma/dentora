@@ -14,11 +14,18 @@ import { eq, and, desc } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
-import { NotFoundError, ConfigValidationError, ConflictError } from '../../lib/errors.js';
-import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import { NotFoundError, ConflictError } from '../../lib/errors.js';
 import { listAvailableVoices } from '../onboarding/onboarding.service.js';
 
-function normalizeClinicProfile(profile: any) {
+type ClinicProfileSelect = typeof clinicProfile.$inferSelect;
+type ClinicProfileInsert = typeof clinicProfile.$inferInsert;
+type ServicesInsert = typeof services.$inferInsert;
+type BookingRulesInsert = typeof bookingRules.$inferInsert;
+type PoliciesInsert = typeof policies.$inferInsert;
+type VoiceProfileInsert = typeof voiceProfile.$inferInsert;
+type FaqLibraryInsert = typeof faqLibrary.$inferInsert;
+
+function normalizeClinicProfile(profile: ClinicProfileSelect | undefined) {
   if (!profile) return null;
 
   const firstLocationAddress = Array.isArray(profile.locations)
@@ -51,7 +58,7 @@ function normalizeClinicProfile(profile: any) {
   };
 }
 
-function normalizeVoiceProfile(profile: any) {
+function normalizeVoiceProfile(profile: Record<string, unknown> | undefined | null) {
   if (!profile) return null;
 
   const speechSpeedValue =
@@ -90,7 +97,7 @@ function normalizeStoredGreetingMessage(clinicName: string, greetingMessage?: st
   return normalized;
 }
 
-async function replacePaidVoiceWithFreeLiveVoice(profile: any) {
+async function replacePaidVoiceWithFreeLiveVoice(profile: Record<string, unknown> | undefined) {
   if (!profile || typeof profile.voiceId !== 'string' || !profile.voiceId.trim()) {
     return profile;
   }
@@ -169,7 +176,7 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
   if (existing) {
     const [updated] = await db
       .update(clinicProfile)
-      .set({ ...mappedData, updatedAt: new Date() } as any)
+      .set({ ...mappedData, updatedAt: new Date() } as Partial<ClinicProfileInsert>)
       .where(eq(clinicProfile.tenantId, tenantId))
       .returning();
     await cache.invalidateTenantDomain(tenantId, 'ai');
@@ -178,7 +185,7 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
 
   const [created] = await db
     .insert(clinicProfile)
-    .values({ id: generateId(), tenantId, ...mappedData } as any)
+    .values({ id: generateId(), tenantId, ...mappedData } as ClinicProfileInsert)
     .returning();
   await cache.invalidateTenantDomain(tenantId, 'ai');
   return normalizeClinicProfile(created);
@@ -196,7 +203,7 @@ export async function getClinicProfile(tenantId: string) {
 export async function addService(tenantId: string, data: Record<string, unknown>) {
   const [svc] = await db
     .insert(services)
-    .values({ id: generateId(), tenantId, ...data } as any)
+    .values({ id: generateId(), tenantId, ...data } as ServicesInsert)
     .returning();
   return svc;
 }
@@ -204,7 +211,7 @@ export async function addService(tenantId: string, data: Record<string, unknown>
 export async function updateService(tenantId: string, serviceId: string, data: Record<string, unknown>) {
   const [updated] = await db
     .update(services)
-    .set({ ...data, updatedAt: new Date() } as any)
+    .set({ ...data, updatedAt: new Date() } as Partial<ServicesInsert>)
     .where(and(eq(services.id, serviceId), eq(services.tenantId, tenantId)))
     .returning();
   if (!updated) throw new NotFoundError('Service not found');
@@ -229,7 +236,7 @@ export async function upsertBookingRules(tenantId: string, data: Record<string, 
   if (existing) {
     const [updated] = await db
       .update(bookingRules)
-      .set({ ...data, updatedAt: new Date() } as any)
+      .set({ ...data, updatedAt: new Date() } as Partial<BookingRulesInsert>)
       .where(eq(bookingRules.tenantId, tenantId))
       .returning();
     return updated;
@@ -237,7 +244,7 @@ export async function upsertBookingRules(tenantId: string, data: Record<string, 
 
   const [created] = await db
     .insert(bookingRules)
-    .values({ id: generateId(), tenantId, ...data } as any)
+    .values({ id: generateId(), tenantId, ...data } as BookingRulesInsert)
     .returning();
   return created;
 }
@@ -250,7 +257,7 @@ export async function getBookingRules(tenantId: string) {
 export async function addPolicy(tenantId: string, data: Record<string, unknown>) {
   const [policy] = await db
     .insert(policies)
-    .values({ id: generateId(), tenantId, ...data } as any)
+    .values({ id: generateId(), tenantId, ...data } as PoliciesInsert)
     .returning();
   return policy;
 }
@@ -258,7 +265,7 @@ export async function addPolicy(tenantId: string, data: Record<string, unknown>)
 export async function updatePolicy(tenantId: string, policyId: string, data: Record<string, unknown>) {
   const [updated] = await db
     .update(policies)
-    .set({ ...data, updatedAt: new Date() } as any)
+    .set({ ...data, updatedAt: new Date() } as Partial<PoliciesInsert>)
     .where(and(eq(policies.id, policyId), eq(policies.tenantId, tenantId)))
     .returning();
   if (!updated) throw new NotFoundError('Policy not found');
@@ -284,7 +291,7 @@ export async function upsertVoiceProfile(tenantId: string, data: Record<string, 
   if (existing) {
     const [updated] = await db
       .update(voiceProfile)
-      .set({ ...mappedData, updatedAt: new Date() } as any)
+      .set({ ...mappedData, updatedAt: new Date() } as Partial<VoiceProfileInsert>)
       .where(eq(voiceProfile.tenantId, tenantId))
       .returning();
     return normalizeVoiceProfile(updated);
@@ -292,7 +299,7 @@ export async function upsertVoiceProfile(tenantId: string, data: Record<string, 
 
   const [created] = await db
     .insert(voiceProfile)
-    .values({ id: generateId(), tenantId, ...mappedData } as any)
+    .values({ id: generateId(), tenantId, ...mappedData } as VoiceProfileInsert)
     .returning();
   return normalizeVoiceProfile(created);
 }
@@ -303,14 +310,14 @@ export async function getVoiceProfile(tenantId: string) {
   const normalizedProfile = await replacePaidVoiceWithFreeLiveVoice(profile);
   return normalizeVoiceProfile({
     ...(normalizedProfile ?? {}),
-    greetingMessage: normalizeStoredGreetingMessage(clinic?.clinicName ?? 'our clinic', normalizedProfile?.greetingMessage),
+    greetingMessage: normalizeStoredGreetingMessage(clinic?.clinicName ?? 'our clinic', normalizedProfile?.greetingMessage as string | null | undefined),
   });
 }
 
 export async function addFaq(tenantId: string, data: Record<string, unknown>) {
   const [faq] = await db
     .insert(faqLibrary)
-    .values({ id: generateId(), tenantId, ...data } as any)
+    .values({ id: generateId(), tenantId, ...data } as FaqLibraryInsert)
     .returning();
   return faq;
 }
@@ -318,7 +325,7 @@ export async function addFaq(tenantId: string, data: Record<string, unknown>) {
 export async function updateFaq(tenantId: string, faqId: string, data: Record<string, unknown>) {
   const [updated] = await db
     .update(faqLibrary)
-    .set({ ...data, updatedAt: new Date() } as any)
+    .set({ ...data, updatedAt: new Date() } as Partial<FaqLibraryInsert>)
     .where(and(eq(faqLibrary.id, faqId), eq(faqLibrary.tenantId, tenantId)))
     .returning();
   if (!updated) throw new NotFoundError('FAQ not found');

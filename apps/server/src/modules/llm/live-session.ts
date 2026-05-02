@@ -488,7 +488,7 @@ async function processRecognizedTranscript(
   session: BrowserLiveSession,
   transcript: string,
   generationId: number,
-  responseAbortController: AbortController,
+  _responseAbortController: AbortController,
 ): Promise<void> {
   const normalizedTranscript = normalizeTranscript(transcript);
   const isDuplicateTranscript =

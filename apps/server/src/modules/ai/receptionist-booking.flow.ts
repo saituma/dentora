@@ -30,14 +30,12 @@ import type {
   RequestedPeriod,
 } from './receptionist-booking.types.js';
 import {
-  buildDirectResponseTokens,
   formatTodayForPrompt,
   isBookingConfirmationMessage,
   isRawBookingIntent,
   messageLooksBookingRelated,
   normalizeImplicitYearDate,
   normalizeJsonBlock,
-  normalizeMessage,
   resolveRequestedDateFromMessage,
 } from './receptionist-booking.utils.js';
 import { executeLlmWithFailover } from './engine/index.js';

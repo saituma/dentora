@@ -1,9 +1,8 @@
 
 import { db, checkDbHealth } from '../../db/index.js';
-import { tenantRegistry, callSessions, providerRegistry, providerHealthLog, platformConfig } from '../../db/schema.js';
-import { eq, sql, desc } from 'drizzle-orm';
+import { tenantRegistry, callSessions, providerRegistry, platformConfig } from '../../db/schema.js';
+import { eq, sql } from 'drizzle-orm';
 import { cache } from '../../lib/cache.js';
-import { logger } from '../../lib/logger.js';
 
 export async function getPlatformHealth(): Promise<{
   status: string;

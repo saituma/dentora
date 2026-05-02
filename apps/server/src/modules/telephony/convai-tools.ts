@@ -127,12 +127,12 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
     timezone: clinic.timezone,
     requestedDate,
     requestedTime: params.requestedTime ? String(params.requestedTime) : null,
-    requestedPeriod: params.requestedPeriod ? String(params.requestedPeriod) as any : null,
+    requestedPeriod: params.requestedPeriod ? String(params.requestedPeriod) as 'morning' | 'afternoon' | 'evening' : null,
     appointmentDurationMinutes: params.appointmentDurationMinutes
       ? Number(params.appointmentDurationMinutes)
       : rules?.defaultAppointmentDurationMinutes ?? 30,
     bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
-    operatingSchedule: rules?.operatingSchedule ?? clinic.businessHours ?? null,
+    operatingSchedule: (rules?.operatingSchedule as Record<string, unknown> | null) ?? (clinic.businessHours as Record<string, unknown> | null) ?? null,
     closedDates,
     maxSlots: params.maxSlots ? Number(params.maxSlots) : 5,
     lookAheadDays: params.lookAheadDays ? Number(params.lookAheadDays) : 14,

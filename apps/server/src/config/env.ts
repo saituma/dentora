@@ -110,6 +110,22 @@ function loadEnv() {
     console.error(result.error.flatten().fieldErrors);
     process.exit(1);
   }
+
+  if (result.data.NODE_ENV === 'production') {
+    const fatal: string[] = [];
+    if (result.data.JWT_SECRET === 'development-secret-change-in-production-min32chars') {
+      fatal.push('JWT_SECRET is still set to the default development value');
+    }
+    if (result.data.ENCRYPTION_KEY === '0'.repeat(64)) {
+      fatal.push('ENCRYPTION_KEY is still set to the default zero-fill value');
+    }
+    if (fatal.length > 0) {
+      console.error('❌ Unsafe secrets in production:');
+      fatal.forEach((msg) => console.error(`  - ${msg}`));
+      process.exit(1);
+    }
+  }
+
   return result.data;
 }
 

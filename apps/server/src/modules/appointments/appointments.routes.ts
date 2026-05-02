@@ -158,7 +158,7 @@ appointmentsRouter.post(
           ?? rules?.defaultAppointmentDurationMinutes
           ?? 30,
         bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
-        operatingSchedule: rules?.operatingSchedule ?? clinic.businessHours ?? null,
+        operatingSchedule: (rules?.operatingSchedule ?? clinic.businessHours ?? null) as Record<string, unknown> | null,
         closedDates,
         maxSlots: req.body.maxSlots ?? 5,
         lookAheadDays: req.body.lookAheadDays ?? 14,
@@ -200,9 +200,7 @@ appointmentsRouter.post(
       }
 
       const now = Date.now();
-      const minNoticeHours = rules?.minNoticePeriodHours ?? 2;
       const maxAdvanceDays = rules?.maxAdvanceBookingDays ?? 30;
-      const minStart = now + minNoticeHours * 60 * 60 * 1000;
       const maxStart = now + maxAdvanceDays * 24 * 60 * 60 * 1000;
 
       const dateFormatter = new Intl.DateTimeFormat('en-CA', {

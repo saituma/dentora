@@ -189,7 +189,7 @@ export async function resolveValidGoogleAccessToken(integration: Integration): P
   if (!isExpired(accessTokenExpiresAt)) {
     try {
       return { accessToken: decrypt(encryptedAccessToken), integration };
-    } catch (error) {
+    } catch {
       throw new IntegrationError(
         'calendar',
         'google_calendar',
@@ -205,7 +205,7 @@ export async function resolveValidGoogleAccessToken(integration: Integration): P
   let refreshToken: string;
   try {
     refreshToken = decrypt(encryptedRefreshToken);
-  } catch (error) {
+  } catch {
     throw new IntegrationError(
       'calendar',
       'google_calendar',

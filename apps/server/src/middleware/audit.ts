@@ -35,7 +35,9 @@ export async function writeAuditLog(entry: AuditEntry): Promise<void> {
 }
 
 export function auditMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  (req as any).audit = (entry: Omit<AuditEntry, 'tenantId' | 'actorId' | 'actorType' | 'metadata'>) => {
+  (req as Request & { audit: typeof auditFn }).audit = auditFn;
+
+  function auditFn(entry: Omit<AuditEntry, 'tenantId' | 'actorId' | 'actorType' | 'metadata'>) {
     const tenantId = req.tenantContext?.tenantId ?? null;
     const actorId = req.user?.userId ?? 'system';
     const actorType = req.user?.role === 'platform_admin' ? 'admin' as const : 'user' as const;
@@ -53,7 +55,7 @@ export function auditMiddleware(req: Request, _res: Response, next: NextFunction
         path: req.path,
       },
     });
-  };
+  }
 
   next();
 }

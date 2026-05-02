@@ -4,7 +4,6 @@ import { providerRegistry, providerHealthLog, providerPricing } from '../../db/s
 import { eq, and, desc } from 'drizzle-orm';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
-import { NotFoundError } from '../../lib/errors.js';
 import { generateId } from '../../lib/crypto.js';
 import type { InferSelectModel } from 'drizzle-orm';
 
