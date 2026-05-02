@@ -46,11 +46,11 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
                 <div className="flex w-full min-w-0 flex-col items-center gap-0.5 sm:gap-1">
                   <div
                     className={cn(
-                      'flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-medium leading-none transition-colors',
+                      'relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-medium leading-none transition-colors',
                       isComplete &&
                         'border-primary bg-primary text-primary-foreground',
                       isCurrent &&
-                        'border-primary bg-primary/15 text-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.15)]',
+                        'border-primary bg-primary/15 text-primary shadow-[0_0_0_6px_hsl(var(--primary)/0.12)]',
                       !isComplete &&
                         !isCurrent &&
                         'border-muted-foreground/20 bg-background text-muted-foreground'
@@ -75,7 +75,7 @@ export function Stepper({ steps, currentStep, className }: StepperProps) {
                 {index !== steps.length - 1 && (
                   <div
                     className={cn(
-                      'pointer-events-none absolute top-4 z-0 h-0.5 -translate-y-1/2',
+                      'pointer-events-none absolute top-4 z-0 h-px -translate-y-1/2',
                       isComplete ? 'bg-primary' : 'bg-border'
                     )}
                     style={{

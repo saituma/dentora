@@ -60,6 +60,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const otpInputId = "login-otp-code";
 
   const [login, { isLoading }] = useLoginMutation();
   const [sendEmailOtp, { isLoading: sendingOtp }] = useSendEmailOtpMutation();
@@ -176,15 +177,15 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-2xl border border-foreground/[0.12] bg-card/95 shadow-sm">
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl font-medium tracking-tight">Welcome back</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
           Sign in with password, email code, or Google.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handlePasswordLogin}>
+        <form onSubmit={handlePasswordLogin} aria-label="Login form">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -194,6 +195,9 @@ export function LoginForm() {
                 placeholder="admin@clinic.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                inputMode="email"
+                aria-label="Email address"
                 required
               />
             </Field>
@@ -212,32 +216,42 @@ export function LoginForm() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                aria-label="Password"
                 required
               />
             </Field>
             <Field>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full text-xs font-mono uppercase tracking-[0.14em]" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign in with password"}
               </Button>
             </Field>
             <Field>
-              <Button type="button" variant="outline" className="w-full" onClick={startGoogle} disabled={googleLoading}>
+              <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={startGoogle} disabled={googleLoading} aria-label="Continue with Google">
                 {googleLoading ? "Redirecting..." : "Continue with Google"}
               </Button>
             </Field>
             <Field>
               {!otpSent ? (
-                <Button type="button" variant="outline" className="w-full" onClick={handleSendOtp} disabled={sendingOtp || !email}>
+                <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={handleSendOtp} disabled={sendingOtp || !email} aria-label="Send sign in code to email">
                   {sendingOtp ? "Sending code..." : "Send email code"}
                 </Button>
               ) : (
                 <div className="space-y-2">
+                  <FieldLabel htmlFor={otpInputId} className="sr-only">
+                    Email verification code
+                  </FieldLabel>
                   <Input
+                    id={otpInputId}
                     placeholder="Enter 6-digit code"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    aria-label="Email verification code"
                   />
-                  <Button type="button" variant="outline" className="w-full" onClick={handleOtpLogin} disabled={verifyingOtp || otpCode.length !== 6}>
+                  <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={handleOtpLogin} disabled={verifyingOtp || otpCode.length !== 6}>
                     {verifyingOtp ? "Verifying..." : "Sign in with email code"}
                   </Button>
                 </div>

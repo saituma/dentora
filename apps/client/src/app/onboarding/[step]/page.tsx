@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Stepper } from '@/components/stepper';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setOnboardingStatus } from '@/features/auth/authSlice';
@@ -36,14 +37,19 @@ function OnboardingStepContent() {
 
   if (flow.step === 'complete') {
     return (
-      <div className="min-w-0 space-y-6">
-        <div className="min-w-0 max-w-full rounded-2xl border bg-card/80 p-5 shadow-sm backdrop-blur sm:p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="min-w-0 space-y-6"
+      >
+        <div className="min-w-0 max-w-full border border-foreground/[0.1] bg-card/95 p-5 shadow-sm backdrop-blur sm:p-7">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
                 Step {STEPS.length} of {STEPS.length}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+              <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">
                 {showCelebration ? STEP_META.complete.title : 'Complete setup'}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -68,19 +74,24 @@ function OnboardingStepContent() {
           allowSuccess={showCelebration}
           isCheckingServer={resolvingPublishedState}
         />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-w-0 space-y-6">
-      <div className="min-w-0 max-w-full rounded-2xl border bg-card/80 p-5 shadow-sm backdrop-blur sm:p-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: 'easeOut' }}
+      className="min-w-0 space-y-6"
+    >
+      <div className="min-w-0 max-w-full border border-foreground/[0.1] bg-card/95 p-5 shadow-sm backdrop-blur sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
               Step {flow.currentStep + 1} of {STEPS.length}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">{STEP_META[flow.step].title}</h1>
+            <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">{STEP_META[flow.step].title}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{STEP_META[flow.step].description}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -103,7 +114,7 @@ function OnboardingStepContent() {
       {flow.step === 'ai-chat' && <AiChatStep flow={flow} />}
       {flow.step === 'download' && <DownloadDataStep flow={flow} />}
       {flow.step === 'test-call' && <TestCallStep flow={flow} />}
-    </div>
+    </motion.div>
   );
 }
 

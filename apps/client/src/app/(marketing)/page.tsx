@@ -1,243 +1,195 @@
+'use client';
+
 import Link from 'next/link';
-import {
-  ArrowRightIcon,
-  CalendarIcon,
-  CheckCircle2Icon,
-  Clock3Icon,
-  HeadsetIcon,
-  PhoneCallIcon,
-  ShieldCheckIcon,
-  SparklesIcon,
-  StethoscopeIcon,
-  TrendingUpIcon,
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowRightIcon, CheckCircle2Icon } from 'lucide-react';
 import { TrustedClinicsMarquee } from '@/components/marketing/trusted-clinics-marquee';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const timeline = [
+  { time: '09:14', event: 'Emergency call triaged and routed to staff', status: 'Escalated' },
+  { time: '09:11', event: 'Composite bonding consultation booked', status: 'Booked' },
+  { time: '09:08', event: 'Insurance eligibility question resolved', status: 'Resolved' },
+  { time: '09:03', event: 'Broken crown same-day slot offered', status: 'Booked' },
+] as const;
+
+const outcomes = [
+  ['Missed calls recovered', '94%'],
+  ['Call → booking conversion', '34%'],
+  ['After-hours answered', '127'],
+  ['Recovered monthly revenue', '$2.3k'],
+] as const;
+
+const faqs = [
+  ['How fast can we launch?', 'Most clinics go live in under 20 minutes after importing services and booking rules.'],
+  ['Can we control call behavior?', 'Yes. You set escalation thresholds, booking constraints, and response tone.'],
+  ['Does it work after hours?', 'Yes. Calls are answered 24/7 with triage and next-day booking capture.'],
+] as const;
 
 export default function LandingPage() {
   return (
-    <div className="overflow-hidden">
-      <section className="relative border-b">
-        <div className="pointer-events-none absolute inset-x-0 -top-28 h-72 bg-primary/10 blur-3xl" />
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 relative grid gap-12 py-18 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground">
-              <SparklesIcon className="size-3.5 text-primary" />
-              AI Receptionist Platform for Dental Clinics
-            </div>
+    <div className="relative overflow-hidden pt-[45px] lg:pt-0">
+      <section className="relative border-b border-foreground/[0.06]">
+        <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-7">
+          <div className="flex flex-col lg:flex-row">
+            <aside className="relative z-10 w-full border-b border-foreground/[0.06] bg-background px-5 sm:px-6 lg:sticky lg:top-0 lg:h-dvh lg:w-[40%] lg:border-b-0 lg:border-r lg:overflow-clip lg:px-7">
+              <div className="pointer-events-none absolute inset-0 bg-grid-small text-foreground/[0.04]" />
+              <div className="pointer-events-none absolute -left-10 top-24 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
 
-            <div className="space-y-5">
-              <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-                Capture more bookings.
-                <span className="block text-primary">
-                  Without hiring another receptionist.
-                </span>
-              </h1>
-              <p className="max-w-2xl text-base text-muted-foreground sm:text-lg">
-                Our AI answers every call, books appointments in real time, and
-                handles common patient questions with your clinic’s voice.
-              </p>
-            </div>
+              <div className="relative flex h-full flex-col justify-between py-14 lg:py-16">
+                <div className="space-y-7">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Dentora / AI Reception</p>
+                  <h1 className="text-4xl font-medium leading-[0.97] tracking-tight sm:text-5xl lg:text-[3.3rem]">
+                    A front desk that never
+                    <span className="block text-primary">drops a serious caller.</span>
+                  </h1>
+                  <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
+                    Built for UK dental clinics that need calm operations, instant booking flow, and consistent patient communication.
+                  </p>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Link
-                href="/signup"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-              >
-                Start free 14-day trial
-                <ArrowRightIcon className="size-4" />
-              </Link>
-              <Link
-                href="/contact"
-                className="inline-flex h-11 items-center justify-center rounded-md border bg-background px-5 text-sm font-medium transition hover:bg-muted"
-              >
-                Book a live demo
-              </Link>
-            </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button asChild className="h-11 border border-foreground/25 bg-foreground px-5 text-xs font-mono uppercase tracking-[0.16em] text-background hover:opacity-90">
+                      <Link href="/signup">
+                        Start Now
+                        <ArrowRightIcon className="size-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="h-11 border-foreground/[0.15] bg-background px-5 text-xs font-mono uppercase tracking-[0.16em] hover:bg-foreground/[0.04]">
+                      <Link href="/contact">Book Demo</Link>
+                    </Button>
+                  </div>
+                </div>
 
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <p className="inline-flex items-center gap-2">
-                <CheckCircle2Icon className="size-4 text-primary" />
-                Setup in under 20 minutes
-              </p>
-              <p className="inline-flex items-center gap-2">
-                <CheckCircle2Icon className="size-4 text-primary" />
-                HIPAA-conscious workflows
-              </p>
-              <p className="inline-flex items-center gap-2">
-                <CheckCircle2Icon className="size-4 text-primary" />
-                No code required
-              </p>
-            </div>
-          </div>
-
-          <div className="relative rounded-2xl border bg-card p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-medium">Today’s AI performance</p>
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary">
-                Live
-              </span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-xs text-muted-foreground">
-                  Missed calls recovered
-                </p>
-                <p className="mt-2 text-2xl font-semibold">94%</p>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  className="border border-foreground/[0.12] bg-background/70 p-4"
+                >
+                  <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Signal</p>
+                  <div className="mt-3 flex items-end gap-4">
+                    <p className="text-5xl font-medium leading-none tracking-tight">24/7</p>
+                    <p className="pb-1 text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground">reception coverage</p>
+                  </div>
+                </motion.div>
               </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-xs text-muted-foreground">
-                  Call to booking rate
-                </p>
-                <p className="mt-2 text-2xl font-semibold">34%</p>
-              </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-xs text-muted-foreground">
-                  After-hours answered
-                </p>
-                <p className="mt-2 text-2xl font-semibold">127</p>
-              </div>
-              <div className="rounded-xl border bg-background p-4">
-                <p className="text-xs text-muted-foreground">
-                  Revenue recovered
-                </p>
-                <p className="mt-2 text-2xl font-semibold">$2.3k</p>
-              </div>
-            </div>
+            </aside>
 
-            <div className="mt-5 rounded-xl border bg-background p-4 text-sm">
-              <p className="font-medium">
-                “I can finally leave at 5 PM and still know every call is
-                handled.”
-              </p>
-              <p className="mt-2 text-muted-foreground">
-                Practice Manager, BrightSmile Dental
-              </p>
-            </div>
+            <main className="relative z-0 w-full overflow-x-hidden lg:w-[60%]">
+              <div className="px-5 py-14 sm:px-6 lg:px-7 lg:py-16">
+                <div className="space-y-10">
+                  <div className="border border-foreground/[0.1] bg-card">
+                    <div className="border-b border-foreground/[0.06] px-5 py-4">
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Live Command Stream</p>
+                    </div>
+                    <div className="p-5">
+                      <div className="space-y-2.5">
+                        {timeline.map((row) => (
+                          <div key={`${row.time}-${row.event}`} className="flex items-center justify-between gap-4 border border-foreground/[0.08] bg-background/70 px-3 py-2.5">
+                            <div className="min-w-0">
+                              <p className="text-sm text-foreground/90">{row.event}</p>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground">{row.time}</p>
+                              <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-primary">{row.status}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="border border-foreground/[0.1] bg-card p-5">
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Outcomes</p>
+                      <div className="mt-4 space-y-3">
+                        {outcomes.map(([label, value]) => (
+                          <div key={label} className="flex items-center justify-between border border-foreground/[0.08] bg-background/70 px-3 py-2">
+                            <span className="text-sm text-foreground/85">{label}</span>
+                            <span className="text-lg font-medium tabular-nums">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="border border-foreground/[0.1] bg-card p-5">
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Proof</p>
+                      <blockquote className="mt-4 border border-foreground/[0.08] bg-background/70 p-4 text-sm leading-6">
+                        “I can finally leave at 5 PM and still know every call is handled, routed, and tracked.”
+                        <footer className="mt-3 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
+                          Practice Manager · BrightSmile Dental
+                        </footer>
+                      </blockquote>
+                    </div>
+                  </div>
+
+                  <div className="border border-foreground/[0.1] bg-card p-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-[10px] font-mono uppercase tracking-[0.14em]">Metric</TableHead>
+                          <TableHead className="text-[10px] font-mono uppercase tracking-[0.14em]">Traditional</TableHead>
+                          <TableHead className="text-[10px] font-mono uppercase tracking-[0.14em]">Dentora</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>After-hours handling</TableCell>
+                          <TableCell>Voicemail</TableCell>
+                          <TableCell>Live AI coverage</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Booking turnaround</TableCell>
+                          <TableCell>Next business day</TableCell>
+                          <TableCell>In-call scheduling</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell>Escalation clarity</TableCell>
+                          <TableCell>Manual handoff</TableCell>
+                          <TableCell>Policy-based routing</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            </main>
           </div>
         </div>
       </section>
 
       <TrustedClinicsMarquee />
 
-      <section className="py-20 md:py-24">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium text-primary">
-              Why clinics switch
+      <section className="border-b border-foreground/[0.06] py-16 md:py-20">
+        <div className="mx-auto w-full max-w-5xl px-5 sm:px-6 lg:px-7">
+          <div className="text-center">
+            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">FAQ</p>
+            <h2 className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">What clinic teams ask first</h2>
+          </div>
+
+          <div className="mt-8 space-y-3">
+            {faqs.map(([q, a]) => (
+              <details key={q} className="group border border-foreground/[0.1] bg-card p-4">
+                <summary className="cursor-pointer list-none pr-8 text-sm font-medium">
+                  {q}
+                  <span className="float-right text-xs font-mono text-muted-foreground group-open:hidden">+</span>
+                  <span className="float-right hidden text-xs font-mono text-muted-foreground group-open:inline">−</span>
+                </summary>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">{a}</p>
+              </details>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-mono uppercase tracking-[0.1em] text-muted-foreground">
+            <p className="inline-flex items-center gap-2">
+              <CheckCircle2Icon className="size-4 text-primary" />
+              Setup in under 20 minutes
             </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-              Everything your front desk needs,
-              <span className="block">without the burnout.</span>
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border bg-card p-6">
-              <PhoneCallIcon className="size-9 text-primary" />
-              <h3 className="mt-5 text-lg font-semibold">
-                Always-on call handling
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                AI answers in seconds, even after hours and during peak times.
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-card p-6">
-              <CalendarIcon className="size-9 text-primary" />
-              <h3 className="mt-5 text-lg font-semibold">
-                Real-time scheduling
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Books, reschedules, and confirms appointments instantly.
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-card p-6">
-              <StethoscopeIcon className="size-9 text-primary" />
-              <h3 className="mt-5 text-lg font-semibold">
-                Trained on your clinic
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Learns your services, pricing, and policies for consistent
-                answers.
-              </p>
-            </div>
-            <div className="rounded-2xl border bg-card p-6">
-              <TrendingUpIcon className="size-9 text-primary" />
-              <h3 className="mt-5 text-lg font-semibold">Growth analytics</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                See conversion rates, recovered revenue, and team performance.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-y bg-muted/30 py-18 md:py-24">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 grid gap-8 lg:grid-cols-3">
-          {[
-            {
-              icon: <HeadsetIcon className="size-5 text-primary" />,
-              title: 'Step 1',
-              label: 'Connect your clinic details',
-              text: 'Upload services, FAQs, and scheduling rules in one setup flow.',
-            },
-            {
-              icon: <Clock3Icon className="size-5 text-primary" />,
-              title: 'Step 2',
-              label: 'Go live in minutes',
-              text: 'Forward calls to your AI receptionist and monitor performance.',
-            },
-            {
-              icon: <ShieldCheckIcon className="size-5 text-primary" />,
-              title: 'Step 3',
-              label: 'Scale confidently',
-              text: 'Track quality, optimize scripts, and recover more missed revenue.',
-            },
-          ].map((step) => (
-            <div key={step.label} className="rounded-2xl border bg-card p-6">
-              <div className="inline-flex rounded-md bg-primary/10 p-2">
-                {step.icon}
-              </div>
-              <p className="mt-4 text-xs font-semibold tracking-wide text-primary uppercase">
-                {step.title}
-              </p>
-              <h3 className="mt-2 text-lg font-semibold">{step.label}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{step.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="py-20 md:py-24">
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border bg-card p-8 md:p-12">
-            <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                Ready to turn every missed call
-                <span className="block text-primary">
-                  into a booked appointment?
-                </span>
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                Join modern dental practices using an AI receptionist to answer
-                faster, book smarter, and grow without adding overhead.
-              </p>
-              <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <Link
-                  href="/signup"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-                >
-                  Start free trial
-                  <ArrowRightIcon className="size-4" />
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="inline-flex h-11 items-center justify-center rounded-md border bg-background px-5 text-sm font-medium transition hover:bg-muted"
-                >
-                  See pricing
-                </Link>
-              </div>
-            </div>
+            <p className="inline-flex items-center gap-2">
+              <CheckCircle2Icon className="size-4 text-primary" />
+              No long-term contracts
+            </p>
           </div>
         </div>
       </section>

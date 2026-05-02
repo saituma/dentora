@@ -11,7 +11,7 @@ import type { OnboardingFlow } from '../use-onboarding-flow';
 
 export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Knowledge base</CardTitle>
         <CardDescription>Fill in services, pricing, and FAQs</CardDescription>
@@ -68,7 +68,7 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
                 <Button type="button" variant="outline" onClick={flow.addServiceRow}>Add service</Button>
               </div>
               {flow.servicesForm.map((service, index) => (
-                <div key={`service-${index}`} className="space-y-3 rounded-lg border p-4">
+                <div key={`service-${index}`} className="space-y-3 rounded-xl border bg-background/70 p-4">
                   <Field>
                     <FieldLabel>Service name</FieldLabel>
                     <Input placeholder="New Patient Exam" required value={service.serviceName} onChange={(event) => flow.updateServiceRow(index, 'serviceName', event.target.value)} />
@@ -110,7 +110,7 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
                 <Button type="button" variant="outline" onClick={flow.addFaqRow}>Add FAQ</Button>
               </div>
               {flow.faqsForm.map((faq, index) => (
-                <div key={`faq-${index}`} className="space-y-3 rounded-lg border p-4">
+                <div key={`faq-${index}`} className="space-y-3 rounded-xl border bg-background/70 p-4">
                   <Field>
                     <FieldLabel>FAQ question</FieldLabel>
                     <Input placeholder="Do you accept insurance?" required value={faq.question} onChange={(event) => flow.updateFaqRow(index, 'question', event.target.value)} />
@@ -144,7 +144,7 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
                 <Button type="button" variant="outline" onClick={flow.addStaffRow}>Add staff</Button>
               </div>
               {flow.staffForm.map((staff, index) => (
-                <div key={`staff-${index}`} className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start">
+                <div key={`staff-${index}`} className="flex flex-col gap-3 rounded-xl border bg-background/70 p-4 sm:flex-row sm:items-start">
                   <Field className="flex-1">
                     <FieldLabel>Name</FieldLabel>
                     <Input placeholder="Dr. Sarah Connor" required value={staff.name} onChange={(event) => flow.updateStaffRow(index, 'name', event.target.value)} />

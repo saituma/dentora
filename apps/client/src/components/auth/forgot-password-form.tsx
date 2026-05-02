@@ -35,10 +35,10 @@ export function ForgotPasswordForm() {
 
   if (submitted) {
     return (
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
         <CardHeader>
-          <CardTitle>Check your email</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-2xl font-medium tracking-tight">Check your email</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
             We sent a password reset link to {email}
           </CardDescription>
         </CardHeader>
@@ -57,10 +57,10 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
       <CardHeader>
-        <CardTitle>Forgot password</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl font-medium tracking-tight">Forgot password</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
           Enter your email and we&apos;ll send you a reset link
         </CardDescription>
       </CardHeader>
@@ -79,7 +79,7 @@ export function ForgotPasswordForm() {
               />
             </Field>
             <Field>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full text-xs font-mono uppercase tracking-[0.14em]" disabled={isLoading}>
                 {isLoading ? "Sending..." : "Send reset link"}
               </Button>
             </Field>

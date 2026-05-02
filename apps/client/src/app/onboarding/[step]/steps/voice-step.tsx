@@ -100,7 +100,7 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-0 bg-card shadow-lg">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
         <CardHeader>
           <CardTitle className="text-xl">Choose an agent voice</CardTitle>
           <CardDescription>Select the ElevenLabs Conversational AI agent that will handle live calls.</CardDescription>
@@ -160,7 +160,7 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
         </CardContent>
       </Card>
 
-      <Card className="border-0 bg-card shadow-lg">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
         <CardHeader>
           <CardTitle className="text-xl">Speaking speed</CardTitle>
           <CardDescription>Adjust how fast the AI receptionist speaks. A moderate pace works best for most callers.</CardDescription>
@@ -201,7 +201,7 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
         </CardContent>
       </Card>
 
-      <Card className="border-0 bg-card shadow-lg">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
         <CardHeader>
           <CardTitle className="text-xl">Greeting message</CardTitle>
           <CardDescription>This is the first thing callers hear. Include your clinic name and offer to help.</CardDescription>

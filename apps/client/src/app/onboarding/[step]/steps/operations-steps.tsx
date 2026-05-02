@@ -13,7 +13,7 @@ export function PhoneNumberStep({ flow }: { flow: OnboardingFlow }) {
   const hasIncomingNumbers = flow.twilioIncomingNumbers.length > 0;
 
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Clinic phone number</CardTitle>
         <CardDescription>Select one Twilio number for this clinic. You can change it later from settings.</CardDescription>
@@ -96,7 +96,7 @@ export function IntegrationsStep({ flow }: { flow: OnboardingFlow }) {
   const isCalendarConnected = Boolean(googleIntegration);
 
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Integrations</CardTitle>
         <CardDescription>Connect your calendar, then define the exact hours and breaks your AI can book into.</CardDescription>
@@ -164,7 +164,7 @@ export function IntegrationsStep({ flow }: { flow: OnboardingFlow }) {
 
 export function ScheduleStep({ flow }: { flow: OnboardingFlow }) {
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Clinic schedule</CardTitle>
         <CardDescription>Set the actual days, opening hours, and break times your AI receptionist must respect when offering appointments.</CardDescription>

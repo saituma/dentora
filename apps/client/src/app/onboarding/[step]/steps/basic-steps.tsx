@@ -11,7 +11,7 @@ import { useCreateCheckoutSessionMutation } from '@/features/billing/billingApi'
 
 export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Clinic profile</CardTitle>
         <CardDescription>Enter your clinic details and business hours</CardDescription>
@@ -146,7 +146,7 @@ export function PlanStep({ flow }: { flow: OnboardingFlow }) {
   };
 
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-2xl">Pick the right plan</CardTitle>
         <CardDescription className="text-base">Transparent pricing. Upgrade or downgrade any time.</CardDescription>

@@ -462,7 +462,7 @@ export function DownloadDataStep({ flow }: { flow: OnboardingFlow }) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-0 bg-card shadow-lg">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
         <CardHeader>
           <CardTitle className="text-xl">Download your clinic context</CardTitle>
           <CardDescription>
@@ -507,7 +507,7 @@ export function OnboardingCompleteStep({
 
   if (isCheckingServer) {
     return (
-      <Card className="border-0 bg-card shadow-lg">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
         <CardContent className="py-10">
           <p className="text-center text-sm text-muted-foreground">Checking your account…</p>
         </CardContent>
@@ -517,7 +517,7 @@ export function OnboardingCompleteStep({
 
   if (!allowSuccess) {
     return (
-      <Card className="border-0 bg-card shadow-lg">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
         <CardHeader className="space-y-2">
           <CardTitle className="text-xl">Finish onboarding first</CardTitle>
           <CardDescription>
@@ -534,7 +534,7 @@ export function OnboardingCompleteStep({
   }
 
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader className="space-y-4 text-center sm:text-left">
         <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary sm:mx-0">
           <CheckCircle2Icon className="size-9" aria-hidden />
@@ -557,7 +557,7 @@ export function OnboardingCompleteStep({
 
 export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
   return (
-    <Card className="border-0 bg-card shadow-lg">
+    <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Review & Go Live</CardTitle>
         <CardDescription>Review your configuration and publish to go live</CardDescription>
@@ -565,11 +565,11 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
       <CardContent>
         {flow.onboardingData && (
           <div className="mb-6 space-y-3">
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-xl border bg-background/70 p-3">
               <span className="text-sm font-medium">Readiness Score</span>
               <span className="text-lg font-bold text-primary">{flow.onboardingData.readinessScore}%</span>
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-xl border bg-background/70 p-3">
               <span className="text-sm font-medium">Steps Completed</span>
               <span className="text-sm">{flow.onboardingData.completedSteps.length} / {STEP_ORDER.length}</span>
             </div>
@@ -621,7 +621,7 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
               </div>
             )}
             {flow.hasIntegrationWarning && (
-              <div className="space-y-3 rounded-lg border p-3">
+              <div className="space-y-3 rounded-xl border bg-background/70 p-3">
                 <p className="text-sm font-medium">Connect Google Calendar now</p>
                 <Field>
                   <FieldLabel>Google account email (optional)</FieldLabel>

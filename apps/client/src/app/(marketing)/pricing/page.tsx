@@ -54,7 +54,7 @@ export default function PricingPage() {
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold">Simple, transparent pricing</h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Pay for what you use. All plans include a 14-day free trial.
+          Pay for what you use. Transparent monthly pricing with no long-term lock-in.
         </p>
       </div>
 

@@ -39,6 +39,7 @@ export function SignupForm() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const codeInputId = "signup-otp-code";
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,15 +87,15 @@ export function SignupForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-2xl border border-foreground/[0.12] bg-card/95 shadow-sm">
       <CardHeader>
-        <CardTitle>Create your account</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-2xl font-medium tracking-tight">Create your account</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
           Start your 14-day free trial with email verification.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={otpSent ? handleVerifyAndCreate : handleSendOtp}>
+        <form onSubmit={otpSent ? handleVerifyAndCreate : handleSendOtp} aria-label="Sign up form">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="clinicName">Clinic name</FieldLabel>
@@ -103,6 +104,8 @@ export function SignupForm() {
                 placeholder="Smile Dental"
                 value={clinicName}
                 onChange={(e) => setClinicName(e.target.value)}
+                autoComplete="organization"
+                aria-label="Clinic name"
                 required
               />
             </Field>
@@ -114,30 +117,37 @@ export function SignupForm() {
                 placeholder="admin@clinic.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                inputMode="email"
+                aria-label="Email address"
                 required
               />
             </Field>
             {otpSent ? (
               <Field>
-                <FieldLabel htmlFor="code">Verification code</FieldLabel>
+                <FieldLabel htmlFor={codeInputId}>Verification code</FieldLabel>
                 <Input
-                  id="code"
+                  id={codeInputId}
                   placeholder="123456"
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  aria-label="Verification code"
                   required
                 />
               </Field>
             ) : null}
             <Field>
-              <Button type="submit" className="w-full" disabled={sendingOtp || verifyingOtp}>
+              <Button type="submit" className="w-full text-xs font-mono uppercase tracking-[0.14em]" disabled={sendingOtp || verifyingOtp}>
                 {otpSent
                   ? (verifyingOtp ? "Verifying..." : "Verify and create account")
                   : (sendingOtp ? "Sending code..." : "Send verification code")}
               </Button>
             </Field>
             <Field>
-              <Button type="button" variant="outline" className="w-full" onClick={startGoogle} disabled={googleLoading}>
+              <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={startGoogle} disabled={googleLoading} aria-label="Continue with Google">
                 {googleLoading ? "Redirecting..." : "Continue with Google"}
               </Button>
             </Field>

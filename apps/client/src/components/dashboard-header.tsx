@@ -99,7 +99,7 @@ export function DashboardHeader() {
           variant="ghost"
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label="Toggle theme"
+          aria-label={mounted && theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
         >
           {mounted && theme === 'dark' ? (
             <SunIcon className="size-4" />
@@ -109,7 +109,7 @@ export function DashboardHeader() {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative" aria-label="Open notifications menu">
               <BellIcon className="size-4" />
               {unreadCount > 0 && (
                 <span className="bg-primary absolute end-1.5 top-1.5 size-2 rounded-full" />
@@ -175,7 +175,7 @@ export function DashboardHeader() {
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Open account menu">
               <Avatar className="size-8">
                 <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
