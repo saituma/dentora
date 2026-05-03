@@ -217,7 +217,25 @@ function Footer() {
 
       <div className="border-t border-white/[0.06]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-8">
-          <p className="text-xs text-gray-500">© 2024 Dentora AI Receptionist. All rights reserved.</p>
+          <p className="text-xs text-gray-500">© {new Date().getFullYear()} Dentora AI Receptionist. All rights reserved.</p>
+          <a
+            href="https://clientreach.ai"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-md no-underline transition-colors hover:border-[#0EA5E9]/40"
+          >
+            <img
+              src="/clientreach-logo.png"
+              alt="Client Reach AI"
+              className="h-5 w-5 rounded object-contain"
+            />
+            <span className="text-xs font-medium tracking-wider text-gray-500">
+              Made by
+            </span>
+            <span className="text-sm font-bold tracking-wide text-[#0EA5E9]">
+              Client Reach AI
+            </span>
+          </a>
           <div className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs text-gray-400">
             <span className="font-semibold">HIPAA</span>
             <span className="text-[10px] text-gray-500">COMPLIANT</span>
