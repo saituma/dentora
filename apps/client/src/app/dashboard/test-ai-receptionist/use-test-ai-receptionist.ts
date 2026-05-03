@@ -14,7 +14,7 @@ import {
 } from '@/lib/microphone-diagnostics';
 import { getAudioConstraints } from '@/lib/audio-constraints';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, tryRefreshAccessToken } from '@/lib/api';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, tryRefreshAccessToken, fetchCsrfToken } from '@/lib/api';
 import {
   ASSISTANT_ECHO_WINDOW_MS,
   BARGE_IN_THRESHOLD,
@@ -977,13 +977,16 @@ export function useTestAiReceptionist() {
     userMessage: string;
     onDelta: (delta: string) => void;
   }) => {
+    const csrfToken = await fetchCsrfToken();
     const buildHeaders = (): HeadersInit => ({
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
       ...getAuthHeaders(),
+      ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
     });
     const makeRequest = () => fetch(`${API_BASE_URL}/llm/receptionist-test/stream`, {
       method: 'POST',
+      credentials: 'include',
       headers: buildHeaders(),
       body: JSON.stringify({
         provider: 'openai',

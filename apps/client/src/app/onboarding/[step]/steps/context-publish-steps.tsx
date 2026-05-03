@@ -8,7 +8,7 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders } from '@/lib/api';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, fetchCsrfToken } from '@/lib/api';
 import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
 import type { ClinicProfile } from '@/features/clinic/types';
 import { useRouter } from 'next/navigation';
@@ -85,9 +85,12 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
       if (auth && typeof auth === 'object') {
         Object.assign(headers, auth as Record<string, string>);
       }
+      const csrf = await fetchCsrfToken();
+      if (csrf) headers['x-csrf-token'] = csrf;
 
       const response = await fetch(`${API_BASE_URL}/onboarding/ai-chat`, {
         method: 'POST',
+        credentials: 'include',
         headers,
         body: JSON.stringify({
           messages: nextMessages.map((message) => ({

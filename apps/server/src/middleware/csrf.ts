@@ -58,7 +58,7 @@ csrfTokenRouter.get('/api/csrf-token', (_req: Request, res: Response) => {
 
   res.cookie(CSRF_COOKIE, token, {
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
   });

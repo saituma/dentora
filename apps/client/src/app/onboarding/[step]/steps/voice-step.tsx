@@ -6,7 +6,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders } from '@/lib/api';
+import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, fetchCsrfToken } from '@/lib/api';
 import { AGENT_OPTIONS } from '@/features/aiConfig/agent-options';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 
@@ -31,9 +31,12 @@ export function VoiceStep({ flow }: { flow: OnboardingFlow }) {
       if (auth && typeof auth === 'object') {
         Object.assign(headers, auth as Record<string, string>);
       }
+      const csrf = await fetchCsrfToken();
+      if (csrf) headers['x-csrf-token'] = csrf;
 
       const response = await fetch(`${API_BASE_URL}/elevenlabs/convai/agent-voice-preview`, {
         method: 'POST',
+        credentials: 'include',
         headers,
         body: JSON.stringify({
           agentId,

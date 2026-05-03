@@ -15,6 +15,37 @@ export const API_BASE_URL = trimmedApiBase.endsWith("/api")
 
 const ACCESS_TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
+const CSRF_TOKEN_KEY = "csrf_token";
+
+let csrfFetchInFlight: Promise<string | null> | null = null;
+
+export const fetchCsrfToken = async (): Promise<string | null> => {
+  if (typeof window === "undefined") return null;
+
+  const cached = sessionStorage.getItem(CSRF_TOKEN_KEY);
+  if (cached) return cached;
+
+  if (!csrfFetchInFlight) {
+    csrfFetchInFlight = (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/csrf-token`, {
+          credentials: "include",
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const token = data.csrfToken as string;
+        sessionStorage.setItem(CSRF_TOKEN_KEY, token);
+        return token;
+      } catch {
+        return null;
+      } finally {
+        csrfFetchInFlight = null;
+      }
+    })();
+  }
+
+  return csrfFetchInFlight;
+};
 
 type RefreshResponse = {
   accessToken?: string;
@@ -77,11 +108,16 @@ const runRefreshTokenRequest = async (): Promise<string | null> => {
   if (!refreshToken) return null;
 
   try {
+    const csrf = await fetchCsrfToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (csrf) headers["x-csrf-token"] = csrf;
+
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
+      credentials: "include",
       body: JSON.stringify({ refreshToken }),
     });
 
@@ -126,7 +162,15 @@ export const ensureFreshAccessToken = async (): Promise<string | null> => {
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
-  prepareHeaders: applyAuthHeaders,
+  credentials: "include",
+  prepareHeaders: async (headers) => {
+    applyAuthHeaders(headers);
+    const csrf = await fetchCsrfToken();
+    if (csrf) {
+      headers.set("x-csrf-token", csrf);
+    }
+    return headers;
+  },
 });
 
 export const baseQueryWithReauth: BaseQueryFn<
