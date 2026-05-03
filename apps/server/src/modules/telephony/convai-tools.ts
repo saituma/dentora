@@ -8,12 +8,16 @@ import {
 } from '../integrations/integration.service.js';
 import { resolveValidGoogleAccessToken } from '../integrations/google-calendar.shared.js';
 import { findPatientProfile, upsertPatientProfile } from '../patients/patients.service.js';
+import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
+import { logger } from '../../lib/logger.js';
 
 export async function handleConvaiToolCall(input: {
   tenantId: string;
   toolName: string;
   params: Record<string, unknown>;
+  callSid?: string;
+  callSessionId?: string;
 }): Promise<unknown> {
   const { tenantId, toolName, params } = input;
 
@@ -25,11 +29,17 @@ export async function handleConvaiToolCall(input: {
     case 'check_availability':
       return checkAvailability(tenantId, params);
     case 'create_appointment':
-      return createAppointment(tenantId, params);
+      return createAppointmentWithSms(tenantId, params);
     case 'cancel_appointment':
       return cancelAppointment(tenantId, params);
     case 'reschedule_appointment':
       return rescheduleAppointment(tenantId, params);
+    case 'forward_call':
+      return forwardCall(tenantId, params, input.callSid, input.callSessionId);
+    case 'get_clinic_info':
+      return getClinicInfo(tenantId);
+    case 'get_business_hours':
+      return getBusinessHours(tenantId);
     default:
       throw new ValidationError(`Unknown tool: ${toolName}`);
   }
@@ -145,7 +155,7 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
   };
 }
 
-async function createAppointment(tenantId: string, params: Record<string, unknown>) {
+async function createAppointmentWithSms(tenantId: string, params: Record<string, unknown>) {
   const clinic = await configService.getClinicProfile(tenantId);
   const rules = await configService.getBookingRules(tenantId);
 
@@ -244,6 +254,25 @@ async function createAppointment(tenantId: string, params: Record<string, unknow
     notes: reasonForVisit,
   });
 
+  const startDate = new Intl.DateTimeFormat('en-US', {
+    timeZone: clinic.timezone,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(startIso));
+
+  sendAppointmentSms({
+    tenantId,
+    to: phoneNumber,
+    clinicName: clinic.clinicName ?? 'Dental Clinic',
+    appointmentDate: startDate,
+    patientName: fullName,
+  }).catch((err) => {
+    logger.warn({ err, tenantId }, 'SMS confirmation failed (non-blocking)');
+  });
+
   return appointment;
 }
 
@@ -277,4 +306,99 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
     timezone: clinic.timezone,
     slot: { startIso, endIso },
   });
+}
+
+async function forwardCall(
+  tenantId: string,
+  params: Record<string, unknown>,
+  callSid?: string,
+  callSessionId?: string,
+) {
+  if (!callSid || !callSessionId) {
+    return { success: false, message: 'Call forwarding is only available during live phone calls.' };
+  }
+
+  let targetNumber = String(params.targetNumber ?? '').trim();
+
+  if (!targetNumber) {
+    const clinic = await configService.getClinicProfile(tenantId);
+    const staffMembers = clinic?.staffMembers as Array<{ name?: string; phone?: string; role?: string }> | undefined;
+
+    const staffName = String(params.staffName ?? '').trim().toLowerCase();
+    const staffMatch = staffMembers?.find((s) =>
+      s.phone && (
+        !staffName ||
+        s.name?.toLowerCase().includes(staffName) ||
+        s.role?.toLowerCase().includes(staffName)
+      ),
+    );
+
+    if (staffMatch?.phone) {
+      targetNumber = staffMatch.phone;
+    } else {
+      const clinicPhone = clinic?.phone ?? (clinic as Record<string, unknown>)?.primaryPhone as string | undefined;
+      if (clinicPhone) {
+        targetNumber = clinicPhone;
+      }
+    }
+  }
+
+  if (!targetNumber) {
+    return { success: false, message: 'No phone number available to forward the call to. Please take a message instead.' };
+  }
+
+  const result = await forwardCallToHuman({
+    tenantId,
+    callSid,
+    targetNumber,
+    callSessionId,
+  });
+
+  if (result.success) {
+    return { success: true, message: `Transferring the call to ${targetNumber}. The caller will hear hold music.` };
+  }
+
+  return { success: false, message: 'Unable to transfer the call right now. Please take a message and let the caller know someone will call them back.' };
+}
+
+async function getClinicInfo(tenantId: string) {
+  const clinic = await configService.getClinicProfile(tenantId);
+  const policyList = await configService.getPolicies(tenantId);
+  const faqList = await configService.getFaqs(tenantId);
+
+  return {
+    name: clinic?.clinicName ?? 'Dental Clinic',
+    phone: clinic?.phone ?? (clinic as Record<string, unknown>)?.primaryPhone ?? null,
+    email: clinic?.email ?? (clinic as Record<string, unknown>)?.supportEmail ?? null,
+    address: clinic?.address ?? null,
+    website: clinic?.website ?? null,
+    specialties: clinic?.specialties ?? [],
+    staffMembers: (clinic?.staffMembers as Array<{ name?: string; role?: string }> | undefined)?.map(
+      (s) => ({ name: s.name, role: s.role }),
+    ) ?? [],
+    policies: policyList?.map((p) => ({
+      type: (p as Record<string, unknown>).policyType,
+      content: (p as Record<string, unknown>).content,
+    })) ?? [],
+    faqs: faqList?.map((f) => ({
+      question: (f as Record<string, unknown>).question,
+      answer: (f as Record<string, unknown>).answer,
+    })) ?? [],
+  };
+}
+
+async function getBusinessHours(tenantId: string) {
+  const clinic = await configService.getClinicProfile(tenantId);
+  const rules = await configService.getBookingRules(tenantId);
+  const timezone = clinic?.timezone ?? 'America/New_York';
+
+  const schedule = (rules as Record<string, unknown> | null)?.operatingSchedule
+    ?? clinic?.businessHours
+    ?? null;
+
+  return {
+    timezone,
+    schedule,
+    closedDates: (rules as Record<string, unknown> | null)?.closedDates ?? [],
+  };
 }

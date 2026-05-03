@@ -356,16 +356,17 @@ export async function generateCallSummary(input: {
     {
       role: 'system',
       content: [
-        'You summarize dental receptionist phone calls.',
-        'Write a concise 2-4 sentence summary.',
-        'Include caller intent, key details (symptoms, timing, requested services),',
-        'actions taken, and outcome if known.',
-        'Do not invent details. If a detail is missing, omit it.',
+        'You summarize dental receptionist phone calls and analyze caller sentiment.',
+        'Respond in JSON with two fields: "summary" (2-4 sentence summary including caller intent,',
+        'key details, actions taken, and outcome) and "sentiment" (one of: "positive", "neutral", "negative", "frustrated").',
+        'Also include "intent" (one of: "booking", "cancellation", "reschedule", "inquiry", "emergency", "complaint", "other").',
+        'Do not invent details. If a detail is missing, omit it from the summary.',
+        'Respond ONLY with valid JSON, no markdown.',
       ].join(' '),
     },
     {
       role: 'user',
-      content: `Transcript:\n${formattedTranscript}\n\nSummary:`,
+      content: `Transcript:\n${formattedTranscript}\n\nJSON:`,
     },
   ];
 
@@ -385,8 +386,33 @@ export async function generateCallSummary(input: {
       },
     });
 
-    const summary = result.content.trim();
-    return summary.length > 0 ? summary : null;
+    const raw = result.content.trim();
+    if (!raw) return null;
+
+    try {
+      const parsed = JSON.parse(raw) as { summary?: string; sentiment?: string; intent?: string };
+      if (parsed.summary) {
+        if (parsed.sentiment || parsed.intent) {
+          await db
+            .update(callTranscripts)
+            .set({
+              sentiment: parsed.sentiment ?? null,
+              intentDetected: parsed.intent ?? null,
+            })
+            .where(
+              and(
+                eq(callTranscripts.callSessionId, input.callSessionId),
+                eq(callTranscripts.tenantId, input.tenantId),
+              ),
+            );
+        }
+        return parsed.summary;
+      }
+    } catch {
+      // LLM returned plain text instead of JSON
+    }
+
+    return raw;
   } catch (error) {
     logger.warn(
       { err: error, callSessionId: input.callSessionId, tenantId: input.tenantId },

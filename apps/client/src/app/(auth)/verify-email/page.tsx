@@ -30,8 +30,8 @@ export default async function VerifyEmailPage({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Button asChild className="w-full">
-          <Link href="/login">Go to sign in</Link>
+        <Button render={<Link href="/login" />} className="w-full">
+          Go to sign in
         </Button>
       </CardContent>
     </Card>

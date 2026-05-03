@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -50,7 +49,10 @@ const mapServerStepToClientStep = (step?: string): OnboardingStep => {
   return "clinic-profile";
 };
 
-const getLoginDestination = (_step: OnboardingStep): string => "/dashboard";
+const getLoginDestination = (step: OnboardingStep): string => {
+  if (step === "complete") return "/dashboard";
+  return `/onboarding/${step}`;
+};
 
 export function LoginForm() {
   const dispatch = useAppDispatch();
@@ -257,7 +259,7 @@ export function LoginForm() {
                 </div>
               )}
             </Field>
-            <FieldDescription className="text-center">
+            <p className="text-muted-foreground text-xs text-center">
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
@@ -265,7 +267,7 @@ export function LoginForm() {
               >
                 Sign up
               </Link>
-            </FieldDescription>
+            </p>
           </FieldGroup>
         </form>
       </CardContent>

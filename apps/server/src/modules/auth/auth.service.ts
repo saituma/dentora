@@ -1,13 +1,13 @@
 
 import { db } from '../../db/index.js';
-import { users, sessions, tenantUsers, tenantRegistry, otpChallenges, authIdentities } from '../../db/schema.js';
+import { users, sessions, tenantUsers, tenantRegistry, otpChallenges, authIdentities, passwordResetTokens } from '../../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
 import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId } from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
 import twilio from 'twilio';
-import { createHash, randomInt } from 'crypto';
+import { createHash, randomInt, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 
@@ -544,16 +544,45 @@ export async function loginOrRegisterWithGoogleCode(input: {
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
-  const payload = verifyRefreshToken(refreshToken);
+  let payload: ReturnType<typeof verifyRefreshToken>;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch {
+    throw new AuthenticationError('Invalid or expired refresh token');
+  }
   if (!payload?.userId) throw new AuthenticationError('Invalid refresh token');
 
+  // First, try to find a session where this token is the current refresh token
   const [session] = await db
     .select()
     .from(sessions)
     .where(and(eq(sessions.userId, payload.userId), eq(sessions.refreshToken, refreshToken)))
     .limit(1);
 
-  if (!session || session.expiresAt < new Date()) {
+  if (session) {
+    if (session.expiresAt < new Date()) {
+      throw new AuthenticationError('Session expired');
+    }
+  } else {
+    // Token doesn't match any current session token.
+    // Check if it matches a previously-rotated token — this indicates a replay attack.
+    const [compromisedSession] = await db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.userId, payload.userId), eq(sessions.previousRefreshToken, refreshToken)))
+      .limit(1);
+
+    if (compromisedSession) {
+      // Replay attack detected: an already-rotated token is being reused.
+      // Invalidate ALL sessions for this user as a security measure.
+      await db.delete(sessions).where(eq(sessions.userId, payload.userId));
+      logger.warn(
+        { userId: payload.userId, sessionId: compromisedSession.id },
+        'Refresh token replay detected — all sessions invalidated',
+      );
+      throw new AuthenticationError('Refresh token reuse detected. All sessions have been revoked for security.');
+    }
+
     throw new AuthenticationError('Session expired');
   }
 
@@ -577,10 +606,13 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
   const newRefreshToken = signRefreshToken({ userId: user.id, tenantId: tenantId ?? '', sessionId: session.id });
   const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
+  // Rotate: store old token as previous, set new token as current
   await db
     .update(sessions)
     .set({
+      previousRefreshToken: refreshToken,
       refreshToken: newRefreshToken,
+      rotatedAt: new Date(),
       expiresAt: new Date(Date.now() + sessionExpiryMs),
     })
     .where(eq(sessions.id, session.id));
@@ -631,4 +663,89 @@ export async function changePassword(input: {
     .where(eq(users.id, input.userId));
 
   logger.info({ userId: input.userId }, 'User password changed');
+}
+
+export async function requestPasswordReset(input: { email: string }): Promise<void> {
+  const email = input.email.trim().toLowerCase();
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  if (!user) {
+    return;
+  }
+
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+  await db.insert(passwordResetTokens).values({
+    id: generateId(),
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+    consumedAt: null,
+  });
+
+  await sendPasswordResetEmail({ email, token });
+  logger.info({ email: maskOtpTarget(email) }, 'Password reset requested');
+}
+
+export async function resetPassword(input: { token: string; newPassword: string }): Promise<void> {
+  const tokenHash = createHash('sha256').update(input.token).digest('hex');
+
+  const [resetToken] = await db
+    .select()
+    .from(passwordResetTokens)
+    .where(eq(passwordResetTokens.tokenHash, tokenHash))
+    .limit(1);
+
+  if (!resetToken) throw new ValidationError('Invalid or expired reset token');
+  if (resetToken.consumedAt) throw new ValidationError('This reset link has already been used');
+  if (resetToken.expiresAt < new Date()) throw new ValidationError('This reset link has expired');
+
+  const newPasswordHash = await hashPassword(input.newPassword);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(users)
+      .set({ passwordHash: newPasswordHash, updatedAt: new Date() })
+      .where(eq(users.id, resetToken.userId));
+
+    await tx
+      .update(passwordResetTokens)
+      .set({ consumedAt: new Date() })
+      .where(eq(passwordResetTokens.id, resetToken.id));
+
+    await tx
+      .delete(sessions)
+      .where(eq(sessions.userId, resetToken.userId));
+  });
+
+  logger.info({ userId: resetToken.userId }, 'Password reset completed');
+}
+
+async function sendPasswordResetEmail(input: { email: string; token: string }): Promise<void> {
+  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS || !env.SMTP_FROM) {
+    throw new ValidationError('SMTP is not configured for password reset emails');
+  }
+
+  const resetUrl = `${env.CLIENT_URL}/reset-password?token=${input.token}`;
+
+  const transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+  });
+
+  await transporter.sendMail({
+    from: env.SMTP_FROM,
+    to: input.email,
+    subject: 'Reset your Dentora password',
+    text: `You requested a password reset. Click this link to set a new password: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.`,
+    html: `<p>You requested a password reset.</p><p><a href="${resetUrl}">Click here to set a new password</a></p><p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>`,
+  });
 }

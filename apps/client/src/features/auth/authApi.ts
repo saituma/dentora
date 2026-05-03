@@ -43,6 +43,15 @@ interface ChangePasswordRequest {
   newPassword: string;
 }
 
+interface ForgotPasswordRequest {
+  email: string;
+}
+
+interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
 interface SendEmailOtpRequest {
   email: string;
 }
@@ -157,6 +166,20 @@ export const authApi = createApi({
         body,
       }),
     }),
+    forgotPassword: builder.mutation<{ message: string }, ForgotPasswordRequest>({
+      query: (body) => ({
+        url: '/auth/forgot-password',
+        method: 'POST',
+        body,
+      }),
+    }),
+    resetPassword: builder.mutation<{ message: string }, ResetPasswordRequest>({
+      query: (body) => ({
+        url: '/auth/reset-password',
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -171,4 +194,6 @@ export const {
   useRefreshMutation,
   useLogoutMutation,
   useChangePasswordMutation,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
 } = authApi;

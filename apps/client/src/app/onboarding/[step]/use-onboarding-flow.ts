@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setOnboardingStatus } from '@/features/auth/authSlice';
 import type { OnboardingStep } from '@/features/auth/types';
 import {
@@ -23,6 +23,7 @@ import { useStartGoogleCalendarOAuthMutation } from '@/features/integrations/int
 import {
   useAssignTelephonyNumberMutation,
   useGetTelephonyNumbersQuery,
+  useGetTelephonyWebhookBaseQuery,
   useGetTwilioIncomingNumbersQuery,
 } from '@/features/telephony/telephonyApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
@@ -50,6 +51,7 @@ export function useOnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
+  const authUserEmail = useAppSelector((state) => state.auth.user?.email ?? '');
   const [saveClinicProfile, clinicProfileState] = useSaveClinicProfileMutation();
   const [saveServices, servicesState] = useSaveServicesMutation();
   const [saveBookingRules, bookingRulesState] = useSaveBookingRulesMutation();
@@ -69,6 +71,7 @@ export function useOnboardingFlow() {
   const { data: availableVoicesData } = useGetAvailableVoicesQuery();
   const [startGoogleCalendarOAuth, googleOAuthState] = useStartGoogleCalendarOAuthMutation();
   const { data: telephonyData } = useGetTelephonyNumbersQuery();
+  const { data: telephonyWebhookBaseData } = useGetTelephonyWebhookBaseQuery();
   const { data: twilioIncomingData } = useGetTwilioIncomingNumbersQuery();
   const [assignTelephonyNumber, assignTelephonyNumberState] = useAssignTelephonyNumberMutation();
 
@@ -125,6 +128,7 @@ export function useOnboardingFlow() {
   const assignedTelephonyNumbers = telephonyData?.data ?? [];
   const activeAssignedNumber = assignedTelephonyNumbers.find((number) => number.status === 'active') ?? assignedTelephonyNumbers[0] ?? null;
   const twilioIncomingNumbers = twilioIncomingData?.data ?? [];
+  const telephonyWebhookBase = telephonyWebhookBaseData?.baseUrl ?? '';
   const agentVoices = liveSupportedVoices.filter(isAgentVoice);
   const ukVoices = liveSupportedVoices.filter(isUkVoice);
   const ukAgentVoices = agentVoices.filter(isUkVoice);
@@ -149,6 +153,13 @@ export function useOnboardingFlow() {
       setStaffForm(clinicData.staffMembers);
     }
   }, [clinicData]);
+
+  useEffect(() => {
+    // Prefill onboarding email from logged-in account when clinic profile doesn't have one yet.
+    if (!authUserEmail) return;
+    if (clinicData?.email) return;
+    setEmail((current) => current || authUserEmail);
+  }, [authUserEmail, clinicData?.email]);
 
   useEffect(() => {
     if (!voiceProfileData) return;
@@ -412,6 +423,7 @@ export function useOnboardingFlow() {
     assignedTelephonyNumbers,
     activeAssignedNumber,
     twilioIncomingNumbers,
+    telephonyWebhookBase,
     calendarConnected,
     hasIntegrationWarning,
     hasMissingPoliciesError,

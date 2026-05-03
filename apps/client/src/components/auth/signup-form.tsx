@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/card";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -151,7 +150,7 @@ export function SignupForm() {
                 {googleLoading ? "Redirecting..." : "Continue with Google"}
               </Button>
             </Field>
-            <FieldDescription className="text-center">
+            <p className="text-muted-foreground text-xs text-center">
               Already have an account?{" "}
               <Link
                 href="/login"
@@ -159,7 +158,7 @@ export function SignupForm() {
               >
                 Sign in
               </Link>
-            </FieldDescription>
+            </p>
           </FieldGroup>
         </form>
       </CardContent>

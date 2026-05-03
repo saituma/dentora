@@ -21,6 +21,7 @@ import { requestId } from './middleware/requestId.js';
 import { auditMiddleware } from './middleware/audit.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { metricsMiddleware } from './middleware/metrics.js';
+import { csrfProtection, csrfTokenRouter, cookieParser } from './middleware/csrf.js';
 
 import { tenantRouter } from './modules/tenants/index.js';
 import { authRouter } from './modules/auth/index.js';
@@ -89,6 +90,7 @@ app.use((req, res, next) => {
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(requestId);
 app.use(auditMiddleware);
 app.use(metricsMiddleware);
@@ -108,6 +110,12 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// CSRF token endpoint (must be before csrfProtection middleware)
+app.use(csrfTokenRouter);
+
+// CSRF protection — skips GET/HEAD/OPTIONS and webhook paths automatically
+app.use(csrfProtection);
 
 app.get('/api/health', (_req, res) => {
   res.json({

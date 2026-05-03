@@ -300,6 +300,18 @@ export const otpChallenges = pgTable('otp_challenges', {
   index('otp_challenges_target_idx').on(table.channel, table.target, table.createdAt),
 ]);
 
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  tokenHash: text('token_hash').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('password_reset_tokens_user_idx').on(table.userId),
+  index('password_reset_tokens_hash_idx').on(table.tokenHash),
+]);
+
 export const tenantUsers = pgTable('tenant_users', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenantRegistry.id),
@@ -316,6 +328,8 @@ export const sessions = pgTable('sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id),
   refreshToken: text('refresh_token').notNull(),
+  previousRefreshToken: text('previous_refresh_token'),
+  rotatedAt: timestamp('rotated_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   userAgent: text('user_agent'),
   ipAddress: text('ip_address'),

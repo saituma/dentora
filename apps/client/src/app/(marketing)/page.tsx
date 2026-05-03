@@ -1,198 +1,586 @@
 'use client';
 
+import {
+  Phone,
+  CalendarCheck,
+  MessageSquare,
+  Bell,
+  BarChart3,
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle2,
+  Check,
+  ArrowRight,
+  PhoneCall,
+  Star,
+} from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { ArrowRightIcon, CheckCircle2Icon } from 'lucide-react';
-import { TrustedClinicsMarquee } from '@/components/marketing/trusted-clinics-marquee';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const timeline = [
-  { time: '09:14', event: 'Emergency call triaged and routed to staff', status: 'Escalated' },
-  { time: '09:11', event: 'Composite bonding consultation booked', status: 'Booked' },
-  { time: '09:08', event: 'Insurance eligibility question resolved', status: 'Resolved' },
-  { time: '09:03', event: 'Broken crown same-day slot offered', status: 'Booked' },
-] as const;
-
-const outcomes = [
-  ['Missed calls recovered', '94%'],
-  ['Call → booking conversion', '34%'],
-  ['After-hours answered', '127'],
-  ['Recovered monthly revenue', '$2.3k'],
-] as const;
-
-const faqs = [
-  ['How fast can we launch?', 'Most clinics go live in under 20 minutes after importing services and booking rules.'],
-  ['Can we control call behavior?', 'Yes. You set escalation thresholds, booking constraints, and response tone.'],
-  ['Does it work after hours?', 'Yes. Calls are answered 24/7 with triage and next-day booking capture.'],
-] as const;
-
-export default function LandingPage() {
+/* ─── Hero Section ─── */
+function HeroSection() {
   return (
-    <div className="relative overflow-hidden pt-[45px] lg:pt-0">
-      <section className="relative border-b border-foreground/[0.06]">
-        <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-7">
-          <div className="flex flex-col lg:flex-row">
-            <aside className="relative z-10 w-full border-b border-foreground/[0.06] bg-background px-5 sm:px-6 lg:sticky lg:top-0 lg:h-dvh lg:w-[40%] lg:border-b-0 lg:border-r lg:overflow-clip lg:px-7">
-              <div className="pointer-events-none absolute inset-0 bg-grid-small text-foreground/[0.04]" />
-              <div className="pointer-events-none absolute -left-10 top-24 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
+    <section className="relative overflow-hidden bg-gradient-to-b from-[#0a0e1a] via-[#0d1220] to-[#0a0e1a]">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(37,99,235,0.08),transparent_60%)]" />
+      <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
+          <div className="relative z-10">
+            <p className="mb-6 text-sm font-semibold uppercase tracking-widest text-blue-400">
+              AI RECEPTIONIST FOR DENTAL CLINICS
+            </p>
+            <h1 className="text-4xl font-bold leading-tight tracking-tight text-white md:text-5xl lg:text-6xl">
+              Never Miss a Patient.
+              <br />
+              <span className="bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+                Grow Your Practice.
+              </span>
+            </h1>
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-gray-400">
+              Dentora is your 24/7 AI receptionist that answers calls, books appointments, confirms visits and handles patient inquiries – so your team can focus on care.
+            </p>
 
-              <div className="relative flex h-full flex-col justify-between py-14 lg:py-16">
-                <div className="space-y-7">
-                  <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Dentora / AI Reception</p>
-                  <h1 className="text-4xl font-medium leading-[0.97] tracking-tight sm:text-5xl lg:text-[3.3rem]">
-                    A front desk that never
-                    <span className="block text-primary">drops a serious caller.</span>
-                  </h1>
-                  <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
-                    Built for UK dental clinics that need calm operations, instant booking flow, and consistent patient communication.
-                  </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href="/contact"
+                className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Book a Demo
+                <span className="text-xs text-blue-200">See Dentora in action</span>
+              </Link>
+              <button className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-medium text-white transition hover:bg-white/10">
+                <div className="flex size-8 items-center justify-center rounded-full border border-white/20">
+                  <svg viewBox="0 0 24 24" className="ml-0.5 size-3.5 fill-white">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                </div>
+                Watch Video
+                <span className="text-xs text-gray-400">2 min overview</span>
+              </button>
+            </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button asChild className="h-11 border border-foreground/25 bg-foreground px-5 text-xs font-mono uppercase tracking-[0.16em] text-background hover:opacity-90">
-                      <Link href="/signup">
-                        Start Now
-                        <ArrowRightIcon className="size-4" />
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="h-11 border-foreground/[0.15] bg-background px-5 text-xs font-mono uppercase tracking-[0.16em] hover:bg-foreground/[0.04]">
-                      <Link href="/contact">Book Demo</Link>
-                    </Button>
+            <div className="mt-10 flex flex-wrap gap-6">
+              {[
+                { icon: Phone, label: '24/7 AI Answering', sub: 'Never miss a call' },
+                { icon: CalendarCheck, label: 'Smart Scheduling', sub: 'More bookings' },
+                { icon: MessageSquare, label: 'Insurance & FAQs', sub: 'Instant answers' },
+                { icon: CheckCircle2, label: 'HIPAA Compliant', sub: 'Secure & private' },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-full bg-blue-500/10">
+                    <item.icon className="size-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-white">{item.label}</p>
+                    <p className="text-[10px] text-gray-500">{item.sub}</p>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: 'easeOut' }}
-                  className="border border-foreground/[0.12] bg-background/70 p-4"
-                >
-                  <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Signal</p>
-                  <div className="mt-3 flex items-end gap-4">
-                    <p className="text-5xl font-medium leading-none tracking-tight">24/7</p>
-                    <p className="pb-1 text-xs font-mono uppercase tracking-[0.12em] text-muted-foreground">reception coverage</p>
-                  </div>
-                </motion.div>
-              </div>
-            </aside>
-
-            <main className="relative z-0 w-full overflow-x-hidden lg:w-[60%]">
-              <div className="px-5 py-14 sm:px-6 lg:px-7 lg:py-16">
-                <div className="space-y-10">
-                  <div className="border border-foreground/[0.1] bg-card">
-                    <div className="border-b border-foreground/[0.06] px-5 py-4">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Live Command Stream</p>
-                    </div>
-                    <div className="p-5">
-                      <div className="space-y-2.5">
-                        {timeline.map((row) => (
-                          <div key={`${row.time}-${row.event}`} className="flex items-center justify-between gap-4 border border-foreground/[0.08] bg-background/70 px-3 py-2.5">
-                            <div className="min-w-0">
-                              <p className="text-sm text-foreground/90">{row.event}</p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground">{row.time}</p>
-                              <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-primary">{row.status}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div className="border border-foreground/[0.1] bg-card p-5">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Outcomes</p>
-                      <div className="mt-4 space-y-3">
-                        {outcomes.map(([label, value]) => (
-                          <div key={label} className="flex items-center justify-between border border-foreground/[0.08] bg-background/70 px-3 py-2">
-                            <span className="text-sm text-foreground/85">{label}</span>
-                            <span className="text-lg font-medium tabular-nums">{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border border-foreground/[0.1] bg-card p-5">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Proof</p>
-                      <blockquote className="mt-4 border border-foreground/[0.08] bg-background/70 p-4 text-sm leading-6">
-                        “I can finally leave at 5 PM and still know every call is handled, routed, and tracked.”
-                        <footer className="mt-3 text-[10px] font-mono uppercase tracking-[0.14em] text-muted-foreground">
-                          Practice Manager · BrightSmile Dental
-                        </footer>
-                      </blockquote>
-                    </div>
-                  </div>
-
-                  <div className="border border-foreground/[0.1] bg-card p-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-[10px] font-mono uppercase tracking-[0.14em]">Metric</TableHead>
-                          <TableHead className="text-[10px] font-mono uppercase tracking-[0.14em]">Traditional</TableHead>
-                          <TableHead className="text-[10px] font-mono uppercase tracking-[0.14em]">Dentora</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell>After-hours handling</TableCell>
-                          <TableCell>Voicemail</TableCell>
-                          <TableCell>Live AI coverage</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Booking turnaround</TableCell>
-                          <TableCell>Next business day</TableCell>
-                          <TableCell>In-call scheduling</TableCell>
-                        </TableRow>
-                        <TableRow>
-                          <TableCell>Escalation clarity</TableCell>
-                          <TableCell>Manual handoff</TableCell>
-                          <TableCell>Policy-based routing</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+          <div className="relative">
+            <div className="relative mx-auto max-w-md lg:max-w-none">
+              {/* Chat bubble */}
+              <div className="absolute -top-4 left-1/4 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 px-4 py-3 shadow-xl backdrop-blur-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">😊</span>
+                  <div>
+                    <p className="text-xs font-medium text-white">Hi! This is Dentora.</p>
+                    <p className="text-[11px] text-gray-400">How can I help you today?</p>
                   </div>
                 </div>
               </div>
-            </main>
+
+              {/* Menu options */}
+              <div className="absolute left-8 top-16 z-20 space-y-2">
+                {['Book an Appointment', 'Check Appointment', 'Insurance Questions', 'Other Inquiries'].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-lg border border-white/10 bg-[#1a1f35]/80 px-4 py-2 text-xs text-gray-300 shadow backdrop-blur-sm"
+                  >
+                    {item}
+                  </div>
+                ))}
+              </div>
+
+              {/* AI character placeholder */}
+              <div className="relative mx-auto flex h-80 w-80 items-center justify-center lg:h-96 lg:w-96">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-b from-blue-600/20 to-transparent" />
+                <div className="relative flex size-48 items-center justify-center rounded-full bg-gradient-to-b from-blue-500/30 to-blue-600/10 lg:size-56">
+                  <Image
+                    src="/dentora.png"
+                    alt="Dentora AI"
+                    width={200}
+                    height={200}
+                    className="h-32 w-auto opacity-80 lg:h-40"
+                  />
+                </div>
+              </div>
+
+              {/* Appointment confirmed card */}
+              <div className="absolute -right-4 top-8 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 p-4 shadow-xl backdrop-blur-sm lg:right-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-semibold text-white">New Appointment</p>
+                  <span className="text-xs text-green-400">Confirmed! 🎉</span>
+                </div>
+                <div className="mt-2 space-y-1 text-[11px] text-gray-400">
+                  <p>Patient: Sarah Johnson</p>
+                  <p>Date: May 24, 2024</p>
+                  <p>Time: 10:00 AM</p>
+                </div>
+              </div>
+
+              {/* Call summary card */}
+              <div className="absolute -right-4 bottom-16 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 p-4 shadow-xl backdrop-blur-sm lg:right-0">
+                <div className="flex items-center gap-2">
+                  <PhoneCall className="size-3.5 text-blue-400" />
+                  <p className="text-xs font-semibold text-white">Call Summary</p>
+                </div>
+                <div className="mt-2 space-y-1 text-[11px] text-gray-400">
+                  <p>New patient inquiry</p>
+                  <p>Teeth cleaning</p>
+                  <p>Insurance: Dental</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      <TrustedClinicsMarquee />
+/* ─── Stats Section ─── */
+function StatsSection() {
+  const stats = [
+    { icon: Phone, value: '98%', label: 'Call Answer Rate' },
+    { icon: CalendarCheck, value: '3x', label: 'More Appointments' },
+    { icon: BarChart3, value: '45%', label: 'Reduction in No-Shows' },
+    { icon: Phone, value: '24/7', label: 'Always Available' },
+  ];
 
-      <section className="border-b border-foreground/[0.06] py-16 md:py-20">
-        <div className="mx-auto w-full max-w-5xl px-5 sm:px-6 lg:px-7">
-          <div className="text-center">
-            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">FAQ</p>
-            <h2 className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">What clinic teams ask first</h2>
-          </div>
+  const logos = [
+    'Smile Dental Care',
+    'Brighter Smiles',
+    'Oakridge Dental',
+    'Pearl Dental Care',
+    'Summit Ridge Dental',
+    'Sunshine Dental Group',
+  ];
 
-          <div className="mt-8 space-y-3">
-            {faqs.map(([q, a]) => (
-              <details key={q} className="group border border-foreground/[0.1] bg-card p-4">
-                <summary className="cursor-pointer list-none pr-8 text-sm font-medium">
-                  {q}
-                  <span className="float-right text-xs font-mono text-muted-foreground group-open:hidden">+</span>
-                  <span className="float-right hidden text-xs font-mono text-muted-foreground group-open:inline">−</span>
-                </summary>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">{a}</p>
-              </details>
+  return (
+    <section className="bg-[#0a0e1a] py-12">
+      <div className="mx-auto max-w-6xl px-6 lg:px-8">
+        <div className="rounded-2xl border border-white/[0.06] bg-[#0f1424]/80 p-8">
+          <h3 className="mb-8 text-center text-lg font-semibold text-white">
+            Trusted by Forward-Thinking Dental Practices
+          </h3>
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+            {stats.map((stat) => (
+              <div key={stat.label} className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                  <stat.icon className="size-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">{stat.value}</p>
+                  <p className="text-xs text-gray-400">{stat.label}</p>
+                </div>
+              </div>
             ))}
           </div>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-mono uppercase tracking-[0.1em] text-muted-foreground">
-            <p className="inline-flex items-center gap-2">
-              <CheckCircle2Icon className="size-4 text-primary" />
-              Setup in under 20 minutes
-            </p>
-            <p className="inline-flex items-center gap-2">
-              <CheckCircle2Icon className="size-4 text-primary" />
-              No long-term contracts
-            </p>
+          <div className="mt-10 border-t border-white/5 pt-8">
+            <div className="flex flex-wrap items-center justify-center gap-8">
+              {logos.map((name) => (
+                <div key={name} className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex size-6 items-center justify-center rounded bg-blue-500/10">
+                    <span className="text-[10px] text-blue-400">⚕</span>
+                  </div>
+                  <span className="text-xs font-medium uppercase tracking-wide">{name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Features Section ─── */
+function FeaturesSection() {
+  const features = [
+    {
+      icon: Phone,
+      title: 'AI Call Answering',
+      description: 'Dentora answers calls instantly, sounds natural, and never keeps patients on hold.',
+    },
+    {
+      icon: CalendarCheck,
+      title: 'Smart Scheduling',
+      description: 'Books, reschedules and cancels appointments seamlessly into your calendar.',
+    },
+    {
+      icon: MessageSquare,
+      title: 'Patient Inquiries',
+      description: 'Answers insurance, pricing, treatment and general questions instantly.',
+    },
+    {
+      icon: Bell,
+      title: 'Reminders & Follow-ups',
+      description: 'Sends automated recalls, confirmations and follow-ups to patients.',
+    },
+    {
+      icon: BarChart3,
+      title: 'Insights & Analytics',
+      description: 'Track calls, bookings and conversions with powerful real-time analytics.',
+    },
+  ];
+
+  return (
+    <section id="features" className="bg-[#0a0e1a] py-20">
+      <div className="mx-auto max-w-6xl px-6 lg:px-8">
+        <div className="mb-12 text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">FEATURES</p>
+          <h2 className="text-3xl font-bold text-white md:text-4xl">
+            Everything Your Front Desk Does.
+            <br />
+            <span className="bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">And More.</span>
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {features.map((feature) => (
+            <div
+              key={feature.title}
+              className="group rounded-xl border border-white/[0.06] bg-[#0f1424]/60 p-6 transition hover:border-blue-500/30 hover:bg-[#0f1424]"
+            >
+              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+                <feature.icon className="size-6 text-blue-400" />
+              </div>
+              <h3 className="mb-2 text-sm font-semibold text-white">{feature.title}</h3>
+              <p className="text-xs leading-relaxed text-gray-400">{feature.description}</p>
+              <Link
+                href="#"
+                className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-blue-400 transition hover:text-blue-300"
+              >
+                Learn more <ArrowRight className="size-3" />
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── How It Works + Demo Form (side by side) ─── */
+function HowItWorksAndDemoSection() {
+  const steps = [
+    {
+      number: 1,
+      title: 'We Answer',
+      description: 'Dentora answers calls and chats like a real person.',
+      color: 'text-blue-400',
+    },
+    {
+      number: 2,
+      title: 'We Understand',
+      description: 'Our AI listens, understands and handles the request.',
+      color: 'text-blue-400',
+    },
+    {
+      number: 3,
+      title: 'We Take Action',
+      description: 'Appointments booked, questions answered, tasks completed.',
+      color: 'text-red-400',
+    },
+  ];
+
+  return (
+    <section id="how-it-works" className="bg-[#0a0e1a] py-20">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="grid items-start gap-10 lg:grid-cols-3">
+          {/* Left: How it works + steps */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">HOW IT WORKS</p>
+            <h2 className="mb-10 text-3xl font-bold text-white md:text-4xl">
+              Simple. Powerful. Effortless.
+            </h2>
+
+            <div className="space-y-8">
+              {steps.map((step) => (
+                <div key={step.number} className="flex gap-4">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                    <Phone className="size-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold ${step.color}`}>{step.number}</span>
+                      <h3 className={`text-lg font-semibold ${step.color}`}>{step.title}</h3>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-400">{step.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Center: Phone mockup */}
+          <div className="flex justify-center">
+            <div className="relative w-56">
+              <div className="rounded-[2.5rem] border-2 border-white/10 bg-[#0f1424] p-2.5">
+                <div className="rounded-[2rem] bg-[#1a1f35] p-5">
+                  <div className="flex items-center justify-center py-3">
+                    <Image
+                      src="/dentora.png"
+                      alt="Dentora"
+                      width={200}
+                      height={200}
+                      className="h-7 w-auto"
+                    />
+                  </div>
+
+                  <div className="my-5 flex justify-center">
+                    <div className="flex items-center gap-0.5">
+                      {[...Array(11)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-[3px] rounded-full bg-blue-400/50"
+                          style={{ height: `${8 + Math.sin(i * 0.7) * 12}px` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white/5 p-3 text-center">
+                    <p className="text-[11px] text-gray-300">Hi! This is Dentora.</p>
+                    <p className="mt-0.5 text-[10px] text-gray-400">How can I help you?</p>
+                  </div>
+
+                  <div className="mt-6 flex justify-center gap-3">
+                    <div className="flex size-10 items-center justify-center rounded-full bg-red-500">
+                      <Phone className="size-4 text-white" />
+                    </div>
+                    <div className="flex size-10 items-center justify-center rounded-full bg-green-500">
+                      <Phone className="size-4 text-white" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Demo form */}
+          <div className="rounded-2xl border border-white/[0.06] bg-[#0f1424]/60 p-6 lg:p-8">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">BOOK A LIVE DEMO</p>
+            <h2 className="mb-1 text-xl font-bold text-white">See Dentora in Action</h2>
+            <p className="mb-6 text-xs text-gray-400">
+              Discover how our AI receptionist can help your dental practice save time and grow.
+            </p>
+
+            <form className="space-y-3" onSubmit={(e) => e.preventDefault()}>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+                <input
+                  type="text"
+                  placeholder="Practice Name"
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Preferred Date"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Book My Demo <ArrowRight className="size-4" />
+              </button>
+              <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400">
+                <CheckCircle2 className="size-3.5 text-gray-500" />
+                No commitment. Just a 30-min demo.
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Testimonials Section ─── */
+function TestimonialsSection() {
+  const testimonials = [
+    {
+      quote: "Dentora has been a game-changer for our practice. We never miss calls anymore and our schedule is fuller than ever!",
+      name: 'Dr. Jessica Miller',
+      role: 'Smile Dental Care',
+    },
+    {
+      quote: "The AI is incredibly natural. Patients think they're talking to a real person. Our team loves the relief it brings.",
+      name: 'Dr. Mark Reynolds',
+      role: 'Oakridge Dental',
+    },
+    {
+      quote: "We reduced no-shows by 45% since using Dentora. The reminders and follow-ups work perfectly.",
+      name: 'Dr. Amanda Lee',
+      role: 'Brighter Smiles',
+    },
+  ];
+
+  return (
+    <section id="testimonials" className="bg-[#0a0e1a] py-20">
+      <div className="mx-auto max-w-6xl px-6 lg:px-8">
+        <div className="mb-12 text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+            WHAT DENTAL PRACTICES SAY
+          </p>
+          <h2 className="text-3xl font-bold text-white md:text-4xl">
+            Loved by Dentists. Trusted by Teams.
+          </h2>
+        </div>
+
+        <div className="relative">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {testimonials.map((t) => (
+              <div
+                key={t.name}
+                className="rounded-xl border border-white/[0.06] bg-[#0f1424]/60 p-6"
+              >
+                <div className="mb-4 flex gap-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="size-4 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                <p className="mb-6 text-sm leading-relaxed text-gray-300">
+                  &ldquo;{t.quote}&rdquo;
+                </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-xs font-bold text-white">
+                    {t.name.split(' ').map((n) => n[0]).join('')}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-white">{t.name}</p>
+                    <p className="text-xs text-gray-400">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button className="absolute -left-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#0f1424] text-white transition hover:bg-white/10">
+            <ChevronLeft className="size-5" />
+          </button>
+          <button className="absolute -right-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#0f1424] text-white transition hover:bg-white/10">
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── CTA Section ─── */
+function CTASection() {
+  return (
+    <section className="bg-[#0a0e1a] px-6 py-16 lg:px-8">
+      <div className="mx-auto max-w-6xl overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f1a3a] via-[#101830] to-[#0f1424]">
+        <div className="grid items-center gap-8 md:grid-cols-3">
+          {/* Tooth graphic */}
+          <div className="relative flex items-center justify-center p-8">
+            <div className="relative size-48">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-b from-blue-500/20 to-transparent blur-2xl" />
+              <svg viewBox="0 0 100 120" className="relative size-full drop-shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+                <path
+                  d="M50 10 C30 10 15 25 15 45 C15 60 20 75 25 90 C28 100 32 110 35 110 C40 110 42 95 45 85 C47 80 50 78 50 78 C50 78 53 80 55 85 C58 95 60 110 65 110 C68 110 72 100 75 90 C80 75 85 60 85 45 C85 25 70 10 50 10Z"
+                  fill="url(#toothGrad)"
+                  stroke="rgba(59,130,246,0.3)"
+                  strokeWidth="1"
+                />
+                <defs>
+                  <linearGradient id="toothGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgba(147,197,253,0.9)" />
+                    <stop offset="100%" stopColor="rgba(59,130,246,0.4)" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+
+          {/* Text */}
+          <div className="p-8">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-blue-400">
+              READY TO TRANSFORM YOUR PRACTICE?
+            </p>
+            <h2 className="mb-4 text-2xl font-bold text-white md:text-3xl">
+              Let Dentora Handle the Calls. You Focus on Smiles.
+            </h2>
+            <ul className="space-y-2">
+              {[
+                '24/7 AI Receptionist',
+                'More Appointments',
+                'Happier Patients',
+                'Less Stress for Your Team',
+              ].map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm text-gray-300">
+                  <Check className="size-4 text-blue-400" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* CTA card */}
+          <div className="p-8">
+            <div className="rounded-xl border border-white/10 bg-[#1a1f35]/80 p-6">
+              <h3 className="mb-2 text-lg font-bold text-white">Get Started Today</h3>
+              <p className="mb-4 text-xs text-gray-400">
+                Book your demo and see the difference.
+              </p>
+              <Link
+                href="/contact"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                Book a Demo Now <ArrowRight className="size-4" />
+              </Link>
+              <p className="mt-3 text-center text-[11px] text-gray-500">
+                Setup in minutes. No credit card required.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Landing Page ─── */
+export default function LandingPage() {
+  return (
+    <>
+      <HeroSection />
+      <StatsSection />
+      <FeaturesSection />
+      <HowItWorksAndDemoSection />
+      <TestimonialsSection />
+      <CTASection />
+    </>
   );
 }

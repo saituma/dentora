@@ -11,25 +11,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useForgotPasswordMutation } from "@/features/auth/authApi";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 500));
+      await forgotPassword({ email }).unwrap();
       setSubmitted(true);
       toast.success("Check your email for reset instructions");
     } catch {
-      toast.error("Something went wrong");
-    } finally {
-      setIsLoading(false);
+      toast.error("Something went wrong. Please try again.");
     }
   };
 
@@ -43,14 +41,14 @@ export function ForgotPasswordForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldDescription>
+          <p className="text-muted-foreground text-xs">
             <Link
               href="/login"
               className="text-primary underline-offset-2 hover:underline"
             >
               Back to sign in
             </Link>
-          </FieldDescription>
+          </p>
         </CardContent>
       </Card>
     );
@@ -83,14 +81,14 @@ export function ForgotPasswordForm() {
                 {isLoading ? "Sending..." : "Send reset link"}
               </Button>
             </Field>
-            <FieldDescription className="text-center">
+            <p className="text-muted-foreground text-xs text-center">
               <Link
                 href="/login"
                 className="text-primary underline-offset-2 hover:underline"
               >
                 Back to sign in
               </Link>
-            </FieldDescription>
+            </p>
           </FieldGroup>
         </form>
       </CardContent>

@@ -99,6 +99,7 @@ interface MediaStreamSession {
   configVersionId: string;
   configVersion: number;
   streamSid: string;
+  callSid?: string;
   ws: WebSocket;
   elevenSocket?: WebSocket;
   elevenReady: boolean;
@@ -229,6 +230,9 @@ const buildContextualUpdate = (input: {
     '- If asked to connect to a staff member and their phone is listed, say you are forwarding the call to that phone (simulation in test).',
     '- Do not refuse to share staff names if they are listed in the staff directory.',
     '- If an answer is in the uploaded context, use it directly.',
+    '- You can forward calls to staff members using the forward_call tool when the caller requests to speak to a human.',
+    '- After booking an appointment, an SMS confirmation is sent automatically to the caller.',
+    '- You can look up clinic info, business hours, patient records, and appointment availability using your tools.',
   ].filter(Boolean);
 
   return lines.join('\n');
@@ -523,6 +527,7 @@ async function handleStreamStart(
       configVersionId,
       configVersion,
       streamSid,
+      callSid: startData?.callSid,
       ws,
       elevenReady: false,
       pendingAudioChunks: [],
@@ -707,6 +712,8 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
           tenantId: session.tenantId,
           toolName,
           params,
+          callSid: session.callSid,
+          callSessionId: session.callSessionId,
         });
         logger.info(
           { callSessionId: session.callSessionId, toolName },

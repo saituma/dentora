@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { useForm, UseFormProps, FieldValues, FieldPath } from "react-hook-form"
-import { ZodSchema } from "zod"
+import { useForm, type UseFormProps, type FieldValues } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import type { ZodType } from "zod"
 
 interface UseFormStateOptions<T extends FieldValues> extends UseFormProps<T> {
-  schema: ZodSchema
+  schema: ZodType<T>
   onSubmit: (data: T) => Promise<void> | void
 }
 
@@ -32,7 +32,8 @@ export function useFormState<T extends FieldValues>({
 
   const form = useForm<T>({
     ...formProps,
-    resolver: zodResolver(schema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(schema as any) as any,
   })
 
   const handleSubmit = useCallback(

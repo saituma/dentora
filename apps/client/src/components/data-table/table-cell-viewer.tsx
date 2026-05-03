@@ -55,11 +55,9 @@ export function TableCellViewer({ item }: { item: DataTableItem }) {
   const isMobile = useIsMobile();
 
   return (
-    <Drawer direction={isMobile ? 'bottom' : 'right'}>
-      <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground w-fit px-0 text-start">
-          {item.header}
-        </Button>
+    <Drawer position={isMobile ? 'bottom' : 'right'}>
+      <DrawerTrigger render={<Button variant="link" className="text-foreground w-fit px-0 text-start" />}>
+        {item.header}
       </DrawerTrigger>
       <DrawerContent>
         <DrawerHeader className="gap-1">
@@ -176,8 +174,8 @@ export function TableCellViewer({ item }: { item: DataTableItem }) {
         </div>
         <DrawerFooter>
           <Button>Submit</Button>
-          <DrawerClose asChild>
-            <Button variant="outline">Cancel</Button>
+          <DrawerClose render={<Button variant="outline" />}>
+            Cancel
           </DrawerClose>
         </DrawerFooter>
       </DrawerContent>

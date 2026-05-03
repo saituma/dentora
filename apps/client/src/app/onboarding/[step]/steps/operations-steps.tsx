@@ -11,6 +11,9 @@ import type { OnboardingFlow } from '../use-onboarding-flow';
 
 export function PhoneNumberStep({ flow }: { flow: OnboardingFlow }) {
   const hasIncomingNumbers = flow.twilioIncomingNumbers.length > 0;
+  const debugInspectorUrl = flow.telephonyWebhookBase
+    ? `${flow.telephonyWebhookBase.replace(/\/$/, '')}/api/telephony/webhook/voice`
+    : '';
 
   return (
     <Card className="border bg-card/95 shadow-sm rounded-3xl">
@@ -53,6 +56,18 @@ export function PhoneNumberStep({ flow }: { flow: OnboardingFlow }) {
               onClick={() => flow.goNext('integrations')}
             >
               Skip for now
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-w-44"
+              disabled={!debugInspectorUrl}
+              onClick={() => {
+                if (!debugInspectorUrl) return;
+                window.open(debugInspectorUrl, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              Open Webhook Debug
             </Button>
             <Button
               className="min-w-40"

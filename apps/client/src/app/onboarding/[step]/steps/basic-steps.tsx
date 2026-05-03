@@ -182,6 +182,15 @@ export function PlanStep({ flow }: { flow: OnboardingFlow }) {
           <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
           <Button
             type="button"
+            variant="outline"
+            className="min-w-28"
+            onClick={() => flow.goNext('knowledge-base')}
+            disabled={checkoutLoading}
+          >
+            Skip for now
+          </Button>
+          <Button
+            type="button"
             className="min-w-28"
             disabled={checkoutLoading}
             onClick={handleContinue}

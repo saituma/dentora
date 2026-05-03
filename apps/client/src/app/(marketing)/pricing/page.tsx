@@ -88,9 +88,9 @@ export default function PricingPage() {
               <Button
                 className="w-full"
                 variant={plan.popular ? 'default' : 'outline'}
-                asChild
+                render={<Link href="/signup" />}
               >
-                <Link href="/signup">Get started</Link>
+                Get started
               </Button>
             </CardFooter>
           </Card>

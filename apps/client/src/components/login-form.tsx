@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
@@ -82,9 +81,9 @@ export function LoginForm({
                   <span className="sr-only">Login with Meta</span>
                 </Button>
               </Field>
-              <FieldDescription className="text-center">
+              <p className="text-muted-foreground text-xs text-center">
                 Don&apos;t have an account? <a href="#">Sign up</a>
-              </FieldDescription>
+              </p>
             </FieldGroup>
           </form>
           <div className="bg-muted relative hidden md:block">
@@ -96,10 +95,10 @@ export function LoginForm({
           </div>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center">
+      <p className="text-muted-foreground text-xs px-6 text-center">
         By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
         and <a href="#">Privacy Policy</a>.
-      </FieldDescription>
+      </p>
     </div>
   )
 }

@@ -5,13 +5,11 @@ import {
 } from "@/components/example"
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogClose,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogMedia,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
@@ -51,11 +49,11 @@ export function CardExample() {
               <PlusIcon data-icon="inline-start" />
               Show Dialog
             </AlertDialogTrigger>
-            <AlertDialogContent size="sm">
+            <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogMedia>
+                <div className="flex justify-center">
                   <BluetoothIcon />
-                </AlertDialogMedia>
+                </div>
                 <AlertDialogTitle>Allow accessory to connect?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Do you want to allow the USB accessory to connect to this
@@ -63,8 +61,8 @@ export function CardExample() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Don&apos;t allow</AlertDialogCancel>
-                <AlertDialogAction>Allow</AlertDialogAction>
+                <AlertDialogClose render={<Button variant="ghost" />}>Don&apos;t allow</AlertDialogClose>
+                <AlertDialogClose render={<Button />}>Allow</AlertDialogClose>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

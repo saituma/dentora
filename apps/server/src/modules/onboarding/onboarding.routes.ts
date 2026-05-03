@@ -25,6 +25,7 @@ import { eq } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import PDFDocument from 'pdfkit';
 import type { Readable } from 'stream';
+import { uploadFile, buildStorageKey, isStorageConfigured } from '../../lib/storage.js';
 
 export const onboardingRouter = Router();
 
@@ -778,8 +779,22 @@ onboardingRouter.post(
         throw new ValidationError('No files uploaded.');
       }
 
+      const tenantId = req.tenantContext!.tenantId;
       const documents: Array<{ name: string; content: string; mimeType?: string }> = [];
+      const uploadedKeys: string[] = [];
+
       for (const file of files) {
+        if (isStorageConfigured()) {
+          const key = buildStorageKey(tenantId, 'context-documents', file.originalname);
+          await uploadFile({
+            key,
+            body: file.buffer,
+            contentType: file.mimetype || 'application/octet-stream',
+            metadata: { tenantId, originalName: file.originalname },
+          });
+          uploadedKeys.push(key);
+        }
+
         const content = await extractContextText(file);
         if (!content) continue;
         documents.push({
@@ -793,8 +808,8 @@ onboardingRouter.post(
         throw new ValidationError('No supported content extracted from uploaded files.');
       }
 
-      await onboardingService.saveContextDocuments(req.tenantContext!.tenantId, documents);
-      res.json({ success: true, count: documents.length });
+      await onboardingService.saveContextDocuments(tenantId, documents);
+      res.json({ success: true, count: documents.length, storedFiles: uploadedKeys.length });
     } catch (err) {
       next(err);
     }

@@ -215,6 +215,46 @@ authRouter.post(
 );
 
 authRouter.post(
+  '/forgot-password',
+  authRateLimiter,
+  validate({
+    body: z.object({
+      email: z.string().email(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      await authService.requestPasswordReset({ email: req.body.email });
+      res.json({ message: 'If that email exists, a reset link has been sent' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
+  '/reset-password',
+  authRateLimiter,
+  validate({
+    body: z.object({
+      token: z.string().min(1),
+      newPassword: z.string().min(8),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      await authService.resetPassword({
+        token: req.body.token,
+        newPassword: req.body.newPassword,
+      });
+      res.json({ message: 'Password has been reset' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
   '/change-password',
   authenticateJwt,
   validate({

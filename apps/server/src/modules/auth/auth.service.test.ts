@@ -16,6 +16,7 @@ vi.mock('../../db/schema.js', () => ({
   tenantRegistry: {},
   otpChallenges: { channel: 'channel', target: 'target', id: 'id' },
   authIdentities: { provider: 'provider', providerUserId: 'providerUserId' },
+  passwordResetTokens: { tokenHash: 'tokenHash', id: 'id', userId: 'userId' },
 }));
 vi.mock('nodemailer', () => ({
   default: { createTransport: vi.fn().mockReturnValue({ sendMail: vi.fn() }) },
@@ -147,6 +148,8 @@ describe('refreshAccessToken', () => {
       id: 's1',
       userId: 'u1',
       refreshToken,
+      previousRefreshToken: null,
+      rotatedAt: null,
       expiresAt: new Date(Date.now() + 86400000),
     };
     const fakeUser = { id: 'u1', email: 'a@b.com', role: 'admin', displayName: 'Test' };
@@ -161,6 +164,8 @@ describe('refreshAccessToken', () => {
 
     expect(result.accessToken).toBeDefined();
     expect(result.refreshToken).toBeDefined();
+    // Verify the session was updated with rotation fields
+    expect(mockDb.update).toHaveBeenCalled();
   });
 
   it('throws for expired session', async () => {
@@ -169,6 +174,8 @@ describe('refreshAccessToken', () => {
       id: 's1',
       userId: 'u1',
       refreshToken,
+      previousRefreshToken: null,
+      rotatedAt: null,
       expiresAt: new Date(Date.now() - 1000),
     };
 
@@ -179,6 +186,39 @@ describe('refreshAccessToken', () => {
 
   it('throws for invalid refresh token', async () => {
     await expect(refreshAccessToken('garbage')).rejects.toThrow();
+  });
+
+  it('invalidates all sessions on replay of a previously-rotated token', async () => {
+    const oldRefreshToken = signRefreshToken({ userId: 'u1', tenantId: 't1', sessionId: 's1' });
+
+    // First select: no session found with this token as current (it was rotated away)
+    mockDb.select.mockReturnValueOnce(chainable(undefined));
+    // Second select: found session where this token is the previousRefreshToken (replay detected)
+    mockDb.select.mockReturnValueOnce(chainable({
+      id: 's1',
+      userId: 'u1',
+      refreshToken: 'new-token-that-replaced-old',
+      previousRefreshToken: oldRefreshToken,
+      rotatedAt: new Date(),
+      expiresAt: new Date(Date.now() + 86400000),
+    }));
+    mockDb.delete.mockReturnValue(deleteChain());
+
+    await expect(refreshAccessToken(oldRefreshToken)).rejects.toThrow(
+      'Refresh token reuse detected. All sessions have been revoked for security.',
+    );
+    expect(mockDb.delete).toHaveBeenCalled();
+  });
+
+  it('throws session expired when token matches no current or previous session', async () => {
+    const refreshToken = signRefreshToken({ userId: 'u1', tenantId: 't1', sessionId: 's1' });
+
+    // No match on current token
+    mockDb.select.mockReturnValueOnce(chainable(undefined));
+    // No match on previous token either
+    mockDb.select.mockReturnValueOnce(chainable(undefined));
+
+    await expect(refreshAccessToken(refreshToken)).rejects.toThrow(AuthenticationError);
   });
 });
 

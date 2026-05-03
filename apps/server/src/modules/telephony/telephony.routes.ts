@@ -16,6 +16,24 @@ import { logger } from '../../lib/logger.js';
 
 export const telephonyRouter = Router();
 
+function twimlXml(parts: string[]): string {
+  return parts.join('');
+}
+
+function twimlEscape(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function isOnboardingNotPublishedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return /No active config version for tenant/i.test(error.message);
+}
+
 telephonyRouter.get(
   '/webhook-base',
   authenticateJwt,
@@ -172,7 +190,7 @@ telephonyRouter.post(
   '/webhook/client-voice',
   webhookRateLimiter,
   validateTwilioSignature,
-  async (req, res, next) => {
+  async (req, res) => {
     try {
       const { CallSid, To, From, AccountSid } = req.body;
       const destination = To || req.body?.ToNumber;
@@ -203,7 +221,7 @@ telephonyRouter.post(
       const wsBase = baseUrl.replace(/^http/i, 'ws');
       const streamUrl = `${wsBase}/api/telephony/media-stream/${result.callSessionId}`;
 
-      const twiml = [
+      const twiml = twimlXml([
         '<Response>',
         '<Connect>',
         `<Stream url="${streamUrl}">`,
@@ -213,7 +231,7 @@ telephonyRouter.post(
         '</Stream>',
         '</Connect>',
         '</Response>',
-      ].join('');
+      ]);
 
       logger.info(
         { callSid: CallSid, callSessionId: result.callSessionId, twimlBytes: twiml.length },
@@ -222,7 +240,35 @@ telephonyRouter.post(
 
       res.type('text/xml').send(twiml);
     } catch (err) {
-      next(err);
+      const correlationId = (req.headers['x-correlation-id'] as string | undefined) ?? 'unknown';
+      logger.error(
+        {
+          err,
+          correlationId,
+          path: req.originalUrl,
+          callSid: req.body?.CallSid,
+          to: req.body?.To,
+          from: req.body?.From,
+        },
+        'Client voice webhook failed',
+      );
+      const fallbackTwiml = isOnboardingNotPublishedError(err)
+        ? twimlXml([
+            '<Response>',
+            '<Say voice="alice">Test call succeeded.</Say>',
+            '<Say voice="alice">Please finish onboarding and publish your setup to enable the AI receptionist.</Say>',
+            '<Hangup/>',
+            '</Response>',
+          ])
+        : twimlXml([
+            '<Response>',
+            '<Say voice="alice">We are having trouble connecting your call right now. Please try again shortly.</Say>',
+            `<Say voice="alice">Reference ${twimlEscape(correlationId)}</Say>`,
+            '<Hangup/>',
+            '</Response>',
+          ]);
+      res.setHeader('X-Correlation-Id', correlationId);
+      res.status(200).type('text/xml').send(fallbackTwiml);
     }
   },
 );
@@ -231,7 +277,7 @@ telephonyRouter.post(
   '/webhook/voice',
   webhookRateLimiter,
   validateTwilioSignature,
-  async (req, res, next) => {
+  async (req, res) => {
     try {
       const { CallSid, To, From, AccountSid } = req.body;
 
@@ -247,6 +293,40 @@ telephonyRouter.post(
         },
         'Twilio voice webhook received',
       );
+
+      const tenantId = await telephonyService.resolveTenantByPhone(To);
+
+      const afterHours = await telephonyService.getAfterHoursInfo(tenantId);
+      if (afterHours.isAfterHours) {
+        logger.info({ callSid: CallSid, tenantId }, 'After-hours call — playing message and recording voicemail');
+        const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
+        const afterHoursTwiml = twimlXml([
+          '<Response>',
+          `<Say voice="alice">${twimlEscape(afterHours.message)}</Say>`,
+          '<Pause length="1"/>',
+          '<Say voice="alice">Please leave a message after the tone.</Say>',
+          `<Record maxLength="180" action="${baseUrl}/api/telephony/webhook/voicemail?tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
+          '</Response>',
+        ]);
+        res.type('text/xml').send(afterHoursTwiml);
+        return;
+      }
+
+      const callLimit = await telephonyService.checkConcurrentCallLimit(tenantId);
+      if (!callLimit.allowed) {
+        logger.warn(
+          { callSid: CallSid, tenantId, current: callLimit.current, limit: callLimit.limit },
+          'Concurrent call limit reached',
+        );
+        const busyTwiml = twimlXml([
+          '<Response>',
+          '<Say voice="alice">All of our lines are currently busy. Please try again in a few minutes or leave a message after the tone.</Say>',
+          `<Record maxLength="120" action="${env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '')}/api/telephony/webhook/voicemail?tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
+          '</Response>',
+        ]);
+        res.type('text/xml').send(busyTwiml);
+        return;
+      }
 
       const result = await telephonyService.handleInboundCall({
         callSid: CallSid,
@@ -270,7 +350,7 @@ telephonyRouter.post(
         'Twilio stream response generated',
       );
 
-      const twiml = [
+      const twiml = twimlXml([
         '<Response>',
         '<Connect>',
         `<Stream url="${streamUrl}">`,
@@ -280,7 +360,7 @@ telephonyRouter.post(
         '</Stream>',
         '</Connect>',
         '</Response>',
-      ].join('');
+      ]);
 
       logger.info(
         { callSid: CallSid, callSessionId: result.callSessionId, twimlBytes: twiml.length },
@@ -289,7 +369,140 @@ telephonyRouter.post(
 
       res.type('text/xml').send(twiml);
     } catch (err) {
-      next(err);
+      const correlationId = (req.headers['x-correlation-id'] as string | undefined) ?? 'unknown';
+      logger.error(
+        {
+          err,
+          correlationId,
+          path: req.originalUrl,
+          callSid: req.body?.CallSid,
+          to: req.body?.To,
+          from: req.body?.From,
+        },
+        'Twilio voice webhook failed',
+      );
+      const fallbackTwiml = isOnboardingNotPublishedError(err)
+        ? twimlXml([
+            '<Response>',
+            '<Say voice="alice">Test call succeeded.</Say>',
+            '<Say voice="alice">Please finish onboarding and publish your setup to enable the AI receptionist.</Say>',
+            '<Hangup/>',
+            '</Response>',
+          ])
+        : twimlXml([
+            '<Response>',
+            '<Say voice="alice">We are having trouble connecting your call right now. Please try again shortly.</Say>',
+            `<Say voice="alice">Reference ${twimlEscape(correlationId)}</Say>`,
+            '<Hangup/>',
+            '</Response>',
+          ]);
+      res.setHeader('X-Correlation-Id', correlationId);
+      res.status(200).type('text/xml').send(fallbackTwiml);
+    }
+  },
+);
+
+telephonyRouter.post(
+  '/webhook/voicemail',
+  webhookRateLimiter,
+  validateTwilioSignature,
+  async (req, res) => {
+    try {
+      const { RecordingUrl, RecordingSid, RecordingDuration, TranscriptionText, CallSid } = req.body;
+      const tenantId = (req.query.tenantId as string) || '';
+      const callSessionId = (req.query.callSessionId as string) || '';
+
+      logger.info(
+        {
+          callSid: CallSid,
+          tenantId,
+          callSessionId,
+          recordingSid: RecordingSid,
+          recordingDuration: RecordingDuration,
+          hasTranscription: Boolean(TranscriptionText),
+        },
+        'Voicemail received',
+      );
+
+      if (callSessionId && tenantId) {
+        const { logCallEvent } = await import('../calls/call.service.js');
+        await logCallEvent({
+          tenantId,
+          callSessionId,
+          eventType: 'voicemail.received',
+          actor: 'system',
+          payload: {
+            recordingUrl: RecordingUrl,
+            recordingSid: RecordingSid,
+            durationSeconds: RecordingDuration ? parseInt(RecordingDuration, 10) : null,
+            transcription: TranscriptionText || null,
+          },
+        });
+      }
+
+      res.type('text/xml').send('<Response><Hangup/></Response>');
+    } catch (err) {
+      logger.error({ err }, 'Voicemail webhook failed');
+      res.type('text/xml').send('<Response><Hangup/></Response>');
+    }
+  },
+);
+
+telephonyRouter.post(
+  '/webhook/forward-status',
+  webhookRateLimiter,
+  validateTwilioSignature,
+  async (req, res) => {
+    try {
+      const { DialCallStatus, DialCallDuration, CallSid } = req.body;
+      const callSessionId = (req.query.callSessionId as string) || '';
+      const tenantId = (req.query.tenantId as string) || '';
+
+      logger.info(
+        {
+          callSid: CallSid,
+          callSessionId,
+          dialStatus: DialCallStatus,
+          dialDuration: DialCallDuration,
+        },
+        'Call forward status received',
+      );
+
+      if (callSessionId && tenantId) {
+        const { logCallEvent, updateCallStatus } = await import('../calls/call.service.js');
+        await logCallEvent({
+          tenantId,
+          callSessionId,
+          eventType: 'call.forwarded',
+          actor: 'system',
+          payload: {
+            dialStatus: DialCallStatus,
+            dialDuration: DialCallDuration,
+          },
+        });
+
+        if (DialCallStatus === 'completed') {
+          await updateCallStatus(tenantId, callSessionId, 'completed', {
+            endReason: 'forwarded_completed',
+          });
+        }
+      }
+
+      if (DialCallStatus !== 'completed') {
+        const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
+        const voicemailTwiml = twimlXml([
+          '<Response>',
+          '<Say voice="alice">The person you are trying to reach is not available. Please leave a message after the tone.</Say>',
+          `<Record maxLength="120" action="${baseUrl}/api/telephony/webhook/voicemail?callSessionId=${encodeURIComponent(callSessionId)}&amp;tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
+          '</Response>',
+        ]);
+        res.type('text/xml').send(voicemailTwiml);
+      } else {
+        res.type('text/xml').send('<Response/>');
+      }
+    } catch (err) {
+      logger.error({ err }, 'Forward status webhook failed');
+      res.type('text/xml').send('<Response><Hangup/></Response>');
     }
   },
 );

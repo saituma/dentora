@@ -11,6 +11,7 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { tenantConfigVersions } from '../../db/schema.js';
 import { env } from '../../config/env.js';
 import twilio from 'twilio';
+import * as configService from '../config/config.service.js';
 
 type TwilioNumber = InferSelectModel<typeof twilioNumbers>;
 type TwilioIncomingNumber = {
@@ -541,6 +542,183 @@ export async function handleInboundCall(input: {
     callSessionId: callSession.id,
     configVersionId: configVersionRow.id,
   };
+}
+
+const MAX_CONCURRENT_CALLS: Record<string, number> = {
+  starter: 2,
+  professional: 5,
+  enterprise: 20,
+};
+
+export async function getActiveConcurrentCalls(tenantId: string): Promise<number> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(callSessions)
+    .where(and(
+      eq(callSessions.tenantId, tenantId),
+      or(
+        eq(callSessions.status, 'started'),
+        eq(callSessions.status, 'in_progress'),
+      ),
+    ));
+  return count ?? 0;
+}
+
+export async function checkConcurrentCallLimit(tenantId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+  const [tenant] = await db
+    .select({ plan: sql<string>`plan` })
+    .from(sql`tenant_registry`)
+    .where(sql`id = ${tenantId}`)
+    .limit(1);
+
+  const plan = (tenant?.plan ?? 'starter') as keyof typeof MAX_CONCURRENT_CALLS;
+  const limit = MAX_CONCURRENT_CALLS[plan] ?? MAX_CONCURRENT_CALLS.starter;
+  const current = await getActiveConcurrentCalls(tenantId);
+
+  return { allowed: current < limit, current, limit };
+}
+
+export function isWithinBusinessHours(
+  businessHours: Record<string, { start: string; end: string } | null> | null | undefined,
+  timezone: string,
+): boolean {
+  if (!businessHours) return true;
+
+  const now = new Date();
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'long' });
+  const currentDay = dayFormatter.format(now).toLowerCase();
+  const dayKey = dayNames.includes(currentDay) ? currentDay : undefined;
+
+  if (!dayKey) return true;
+
+  const schedule = businessHours[dayKey];
+  if (!schedule || !schedule.start || !schedule.end) return false;
+
+  const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const currentTime = timeFormatter.format(now);
+
+  return currentTime >= schedule.start && currentTime < schedule.end;
+}
+
+export async function getAfterHoursInfo(tenantId: string): Promise<{
+  isAfterHours: boolean;
+  message: string;
+}> {
+  const clinic = await configService.getClinicProfile(tenantId);
+  const voiceProfileData = await configService.getVoiceProfile(tenantId);
+  const timezone = clinic?.timezone ?? 'America/New_York';
+  const businessHours = clinic?.businessHours as Record<string, { start: string; end: string } | null> | null;
+  const withinHours = isWithinBusinessHours(businessHours, timezone);
+
+  const afterHoursMessage = (voiceProfileData as Record<string, unknown> | null)?.afterHoursMessage as string | undefined;
+  const clinicName = clinic?.clinicName ?? 'our clinic';
+  const defaultMessage = `Thank you for calling ${clinicName}. We are currently closed. Our office hours are Monday through Friday. Please leave a message after the tone and we will return your call on the next business day. If this is a dental emergency, please call 911 or visit your nearest emergency room.`;
+
+  return {
+    isAfterHours: !withinHours,
+    message: afterHoursMessage?.trim() || defaultMessage,
+  };
+}
+
+export async function forwardCallToHuman(input: {
+  tenantId: string;
+  callSid: string;
+  targetNumber: string;
+  callSessionId: string;
+  callerName?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const log = logger.child({ module: 'call-forward', callSessionId: input.callSessionId });
+
+  try {
+    const client = createTwilioRestClient();
+    const { voiceUrl } = buildTwilioWebhookUrls();
+    const baseUrl = voiceUrl.replace('/api/telephony/webhook/voice', '');
+
+    const forwardTwiml = [
+      '<Response>',
+      '<Say voice="alice">Please hold while I connect you to a team member.</Say>',
+      `<Dial timeout="30" action="${baseUrl}/api/telephony/webhook/forward-status?callSessionId=${encodeURIComponent(input.callSessionId)}&amp;tenantId=${encodeURIComponent(input.tenantId)}">`,
+      `<Number>${twimlEscape(input.targetNumber)}</Number>`,
+      '</Dial>',
+      '<Say voice="alice">I\'m sorry, no one is available right now. Please leave a message after the tone.</Say>',
+      `<Record maxLength="120" action="${baseUrl}/api/telephony/webhook/voicemail?callSessionId=${encodeURIComponent(input.callSessionId)}&amp;tenantId=${encodeURIComponent(input.tenantId)}" transcribe="true" />`,
+      '</Response>',
+    ].join('');
+
+    await client.calls(input.callSid).update({
+      twiml: forwardTwiml,
+    });
+
+    log.info(
+      { targetNumber: input.targetNumber, callSid: input.callSid },
+      'Call forwarded to human',
+    );
+
+    return { success: true };
+  } catch (error) {
+    log.error({ err: error, callSid: input.callSid }, 'Failed to forward call');
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+function twimlEscape(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+export async function sendAppointmentSms(input: {
+  tenantId: string;
+  to: string;
+  clinicName: string;
+  appointmentDate: string;
+  patientName: string;
+}): Promise<{ success: boolean; messageSid?: string }> {
+  try {
+    const client = createTwilioRestClient();
+
+    const [twilioNumber] = await db
+      .select()
+      .from(twilioNumbers)
+      .where(and(eq(twilioNumbers.tenantId, input.tenantId), eq(twilioNumbers.status, 'active')))
+      .limit(1);
+
+    if (!twilioNumber) {
+      logger.warn({ tenantId: input.tenantId }, 'No active Twilio number for SMS');
+      return { success: false };
+    }
+
+    const capabilities = twilioNumber.capabilities as Record<string, boolean> | null;
+    if (!capabilities?.sms) {
+      logger.info({ tenantId: input.tenantId }, 'SMS not enabled for this number');
+      return { success: false };
+    }
+
+    const message = await client.messages.create({
+      to: input.to,
+      from: twilioNumber.phoneNumber,
+      body: `${input.clinicName}: Hi ${input.patientName}, your dental appointment is confirmed for ${input.appointmentDate}. Reply STOP to opt out.`,
+    });
+
+    logger.info(
+      { tenantId: input.tenantId, messageSid: message.sid, to: input.to },
+      'Appointment confirmation SMS sent',
+    );
+
+    return { success: true, messageSid: message.sid };
+  } catch (error) {
+    logger.error({ err: error, tenantId: input.tenantId }, 'Failed to send appointment SMS');
+    return { success: false };
+  }
 }
 
 export async function handleCallStatusUpdate(input: {

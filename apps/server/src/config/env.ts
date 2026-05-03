@@ -77,10 +77,10 @@ const envSchema = z.object({
   SMTP_PASS: z.string().default(''),
   SMTP_FROM: z.string().default(''),
 
-  S3_BUCKET: z.string().default(''),
-  S3_REGION: z.string().default('us-east-1'),
-  S3_ACCESS_KEY: z.string().default(''),
-  S3_SECRET_KEY: z.string().default(''),
+  R2_BUCKET: z.string().default(''),
+  R2_ACCOUNT_ID: z.string().default(''),
+  R2_ACCESS_KEY_ID: z.string().default(''),
+  R2_SECRET_ACCESS_KEY: z.string().default(''),
 
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   OTEL_EXPORTER_ENDPOINT: z.string().default(''),
@@ -119,10 +119,34 @@ function loadEnv() {
     if (result.data.ENCRYPTION_KEY === '0'.repeat(64)) {
       fatal.push('ENCRYPTION_KEY is still set to the default zero-fill value');
     }
+    // DATABASE_URL must not point to localhost in production
+    const dbUrl = result.data.DATABASE_URL.toLowerCase();
+    if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+      fatal.push('DATABASE_URL points to localhost — use a remote database in production');
+    }
+
+    // Stripe must be configured in production
+    if (!result.data.STRIPE_SECRET_KEY) {
+      fatal.push('STRIPE_SECRET_KEY is not set');
+    }
+
+    // DATABASE_SSL_MODE must be require or stricter in production
+    if (result.data.DATABASE_SSL_MODE === 'disable') {
+      fatal.push('DATABASE_SSL_MODE must be "require", "verify-ca", or "verify-full" in production');
+    }
+
     if (fatal.length > 0) {
       console.error('❌ Unsafe secrets in production:');
       fatal.forEach((msg) => console.error(`  - ${msg}`));
       process.exit(1);
+    }
+
+    // Non-fatal warnings for recommended services
+    if (!result.data.SENTRY_DSN) {
+      console.warn('⚠️  SENTRY_DSN is not set — error tracking will be disabled in production');
+    }
+    if (!result.data.SMTP_HOST) {
+      console.warn('⚠️  SMTP_HOST is not set — transactional emails will fail in production');
     }
   }
 

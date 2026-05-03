@@ -3,6 +3,7 @@ import { Router } from 'express';
 import * as adminService from './admin.service.js';
 import { authenticateJwt, requirePlatformAdmin, validate } from '../../middleware/index.js';
 import { z } from 'zod';
+import { runDataRetention } from '../../lib/data-retention.js';
 
 export const adminRouter = Router();
 
@@ -59,3 +60,17 @@ adminRouter.put(
     }
   },
 );
+
+adminRouter.post('/data-retention/run', async (req, res, next) => {
+  try {
+    const result = await runDataRetention();
+    req.audit?.({
+      action: 'admin.data_retention_run',
+      entityType: 'data_retention',
+      afterState: result,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});

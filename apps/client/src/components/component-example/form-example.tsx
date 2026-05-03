@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import {
   Combobox,
-  ComboboxContent,
+  ComboboxPopup,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
@@ -111,7 +111,7 @@ export function FormExample() {
                     placeholder="Select a framework"
                     required
                   />
-                  <ComboboxContent>
+                  <ComboboxPopup>
                     <ComboboxEmpty>No frameworks found.</ComboboxEmpty>
                     <ComboboxList>
                       {(item) => (
@@ -120,7 +120,7 @@ export function FormExample() {
                         </ComboboxItem>
                       )}
                     </ComboboxList>
-                  </ComboboxContent>
+                  </ComboboxPopup>
                 </Combobox>
               </Field>
               <Field>
@@ -130,7 +130,7 @@ export function FormExample() {
                   placeholder="Add any additional comments"
                 />
               </Field>
-              <Field orientation="horizontal">
+              <Field className="flex-row gap-2">
                 <Button type="submit">Submit</Button>
                 <Button variant="outline" type="button">
                   Cancel

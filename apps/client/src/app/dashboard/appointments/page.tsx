@@ -13,8 +13,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogClose,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -119,8 +118,8 @@ export default function AppointmentsPage() {
               title="Calendar not connected"
               description="Connect Google Calendar in Clinic Setup to view appointments here."
             >
-              <Button asChild variant="outline">
-                <a href="/dashboard/ai-receptionist">Go to Clinic Setup</a>
+              <Button render={<a href="/dashboard/ai-receptionist" />} variant="outline">
+                Go to Clinic Setup
               </Button>
             </EmptyState>
           ) : isLoading ? (
@@ -137,8 +136,8 @@ export default function AppointmentsPage() {
                 <Button variant="outline" onClick={() => refetch()}>
                   Retry
                 </Button>
-                <Button asChild variant="outline">
-                  <a href="/dashboard/ai-receptionist">Reconnect calendar</a>
+                <Button render={<a href="/dashboard/ai-receptionist" />} variant="outline">
+                  Reconnect calendar
                 </Button>
               </div>
             </EmptyState>
@@ -188,8 +187,8 @@ export default function AppointmentsPage() {
               title="Calendar not connected"
               description="Connect Google Calendar in Clinic Setup to view appointments here."
             >
-              <Button asChild variant="outline">
-                <a href="/dashboard/ai-receptionist">Go to Clinic Setup</a>
+              <Button render={<a href="/dashboard/ai-receptionist" />} variant="outline">
+                Go to Clinic Setup
               </Button>
             </EmptyState>
           ) : isLoading ? (
@@ -206,8 +205,8 @@ export default function AppointmentsPage() {
                 <Button variant="outline" onClick={() => refetch()}>
                   Retry
                 </Button>
-                <Button asChild variant="outline">
-                  <a href="/dashboard/ai-receptionist">Reconnect calendar</a>
+                <Button render={<a href="/dashboard/ai-receptionist" />} variant="outline">
+                  Reconnect calendar
                 </Button>
               </div>
             </EmptyState>
@@ -239,7 +238,7 @@ export default function AppointmentsPage() {
       </Card>
 
       <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AlertDialogContent size="default">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{selectedEvent?.title ?? 'Appointment'}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -264,13 +263,11 @@ export default function AppointmentsPage() {
           ) : null}
           <AlertDialogFooter>
             {selectedEvent?.htmlLink ? (
-              <AlertDialogAction asChild>
-                <a href={selectedEvent.htmlLink} target="_blank" rel="noreferrer">
+              <AlertDialogClose render={<Button render={<a href={selectedEvent.htmlLink} target="_blank" rel="noreferrer" />} />}>
                   Open in Google Calendar
-                </a>
-              </AlertDialogAction>
+              </AlertDialogClose>
             ) : null}
-            <AlertDialogCancel>Close</AlertDialogCancel>
+            <AlertDialogClose render={<Button variant="ghost" />}>Close</AlertDialogClose>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
