@@ -133,7 +133,7 @@ export function ClinicSetupTab(props: {
             </div>
 
             <div className="space-y-3">
-              <FieldLabel>Working schedule</FieldLabel>
+              <span className="inline-flex items-center gap-2 font-medium text-base/4.5 text-foreground sm:text-sm/4">Working schedule</span>
               {WEEKDAYS.map((day) => (
                 <div key={day.key} className="grid grid-cols-[140px_120px_120px_1fr] items-center gap-3 rounded-lg border p-3">
                   <Button
