@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ChevronRight,
-  Layers3,
   LockKeyhole,
   ShieldCheck,
   Stethoscope,
@@ -373,18 +372,24 @@ export const Component = () => {
           />
         </div>
         <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-mono uppercase tracking-[0.14em] text-muted-foreground md:text-base">
-          <Layers3 className="size-5" />
-          <span>Dentora</span>
-          <span className="text-foreground/30">/</span>
-          <span>
-            Built by{' '}
-            <Link
-              href="https://clientreach.ai"
-              className="text-foreground underline-offset-4 hover:underline"
-            >
+          <Link
+            href="https://clientreach.ai"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-md no-underline transition-colors hover:border-[#0EA5E9]/40"
+          >
+            <img
+              src="/clientreach-logo.png"
+              alt="Client Reach AI"
+              className="h-6 w-6 rounded object-contain"
+            />
+            <span className="text-muted-foreground text-xs font-medium tracking-wider">
+              Made by
+            </span>
+            <span className="text-[#0EA5E9] text-sm font-bold tracking-wide">
               Client Reach AI
-            </Link>
-          </span>
+            </span>
+          </Link>
         </div>
       </div>
     </footer>
