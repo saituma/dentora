@@ -706,6 +706,53 @@ export async function changePassword(input: {
   logger.info({ userId: input.userId }, 'User password changed');
 }
 
+export async function getUserAccountInfo(userId: string): Promise<{
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: string;
+  hasPassword: boolean;
+  providers: string[];
+}> {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new AuthenticationError('User not found');
+
+  const identities = await db
+    .select({ provider: authIdentities.provider })
+    .from(authIdentities)
+    .where(eq(authIdentities.userId, userId));
+
+  const providers = identities.map((i) => i.provider);
+  const hasPassword = !providers.includes('google') || user.passwordHash !== null;
+
+  const isRandomHash = providers.includes('google') && !providers.includes('email');
+
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    hasPassword: !isRandomHash,
+    providers,
+  };
+}
+
+export async function setPassword(input: {
+  userId: string;
+  newPassword: string;
+}): Promise<void> {
+  const [user] = await db.select().from(users).where(eq(users.id, input.userId)).limit(1);
+  if (!user) throw new AuthenticationError('User not found');
+
+  const newPasswordHash = await hashPassword(input.newPassword);
+  await db
+    .update(users)
+    .set({ passwordHash: newPasswordHash, updatedAt: new Date() })
+    .where(eq(users.id, input.userId));
+
+  logger.info({ userId: input.userId }, 'User set password (OAuth user)');
+}
+
 export async function requestPasswordReset(input: { email: string }): Promise<void> {
   const email = input.email.trim().toLowerCase();
   const [user] = await db

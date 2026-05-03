@@ -43,6 +43,19 @@ interface ChangePasswordRequest {
   newPassword: string;
 }
 
+interface SetPasswordRequest {
+  newPassword: string;
+}
+
+interface AccountInfo {
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: string;
+  hasPassword: boolean;
+  providers: string[];
+}
+
 interface ForgotPasswordRequest {
   email: string;
 }
@@ -180,6 +193,16 @@ export const authApi = createApi({
         body,
       }),
     }),
+    setPassword: builder.mutation<{ message: string }, SetPasswordRequest>({
+      query: (body) => ({
+        url: '/auth/set-password',
+        method: 'POST',
+        body,
+      }),
+    }),
+    getMe: builder.query<AccountInfo, void>({
+      query: () => '/auth/me',
+    }),
   }),
 });
 
@@ -196,4 +219,6 @@ export const {
   useChangePasswordMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
+  useSetPasswordMutation,
+  useGetMeQuery,
 } = authApi;

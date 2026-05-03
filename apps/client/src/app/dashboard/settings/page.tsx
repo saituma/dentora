@@ -25,7 +25,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
 import { useAppSelector } from '@/store/hooks';
-import { useChangePasswordMutation } from '@/features/auth/authApi';
+import { useChangePasswordMutation, useSetPasswordMutation, useGetMeQuery } from '@/features/auth/authApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 
 const timezones = [
@@ -41,6 +41,8 @@ export default function SettingsPage() {
   const { data: clinic, isLoading } = useGetClinicQuery();
   const [updateClinic, { isLoading: isSaving }] = useUpdateClinicMutation();
   const [changePassword, { isLoading: updatingPassword }] = useChangePasswordMutation();
+  const [setPassword, { isLoading: settingPassword }] = useSetPasswordMutation();
+  const { data: accountInfo } = useGetMeQuery();
 
   const [clinicName, setClinicName] = useState('');
   const [address, setAddress] = useState('');
@@ -111,22 +113,31 @@ export default function SettingsPage() {
     toast.success('Notification preferences saved');
   };
 
+  const hasPassword = accountInfo?.hasPassword ?? true;
+
   const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword) {
-      toast.error('Enter current and new password');
+    if (hasPassword && !currentPassword) {
+      toast.error('Enter your current password');
       return;
     }
-
+    if (!newPassword) {
+      toast.error('Enter a new password');
+      return;
+    }
     if (newPassword.length < 8) {
       toast.error('New password must be at least 8 characters');
       return;
     }
 
     try {
-      await changePassword({ currentPassword, newPassword }).unwrap();
+      if (hasPassword) {
+        await changePassword({ currentPassword, newPassword }).unwrap();
+      } else {
+        await setPassword({ newPassword }).unwrap();
+      }
       setCurrentPassword('');
       setNewPassword('');
-      toast.success('Password updated');
+      toast.success(hasPassword ? 'Password updated' : 'Password set successfully');
     } catch (err: unknown) {
       toast.error(getUserFriendlyApiError(err));
     }
@@ -321,15 +332,22 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <FieldGroup>
+                {!hasPassword && (
+                  <p className="text-sm text-muted-foreground">
+                    You signed in with Google. Set a password to also log in with email and password.
+                  </p>
+                )}
                 <Field>
-                  <FieldLabel>Change password</FieldLabel>
+                  <FieldLabel>{hasPassword ? 'Change password' : 'Set a password'}</FieldLabel>
                   <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder="Current password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                    />
+                    {hasPassword && (
+                      <Input
+                        type="password"
+                        placeholder="Current password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                      />
+                    )}
                     <Input
                       type="password"
                       placeholder="New password"
@@ -341,9 +359,11 @@ export default function SettingsPage() {
                 <Button
                   variant="outline"
                   onClick={handleChangePassword}
-                  disabled={updatingPassword}
+                  disabled={updatingPassword || settingPassword}
                 >
-                  {updatingPassword ? 'Updating...' : 'Update password'}
+                  {(updatingPassword || settingPassword)
+                    ? 'Updating...'
+                    : hasPassword ? 'Update password' : 'Set password'}
                 </Button>
               </FieldGroup>
             </CardContent>

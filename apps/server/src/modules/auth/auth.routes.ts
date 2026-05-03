@@ -278,3 +278,37 @@ authRouter.post(
     }
   },
 );
+
+authRouter.post(
+  '/set-password',
+  authenticateJwt,
+  validate({
+    body: z.object({
+      newPassword: z.string().min(8),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      await authService.setPassword({
+        userId: req.user!.userId,
+        newPassword: req.body.newPassword,
+      });
+      res.json({ message: 'Password set' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.get(
+  '/me',
+  authenticateJwt,
+  async (req, res, next) => {
+    try {
+      const info = await authService.getUserAccountInfo(req.user!.userId);
+      res.json(info);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
