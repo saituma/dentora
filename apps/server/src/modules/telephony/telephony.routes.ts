@@ -141,7 +141,7 @@ telephonyRouter.get(
   resolveTenant,
   async (req, res, next) => {
     try {
-      const numbers = await telephonyService.fetchTwilioIncomingNumbers(req.tenantId);
+      const numbers = await telephonyService.fetchTwilioIncomingNumbers(req.tenantContext!.tenantId);
       res.json({ data: numbers });
     } catch (err) {
       next(err);
