@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { useConversation } from '@elevenlabs/react';
+import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -223,6 +223,14 @@ const formatMessage = (message: unknown): string => {
 };
 
 export default function ElevenLabsAgentPage() {
+  return (
+    <ConversationProvider>
+      <ElevenLabsAgentPageInner />
+    </ConversationProvider>
+  );
+}
+
+function ElevenLabsAgentPageInner() {
   const [manualInput, setManualInput] = useState('');
   const [log, setLog] = useState<LogEntry[]>([]);
   const [connectionType, setConnectionType] = useState<'webrtc' | 'websocket'>('webrtc');
