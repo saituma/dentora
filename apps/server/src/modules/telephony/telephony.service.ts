@@ -421,8 +421,17 @@ export async function listPhoneNumbers(tenantId: string): Promise<TwilioNumber[]
     .where(eq(twilioNumbers.tenantId, tenantId));
 }
 
-export async function fetchTwilioIncomingNumbers(): Promise<TwilioIncomingNumber[]> {
-  return await fetchAllTwilioIncomingNumbers();
+export async function fetchTwilioIncomingNumbers(tenantId?: string): Promise<TwilioIncomingNumber[]> {
+  const all = await fetchAllTwilioIncomingNumbers();
+  const assigned = await db.select({ phoneNumber: twilioNumbers.phoneNumber, tenantId: twilioNumbers.tenantId })
+    .from(twilioNumbers)
+    .where(eq(twilioNumbers.status, 'active'));
+  const assignedSet = new Set(
+    assigned
+      .filter((row) => row.tenantId !== tenantId)
+      .map((row) => row.phoneNumber),
+  );
+  return all.filter((n) => !assignedSet.has(n.phoneNumber));
 }
 
 export function createClientAccessToken(input: {

@@ -67,7 +67,7 @@ export default function OnboardingLayout({
                 Build your AI front desk
               </h1>
               <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Matching the Better Auth split hero style with structured steps and progressive setup.
+                Set up your Dentora AI receptionist in a few simple steps — calls, scheduling, and patient communication on autopilot.
               </p>
             </div>
 
