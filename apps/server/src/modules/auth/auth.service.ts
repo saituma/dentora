@@ -278,8 +278,13 @@ export async function sendEmailOtp(input: { email: string }): Promise<{ challeng
     metadata: {},
   });
 
-  await sendEmailOtpViaSmtp({ email, code });
-  logger.info({ email: maskOtpTarget(email) }, 'Email OTP sent');
+  try {
+    await sendEmailOtpViaSmtp({ email, code });
+    logger.info({ email: maskOtpTarget(email) }, 'Email OTP sent');
+  } catch (err: unknown) {
+    logger.error({ err, message: (err as Error)?.message, smtpHost: env.SMTP_HOST, smtpPort: env.SMTP_PORT }, 'SMTP send failed');
+    throw err;
+  }
   return { challengeId, expiresInSeconds };
 }
 
