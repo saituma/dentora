@@ -171,7 +171,36 @@ async function createUserWithTenant(input: {
   return user;
 }
 
-async function sendEmailOtpViaSmtp(input: {
+async function sendEmailOtp_Resend(input: {
+  email: string;
+  code: string;
+}): Promise<void> {
+  if (!env.RESEND_API_KEY) {
+    throw new ValidationError('RESEND_API_KEY is not configured for email verification');
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.SMTP_FROM || 'Dentora <onboarding@resend.dev>',
+      to: [input.email],
+      subject: 'Your Dentora verification code',
+      text: `Your Dentora verification code is ${input.code}. It expires in 10 minutes.`,
+      html: `<p>Your Dentora verification code is <strong>${input.code}</strong>.</p><p>It expires in 10 minutes.</p>`,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend API error (${res.status}): ${body}`);
+  }
+}
+
+async function sendEmailOtp_Smtp(input: {
   email: string;
   code: string;
 }): Promise<void> {
@@ -196,6 +225,13 @@ async function sendEmailOtpViaSmtp(input: {
     text: `Your Dentora verification code is ${input.code}. It expires in 10 minutes.`,
     html: `<p>Your Dentora verification code is <strong>${input.code}</strong>.</p><p>It expires in 10 minutes.</p>`,
   });
+}
+
+async function sendEmailOtpViaSmtp(input: { email: string; code: string }): Promise<void> {
+  if (env.RESEND_API_KEY) {
+    return sendEmailOtp_Resend(input);
+  }
+  return sendEmailOtp_Smtp(input);
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {

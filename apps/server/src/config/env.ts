@@ -82,6 +82,8 @@ const envSchema = z.object({
   R2_ACCESS_KEY_ID: z.string().default(''),
   R2_SECRET_ACCESS_KEY: z.string().default(''),
 
+  RESEND_API_KEY: z.string().default(''),
+
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   OTEL_EXPORTER_ENDPOINT: z.string().default(''),
   SENTRY_DSN: z.string().default(''),
