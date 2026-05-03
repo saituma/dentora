@@ -229,16 +229,16 @@ importers:
         specifier: ^1.4.7
         version: 1.4.7
       cors:
-        specifier: latest
+        specifier: ^2.8.6
         version: 2.8.6
       dotenv:
-        specifier: latest
+        specifier: ^17.4.2
         version: 17.4.2
       drizzle-orm:
-        specifier: latest
+        specifier: ^0.45.2
         version: 0.45.2(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.0)(@types/pg@8.20.0)(pg@8.20.0)
       express:
-        specifier: latest
+        specifier: ^5.2.1
         version: 5.2.1
       ioredis:
         specifier: ^5.10.0
@@ -268,7 +268,7 @@ importers:
         specifier: ^0.18.0
         version: 0.18.0
       pg:
-        specifier: latest
+        specifier: ^8.20.0
         version: 8.20.0
       pino:
         specifier: ^10.3.1
