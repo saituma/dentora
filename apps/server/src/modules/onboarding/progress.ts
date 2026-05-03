@@ -18,9 +18,7 @@ const STEP_ORDER = [
   'policies',
   'voice',
   'knowledge-base',
-  'integrations',
   'schedule',
-  'review',
 ] as const;
 
 export function hasConfiguredOperatingSchedule(schedule?: Record<string, unknown> | null): boolean {
@@ -67,7 +65,7 @@ export function getNextStep(completedSteps: string[]): string {
   for (const step of STEP_ORDER) {
     if (!completedSteps.includes(step)) return step;
   }
-  return 'review';
+  return 'complete';
 }
 
 export async function updateOnboardingStep(tenantId: string, _step: string): Promise<void> {
