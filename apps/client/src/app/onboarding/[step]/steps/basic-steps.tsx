@@ -4,10 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 import type { OnboardingFlow } from '../use-onboarding-flow';
-import { useCreateCheckoutSessionMutation } from '@/features/billing/billingApi';
 
 export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
   return (
@@ -29,7 +27,7 @@ export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
                 timezone: flow.timezone,
               }).unwrap();
               toast.success('Clinic profile saved');
-              flow.goNext('plan');
+              flow.goNext('knowledge-base');
             } catch (error: unknown) {
               toast.error(getUserFriendlyApiError(error));
             }
@@ -81,124 +79,3 @@ export function ClinicProfileStep({ flow }: { flow: OnboardingFlow }) {
   );
 }
 
-export function PlanStep({ flow }: { flow: OnboardingFlow }) {
-  const [createCheckout, { isLoading: checkoutLoading }] = useCreateCheckoutSessionMutation();
-
-  const plans = [
-    {
-      id: 'starter' as const,
-      name: 'Starter',
-      price: '$49/mo',
-      detail: 'Great for solo practices getting started with a reliable AI front desk.',
-      highlights: [
-        '1 clinic location',
-        'Up to 600 calls/month',
-        'Business hours booking',
-        'Basic analytics & call logs',
-        'Email support in 24–48 hrs',
-        'Standard voice & FAQs',
-      ],
-    },
-    {
-      id: 'growth' as const,
-      name: 'Growth',
-      price: '$149/mo',
-      detail: 'Built for growing clinics that need smarter routing and faster responses.',
-      highlights: [
-        'Up to 3 locations',
-        'Up to 2,500 calls/month',
-        'Priority support in 4–8 hrs',
-        'Advanced analytics & insights',
-        'Custom booking rules',
-        'Multi-staff routing',
-      ],
-    },
-    {
-      id: 'pro' as const,
-      name: 'Pro',
-      price: '$299/mo',
-      detail: 'Best for multi-location teams and high-volume practices with complex workflows.',
-      highlights: [
-        'Unlimited locations',
-        'Up to 10,000 calls/month',
-        'Dedicated success manager',
-        'Custom workflows & integrations',
-        'Priority routing + VIP support',
-        'Quarterly performance reviews',
-      ],
-    },
-  ];
-
-  const handleContinue = async () => {
-    try {
-      const origin = window.location.origin;
-      const result = await createCheckout({
-        planId: flow.selectedPlan,
-        successUrl: `${origin}/onboarding/knowledge-base?checkout=success`,
-        cancelUrl: `${origin}/onboarding/plan?checkout=cancelled`,
-      }).unwrap();
-
-      // Redirect to Stripe Checkout
-      window.location.href = result.url;
-    } catch (error: unknown) {
-      toast.error(getUserFriendlyApiError(error));
-    }
-  };
-
-  return (
-    <Card className="border bg-card/95 shadow-sm rounded-3xl">
-      <CardHeader>
-        <CardTitle className="text-2xl">Pick the right plan</CardTitle>
-        <CardDescription className="text-base">Transparent pricing. Upgrade or downgrade any time.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-5 md:grid-cols-3">
-          {plans.map((plan) => {
-            const isSelected = flow.selectedPlan === plan.id;
-            return (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => flow.setSelectedPlan(plan.id)}
-                className={`rounded-2xl border p-6 text-left transition ${isSelected ? 'border-primary bg-primary/10 shadow-md' : 'border-border hover:border-primary/40'}`}
-              >
-                <p className="text-base font-semibold tracking-tight">{plan.name}</p>
-                <p className="mt-2 text-3xl font-semibold">{plan.price}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{plan.detail}</p>
-                <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
-                  {plan.highlights.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-                {isSelected && <Badge className="mt-3">Selected</Badge>}
-              </button>
-            );
-          })}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          You will be redirected to Stripe Checkout (test mode uses cards like 4242 4242 4242 4242). Your clinic email from the previous step is sent to Stripe when available.
-        </p>
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-w-28"
-            onClick={() => flow.goNext('knowledge-base')}
-            disabled={checkoutLoading}
-          >
-            Skip for now
-          </Button>
-          <Button
-            type="button"
-            className="min-w-28"
-            disabled={checkoutLoading}
-            onClick={handleContinue}
-          >
-            {checkoutLoading ? 'Redirecting...' : 'Continue to Payment'}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

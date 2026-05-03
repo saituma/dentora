@@ -45,7 +45,6 @@ export interface UploadedContextFile {
 
 export const STEPS = [
   { id: 'clinic-profile', label: 'Profile' },
-  { id: 'plan', label: 'Plan' },
   { id: 'knowledge-base', label: 'Knowledge' },
   { id: 'voice', label: 'Voice' },
   { id: 'phone-number', label: 'Number' },
@@ -66,8 +65,8 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
     description: 'Set your core profile details so your AI sounds like your front desk.',
   },
   plan: {
-    title: 'Choose your plan',
-    description: 'Pick the plan that best fits your clinic. You can change it later.',
+    title: 'Get started',
+    description: 'Continue setting up your clinic.',
   },
   'knowledge-base': {
     title: 'Tell us your clinic knowledge',

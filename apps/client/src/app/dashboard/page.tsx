@@ -39,7 +39,6 @@ import {
   TrendingUpIcon,
   ClockIcon,
   UsersIcon,
-  DollarSignIcon,
   ActivityIcon,
   CheckCircle2Icon,
   ArrowRightIcon,
@@ -49,7 +48,6 @@ import {
   SmileIcon,
   FrownIcon,
   MinusIcon,
-  AlertTriangleIcon,
   WifiIcon,
 } from 'lucide-react';
 import { skipToken } from '@reduxjs/toolkit/query';
@@ -65,7 +63,6 @@ import type { HourlyVolume } from '@/features/analytics/types';
 import { useGetCallsQuery } from '@/features/calls/callsApi';
 import { useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
 import { useGetUpcomingAppointmentsQuery } from '@/features/appointments/appointmentsApi';
-import { useGetSubscriptionQuery, useGetLimitsQuery } from '@/features/billing/billingApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import { cn } from '@/lib/utils';
 
@@ -253,8 +250,6 @@ export default function DashboardOverviewPage() {
   const { data: upcomingAppointments, isLoading: upcomingLoading } = useGetUpcomingAppointmentsQuery(
     hasActiveCalendar ? { days: 7 } : skipToken,
   );
-  const { data: subscription } = useGetSubscriptionQuery();
-  const { data: planLimits } = useGetLimitsQuery();
 
   const rangeStart = useMemo(() => new Date(dateRange.startDate), [dateRange.startDate]);
   const rangeEnd = useMemo(() => new Date(dateRange.endDate), [dateRange.endDate]);
@@ -293,11 +288,6 @@ export default function DashboardOverviewPage() {
     lastSyncAt: i.lastSyncAt,
   }));
 
-  const planName = subscription?.plan ?? 'Free';
-  const planStatus = subscription?.status ?? 'active';
-  const callsUsed = planLimits?.currentUsage?.calls ?? 0;
-  const withinLimits = planLimits?.withinLimits ?? true;
-
   const greeting = getGreeting();
   const clinicName = clinic?.clinicName ?? 'Your Clinic';
 
@@ -322,17 +312,6 @@ export default function DashboardOverviewPage() {
           </SelectContent>
         </Select>
       </div>
-
-      {/* Alerts */}
-      {!withinLimits && (
-        <div className="flex items-center gap-3 rounded-lg border border-warning/50 bg-warning/10 px-4 py-3">
-          <AlertTriangleIcon className="size-4 text-warning-foreground" />
-          <p className="text-sm text-warning-foreground">
-            You&apos;re approaching your plan limit.{' '}
-            <Link href="/dashboard/billing" className="font-medium underline underline-offset-2">Upgrade now</Link>
-          </p>
-        </div>
-      )}
 
       {/* KPI Stats Row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -639,48 +618,7 @@ export default function DashboardOverviewPage() {
       </div>
 
       {/* Bottom Row - System Status */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Plan & Usage */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSignIcon className="size-4 text-primary" />
-              Plan & usage
-            </CardTitle>
-            <CardDescription>Current billing period</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-semibold capitalize">{planName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {planStatus === 'active' ? 'Active' : planStatus === 'trialing' ? 'Trial' : planStatus}
-                  {subscription?.currentPeriodEnd && ` · Renews ${new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                </p>
-              </div>
-              <Badge variant={planStatus === 'active' ? 'default' : planStatus === 'past_due' ? 'destructive' : 'outline'}>
-                {planStatus}
-              </Badge>
-            </div>
-            <Separator />
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Calls used</span>
-                <span className="font-medium tabular-nums">{callsUsed.toLocaleString()}</span>
-              </div>
-              {planLimits?.currentUsage?.cost && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Cost this period</span>
-                  <span className="font-medium tabular-nums">{formatMoney(planLimits.currentUsage.cost)}</span>
-                </div>
-              )}
-            </div>
-            <Button variant="outline" className="w-full" size="sm" render={<Link href="/dashboard/billing" />}>
-              Manage billing
-            </Button>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Integration Health */}
         <Card>
           <CardHeader>

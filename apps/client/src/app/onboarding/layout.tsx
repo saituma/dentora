@@ -8,7 +8,6 @@ import { ErrorBoundary } from '@/components/error-boundary';
 
 const ONBOARDING_STEPS = [
   { id: 'clinic-profile', label: 'Clinic Profile' },
-  { id: 'plan', label: 'Plan & Billing' },
   { id: 'knowledge-base', label: 'Knowledge Base' },
   { id: 'voice', label: 'Voice Setup' },
   { id: 'phone-number', label: 'Phone Number' },

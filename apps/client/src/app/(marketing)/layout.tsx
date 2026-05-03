@@ -11,7 +11,6 @@ const navLinks = [
   { label: 'Home', href: '/' },
   { label: 'Features', href: '#features' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Pricing', href: '/pricing' },
   { label: 'Testimonials', href: '#testimonials' },
 ];
 
@@ -133,7 +132,6 @@ const footerColumns = [
     links: [
       { label: 'Features', href: '/features' },
       { label: 'How it Works', href: '#how-it-works' },
-      { label: 'Pricing', href: '/pricing' },
       { label: 'Integrations', href: '#' },
     ],
   },

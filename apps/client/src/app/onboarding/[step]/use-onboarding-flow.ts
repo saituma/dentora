@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -81,7 +81,6 @@ export function useOnboardingFlow() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [voiceTone] = useState<'professional' | 'warm' | 'friendly' | 'calm'>('professional');
-  const [selectedPlan, setSelectedPlan] = useState<'starter' | 'growth' | 'pro'>('growth');
   const [greeting, setGreeting] = useState('Hi, welcome to our clinic, what can I help you with today?');
   const [selectedVoiceId, setSelectedVoiceId] = useState('professional');
   const [selectedAgentId, setSelectedAgentId] = useState('agent_5401kkemwc0sf23tw2km4ct4qpm9');
@@ -94,7 +93,6 @@ export function useOnboardingFlow() {
   const [googleCalendarEmail, setGoogleCalendarEmail] = useState('');
   const [googleCalendarId, setGoogleCalendarId] = useState('primary');
   const [handledGoogleCallback, setHandledGoogleCallback] = useState(false);
-  const stripeCheckoutReturnHandled = useRef(false);
   const [googleCalendarConnected, setGoogleCalendarConnected] = useState(false);
   const [selectedPhoneNumber, setSelectedPhoneNumber] = useState('');
   const [isDraggingContextFiles, setIsDraggingContextFiles] = useState(false);
@@ -210,29 +208,6 @@ export function useOnboardingFlow() {
       toast.error(reason ? `Google Calendar connect failed: ${reason}` : 'Google Calendar connect failed');
     }
   }, [handledGoogleCallback, refetchOnboardingStatus, searchParams]);
-
-  useEffect(() => {
-    const checkout = searchParams.get('checkout');
-    if (!checkout) {
-      stripeCheckoutReturnHandled.current = false;
-      return;
-    }
-    if (stripeCheckoutReturnHandled.current) return;
-    stripeCheckoutReturnHandled.current = true;
-
-    if (checkout === 'cancelled' && step === 'plan') {
-      toast.info('Payment was cancelled. You can choose a plan and try again when you are ready.');
-      dispatch(setOnboardingStatus('plan'));
-      router.replace('/onboarding/plan');
-      return;
-    }
-
-    if (checkout === 'success' && step === 'knowledge-base') {
-      toast.success('Checkout complete. Continue with your clinic knowledge.');
-      dispatch(setOnboardingStatus('knowledge-base'));
-      router.replace('/onboarding/knowledge-base');
-    }
-  }, [step, searchParams, router, dispatch]);
 
   useEffect(() => {
     if (!policiesData?.data?.length) return;
@@ -369,8 +344,6 @@ export function useOnboardingFlow() {
     progressPercent,
     fileInputRef,
     onboardingData,
-    selectedPlan,
-    setSelectedPlan,
     clinicName,
     setClinicName,
     address,

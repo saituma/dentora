@@ -7,8 +7,7 @@ const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const WEBHOOK_PREFIX = '/api/webhooks';
-// Also skip billing webhook which uses Stripe signature verification
-const WEBHOOK_PATHS = [WEBHOOK_PREFIX, '/api/billing/webhook'];
+const WEBHOOK_PATHS = [WEBHOOK_PREFIX];
 
 function generateToken(): string {
   return randomBytes(32).toString('hex');

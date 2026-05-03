@@ -6,39 +6,46 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 
-const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
+const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
-const traceExporter = new OTLPTraceExporter({
-  url: `${OTEL_ENDPOINT}/v1/traces`,
-});
+let sdk: NodeSDK | null = null;
 
-const metricExporter = new OTLPMetricExporter({
-  url: `${OTEL_ENDPOINT}/v1/metrics`,
-});
+if (OTEL_ENDPOINT) {
+  const traceExporter = new OTLPTraceExporter({
+    url: `${OTEL_ENDPOINT}/v1/traces`,
+  });
 
-const metricReader = new PeriodicExportingMetricReader({
-  exporter: metricExporter,
-  exportIntervalMillis: 30_000,
-});
+  const metricExporter = new OTLPMetricExporter({
+    url: `${OTEL_ENDPOINT}/v1/metrics`,
+  });
 
-const sdk = new NodeSDK({
-  serviceName: 'dental-flow-api',
-  traceExporter,
-  metricReader,
-  instrumentations: [
-    new HttpInstrumentation({
-      ignoreIncomingRequestHook: (req) => {
-        return req.url === '/api/health' || req.url === '/api/health/ready';
-      },
-    }),
-    new ExpressInstrumentation(),
-  ],
-});
+  const metricReader = new PeriodicExportingMetricReader({
+    exporter: metricExporter,
+    exportIntervalMillis: 30_000,
+  });
+
+  sdk = new NodeSDK({
+    serviceName: 'dental-flow-api',
+    traceExporter,
+    metricReader,
+    instrumentations: [
+      new HttpInstrumentation({
+        ignoreIncomingRequestHook: (req) => {
+          return req.url === '/api/health' || req.url === '/api/health/ready';
+        },
+      }),
+      new ExpressInstrumentation(),
+    ],
+  });
+}
 
 export function initTelemetry(): void {
+  if (!sdk) {
+    console.log('[otel] No OTEL_EXPORTER_OTLP_ENDPOINT set — telemetry disabled');
+    return;
+  }
   try {
     sdk.start();
-    // eslint-disable-next-line no-console
     console.log('[otel] OpenTelemetry SDK started');
   } catch (err) {
     console.warn('[otel] Failed to start OpenTelemetry SDK:', err);
@@ -46,9 +53,9 @@ export function initTelemetry(): void {
 }
 
 export async function shutdownTelemetry(): Promise<void> {
+  if (!sdk) return;
   try {
     await sdk.shutdown();
-    // eslint-disable-next-line no-console
     console.log('[otel] OpenTelemetry SDK shut down');
   } catch (err) {
     console.warn('[otel] Error shutting down OpenTelemetry:', err);

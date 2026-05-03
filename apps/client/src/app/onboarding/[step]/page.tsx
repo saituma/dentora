@@ -8,7 +8,7 @@ import { setOnboardingStatus } from '@/features/auth/authSlice';
 import { useGetOnboardingStatusQuery } from '@/features/onboarding/onboardingApi';
 import { STEP_META, STEPS } from './onboarding-types';
 import { useOnboardingFlow } from './use-onboarding-flow';
-import { ClinicProfileStep, PlanStep } from './steps/basic-steps';
+import { ClinicProfileStep } from './steps/basic-steps';
 import { KnowledgeBaseStep } from './steps/knowledge-step';
 import { VoiceStep } from './steps/voice-step';
 import { IntegrationsStep, PhoneNumberStep, ScheduleStep } from './steps/operations-steps';
@@ -105,7 +105,6 @@ function OnboardingStepContent() {
       </div>
 
       {flow.step === 'clinic-profile' && <ClinicProfileStep flow={flow} />}
-      {flow.step === 'plan' && <PlanStep flow={flow} />}
       {flow.step === 'knowledge-base' && <KnowledgeBaseStep flow={flow} />}
       {flow.step === 'voice' && <VoiceStep flow={flow} />}
       {flow.step === 'phone-number' && <PhoneNumberStep flow={flow} />}

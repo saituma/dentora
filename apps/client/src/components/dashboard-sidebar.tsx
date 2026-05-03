@@ -23,7 +23,6 @@ import {
   BarChart3Icon,
   PlugIcon,
   SettingsIcon,
-  CreditCardIcon,
   CalendarIcon,
   Building2Icon,
   ChevronsUpDownIcon,
@@ -75,7 +74,6 @@ const navItems = [
     icon: <PlugIcon />,
   },
   { title: "Settings", url: "/dashboard/settings", icon: <SettingsIcon /> },
-  { title: "Billing", url: "/dashboard/billing", icon: <CreditCardIcon /> },
 ];
 
 export function DashboardSidebar() {

@@ -25,7 +25,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   UserIcon,
-  CreditCardIcon,
   SettingsIcon,
   BellIcon,
   LogOutIcon,
@@ -44,7 +43,6 @@ const TITLES: Record<string, string> = {
   '/dashboard/analytics': 'Analytics',
   '/dashboard/integrations': 'Integrations',
   '/dashboard/settings': 'Settings',
-  '/dashboard/billing': 'Billing',
 };
 
 export function DashboardHeader() {
@@ -204,12 +202,6 @@ export function DashboardHeader() {
                 <Link href="/dashboard/settings">
                   <SettingsIcon />
                   Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/billing">
-                  <CreditCardIcon />
-                  Billing
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>

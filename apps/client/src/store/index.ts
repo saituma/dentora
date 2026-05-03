@@ -5,7 +5,6 @@ import aiConfigReducer from "@/features/aiConfig/aiConfigSlice";
 import callsReducer from "@/features/calls/callsSlice";
 import analyticsReducer from "@/features/analytics/analyticsSlice";
 import integrationsReducer from "@/features/integrations/integrationsSlice";
-import billingReducer from "@/features/billing/billingSlice";
 import uiReducer from "@/features/ui/uiSlice";
 import { authApi } from "@/features/auth/authApi";
 import { clinicApi } from "@/features/clinic/clinicApi";
@@ -13,7 +12,6 @@ import { aiConfigApi } from "@/features/aiConfig/aiConfigApi";
 import { callsApi } from "@/features/calls/callsApi";
 import { analyticsApi } from "@/features/analytics/analyticsApi";
 import { integrationsApi } from "@/features/integrations/integrationsApi";
-import { billingApi } from "@/features/billing/billingApi";
 import { onboardingApi } from "@/features/onboarding/onboardingApi";
 import { llmApi } from "@/features/llm/llmApi";
 import { elevenlabsApi } from "@/features/elevenlabs/elevenlabsApi";
@@ -29,7 +27,6 @@ export const store = configureStore({
     calls: callsReducer,
     analytics: analyticsReducer,
     integrations: integrationsReducer,
-    billing: billingReducer,
     ui: uiReducer,
     [authApi.reducerPath]: authApi.reducer,
     [clinicApi.reducerPath]: clinicApi.reducer,
@@ -37,7 +34,6 @@ export const store = configureStore({
     [callsApi.reducerPath]: callsApi.reducer,
     [analyticsApi.reducerPath]: analyticsApi.reducer,
     [integrationsApi.reducerPath]: integrationsApi.reducer,
-    [billingApi.reducerPath]: billingApi.reducer,
     [onboardingApi.reducerPath]: onboardingApi.reducer,
     [llmApi.reducerPath]: llmApi.reducer,
     [elevenlabsApi.reducerPath]: elevenlabsApi.reducer,
@@ -55,7 +51,6 @@ export const store = configureStore({
       callsApi.middleware,
       analyticsApi.middleware,
       integrationsApi.middleware,
-      billingApi.middleware,
       onboardingApi.middleware,
       llmApi.middleware,
       elevenlabsApi.middleware,

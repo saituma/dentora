@@ -31,7 +31,6 @@ import { attachMediaStreamWebSocket } from './modules/telephony/index.js';
 import { aiRouter } from './modules/ai/index.js';
 import { providerRouter } from './modules/providers/index.js';
 import { integrationRouter } from './modules/integrations/index.js';
-import { billingRouter } from './modules/billing/index.js';
 import { analyticsRouter } from './modules/analytics/index.js';
 import { configRouter } from './modules/config/index.js';
 import { adminRouter } from './modules/admin/index.js';
@@ -82,13 +81,7 @@ app.use(
     optionsSuccessStatus: 204,
   }),
 );
-app.use((req, res, next) => {
-  // Skip JSON parsing for Stripe webhook — needs raw body for signature verification
-  if (req.path === '/api/billing/webhook') {
-    return next();
-  }
-  express.json({ limit: '1mb' })(req, res, next);
-});
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(requestId);
@@ -145,7 +138,6 @@ app.use('/api/ai', aiRouter);
 app.use('/api/providers', providerRouter);
 app.use('/api/integrations', integrationRouter);
 app.use('/integrations', integrationRouter);
-app.use('/api/billing', billingRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/config', configRouter);
 app.use('/api/admin', adminRouter);

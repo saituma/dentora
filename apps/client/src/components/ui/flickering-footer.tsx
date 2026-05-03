@@ -24,7 +24,6 @@ const footerLinks = [
     title: 'Product',
     links: [
       { id: 1, title: 'Features', url: '/features' },
-      { id: 2, title: 'Pricing', url: '/pricing' },
       { id: 3, title: 'Book demo', url: '/contact' },
     ],
   },
