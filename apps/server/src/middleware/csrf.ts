@@ -7,7 +7,7 @@ const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const WEBHOOK_PREFIX = '/api/webhooks';
-const WEBHOOK_PATHS = [WEBHOOK_PREFIX];
+const CSRF_SKIP_PREFIXES = [WEBHOOK_PREFIX, '/api/auth'];
 
 function generateToken(): string {
   return randomBytes(32).toString('hex');
@@ -26,8 +26,15 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  // Skip webhook endpoints — they use signature-based verification
-  if (WEBHOOK_PATHS.some((prefix) => req.path.startsWith(prefix))) {
+  // Skip auth and webhook endpoints
+  if (CSRF_SKIP_PREFIXES.some((prefix) => req.path.startsWith(prefix))) {
+    return next();
+  }
+
+  // Skip when the request carries a Bearer token — JWT auth is not vulnerable to CSRF
+  // because the token is stored in localStorage, not auto-sent by the browser.
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
     return next();
   }
 
