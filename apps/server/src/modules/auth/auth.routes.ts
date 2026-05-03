@@ -94,7 +94,9 @@ authRouter.get(
       redirectUrl.searchParams.set('role', loginResult.user.role);
 
       res.redirect(302, redirectUrl.toString());
-    } catch (err) {
+    } catch (err: unknown) {
+      const { logger } = await import('../../lib/logger.js');
+      logger.error({ err, msg: (err as Error)?.message, stack: (err as Error)?.stack }, 'Google OAuth callback failed');
       next(err);
     }
   },
