@@ -6,8 +6,7 @@ import { logger } from '../lib/logger.js';
 const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const WEBHOOK_PREFIX = '/api/webhooks';
-const CSRF_SKIP_PREFIXES = [WEBHOOK_PREFIX, '/api/auth'];
+const CSRF_SKIP_PREFIXES = ['/api/webhooks', '/api/telephony/webhook', '/api/auth'];
 
 function generateToken(): string {
   return randomBytes(32).toString('hex');
