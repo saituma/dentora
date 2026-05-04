@@ -1,6 +1,27 @@
 
 import pino from 'pino';
+import { Writable } from 'stream';
 import { env } from '../config/env.js';
+import { pushLogEntry, type LogEntry } from '../modules/admin/admin-log-stream.js';
+
+/**
+ * A writable stream that taps each pino log line and pushes it to the
+ * admin live-log SSE emitter, then forwards it to stdout.
+ */
+const liveLogDestination = new Writable({
+  write(chunk: Buffer, _encoding, callback) {
+    try {
+      const line = chunk.toString().trim();
+      if (line) {
+        const parsed = JSON.parse(line) as LogEntry;
+        pushLogEntry(parsed);
+      }
+    } catch {
+      // non-JSON line – ignore
+    }
+    process.stdout.write(chunk, callback);
+  },
+});
 
 const transport = env.NODE_ENV === 'development'
   ? {
@@ -13,6 +34,9 @@ const transport = env.NODE_ENV === 'development'
     }
   : undefined;
 
+// When using a transport (dev mode), pino pipes through it, so we
+// can't use a custom destination at the same time.  In that case the
+// live-log stream won't receive entries (acceptable for dev).
 export const logger = pino({
   level: env.LOG_LEVEL,
   transport,
@@ -54,7 +78,7 @@ export const logger = pino({
     ],
     censor: '[REDACTED]',
   },
-});
+}, transport ? undefined : liveLogDestination);
 
 export function createTenantLogger(tenantId: string, correlationId: string) {
   return logger.child({ tenantId, correlationId });

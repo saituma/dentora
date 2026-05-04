@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "packageManager": "pnpm@10.29.3",
   "scripts": {
-    "dev": "concurrently -n client,server -c cyan,green \"pnpm --filter @repo/client dev\" \"pnpm --filter @repo/server dev\"",
+    "dev": "concurrently -n client,server,admin -c cyan,green,yellow \"pnpm --filter @repo/client dev\" \"pnpm --filter @repo/server dev\" \"pnpm --filter @repo/admin dev\"",
     "dev:client": "pnpm --filter @repo/client dev",
     "dev:server": "pnpm --filter @repo/server dev",
     "build": "pnpm --filter @repo/client build && pnpm --filter @repo/server build",
