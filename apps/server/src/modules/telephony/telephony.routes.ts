@@ -1,5 +1,6 @@
 
 import { Router } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import * as telephonyService from './telephony.service.js';
 import {
   authenticateJwt,
@@ -32,6 +33,52 @@ function twimlEscape(value: string): string {
 function isOnboardingNotPublishedError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   return /No active config version for tenant/i.test(error.message);
+}
+
+const FALLBACK_TWIML = twimlXml([
+  '<Response>',
+  '<Say voice="alice">We are having trouble connecting your call right now. Please try again shortly.</Say>',
+  '<Hangup/>',
+  '</Response>',
+]);
+
+function twimlErrorBoundary(...middleware: RequestHandler[]): RequestHandler[] {
+  return middleware.map((mw) => (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = mw(req, res, (err?: unknown) => {
+        if (err) {
+          logger.error(
+            { err, path: req.originalUrl, callSid: req.body?.CallSid },
+            'Twilio webhook middleware error — returning TwiML fallback',
+          );
+          if (!res.headersSent) {
+            res.status(200).type('text/xml').send(FALLBACK_TWIML);
+          }
+          return;
+        }
+        next();
+      });
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch((err: unknown) => {
+          logger.error(
+            { err, path: req.originalUrl, callSid: req.body?.CallSid },
+            'Twilio webhook middleware async error — returning TwiML fallback',
+          );
+          if (!res.headersSent) {
+            res.status(200).type('text/xml').send(FALLBACK_TWIML);
+          }
+        });
+      }
+    } catch (err) {
+      logger.error(
+        { err, path: req.originalUrl, callSid: req.body?.CallSid },
+        'Twilio webhook middleware sync error — returning TwiML fallback',
+      );
+      if (!res.headersSent) {
+        res.status(200).type('text/xml').send(FALLBACK_TWIML);
+      }
+    }
+  });
 }
 
 telephonyRouter.get(
@@ -188,8 +235,7 @@ telephonyRouter.delete(
 
 telephonyRouter.post(
   '/webhook/client-voice',
-  webhookRateLimiter,
-  validateTwilioSignature,
+  ...twimlErrorBoundary(webhookRateLimiter, validateTwilioSignature),
   async (req, res) => {
     try {
       const { CallSid, To, From, AccountSid } = req.body;
@@ -275,8 +321,7 @@ telephonyRouter.post(
 
 telephonyRouter.post(
   '/webhook/voice',
-  webhookRateLimiter,
-  validateTwilioSignature,
+  ...twimlErrorBoundary(webhookRateLimiter, validateTwilioSignature),
   async (req, res) => {
     try {
       const { CallSid, To, From, AccountSid } = req.body;
@@ -404,8 +449,7 @@ telephonyRouter.post(
 
 telephonyRouter.post(
   '/webhook/voicemail',
-  webhookRateLimiter,
-  validateTwilioSignature,
+  ...twimlErrorBoundary(webhookRateLimiter, validateTwilioSignature),
   async (req, res) => {
     try {
       const { RecordingUrl, RecordingSid, RecordingDuration, TranscriptionText, CallSid } = req.body;
@@ -450,8 +494,7 @@ telephonyRouter.post(
 
 telephonyRouter.post(
   '/webhook/forward-status',
-  webhookRateLimiter,
-  validateTwilioSignature,
+  ...twimlErrorBoundary(webhookRateLimiter, validateTwilioSignature),
   async (req, res) => {
     try {
       const { DialCallStatus, DialCallDuration, CallSid } = req.body;
@@ -509,8 +552,7 @@ telephonyRouter.post(
 
 telephonyRouter.post(
   '/webhook/status',
-  webhookRateLimiter,
-  validateTwilioSignature,
+  ...twimlErrorBoundary(webhookRateLimiter, validateTwilioSignature),
   async (req, res, next) => {
     try {
       const { CallSid, CallStatus, CallDuration } = req.body;

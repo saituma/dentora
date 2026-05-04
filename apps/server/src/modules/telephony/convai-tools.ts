@@ -12,6 +12,66 @@ import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 
+function getTodayInTimezone(timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function normalizeAgentDate(dateStr: string, timezone: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const today = getTodayInTimezone(timezone);
+  if (dateStr >= today) return dateStr;
+  const currentYear = Number(today.slice(0, 4));
+  const agentYear = Number(dateStr.slice(0, 4));
+  if (agentYear < currentYear) {
+    const corrected = `${currentYear}${dateStr.slice(4)}`;
+    if (corrected >= today) {
+      logger.warn({ original: dateStr, corrected }, 'Corrected agent-supplied date to current year');
+      return corrected;
+    }
+    const nextYear = `${currentYear + 1}${dateStr.slice(4)}`;
+    logger.warn({ original: dateStr, corrected: nextYear }, 'Corrected agent-supplied date to next year');
+    return nextYear;
+  }
+  return dateStr;
+}
+
+function normalizeAgentIso(isoStr: string, timezone: string): string {
+  const parsed = new Date(isoStr);
+  if (!Number.isFinite(parsed.getTime())) return isoStr;
+  const localDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(parsed);
+  const today = getTodayInTimezone(timezone);
+  if (localDate >= today) return isoStr;
+  const currentYear = Number(today.slice(0, 4));
+  const agentYear = parsed.getUTCFullYear();
+  if (agentYear < currentYear) {
+    const diff = currentYear - agentYear;
+    const corrected = new Date(parsed);
+    corrected.setUTCFullYear(parsed.getUTCFullYear() + diff);
+    const correctedLocal = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(corrected);
+    if (correctedLocal < today) {
+      corrected.setUTCFullYear(corrected.getUTCFullYear() + 1);
+    }
+    logger.warn({ original: isoStr, corrected: corrected.toISOString() }, 'Corrected agent-supplied ISO date to current year');
+    return corrected.toISOString();
+  }
+  return isoStr;
+}
+
 export async function handleConvaiToolCall(input: {
   tenantId: string;
   toolName: string;
@@ -127,10 +187,11 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
     ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
     : null;
 
-  const requestedDate = String(params.requestedDate ?? '').trim();
-  if (!requestedDate) {
+  const rawRequestedDate = String(params.requestedDate ?? '').trim();
+  if (!rawRequestedDate) {
     throw new ValidationError('requestedDate is required');
   }
+  const requestedDate = normalizeAgentDate(rawRequestedDate, clinic.timezone);
 
   const availability = await findAvailableCalendarSlots({
     tenantId,
@@ -163,17 +224,20 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
     throw new ValidationError('Clinic timezone is required to book appointments');
   }
 
-  const startIso = String(params.startIso ?? '').trim();
-  const endIso = String(params.endIso ?? '').trim();
+  const rawStartIso = String(params.startIso ?? '').trim();
+  const rawEndIso = String(params.endIso ?? '').trim();
   const fullName = String(params.fullName ?? '').trim();
   const phoneNumber = String(params.phoneNumber ?? '').trim();
   const reasonForVisit = String(params.reasonForVisit ?? '').trim();
   const dateOfBirth = params.dateOfBirth ? String(params.dateOfBirth) : null;
   const age = params.age ? Number(params.age) : undefined;
 
-  if (!startIso || !endIso || !fullName || !phoneNumber || !reasonForVisit) {
+  if (!rawStartIso || !rawEndIso || !fullName || !phoneNumber || !reasonForVisit) {
     throw new ValidationError('startIso, endIso, fullName, phoneNumber, and reasonForVisit are required');
   }
+
+  const startIso = normalizeAgentIso(rawStartIso, clinic.timezone);
+  const endIso = normalizeAgentIso(rawEndIso, clinic.timezone);
 
   const startAt = new Date(startIso);
   const endAt = new Date(endIso);
@@ -288,10 +352,10 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
 
 async function rescheduleAppointment(tenantId: string, params: Record<string, unknown>) {
   const eventId = String(params.eventId ?? '').trim();
-  const startIso = String(params.startIso ?? '').trim();
-  const endIso = String(params.endIso ?? '').trim();
+  const rawStartIso = String(params.startIso ?? '').trim();
+  const rawEndIso = String(params.endIso ?? '').trim();
 
-  if (!eventId || !startIso || !endIso) {
+  if (!eventId || !rawStartIso || !rawEndIso) {
     throw new ValidationError('eventId, startIso, and endIso are required');
   }
 
@@ -299,6 +363,9 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
   if (!clinic?.timezone) {
     throw new ValidationError('Clinic timezone is required to reschedule appointments');
   }
+
+  const startIso = normalizeAgentIso(rawStartIso, clinic.timezone);
+  const endIso = normalizeAgentIso(rawEndIso, clinic.timezone);
 
   return await rescheduleGoogleCalendarAppointment({
     tenantId,

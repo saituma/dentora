@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Card,
@@ -13,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/empty-state';
-import { Input } from '@/components/ui/input';
 import { PlugIcon, Loader2Icon, TrashIcon, ZapIcon, PlayIcon } from 'lucide-react';
 import {
   useGetIntegrationsQuery,
@@ -57,24 +55,13 @@ export default function IntegrationsPage() {
   const [assignNumber, { isLoading: assigningNumber }] = useAssignTelephonyNumberMutation();
   const [releaseNumber, { isLoading: releasingNumber }] = useReleaseTelephonyNumberMutation();
 
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [twilioSid, setTwilioSid] = useState('');
-  const [friendlyName, setFriendlyName] = useState('');
-
   const webhookBase = webhookBaseData?.baseUrl?.replace(/\/+$/, '') || '';
   const apiRoot = webhookBase
     ? (webhookBase.endsWith('/api') ? webhookBase : `${webhookBase}/api`)
     : API_BASE_URL;
   const apiRootNormalized = apiRoot.replace(/\/+$/, '');
 
-  useEffect(() => {
-    if (!phoneNumber.trim() && !twilioSid.trim() && twilioIncomingNumbers.length > 0) {
-      const primary = twilioIncomingNumbers[0];
-      setPhoneNumber(primary.phoneNumber ?? '');
-      setTwilioSid(primary.sid ?? '');
-      setFriendlyName(primary.friendlyName ?? '');
-    }
-  }, [phoneNumber, twilioSid, twilioIncomingNumbers]);
+  const hasAssignedNumber = telephonyNumbers.length > 0;
 
   const handleActivate = async (id: string) => {
     try {
@@ -107,22 +94,6 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleAssignNumber = async () => {
-    try {
-      await assignNumber({
-        phoneNumber: phoneNumber.trim(),
-        twilioSid: twilioSid.trim(),
-        friendlyName: friendlyName.trim() || undefined,
-      }).unwrap();
-      setPhoneNumber('');
-      setTwilioSid('');
-      setFriendlyName('');
-      toast.success('Twilio number saved');
-    } catch {
-      toast.error('Failed to save Twilio number');
-    }
-  };
-
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -136,97 +107,23 @@ export default function IntegrationsPage() {
         <CardHeader>
           <CardTitle className="text-base">Telephony (Twilio)</CardTitle>
           <CardDescription>
-            Assign the dedicated Twilio number for this clinic and configure webhook URLs.
+            {hasAssignedNumber
+              ? 'Your clinic phone number for the AI receptionist.'
+              : 'Assign a Twilio number to enable the AI receptionist for phone calls.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Detected Twilio numbers</div>
-            {twilioIncomingLoading ? (
-              <Skeleton className="h-16 w-full" />
-            ) : twilioIncomingError ? (
-              <div className="text-sm text-muted-foreground">
-                Unable to load Twilio numbers. Check that `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` are set.
-              </div>
-            ) : twilioIncomingNumbers.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No Twilio numbers found.</div>
-            ) : (
-              <div className="space-y-2">
-                {twilioIncomingNumbers.map((number) => (
-                  <div
-                    key={number.sid}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
-                  >
-                    <div>
-                      <div className="text-sm font-medium">{number.phoneNumber}</div>
-                      <div className="text-xs text-muted-foreground">
-                        SID: {number.sid}
-                        {number.friendlyName ? ` • ${number.friendlyName}` : ''}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setPhoneNumber(number.phoneNumber ?? '');
-                        setTwilioSid(number.sid ?? '');
-                        setFriendlyName(number.friendlyName ?? '');
-                      }}
-                    >
-                      Use this number
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input
-              placeholder="Phone number (E.164)"
-              value={phoneNumber}
-              onChange={(event) => setPhoneNumber(event.target.value)}
-            />
-            <Input
-              placeholder="Twilio number SID"
-              value={twilioSid}
-              onChange={(event) => setTwilioSid(event.target.value)}
-            />
-            <Input
-              placeholder="Friendly name (optional)"
-              value={friendlyName}
-              onChange={(event) => setFriendlyName(event.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={handleAssignNumber}
-              disabled={!phoneNumber.trim() || !twilioSid.trim() || assigningNumber}
-            >
-              {assigningNumber ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : null}
-              Save Twilio number
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Voice webhook: {apiRootNormalized}/telephony/webhook/voice
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Status webhook: {apiRootNormalized}/telephony/webhook/status
-            </span>
-          </div>
           {telephonyLoading ? (
             <Skeleton className="h-20 w-full" />
-          ) : telephonyNumbers.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No Twilio numbers saved yet.
-            </div>
-          ) : (
-            <div className="space-y-2">
+          ) : hasAssignedNumber ? (
+            <div className="space-y-3">
               {telephonyNumbers.map((number) => (
                 <div key={number.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
                   <div>
                     <div className="text-sm font-medium">{number.phoneNumber}</div>
                     <div className="text-xs text-muted-foreground">
-                      SID: {number.twilioSid}{number.friendlyName ? ` • ${number.friendlyName}` : ''}
+                      {number.friendlyName ?? 'Clinic line'}
+                      {number.status === 'active' ? ' · Active' : ''}
                     </div>
                   </div>
                   <Button
@@ -247,7 +144,57 @@ export default function IntegrationsPage() {
                   </Button>
                 </div>
               ))}
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div>Voice webhook: {apiRootNormalized}/telephony/webhook/voice</div>
+                <div>Status webhook: {apiRootNormalized}/telephony/webhook/status</div>
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Available numbers</div>
+                {twilioIncomingLoading ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : twilioIncomingError ? (
+                  <div className="text-sm text-muted-foreground">
+                    Unable to load Twilio numbers. Check that Twilio credentials are configured.
+                  </div>
+                ) : twilioIncomingNumbers.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No available Twilio numbers found.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {twilioIncomingNumbers.map((number) => (
+                      <div
+                        key={number.sid}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
+                      >
+                        <div className="text-sm font-medium">{number.phoneNumber}</div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={assigningNumber}
+                          onClick={async () => {
+                            try {
+                              await assignNumber({
+                                phoneNumber: number.phoneNumber ?? '',
+                                twilioSid: number.sid ?? '',
+                                friendlyName: number.friendlyName ?? undefined,
+                              }).unwrap();
+                              toast.success('Phone number assigned');
+                            } catch {
+                              toast.error('Failed to assign phone number');
+                            }
+                          }}
+                        >
+                          {assigningNumber ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : null}
+                          Assign
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -283,6 +230,23 @@ export default function IntegrationsPage() {
   );
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  google_calendar: 'Google Calendar',
+  google: 'Google',
+  twilio: 'Twilio',
+  elevenlabs: 'ElevenLabs',
+  openai: 'OpenAI',
+  stripe: 'Stripe',
+};
+
+const INTEGRATION_TYPE_LABELS: Record<string, string> = {
+  calendar: 'Calendar',
+  telephony: 'Phone System',
+  payment: 'Payments',
+  ai: 'AI Provider',
+  sms: 'SMS',
+};
+
 function IntegrationCard({
   integration,
   onActivate,
@@ -298,32 +262,31 @@ function IntegrationCard({
   activating: boolean;
   testing: boolean;
 }) {
+  const providerLabel = PROVIDER_LABELS[integration.provider] ?? integration.provider.replace(/_/g, ' ');
+  const typeLabel = INTEGRATION_TYPE_LABELS[integration.integrationType] ?? integration.integrationType.replace(/_/g, ' ');
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <div>
-          <CardTitle className="text-base">{integration.provider}</CardTitle>
-          <CardDescription className="capitalize">
-            {integration.integrationType.replace(/_/g, ' ')}
-          </CardDescription>
+          <CardTitle className="text-base">{providerLabel}</CardTitle>
+          <CardDescription className="capitalize">{typeLabel}</CardDescription>
         </div>
         <Badge variant="secondary" className={statusColors[integration.status] ?? ''}>
-          {integration.status}
+          {integration.status === 'active' ? 'Connected' : integration.status}
         </Badge>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap items-center gap-2">
-          {integration.healthStatus && (
-            <span className="text-xs text-muted-foreground">
-              Health: {integration.healthStatus}
+        {integration.healthStatus && (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className={integration.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : ''}>
+              {integration.healthStatus === 'healthy' ? 'Healthy' : integration.healthStatus}
             </span>
-          )}
-          {integration.lastCheckedAt && (
-            <span className="text-xs text-muted-foreground">
-              · Checked {new Date(integration.lastCheckedAt).toLocaleString()}
-            </span>
-          )}
-        </div>
+            {integration.lastCheckedAt && (
+              <span>· Last checked {new Date(integration.lastCheckedAt).toLocaleString()}</span>
+            )}
+          </div>
+        )}
         <div className="mt-4 flex gap-2">
           {!integration.isActive && (
             <Button
