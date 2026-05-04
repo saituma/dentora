@@ -139,6 +139,10 @@ function loadEnv() {
     if (!result.data.SMTP_HOST) {
       console.warn('⚠️  SMTP_HOST is not set — transactional emails will fail in production');
     }
+    const webhookUrl = result.data.TWILIO_WEBHOOK_BASE_URL.toLowerCase();
+    if (webhookUrl.includes('localhost') || webhookUrl.includes('127.0.0.1') || webhookUrl.includes('ngrok')) {
+      console.warn('⚠️  TWILIO_WEBHOOK_BASE_URL points to a local/tunnel address — Twilio calls will fail in production');
+    }
   }
 
   return result.data;

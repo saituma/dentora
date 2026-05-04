@@ -80,6 +80,7 @@ export async function handleConvaiToolCall(input: {
   callSessionId?: string;
 }): Promise<unknown> {
   const { tenantId, toolName, params } = input;
+  logger.info({ tenantId, toolName, params, callSessionId: input.callSessionId }, 'ConvAI tool call received');
 
   switch (toolName) {
     case 'list_appointments':
@@ -440,8 +441,8 @@ async function getClinicInfo(tenantId: string) {
     address: clinic?.address ?? null,
     website: clinic?.website ?? null,
     specialties: clinic?.specialties ?? [],
-    staffMembers: (clinic?.staffMembers as Array<{ name?: string; role?: string }> | undefined)?.map(
-      (s) => ({ name: s.name, role: s.role }),
+    staffMembers: (clinic?.staffMembers as Array<{ name?: string; role?: string; phone?: string }> | undefined)?.map(
+      (s) => ({ name: s.name, role: s.role, phone: s.phone ?? null }),
     ) ?? [],
     policies: policyList?.map((p) => ({
       type: (p as Record<string, unknown>).policyType,

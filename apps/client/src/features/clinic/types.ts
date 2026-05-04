@@ -4,6 +4,7 @@ export interface StaffMember {
   id?: string;
   name: string;
   role: string;
+  phone?: string;
   /** When true (default), AI may offer this person as a bookable provider. */
   acceptsAppointments?: boolean;
 }

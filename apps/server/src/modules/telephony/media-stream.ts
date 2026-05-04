@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
+import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
 
 interface SensitiveTopic {
   type?: string;
@@ -252,9 +253,12 @@ async function buildConvaiContext(tenantId: string) {
     .flatMap((policy) => Array.isArray((policy as PolicyRecord)?.sensitiveTopics) ? (policy as PolicyRecord).sensitiveTopics as SensitiveTopic[] : [])
     .filter((topic: SensitiveTopic) => topic?.type === 'context_document');
 
-  const formatStaffMembers = (staff: Array<{ name?: string; role?: string }>) => {
+  const formatStaffMembers = (staff: Array<{ name?: string; role?: string; phone?: string }>) => {
     if (!staff || !staff.length) return '';
-    return staff.map((s) => `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`).join(' | ');
+    return staff.map((s) => {
+      const base = `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`;
+      return s.phone ? `${base} [${s.phone}]` : base;
+    }).join(' | ');
   };
 
   const legacyStaffDirectory = contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Staff Directory')?.content ?? '';
@@ -561,6 +565,8 @@ async function handleStreamStart(
       return;
     }
 
+    await ensureAgentPromptDates(tenantId, agentId);
+
     const elevenSocket = await createConvaiWebSocket(session, agentId);
     session.elevenSocket = elevenSocket;
 
@@ -630,7 +636,12 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
 
       if (session.contextualUpdate && session.elevenSocket?.readyState === WebSocket.OPEN) {
         logger.info(
-          { callSessionId: session.callSessionId },
+          {
+            callSessionId: session.callSessionId,
+            todayDate: session.dynamicVariables?.today_date,
+            currentYear: session.dynamicVariables?.current_year,
+            contextualUpdatePreview: truncate(session.contextualUpdate, 500),
+          },
           'Sending contextual update to ElevenLabs',
         );
         session.elevenSocket.send(JSON.stringify({
@@ -707,6 +718,11 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
       const params = toolCall.parameters || {};
       if (!toolName || !toolCallId || !session.elevenSocket) return;
 
+      logger.info(
+        { callSessionId: session.callSessionId, toolName, toolCallId, params },
+        'Tool call received from agent',
+      );
+
       try {
         const result = await handleConvaiToolCall({
           tenantId: session.tenantId,
@@ -716,7 +732,7 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
           callSessionId: session.callSessionId,
         });
         logger.info(
-          { callSessionId: session.callSessionId, toolName },
+          { callSessionId: session.callSessionId, toolName, resultPreview: truncate(JSON.stringify(result), 300) },
           'Tool call handled successfully',
         );
         session.elevenSocket.send(JSON.stringify({

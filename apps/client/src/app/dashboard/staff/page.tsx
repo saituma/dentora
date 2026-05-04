@@ -30,6 +30,7 @@ function newStaffRow(): StaffMember {
     id: typeof crypto !== 'undefined' ? crypto.randomUUID() : `staff-${Date.now()}`,
     name: '',
     role: '',
+    phone: '',
     acceptsAppointments: true,
   };
 }
@@ -52,6 +53,7 @@ export default function StaffPage() {
         id: m.id ?? crypto.randomUUID(),
         name: m.name,
         role: m.role ?? '',
+        phone: m.phone ?? '',
         acceptsAppointments: m.acceptsAppointments !== false,
       })),
     );
@@ -77,6 +79,7 @@ export default function StaffPage() {
         id: row.id,
         name: row.name.trim(),
         role: row.role.trim(),
+        phone: row.phone?.trim() || undefined,
         acceptsAppointments: row.acceptsAppointments !== false,
       }))
       .filter((row) => row.name.length > 0);
@@ -138,10 +141,11 @@ export default function StaffPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[28%]">Name</TableHead>
-                  <TableHead className="w-[28%]">Role</TableHead>
-                  <TableHead className="w-[32%]">Bookable</TableHead>
-                  <TableHead className="w-[12%] text-right"> </TableHead>
+                  <TableHead className="w-[24%]">Name</TableHead>
+                  <TableHead className="w-[20%]">Role</TableHead>
+                  <TableHead className="w-[20%]">Phone</TableHead>
+                  <TableHead className="w-[28%]">Bookable</TableHead>
+                  <TableHead className="w-[8%] text-right"> </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -161,6 +165,14 @@ export default function StaffPage() {
                         value={row.role}
                         onChange={(e) => updateRow(index, { role: e.target.value })}
                         aria-label="Role"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        placeholder="e.g. +1 555-123-4567"
+                        value={row.phone ?? ''}
+                        onChange={(e) => updateRow(index, { phone: e.target.value })}
+                        aria-label="Phone"
                       />
                     </TableCell>
                     <TableCell>

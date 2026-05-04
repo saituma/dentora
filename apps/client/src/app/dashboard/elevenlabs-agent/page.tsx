@@ -532,7 +532,12 @@ function ElevenLabsAgentPageInner() {
         hold_music: voiceProfile?.holdMusic ?? '',
         emergency_disclaimer: formatEmergencyInfo(policies),
         escalation_conditions: formatEscalationInfo(policies),
-        staff_directory: String(staffDirectoryDoc?.content ?? ''),
+        staff_directory: clinic?.staffMembers?.length
+          ? clinic.staffMembers.map((s) => {
+              const base = `${s.name} (${s.role || 'Staff'})`;
+              return s.phone ? `${base} [${s.phone}]` : base;
+            }).join(' | ')
+          : String(staffDirectoryDoc?.content ?? ''),
         clinic_notes: String(clinicNotesDoc?.content ?? ''),
       };
 
@@ -555,7 +560,7 @@ function ElevenLabsAgentPageInner() {
             todayDate,
             currentYear,
             clinicName: dynamicVariables.clinic_name,
-            staffDirectory: String(staffDirectoryDoc?.content ?? ''),
+            staffDirectory: dynamicVariables.staff_directory,
             clinicNotes: String(clinicNotesDoc?.content ?? ''),
             uploadedContext,
           }),
@@ -579,7 +584,7 @@ function ElevenLabsAgentPageInner() {
             todayDate,
             currentYear,
             clinicName: dynamicVariables.clinic_name,
-            staffDirectory: String(staffDirectoryDoc?.content ?? ''),
+            staffDirectory: dynamicVariables.staff_directory,
             clinicNotes: String(clinicNotesDoc?.content ?? ''),
             uploadedContext,
           }),
