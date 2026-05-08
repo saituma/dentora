@@ -5,16 +5,19 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useResetPasswordMutation } from "@/features/auth/authApi";
+
+function BentoShell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm ${className}`}>
+      <div className="rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-8">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function ResetPasswordPage() {
   return (
@@ -34,39 +37,35 @@ function ResetPasswordContent() {
 
   if (!token) {
     return (
-      <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl font-medium tracking-tight">Invalid link</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            This password reset link is invalid or has expired.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link href="/forgot-password" className="text-primary underline-offset-2 hover:underline">
+      <BentoShell>
+        <h2 className="text-2xl font-bold tracking-tight text-white">Invalid link</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          This password reset link is invalid or has expired.
+        </p>
+        <p className="mt-6">
+          <Link href="/forgot-password" className="text-blue-400 underline-offset-2 hover:underline">
             Request a new reset link
           </Link>
-        </CardContent>
-      </Card>
+        </p>
+      </BentoShell>
     );
   }
 
   if (success) {
     return (
-      <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl font-medium tracking-tight">Password reset</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            Your password has been updated. You can now sign in.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <BentoShell>
+        <h2 className="text-2xl font-bold tracking-tight text-white">Password reset</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          Your password has been updated. You can now sign in.
+        </p>
+        <div className="mt-6">
           <Link href="/login">
-            <Button className="w-full text-xs font-mono uppercase tracking-[0.14em]">
+            <Button className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700">
               Sign in
             </Button>
           </Link>
-        </CardContent>
-      </Card>
+        </div>
+      </BentoShell>
     );
   }
 
@@ -90,53 +89,51 @@ function ResetPasswordContent() {
   };
 
   return (
-    <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl font-medium tracking-tight">Set new password</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          Enter your new password below
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="newPassword">New password</FieldLabel>
-              <Input
-                id="newPassword"
-                type="password"
-                placeholder="Minimum 8 characters"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                minLength={8}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={8}
-                required
-              />
-            </Field>
-            <Field>
-              <Button type="submit" className="w-full text-xs font-mono uppercase tracking-[0.14em]" disabled={isLoading}>
-                {isLoading ? "Resetting..." : "Reset password"}
-              </Button>
-            </Field>
-            <p className="text-muted-foreground text-xs text-center">
-              <Link href="/login" className="text-primary underline-offset-2 hover:underline">
-                Back to sign in
-              </Link>
-            </p>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+    <BentoShell>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold tracking-tight text-white">Set new password</h2>
+        <p className="mt-1 text-sm text-gray-400">Enter your new password below</p>
+      </div>
+      <form onSubmit={handleSubmit}>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="newPassword" className="text-gray-300">New password</FieldLabel>
+            <Input
+              id="newPassword"
+              type="password"
+              placeholder="Minimum 8 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              minLength={8}
+              required
+              className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="confirmPassword" className="text-gray-300">Confirm password</FieldLabel>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              minLength={8}
+              required
+              className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
+            />
+          </Field>
+          <Field>
+            <Button type="submit" className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700" disabled={isLoading}>
+              {isLoading ? "Resetting..." : "Reset password"}
+            </Button>
+          </Field>
+          <p className="text-gray-500 text-xs text-center">
+            <Link href="/login" className="text-blue-400 underline-offset-2 hover:underline">
+              Back to sign in
+            </Link>
+          </p>
+        </FieldGroup>
+      </form>
+    </BentoShell>
   );
 }

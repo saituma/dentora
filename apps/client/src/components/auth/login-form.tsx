@@ -17,13 +17,6 @@ import { getUserFriendlyApiError } from "@/lib/api-error";
 import { API_BASE_URL } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Field,
   FieldGroup,
   FieldLabel,
@@ -179,18 +172,18 @@ export function LoginForm() {
   };
 
   return (
-    <Card className="w-full max-w-2xl border border-foreground/[0.12] bg-card/95 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl font-medium tracking-tight">Welcome back</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          Sign in with password, email code, or Google.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm">
+      <div className="rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-white">Welcome back</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Sign in with password, email code, or Google.
+          </p>
+        </div>
         <form onSubmit={handlePasswordLogin} aria-label="Login form">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="email" className="text-gray-300">Email</FieldLabel>
               <Input
                 id="email"
                 type="email"
@@ -201,14 +194,15 @@ export function LoginForm() {
                 inputMode="email"
                 aria-label="Email address"
                 required
+                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
               />
             </Field>
             <Field>
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <FieldLabel htmlFor="password" className="text-gray-300">Password</FieldLabel>
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-primary underline-offset-2 hover:underline"
+                  className="text-sm text-blue-400 underline-offset-2 hover:underline"
                 >
                   Forgot password?
                 </Link>
@@ -221,21 +215,22 @@ export function LoginForm() {
                 autoComplete="current-password"
                 aria-label="Password"
                 required
+                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
               />
             </Field>
             <Field>
-              <Button type="submit" className="w-full text-xs font-mono uppercase tracking-[0.14em]" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign in with password"}
               </Button>
             </Field>
             <Field>
-              <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={startGoogle} disabled={googleLoading} aria-label="Continue with Google">
+              <Button type="button" variant="outline" className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white" onClick={startGoogle} disabled={googleLoading} aria-label="Continue with Google">
                 {googleLoading ? "Redirecting..." : "Continue with Google"}
               </Button>
             </Field>
             <Field>
               {!otpSent ? (
-                <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={handleSendOtp} disabled={sendingOtp || !email} aria-label="Send sign in code to email">
+                <Button type="button" variant="outline" className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white" onClick={handleSendOtp} disabled={sendingOtp || !email} aria-label="Send sign in code to email">
                   {sendingOtp ? "Sending code..." : "Send email code"}
                 </Button>
               ) : (
@@ -252,25 +247,26 @@ export function LoginForm() {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     aria-label="Email verification code"
+                    className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
                   />
-                  <Button type="button" variant="outline" className="w-full text-xs font-mono uppercase tracking-[0.14em]" onClick={handleOtpLogin} disabled={verifyingOtp || otpCode.length !== 6}>
+                  <Button type="button" variant="outline" className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white" onClick={handleOtpLogin} disabled={verifyingOtp || otpCode.length !== 6}>
                     {verifyingOtp ? "Verifying..." : "Sign in with email code"}
                   </Button>
                 </div>
               )}
             </Field>
-            <p className="text-muted-foreground text-xs text-center">
+            <p className="text-gray-500 text-xs text-center">
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
-                className="text-primary underline-offset-2 hover:underline"
+                className="text-blue-400 underline-offset-2 hover:underline"
               >
                 Sign up
               </Link>
             </p>
           </FieldGroup>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

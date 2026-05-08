@@ -4,13 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useForgotPasswordMutation } from "@/features/auth/authApi";
@@ -33,40 +26,35 @@ export function ForgotPasswordForm() {
 
   if (submitted) {
     return (
-      <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl font-medium tracking-tight">Check your email</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
+      <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm">
+        <div className="rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-8">
+          <h2 className="text-2xl font-bold tracking-tight text-white">Check your email</h2>
+          <p className="mt-1 text-sm text-gray-400">
             We sent a password reset link to {email}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-xs">
-            <Link
-              href="/login"
-              className="text-primary underline-offset-2 hover:underline"
-            >
+          </p>
+          <p className="mt-6 text-xs text-gray-500">
+            <Link href="/login" className="text-blue-400 underline-offset-2 hover:underline">
               Back to sign in
             </Link>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="w-full max-w-md border border-foreground/[0.12] bg-card/95 shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl font-medium tracking-tight">Forgot password</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          Enter your email and we&apos;ll send you a reset link
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm">
+      <div className="rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-8">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-white">Forgot password</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Enter your email and we&apos;ll send you a reset link
+          </p>
+        </div>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="email" className="text-gray-300">Email</FieldLabel>
               <Input
                 id="email"
                 type="email"
@@ -74,24 +62,22 @@ export function ForgotPasswordForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
               />
             </Field>
             <Field>
-              <Button type="submit" className="w-full text-xs font-mono uppercase tracking-[0.14em]" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700" disabled={isLoading}>
                 {isLoading ? "Sending..." : "Send reset link"}
               </Button>
             </Field>
-            <p className="text-muted-foreground text-xs text-center">
-              <Link
-                href="/login"
-                className="text-primary underline-offset-2 hover:underline"
-              >
+            <p className="text-gray-500 text-xs text-center">
+              <Link href="/login" className="text-blue-400 underline-offset-2 hover:underline">
                 Back to sign in
               </Link>
             </p>
           </FieldGroup>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
