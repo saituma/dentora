@@ -112,15 +112,26 @@ async function resolveTenant(
 ): Promise<void> {
   const correlationId = generateCorrelationId();
 
-  const [tenant] = await db
-    .select({
-      tenantId: tenantRegistry.id,
-      clinicSlug: tenantRegistry.clinicSlug,
-      status: tenantRegistry.status,
-    })
-    .from(tenantRegistry)
-    .where(eq(tenantRegistry.id, tenantId))
-    .limit(1);
+  let tenant: { tenantId: string; clinicSlug: string; status: 'active' | 'suspended' | 'archived' } | undefined;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      [tenant] = await db
+        .select({
+          tenantId: tenantRegistry.id,
+          clinicSlug: tenantRegistry.clinicSlug,
+          status: tenantRegistry.status,
+        })
+        .from(tenantRegistry)
+        .where(eq(tenantRegistry.id, tenantId))
+        .limit(1);
+      break;
+    } catch (err: unknown) {
+      if (attempt === 0 && err instanceof Error && err.message.includes('ETIMEDOUT')) {
+        continue;
+      }
+      throw err;
+    }
+  }
 
   if (!tenant) {
     throw new TenantNotFoundError(tenantId, method);

@@ -403,7 +403,12 @@ onboardingRouter.post(
         : [];
       const clinicContext = typeof req.body.clinicContext === 'string' ? req.body.clinicContext : '';
 
-      const serverContext = await onboardingService.buildOnboardingAiChatServerContext(req.tenantContext!.tenantId);
+      let serverContext = '';
+      try {
+        serverContext = await onboardingService.buildOnboardingAiChatServerContext(req.tenantContext!.tenantId);
+      } catch (ctxErr) {
+        logger.warn({ err: ctxErr, tenantId: req.tenantContext!.tenantId }, 'Failed to load server context for AI chat, proceeding without it');
+      }
       const mergedClinicContext = [
         serverContext.trim(),
         clinicContext.trim()
@@ -434,10 +439,29 @@ onboardingRouter.post(
         'Ask for missing operational details when useful.',
         'Keep responses practical and short (2-5 sentences).',
         'Use the clinic context below: prefer facts under "Saved ... (database)" as authoritative; the live wizard snapshot may include not-yet-saved form state.',
-        mergedClinicContext ? `Clinic context snapshot:\n${mergedClinicContext}` : '',
+        '',
+        'IMPORTANT: You MUST respond in JSON format with this structure:',
+        '{',
+        '  "message": "Your conversational reply to the user",',
+        '  "extractedFields": {}',
+        '}',
+        '',
+        'extractedFields should contain any configuration values the user explicitly provides. Only include fields the user clearly stated. Allowed field keys:',
+        '- clinicName: string',
+        '- address: string',
+        '- phone: string',
+        '- email: string (clinic support email)',
+        '- timezone: string (e.g. "America/New_York", "Europe/London")',
+        '- greeting: string (receptionist greeting message)',
+        '- defaultDuration: number (appointment duration in minutes)',
+        '- cancellationHours: number (minimum notice hours for cancellation)',
+        '- advanceBookingDays: number (max days ahead for booking)',
+        '',
+        'If the user does not provide any field values in their message, return an empty extractedFields object {}.',
+        mergedClinicContext ? `\nClinic context snapshot:\n${mergedClinicContext}` : '',
       ]
         .filter(Boolean)
-        .join('\n\n');
+        .join('\n');
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -449,6 +473,7 @@ onboardingRouter.post(
         body: JSON.stringify({
           model: process.env.ONBOARDING_AI_CHAT_MODEL ?? 'gpt-4o-mini',
           temperature: 0.3,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: systemPrompt },
             ...messages.map((message) => ({
@@ -467,12 +492,23 @@ onboardingRouter.post(
         return res.status(response.status).json({ error: message });
       }
 
-      const reply = sanitizeAssistantReply(String(payload?.choices?.[0]?.message?.content ?? ''));
+      const rawContent = String(payload?.choices?.[0]?.message?.content ?? '');
+      let reply = '';
+      let extractedFields: Record<string, unknown> = {};
+
+      try {
+        const parsed = JSON.parse(rawContent);
+        reply = sanitizeAssistantReply(String(parsed.message ?? parsed.reply ?? ''));
+        extractedFields = parsed.extractedFields && typeof parsed.extractedFields === 'object' ? parsed.extractedFields : {};
+      } catch {
+        reply = sanitizeAssistantReply(rawContent);
+      }
+
       if (!reply) {
         return res.status(502).json({ error: 'The AI returned an empty response. Please try again.' });
       }
 
-      res.json({ reply });
+      res.json({ reply, extractedFields });
     } catch (err) {
       next(err);
     }

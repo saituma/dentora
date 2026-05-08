@@ -4,67 +4,104 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { MessageSquare, Send, Sparkles, X } from 'lucide-react';
+import { Check, MessageSquare, Send, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, fetchCsrfToken } from '@/lib/api';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-interface ChatMessage {
+// ── Field metadata per onboarding step ──────────────────────────────────────
+
+interface FieldMeta {
+  key: string;
+  label: string;
+  type: 'text' | 'email' | 'tel' | 'number';
+  placeholder: string;
+}
+
+const STEP_FIELDS: Record<string, { fields: FieldMeta[]; nextStep: string }> = {
+  'clinic-profile': {
+    nextStep: 'knowledge-base',
+    fields: [
+      { key: 'clinicName', label: 'Clinic Name', type: 'text', placeholder: 'Smile Dental' },
+      { key: 'address', label: 'Address', type: 'text', placeholder: '123 Main St' },
+      { key: 'phone', label: 'Phone', type: 'tel', placeholder: '+1 555-0100' },
+      { key: 'email', label: 'Email', type: 'email', placeholder: 'office@clinic.com' },
+      { key: 'timezone', label: 'Timezone', type: 'text', placeholder: 'Europe/London' },
+    ],
+  },
+  'schedule': {
+    nextStep: 'ai-chat',
+    fields: [
+      { key: 'defaultDuration', label: 'Appt Duration (min)', type: 'number', placeholder: '30' },
+      { key: 'cancellationHours', label: 'Cancel Notice (hrs)', type: 'number', placeholder: '24' },
+      { key: 'advanceBookingDays', label: 'Max Booking (days)', type: 'number', placeholder: '30' },
+    ],
+  },
+  'voice': {
+    nextStep: 'phone-number',
+    fields: [
+      { key: 'greeting', label: 'Greeting Message', type: 'text', placeholder: 'Hi, welcome to our clinic...' },
+    ],
+  },
+};
+
+// ── Message types ───────────────────────────────────────────────────────────
+
+interface TextMessage {
   id: string;
+  kind: 'text';
   role: 'user' | 'assistant';
   content: string;
 }
 
-const WELCOME_MESSAGE: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content:
-    "Hi! I'm Dentora AI — your setup assistant. Ask me anything about configuring your AI receptionist, onboarding steps, or how Dentora works.",
-};
+interface FieldCardMessage {
+  id: string;
+  kind: 'field-card';
+  fields: Record<string, string | number>;
+  confirmed: boolean;
+}
+
+type ChatMessage = TextMessage | FieldCardMessage;
+
+// ── Animations ──────────────────────────────────────────────────────────────
 
 const containerVariants: Variants = {
-  hidden: {
-    opacity: 0,
-    y: 20,
-    scale: 0.95,
-    transformOrigin: 'bottom right',
-  },
+  hidden: { opacity: 0, y: 20, scale: 0.95, transformOrigin: 'bottom right' },
   visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: 'spring',
-      damping: 25,
-      stiffness: 300,
-      staggerChildren: 0.05,
-    },
+    opacity: 1, y: 0, scale: 1,
+    transition: { type: 'spring', damping: 25, stiffness: 300, staggerChildren: 0.05 },
   },
-  exit: {
-    opacity: 0,
-    y: 20,
-    scale: 0.95,
-    transition: { duration: 0.2 },
-  },
+  exit: { opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.2 } },
 };
 
 const messageVariants: Variants = {
   hidden: { opacity: 0, y: 10, x: -10 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    x: 0,
-    transition: { type: 'spring', stiffness: 500, damping: 30 },
-  },
+  visible: { opacity: 1, y: 0, x: 0, transition: { type: 'spring', stiffness: 500, damping: 30 } },
+};
+
+// ── Component ───────────────────────────────────────────────────────────────
+
+const WELCOME: TextMessage = {
+  id: 'welcome',
+  kind: 'text',
+  role: 'assistant',
+  content: "Hi! I'm Dentora AI — your setup assistant. Tell me your clinic details and I'll fill in the forms for you. For example: \"My clinic is Bright Smile Dental at 42 Oak Ave, phone 555-1234\"",
 };
 
 export function DentoraAiChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [draft, setDraft] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
+
+  const currentStep = pathname?.split('/').filter(Boolean).at(-1) ?? '';
+  const stepConfig = STEP_FIELDS[currentStep];
 
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
@@ -76,13 +113,30 @@ export function DentoraAiChat() {
     if (isOpen) inputRef.current?.focus();
   }, [isOpen]);
 
+  const applyFields = (fields: Record<string, string | number>) => {
+    const typed: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (typeof v === 'string' && v.trim()) typed[k] = v.trim();
+      if (typeof v === 'number') typed[k] = v;
+    }
+    if (Object.keys(typed).length > 0) {
+      window.dispatchEvent(new CustomEvent('dentora-ai-fields', { detail: typed }));
+    }
+  };
+
+  const advanceStep = () => {
+    if (stepConfig?.nextStep) {
+      window.dispatchEvent(new CustomEvent('dentora-ai-next-step', { detail: { step: stepConfig.nextStep } }));
+    }
+  };
+
   const sendMessage = async () => {
     const text = draft.trim();
     if (!text || isThinking) return;
 
-    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: text };
-    const next = [...messages, userMsg];
-    setMessages(next);
+    const userMsg: TextMessage = { id: `u-${Date.now()}`, kind: 'text', role: 'user', content: text };
+    const allMessages = [...messages, userMsg];
+    setMessages(allMessages);
     setDraft('');
     setIsThinking(true);
 
@@ -94,30 +148,94 @@ export function DentoraAiChat() {
       const csrf = await fetchCsrfToken();
       if (csrf) headers['x-csrf-token'] = csrf;
 
+      const textMessages = allMessages.filter((m): m is TextMessage => m.kind === 'text' && m.id !== 'welcome');
+
       const res = await fetch(`${API_BASE_URL}/onboarding/ai-chat`, {
         method: 'POST',
         credentials: 'include',
         headers,
         body: JSON.stringify({
-          messages: next
-            .filter((m) => m.id !== 'welcome')
-            .map((m) => ({ role: m.role, content: m.content })),
+          messages: textMessages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
 
-      const payload = (await res.json()) as { reply?: string; error?: string };
+      const payload = (await res.json()) as { reply?: string; extractedFields?: Record<string, unknown>; error?: string };
       if (!res.ok || !payload.reply) throw new Error(payload.error || 'No response from AI');
 
-      setMessages((prev) => [
-        ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', content: payload.reply as string },
-      ]);
+      const newMessages: ChatMessage[] = [
+        { id: `a-${Date.now()}`, kind: 'text', role: 'assistant', content: payload.reply },
+      ];
+
+      const extracted = payload.extractedFields;
+      if (extracted && Object.keys(extracted).length > 0) {
+        const cardFields: Record<string, string | number> = {};
+        for (const [k, v] of Object.entries(extracted)) {
+          if (typeof v === 'string' || typeof v === 'number') cardFields[k] = v;
+        }
+        if (Object.keys(cardFields).length > 0) {
+          applyFields(cardFields);
+          newMessages.push({
+            id: `fc-${Date.now()}`,
+            kind: 'field-card',
+            fields: cardFields,
+            confirmed: false,
+          });
+        }
+      }
+
+      setMessages((prev) => [...prev, ...newMessages]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not reach Dentora AI';
       toast.error(msg);
     } finally {
       setIsThinking(false);
     }
+  };
+
+  const updateCardField = (cardId: string, fieldKey: string, value: string | number) => {
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.kind !== 'field-card' || m.id !== cardId) return m;
+        return { ...m, fields: { ...m.fields, [fieldKey]: value } };
+      }),
+    );
+  };
+
+  const confirmCard = (cardId: string) => {
+    const card = messages.find((m) => m.id === cardId && m.kind === 'field-card') as FieldCardMessage | undefined;
+    if (!card) return;
+
+    applyFields(card.fields);
+    setMessages((prev) =>
+      prev.map((m) => (m.id === cardId && m.kind === 'field-card' ? { ...m, confirmed: true } : m)),
+    );
+
+    toast.success('Fields applied to form');
+
+    const filledKeys = new Set(Object.keys(card.fields));
+    const allTextCards = messages.filter((m): m is FieldCardMessage => m.kind === 'field-card');
+    for (const tc of allTextCards) {
+      for (const k of Object.keys(tc.fields)) filledKeys.add(k);
+    }
+
+    if (stepConfig) {
+      const requiredKeys = stepConfig.fields.map((f) => f.key);
+      const allFilled = requiredKeys.every((k) => filledKeys.has(k));
+      if (allFilled) {
+        setTimeout(() => {
+          advanceStep();
+          toast.success('All fields filled — moving to next step');
+        }, 600);
+      }
+    }
+  };
+
+  const getFieldMeta = (key: string): FieldMeta | undefined => {
+    for (const cfg of Object.values(STEP_FIELDS)) {
+      const found = cfg.fields.find((f) => f.key === key);
+      if (found) return found;
+    }
+    return undefined;
   };
 
   return (
@@ -130,7 +248,7 @@ export function DentoraAiChat() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="w-[380px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1424]/95 shadow-2xl backdrop-blur-xl ring-1 ring-white/10"
+            className="w-[400px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0f1424]/95 shadow-2xl backdrop-blur-xl ring-1 ring-white/10"
           >
             {/* Header */}
             <div className="relative border-b border-white/[0.06] p-4 overflow-hidden">
@@ -149,7 +267,7 @@ export function DentoraAiChat() {
                   <div>
                     <h3 className="text-sm font-semibold text-white">Dentora AI</h3>
                     <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-500">
-                      Setup Assistant
+                      {stepConfig ? `Step: ${currentStep.replace(/-/g, ' ')}` : 'Setup Assistant'}
                     </span>
                   </div>
                 </div>
@@ -164,65 +282,144 @@ export function DentoraAiChat() {
               </div>
             </div>
 
-            {/* Chat Area */}
-            <div className="flex h-[380px] flex-col gap-4 overflow-y-auto p-4 bg-gradient-to-b from-[#0f1424]/20 to-[#0a0e1a]/40 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10">
-              {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  variants={messageVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className={cn('flex gap-3', msg.role === 'user' && 'flex-row-reverse self-end')}
-                >
-                  {msg.role === 'assistant' ? (
-                    <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
-                      <AvatarImage src="/dentora.png" />
-                      <AvatarFallback className="bg-blue-500/10 text-blue-400">
-                        <Sparkles className="h-3.5 w-3.5" />
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
-                      <AvatarFallback className="bg-blue-600 text-xs font-semibold text-white">
-                        You
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div className={cn('flex max-w-[85%] flex-col gap-1', msg.role === 'user' && 'items-end')}>
-                    {msg.role === 'assistant' && (
-                      <span className="text-xs font-medium text-gray-600">Dentora AI</span>
-                    )}
-                    <div
-                      className={cn(
-                        'rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
-                        msg.role === 'user'
-                          ? 'rounded-tr-none bg-blue-600 text-white shadow-md'
-                          : 'rounded-tl-none border border-white/[0.06] bg-white/[0.04] text-gray-300 backdrop-blur-sm',
-                      )}
+            {/* Messages */}
+            <div className="flex h-[420px] flex-col gap-3 overflow-y-auto p-4 bg-gradient-to-b from-[#0f1424]/20 to-[#0a0e1a]/40 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10">
+              {messages.map((msg) => {
+                if (msg.kind === 'field-card') {
+                  return (
+                    <motion.div
+                      key={msg.id}
+                      variants={messageVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className="flex gap-3"
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
+                        <AvatarFallback className="bg-blue-500/10 text-blue-400">
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="w-full max-w-[85%] rounded-2xl rounded-tl-none border border-white/[0.08] bg-[#0f1424]/80 p-3 shadow-sm backdrop-blur-sm">
+                        <p className="mb-2.5 text-xs font-medium text-gray-500">
+                          {msg.confirmed ? 'Fields applied' : 'Review & confirm'}
+                        </p>
+                        <div className="space-y-2">
+                          {Object.entries(msg.fields).map(([key, value]) => {
+                            const meta = getFieldMeta(key);
+                            return (
+                              <div key={key}>
+                                <label className="mb-0.5 block text-[10px] font-mono uppercase tracking-wider text-gray-500">
+                                  {meta?.label ?? key}
+                                </label>
+                                <input
+                                  type={meta?.type ?? 'text'}
+                                  value={String(value)}
+                                  disabled={msg.confirmed}
+                                  onChange={(e) => {
+                                    const v = meta?.type === 'number' ? Number(e.target.value) || 0 : e.target.value;
+                                    updateCardField(msg.id, key, v);
+                                  }}
+                                  className={cn(
+                                    'w-full rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors',
+                                    msg.confirmed
+                                      ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300'
+                                      : 'border-white/[0.1] bg-white/[0.04] text-white focus:border-blue-500/40',
+                                  )}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {!msg.confirmed && (
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full gap-1.5 rounded-lg bg-blue-600 text-xs font-mono uppercase tracking-wider text-white hover:bg-blue-500"
+                            onClick={() => confirmCard(msg.id)}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            Confirm & apply
+                          </Button>
+                        )}
+                        {msg.confirmed && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-400">
+                            <Check className="h-3.5 w-3.5" />
+                            Applied to form
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                }
+
+                return (
+                  <motion.div
+                    key={msg.id}
+                    variants={messageVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className={cn('flex gap-3', msg.role === 'user' && 'flex-row-reverse self-end')}
+                  >
+                    {msg.role === 'assistant' ? (
+                      <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
+                        <AvatarImage src="/dentora.png" />
+                        <AvatarFallback className="bg-blue-500/10 text-blue-400">
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
+                        <AvatarFallback className="bg-blue-600 text-xs font-semibold text-white">
+                          You
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <div className={cn('flex max-w-[85%] flex-col gap-1', msg.role === 'user' && 'items-end')}>
+                      {msg.role === 'assistant' && (
+                        <span className="text-xs font-medium text-gray-600">Dentora AI</span>
+                      )}
+                      <div
+                        className={cn(
+                          'rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
+                          msg.role === 'user'
+                            ? 'rounded-tr-none bg-blue-600 text-white shadow-md'
+                            : 'rounded-tl-none border border-white/[0.06] bg-white/[0.04] text-gray-300 backdrop-blur-sm',
+                        )}
+                      >
+                        {msg.role === 'assistant' ? (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                              strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                              ul: ({ children }) => <ul className="mb-1.5 ml-4 list-disc space-y-0.5 last:mb-0">{children}</ul>,
+                              ol: ({ children }) => <ol className="mb-1.5 ml-4 list-decimal space-y-0.5 last:mb-0">{children}</ol>,
+                              li: ({ children }) => <li>{children}</li>,
+                              code: ({ children }) => <code className="rounded bg-white/10 px-1 py-0.5 text-xs text-blue-300">{children}</code>,
+                              a: ({ href, children }) => <a href={href} className="text-blue-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">{children}</a>,
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        ) : (
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
 
               {isThinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-3"
-                >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
                   <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
                     <AvatarFallback className="bg-blue-500/10 text-blue-400">
                       <Sparkles className="h-3.5 w-3.5" />
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-tl-none border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-sm backdrop-blur-sm">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400/60 [animation-delay:-0.3s]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400/60 [animation-delay:-0.15s]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400/60" />
-                    </div>
+                  <div className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-tl-none border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-sm backdrop-blur-sm">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400/60 [animation-delay:-0.3s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400/60 [animation-delay:-0.15s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400/60" />
                   </div>
                 </motion.div>
               )}
@@ -230,7 +427,7 @@ export function DentoraAiChat() {
               <div ref={endRef} />
             </div>
 
-            {/* Input Area */}
+            {/* Input */}
             <div className="border-t border-white/[0.06] bg-[#0a0e1a]/60 p-3 backdrop-blur-md">
               <form
                 className="relative flex items-center gap-2"
@@ -244,7 +441,7 @@ export function DentoraAiChat() {
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Ask Dentora AI anything..."
+                  placeholder="Tell me your clinic details..."
                   className="flex-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition-all placeholder:text-gray-600 focus:border-blue-500/40 focus:ring-2 focus:ring-blue-500/10"
                 />
                 <Button

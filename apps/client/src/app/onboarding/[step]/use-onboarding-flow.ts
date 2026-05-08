@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -223,6 +223,39 @@ export function useOnboardingFlow() {
       }));
     setContextFiles(documents);
   }, [policiesData]);
+
+  const applyExtractedFields = useCallback((e: Event) => {
+    const fields = (e as CustomEvent).detail as Record<string, unknown>;
+    if (!fields || typeof fields !== 'object') return;
+    if (typeof fields.clinicName === 'string') setClinicName(fields.clinicName);
+    if (typeof fields.address === 'string') setAddress(fields.address);
+    if (typeof fields.phone === 'string') setPhone(fields.phone);
+    if (typeof fields.email === 'string') setEmail(fields.email);
+    if (typeof fields.timezone === 'string') setTimezone(fields.timezone);
+    if (typeof fields.greeting === 'string') setGreeting(fields.greeting);
+    if (typeof fields.defaultDuration === 'number') setDefaultDuration(fields.defaultDuration);
+    if (typeof fields.cancellationHours === 'number') setCancellationHours(fields.cancellationHours);
+    if (typeof fields.advanceBookingDays === 'number') setAdvanceBookingDays(fields.advanceBookingDays);
+  }, []);
+
+  const handleAiNextStep = useCallback((e: Event) => {
+    const detail = (e as CustomEvent).detail as { step?: string };
+    if (!detail?.step) return;
+    const nextStep = detail.step as OnboardingStep;
+    if (STEP_ORDER.includes(nextStep)) {
+      dispatch(setOnboardingStatus(nextStep));
+      router.push(`/onboarding/${nextStep}`);
+    }
+  }, [dispatch, router]);
+
+  useEffect(() => {
+    window.addEventListener('dentora-ai-fields', applyExtractedFields);
+    window.addEventListener('dentora-ai-next-step', handleAiNextStep);
+    return () => {
+      window.removeEventListener('dentora-ai-fields', applyExtractedFields);
+      window.removeEventListener('dentora-ai-next-step', handleAiNextStep);
+    };
+  }, [applyExtractedFields, handleAiNextStep]);
 
   const goNext = (nextStep: OnboardingStep) => {
     if (nextStep === 'complete') {

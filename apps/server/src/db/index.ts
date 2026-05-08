@@ -56,6 +56,7 @@ const pool = new Pool({
   connectionString,
   max: env.DATABASE_POOL_SIZE,
   connectionTimeoutMillis: env.DATABASE_CONNECTION_TIMEOUT_MS,
+  idleTimeoutMillis: 10000,
   ssl: resolvePgSsl(connectionString),
 });
 
