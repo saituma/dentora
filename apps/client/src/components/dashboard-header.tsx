@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout } from '@/features/auth/authSlice';
 import {
@@ -28,8 +26,6 @@ import {
   SettingsIcon,
   BellIcon,
   LogOutIcon,
-  MoonIcon,
-  SunIcon,
 } from 'lucide-react';
 
 const TITLES: Record<string, string> = {
@@ -49,18 +45,12 @@ export function DashboardHeader() {
   const pathname = usePathname();
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const { user } = useAppSelector((state) => state.auth);
   const notifications = useAppSelector((state) => state.ui.notifications);
   const title = TITLES[pathname ?? ''] ?? 'Dashboard';
   const unreadCount = notifications.filter(
     (notification) => !notification.read
   ).length;
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -93,18 +83,6 @@ export function DashboardHeader() {
       <Separator orientation="vertical" className="mx-2 h-4" />
       <h1 className="text-base font-medium">{title}</h1>
       <div className="ml-auto flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label={mounted && theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-        >
-          {mounted && theme === 'dark' ? (
-            <SunIcon className="size-4" />
-          ) : (
-            <MoonIcon className="size-4" />
-          )}
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative" aria-label="Open notifications menu">

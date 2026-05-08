@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
+import { DentoraAiChat } from '@/components/dentora-ai-chat';
 
 const ONBOARDING_STEPS = [
   { id: 'clinic-profile', label: 'Clinic Profile' },
@@ -45,37 +47,38 @@ export default function OnboardingLayout({
   }
 
   return (
-    <div className="relative min-h-svh overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-grid-small text-foreground/[0.05]" />
-      </div>
-      <div className="relative flex min-h-svh flex-col lg:flex-row">
+    <div className="dark relative min-h-svh overflow-hidden bg-[#0a0e1a]">
+      <ShatteredToothBg />
+      <DentoraAiChat />
+      <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
         <motion.aside
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="relative w-full border-b border-foreground/[0.08] px-5 py-7 sm:px-7 lg:sticky lg:top-0 lg:h-svh lg:w-[40%] lg:border-b-0 lg:border-r lg:py-10"
+          className="relative w-full border-b border-white/[0.06] px-5 py-7 sm:px-7 lg:sticky lg:top-0 lg:h-svh lg:w-[40%] lg:border-b-0 lg:border-r lg:py-10"
         >
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-noise-pattern opacity-[0.035]" />
-            <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-primary/15 blur-3xl" />
+            <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-blue-500/10 blur-3xl" />
+            <div className="absolute bottom-20 right-10 h-40 w-40 rounded-full bg-blue-600/5 blur-3xl" />
           </div>
           <div className="relative space-y-8">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">Onboarding</p>
-              <h1 className="mt-3 text-2xl font-medium tracking-tight text-foreground sm:text-3xl">
+              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-gray-500">Onboarding</p>
+              <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Build your AI front desk
               </h1>
-              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              <p className="mt-2 max-w-md text-sm text-gray-400">
                 Set up your Dentora AI receptionist in a few simple steps — calls, scheduling, and patient communication on autopilot.
               </p>
             </div>
 
-            <div className="rounded-none border border-foreground/[0.1] bg-background/70 p-4 backdrop-blur-sm">
-              <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-                Step {activeStepIndex + 1} / {totalSteps}
-              </p>
-              <p className="mt-2 text-sm font-medium text-foreground">{activeStep.label}</p>
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5">
+              <div className="rounded-[calc(1rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-4">
+                <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-500">
+                  Step {activeStepIndex + 1} / {totalSteps}
+                </p>
+                <p className="mt-2 text-sm font-medium text-white">{activeStep.label}</p>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -85,12 +88,12 @@ export default function OnboardingLayout({
                 return (
                   <div
                     key={step.id}
-                    className={`flex items-center gap-3 border px-3 py-2 text-xs font-mono uppercase tracking-[0.12em] transition-colors ${
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-xs font-mono uppercase tracking-[0.12em] transition-colors ${
                       isActive
-                        ? 'border-foreground/30 bg-foreground/[0.04] text-foreground'
+                        ? 'border-blue-500/30 bg-blue-500/[0.08] text-white'
                         : isDone
-                          ? 'border-foreground/[0.15] bg-background/70 text-foreground/70'
-                          : 'border-foreground/[0.08] bg-background/50 text-muted-foreground'
+                          ? 'border-white/[0.1] bg-white/[0.03] text-gray-300'
+                          : 'border-white/[0.06] bg-transparent text-gray-600'
                     }`}
                   >
                     <span className="w-6 text-[10px] tabular-nums">{String(index + 1).padStart(2, '0')}</span>

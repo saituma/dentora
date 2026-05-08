@@ -1,7 +1,6 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
 import { Shield, Lock, Zap } from 'lucide-react';
@@ -27,13 +26,7 @@ export default function AuthLayout({
           </div>
 
           <div className="relative flex h-full max-w-2xl flex-col justify-between">
-            <Image
-              src="/dentora.png"
-              alt="Dentora"
-              width={678}
-              height={581}
-              className="h-10 w-auto"
-            />
+            <div />
 
             <div className="space-y-6">
               <h1 className="text-4xl leading-tight font-bold text-white sm:text-5xl lg:text-6xl">
