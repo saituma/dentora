@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MarketingGuard } from '@/components/auth/marketing-guard';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
 import { useState } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
 
@@ -157,7 +158,7 @@ const footerColumns = [
 
 function Footer() {
   return (
-    <footer className="border-t border-white/[0.06] bg-[#060a14]">
+    <footer className="relative z-10 border-t border-white/[0.06] bg-[#060a14]">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-6">
           <div className="lg:col-span-2">
@@ -254,8 +255,11 @@ export default function MarketingLayout({
   return (
     <MarketingGuard>
       <div className="relative flex min-h-svh flex-col bg-[#0a0e1a] text-white">
-        <Header />
-        <main className="flex-1"><ErrorBoundary>{children}</ErrorBoundary></main>
+        <ShatteredToothBg />
+        <div className="relative z-10 flex flex-1 flex-col">
+          <Header />
+          <main className="flex-1"><ErrorBoundary>{children}</ErrorBoundary></main>
+        </div>
         <Footer />
       </div>
     </MarketingGuard>

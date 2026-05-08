@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="678" height="485" viewBox="0 0 678 485" role="img" aria-label="Dentora dental technology logo">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#122341"/>
+      <stop offset="55%" stop-color="#081227"/>
+      <stop offset="100%" stop-color="#030814"/>
+    </radialGradient>
+    <filter id="softGlow" x="-70%" y="-70%" width="240%" height="240%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="lineGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="toothLine" x1="180" y1="65" x2="510" y2="365" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#dfffff"/>
+      <stop offset="0.55" stop-color="#bcecff"/>
+      <stop offset="1" stop-color="#9bd5ff"/>
+    </linearGradient>
+    <linearGradient id="word" x1="55" y1="410" x2="620" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e8f5ff"/>
+      <stop offset="1" stop-color="#b8d7ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Low-poly tooth network mark -->
+  <g fill="none" stroke="url(#toothLine)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineGlow)" opacity="0.96">
+    <!-- Outer tooth contour -->
+    <path d="M205 92 L260 63 L337 88 L416 65 L477 91 L503 163 L471 260 L430 312 L398 337 L395 306 L428 240 L446 174 L462 128 L416 65"/>
+    <path d="M205 92 L184 163 L213 253 L257 338 L291 372 L288 337 L256 310 L213 253 L184 163 Z"/>
+    <path d="M260 63 L239 107 L256 235 L288 337"/>
+    <path d="M337 88 L373 107 L416 65"/>
+    <path d="M373 107 L428 240 L471 260"/>
+    <path d="M337 88 L303 187 L256 235 L213 253"/>
+    <path d="M303 187 L344 280 L397 306"/>
+    <path d="M344 280 L471 260"/>
+    <path d="M430 312 L397 306 L344 280 L256 310 L257 338"/>
+  </g>
+
+  <!-- Internal neural connections -->
+  <g stroke="url(#toothLine)" stroke-width="2.2" stroke-linecap="round" filter="url(#lineGlow)" opacity="0.92">
+    <line x1="239" y1="107" x2="373" y2="107"/>
+    <line x1="239" y1="107" x2="303" y2="187"/>
+    <line x1="239" y1="107" x2="337" y2="88"/>
+    <line x1="205" y1="92" x2="239" y2="107"/>
+    <line x1="184" y1="163" x2="239" y2="107"/>
+    <line x1="184" y1="163" x2="256" y2="235"/>
+    <line x1="256" y1="235" x2="344" y2="280"/>
+    <line x1="213" y1="253" x2="344" y2="280"/>
+    <line x1="213" y1="253" x2="291" y2="372"/>
+    <line x1="256" y1="310" x2="344" y2="280"/>
+    <line x1="303" y1="187" x2="428" y2="240"/>
+    <line x1="303" y1="187" x2="373" y2="107"/>
+    <line x1="373" y1="107" x2="462" y2="128"/>
+    <line x1="373" y1="107" x2="477" y2="91"/>
+    <line x1="416" y1="65" x2="462" y2="128"/>
+    <line x1="477" y1="91" x2="462" y2="128"/>
+    <line x1="477" y1="91" x2="503" y2="163"/>
+    <line x1="462" y1="128" x2="503" y2="163"/>
+    <line x1="462" y1="128" x2="428" y2="240"/>
+    <line x1="503" y1="163" x2="428" y2="240"/>
+    <line x1="428" y1="240" x2="397" y2="306"/>
+    <line x1="397" y1="306" x2="471" y2="260"/>
+    <line x1="430" y1="312" x2="397" y2="306"/>
+  </g>
+
+  <!-- Nodes -->
+  <g fill="#eaffff" filter="url(#softGlow)">
+    <circle cx="205" cy="92" r="6.5"/>
+    <circle cx="260" cy="63" r="6"/>
+    <circle cx="337" cy="88" r="5.8"/>
+    <circle cx="416" cy="65" r="6.4"/>
+    <circle cx="477" cy="91" r="6.2"/>
+    <circle cx="184" cy="163" r="7"/>
+    <circle cx="239" cy="107" r="7"/>
+    <circle cx="373" cy="107" r="7"/>
+    <circle cx="462" cy="128" r="6.5"/>
+    <circle cx="503" cy="163" r="7"/>
+    <circle cx="303" cy="187" r="8.2"/>
+    <circle cx="428" cy="240" r="8.8"/>
+    <circle cx="256" cy="235" r="6.6"/>
+    <circle cx="213" cy="253" r="6.3"/>
+    <circle cx="471" cy="260" r="6.5"/>
+    <circle cx="344" cy="280" r="6.2"/>
+    <circle cx="397" cy="306" r="6.3"/>
+    <circle cx="430" cy="312" r="5.4"/>
+    <circle cx="256" cy="310" r="5.2"/>
+    <circle cx="288" cy="337" r="6.1"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="339" y="440" text-anchor="middle" font-family="Montserrat, Avenir Next, Arial, sans-serif" font-size="82" font-weight="500" letter-spacing="16" fill="url(#word)" filter="url(#lineGlow)">DENTORA</text>
+</svg>

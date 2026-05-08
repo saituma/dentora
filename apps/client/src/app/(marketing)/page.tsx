@@ -6,25 +6,59 @@ import {
   MessageSquare,
   Bell,
   BarChart3,
-  ChevronRight,
-  ChevronLeft,
   CheckCircle2,
   Check,
   ArrowRight,
   PhoneCall,
   Star,
+  Sparkles,
+  TrendingUp,
+  Clock,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
+
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
+  transition: { duration: 0.7, ease: [0.32, 0.72, 0, 1] as const },
+};
+
+/* ─── Bento Card ─── */
+function BentoCard({
+  children,
+  className = '',
+  span = '',
+}: {
+  children: ReactNode;
+  className?: string;
+  span?: string;
+}) {
+  return (
+    <motion.div
+      {...fadeUp}
+      className={`group relative rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm transition-shadow hover:shadow-lg hover:shadow-blue-500/5 ${span} ${className}`}
+    >
+      <div className="relative flex h-full flex-col overflow-hidden rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-blue-500/[0.02] pointer-events-none" />
+        <div className="relative z-10">{children}</div>
+      </div>
+    </motion.div>
+  );
+}
 
 /* ─── Hero Section ─── */
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-[#0a0e1a] via-[#0d1220] to-[#0a0e1a]">
+    <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(37,99,235,0.08),transparent_60%)]" />
+
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="grid items-center gap-12 lg:grid-cols-2">
-          <div className="relative z-10">
+          <motion.div {...fadeUp} className="relative z-10">
             <p className="mb-6 text-sm font-semibold uppercase tracking-widest text-blue-400">
               AI RECEPTIONIST FOR DENTAL CLINICS
             </p>
@@ -76,11 +110,10 @@ function HeroSection() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          <div className="relative">
+          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }} className="relative">
             <div className="relative mx-auto max-w-md lg:max-w-none">
-              {/* Chat bubble */}
               <div className="absolute -top-4 left-1/4 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 px-4 py-3 shadow-xl backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">😊</span>
@@ -91,7 +124,6 @@ function HeroSection() {
                 </div>
               </div>
 
-              {/* Menu options */}
               <div className="absolute left-8 top-16 z-20 space-y-2">
                 {['Book an Appointment', 'Check Appointment', 'Insurance Questions', 'Other Inquiries'].map((item) => (
                   <div
@@ -103,7 +135,6 @@ function HeroSection() {
                 ))}
               </div>
 
-              {/* AI character placeholder */}
               <div className="relative mx-auto flex h-80 w-80 items-center justify-center lg:h-96 lg:w-96">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-b from-blue-600/20 to-transparent" />
                 <div className="relative flex size-48 items-center justify-center rounded-full bg-gradient-to-b from-blue-500/30 to-blue-600/10 lg:size-56">
@@ -117,7 +148,6 @@ function HeroSection() {
                 </div>
               </div>
 
-              {/* Appointment confirmed card */}
               <div className="absolute -right-4 top-8 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 p-4 shadow-xl backdrop-blur-sm lg:right-0">
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-semibold text-white">New Appointment</p>
@@ -130,7 +160,6 @@ function HeroSection() {
                 </div>
               </div>
 
-              {/* Call summary card */}
               <div className="absolute -right-4 bottom-16 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 p-4 shadow-xl backdrop-blur-sm lg:right-0">
                 <div className="flex items-center gap-2">
                   <PhoneCall className="size-3.5 text-blue-400" />
@@ -143,20 +172,20 @@ function HeroSection() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── Stats Section ─── */
+/* ─── Stats Section (Bento) ─── */
 function StatsSection() {
   const stats = [
     { icon: Phone, value: '98%', label: 'Call Answer Rate' },
-    { icon: CalendarCheck, value: '3x', label: 'More Appointments' },
+    { icon: TrendingUp, value: '3x', label: 'More Appointments' },
     { icon: BarChart3, value: '45%', label: 'Reduction in No-Shows' },
-    { icon: Phone, value: '24/7', label: 'Always Available' },
+    { icon: Clock, value: '24/7', label: 'Always Available' },
   ];
 
   const logos = [
@@ -169,9 +198,9 @@ function StatsSection() {
   ];
 
   return (
-    <section className="bg-[#0a0e1a] py-12">
+    <section className="py-12">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0f1424]/80 p-8">
+        <BentoCard>
           <h3 className="mb-8 text-center text-lg font-semibold text-white">
             Trusted by Forward-Thinking Dental Practices
           </h3>
@@ -201,108 +230,142 @@ function StatsSection() {
               ))}
             </div>
           </div>
-        </div>
+        </BentoCard>
       </div>
     </section>
   );
 }
 
-/* ─── Features Section ─── */
+/* ─── Features Section (Bento Grid) ─── */
 function FeaturesSection() {
   const features = [
     {
-      icon: Phone,
       title: 'AI Call Answering',
       description: 'Dentora answers calls instantly, sounds natural, and never keeps patients on hold.',
     },
     {
-      icon: CalendarCheck,
       title: 'Smart Scheduling',
       description: 'Books, reschedules and cancels appointments seamlessly into your calendar.',
     },
     {
-      icon: MessageSquare,
       title: 'Patient Inquiries',
       description: 'Answers insurance, pricing, treatment and general questions instantly.',
     },
     {
-      icon: Bell,
       title: 'Reminders & Follow-ups',
       description: 'Sends automated recalls, confirmations and follow-ups to patients.',
     },
     {
-      icon: BarChart3,
       title: 'Insights & Analytics',
       description: 'Track calls, bookings and conversions with powerful real-time analytics.',
     },
   ];
 
   return (
-    <section id="features" className="bg-[#0a0e1a] py-20">
+    <section id="features" className="py-20">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        <div className="mb-12 text-center">
+        <motion.div {...fadeUp} className="mb-12 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">FEATURES</p>
           <h2 className="text-3xl font-bold text-white md:text-4xl">
             Everything Your Front Desk Does.
             <br />
             <span className="bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">And More.</span>
           </h2>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group rounded-xl border border-white/[0.06] bg-[#0f1424]/60 p-6 transition hover:border-blue-500/30 hover:bg-[#0f1424]"
-            >
-              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
-                <feature.icon className="size-6 text-blue-400" />
-              </div>
-              <h3 className="mb-2 text-sm font-semibold text-white">{feature.title}</h3>
-              <p className="text-xs leading-relaxed text-gray-400">{feature.description}</p>
-              <Link
-                href="#"
-                className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-blue-400 transition hover:text-blue-300"
-              >
-                Learn more <ArrowRight className="size-3" />
-              </Link>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          <BentoCard span="sm:col-span-2 lg:col-span-3">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+              <Phone className="size-6 text-blue-400" />
             </div>
-          ))}
+            <h3 className="mb-2 text-base font-semibold text-white">{features[0].title}</h3>
+            <p className="text-sm leading-relaxed text-gray-400">{features[0].description}</p>
+            <div className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-8 items-center justify-center rounded-full bg-green-500/10">
+                  <Phone className="size-4 text-green-400" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-white">Incoming Call</p>
+                    <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400">Answered</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500">Patient: New inquiry about teeth cleaning</p>
+                </div>
+              </div>
+            </div>
+          </BentoCard>
+
+          <BentoCard span="sm:col-span-2 lg:col-span-3">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+              <CalendarCheck className="size-6 text-blue-400" />
+            </div>
+            <h3 className="mb-2 text-base font-semibold text-white">{features[1].title}</h3>
+            <p className="text-sm leading-relaxed text-gray-400">{features[1].description}</p>
+            <div className="mt-6 space-y-2">
+              {['Mon 9:00 AM — Cleaning', 'Tue 2:30 PM — Consultation', 'Wed 11:00 AM — Follow-up'].map((apt) => (
+                <div key={apt} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+                  <div className="size-2 rounded-full bg-blue-400" />
+                  <p className="text-xs text-gray-300">{apt}</p>
+                </div>
+              ))}
+            </div>
+          </BentoCard>
+
+          <BentoCard span="lg:col-span-2">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+              <MessageSquare className="size-6 text-blue-400" />
+            </div>
+            <h3 className="mb-2 text-sm font-semibold text-white">{features[2].title}</h3>
+            <p className="text-xs leading-relaxed text-gray-400">{features[2].description}</p>
+          </BentoCard>
+
+          <BentoCard span="lg:col-span-2">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+              <Bell className="size-6 text-blue-400" />
+            </div>
+            <h3 className="mb-2 text-sm font-semibold text-white">{features[3].title}</h3>
+            <p className="text-xs leading-relaxed text-gray-400">{features[3].description}</p>
+          </BentoCard>
+
+          <BentoCard span="lg:col-span-2">
+            <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10">
+              <BarChart3 className="size-6 text-blue-400" />
+            </div>
+            <h3 className="mb-2 text-sm font-semibold text-white">{features[4].title}</h3>
+            <p className="text-xs leading-relaxed text-gray-400">{features[4].description}</p>
+          </BentoCard>
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── How It Works + Demo Form (side by side) ─── */
+/* ─── How It Works + Demo Form ─── */
 function HowItWorksAndDemoSection() {
   const steps = [
     {
       number: 1,
       title: 'We Answer',
       description: 'Dentora answers calls and chats like a real person.',
-      color: 'text-blue-400',
     },
     {
       number: 2,
       title: 'We Understand',
       description: 'Our AI listens, understands and handles the request.',
-      color: 'text-blue-400',
     },
     {
       number: 3,
       title: 'We Take Action',
       description: 'Appointments booked, questions answered, tasks completed.',
-      color: 'text-red-400',
     },
   ];
 
   return (
-    <section id="how-it-works" className="bg-[#0a0e1a] py-20">
+    <section id="how-it-works" className="py-20">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid items-start gap-10 lg:grid-cols-3">
-          {/* Left: How it works + steps */}
-          <div>
+          <motion.div {...fadeUp}>
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">HOW IT WORKS</p>
             <h2 className="mb-10 text-3xl font-bold text-white md:text-4xl">
               Simple. Powerful. Effortless.
@@ -316,18 +379,17 @@ function HowItWorksAndDemoSection() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold ${step.color}`}>{step.number}</span>
-                      <h3 className={`text-lg font-semibold ${step.color}`}>{step.title}</h3>
+                      <span className="text-sm font-bold text-blue-400">{step.number}</span>
+                      <h3 className="text-lg font-semibold text-blue-400">{step.title}</h3>
                     </div>
                     <p className="mt-1 text-sm text-gray-400">{step.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
-          {/* Center: Phone mockup */}
-          <div className="flex justify-center">
+          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="flex justify-center">
             <div className="relative w-56">
               <div className="rounded-[2.5rem] border-2 border-white/10 bg-[#0f1424] p-2.5">
                 <div className="rounded-[2rem] bg-[#1a1f35] p-5">
@@ -369,10 +431,9 @@ function HowItWorksAndDemoSection() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Right: Demo form */}
-          <div className="rounded-2xl border border-white/[0.06] bg-[#0f1424]/60 p-6 lg:p-8">
+          <BentoCard>
             <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">BOOK A LIVE DEMO</p>
             <h2 className="mb-1 text-xl font-bold text-white">See Dentora in Action</h2>
             <p className="mb-6 text-xs text-gray-400">
@@ -418,7 +479,7 @@ function HowItWorksAndDemoSection() {
                 No commitment. Just a 30-min demo.
               </div>
             </form>
-          </div>
+          </BentoCard>
         </div>
       </div>
     </section>
@@ -446,51 +507,39 @@ function TestimonialsSection() {
   ];
 
   return (
-    <section id="testimonials" className="bg-[#0a0e1a] py-20">
+    <section id="testimonials" className="py-20">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
-        <div className="mb-12 text-center">
+        <motion.div {...fadeUp} className="mb-12 text-center">
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
             WHAT DENTAL PRACTICES SAY
           </p>
           <h2 className="text-3xl font-bold text-white md:text-4xl">
             Loved by Dentists. Trusted by Teams.
           </h2>
-        </div>
+        </motion.div>
 
-        <div className="relative">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {testimonials.map((t) => (
-              <div
-                key={t.name}
-                className="rounded-xl border border-white/[0.06] bg-[#0f1424]/60 p-6"
-              >
-                <div className="mb-4 flex gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="size-4 fill-yellow-400 text-yellow-400" />
-                  ))}
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          {testimonials.map((t) => (
+            <BentoCard key={t.name}>
+              <div className="mb-4 flex gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="size-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <p className="mb-6 flex-1 text-sm leading-relaxed text-gray-300">
+                &ldquo;{t.quote}&rdquo;
+              </p>
+              <div className="flex items-center gap-3 border-t border-white/5 pt-4">
+                <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-xs font-bold text-white">
+                  {t.name.split(' ').map((n) => n[0]).join('')}
                 </div>
-                <p className="mb-6 text-sm leading-relaxed text-gray-300">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-xs font-bold text-white">
-                    {t.name.split(' ').map((n) => n[0]).join('')}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{t.name}</p>
-                    <p className="text-xs text-gray-400">{t.role}</p>
-                  </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{t.name}</p>
+                  <p className="text-xs text-gray-400">{t.role}</p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <button className="absolute -left-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#0f1424] text-white transition hover:bg-white/10">
-            <ChevronLeft className="size-5" />
-          </button>
-          <button className="absolute -right-4 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-[#0f1424] text-white transition hover:bg-white/10">
-            <ChevronRight className="size-5" />
-          </button>
+            </BentoCard>
+          ))}
         </div>
       </div>
     </section>
@@ -500,10 +549,9 @@ function TestimonialsSection() {
 /* ─── CTA Section ─── */
 function CTASection() {
   return (
-    <section className="bg-[#0a0e1a] px-6 py-16 lg:px-8">
+    <section className="px-6 py-16 lg:px-8">
       <div className="mx-auto max-w-6xl overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f1a3a] via-[#101830] to-[#0f1424]">
         <div className="grid items-center gap-8 md:grid-cols-3">
-          {/* Tooth graphic */}
           <div className="relative flex items-center justify-center p-8">
             <div className="relative size-48">
               <div className="absolute inset-0 rounded-full bg-gradient-to-b from-blue-500/20 to-transparent blur-2xl" />
@@ -524,7 +572,6 @@ function CTASection() {
             </div>
           </div>
 
-          {/* Text */}
           <div className="p-8">
             <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-blue-400">
               READY TO TRANSFORM YOUR PRACTICE?
@@ -547,7 +594,6 @@ function CTASection() {
             </ul>
           </div>
 
-          {/* CTA card */}
           <div className="p-8">
             <div className="rounded-xl border border-white/10 bg-[#1a1f35]/80 p-6">
               <h3 className="mb-2 text-lg font-bold text-white">Get Started Today</h3>
