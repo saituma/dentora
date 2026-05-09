@@ -55,20 +55,17 @@ function getRefreshTokenFromRequest(req: Request): string | undefined {
   if (typeof cookieToken === 'string' && cookieToken) {
     return cookieToken;
   }
-
-  // TODO(auth-cookie-migration): remove body fallback after the client stops storing refresh tokens in localStorage.
-  const bodyToken = req.body?.refreshToken;
-  if (typeof bodyToken === 'string' && bodyToken) {
-    return bodyToken;
-  }
-
   return undefined;
+}
+
+function withoutRefreshToken<T extends { refreshToken: string }>(result: T): Omit<T, 'refreshToken'> {
+  const { refreshToken: _refreshToken, ...body } = result;
+  return body;
 }
 
 function sendLoginResult<T extends { refreshToken: string }>(res: Response, status: number, result: T): void {
   setRefreshTokenCookie(res, result.refreshToken);
-  // TODO(auth-cookie-migration): remove refreshToken from JSON after the client no longer depends on localStorage.
-  res.status(status).json(result);
+  res.status(status).json(withoutRefreshToken(result));
 }
 
 function getSafeOauthRedirectBase(returnTo?: string | null): string {
@@ -186,8 +183,7 @@ authRouter.post(
       const result = await authService.exchangeOauthCode(code);
       setRefreshTokenCookie(res, result.refreshToken);
       res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-      // TODO(auth-cookie-migration): remove refreshToken from JSON after the client no longer depends on localStorage.
-      res.json(result);
+      res.json(withoutRefreshToken(result));
     } catch (err) {
       res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
       next(err);
@@ -277,9 +273,7 @@ authRouter.post(
 authRouter.post(
   '/refresh',
   validate({
-    body: z.object({
-      refreshToken: z.string().min(1).optional(),
-    }).default({}),
+    body: z.object({}).default({}),
   }),
   async (req, res, next) => {
     try {
@@ -289,8 +283,7 @@ authRouter.post(
       }
       const tokens = await authService.refreshAccessToken(refreshToken);
       setRefreshTokenCookie(res, tokens.refreshToken);
-      // TODO(auth-cookie-migration): remove refreshToken from JSON after the client no longer depends on localStorage.
-      res.json(tokens);
+      res.json(withoutRefreshToken(tokens));
     } catch (err) {
       clearRefreshTokenCookie(res);
       next(err);
@@ -302,9 +295,7 @@ authRouter.post(
   '/logout',
   authenticateJwt,
   validate({
-    body: z.object({
-      refreshToken: z.string().min(1).optional(),
-    }).default({}),
+    body: z.object({}).default({}),
   }),
   async (req, res, next) => {
     try {

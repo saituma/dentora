@@ -15,7 +15,6 @@ interface LoginRequest {
 
 interface LoginResponse {
   accessToken: string;
-  refreshToken?: string;
   user: {
     id: string;
     email: string;

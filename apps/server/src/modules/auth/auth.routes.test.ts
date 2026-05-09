@@ -103,7 +103,7 @@ async function request(path: string, input: {
   body?: unknown;
   cookies?: Record<string, string>;
 }): Promise<RouterResponse> {
-  return await new Promise((resolve, reject) => {
+  return await new Promise((resolve) => {
     const headers = new Map<string, string[]>();
     const req = {
       method: input.method,
@@ -142,7 +142,12 @@ async function request(path: string, input: {
     };
 
     (authRouter as unknown as { handle: (req: Request, res: Response, next: NextFunction) => void }).handle(req, res as unknown as Response, ((err?: unknown) => {
-      if (err) reject(err);
+      if (err) {
+        const statusCode = typeof err === 'object' && err !== null && 'statusCode' in err
+          ? Number((err as { statusCode?: number }).statusCode)
+          : 401;
+        resolve({ statusCode: Number.isFinite(statusCode) ? statusCode : 401, body: err, headers });
+      }
       else resolve({ statusCode: res.statusCode, body: undefined, headers });
     }) as NextFunction);
   });
@@ -200,8 +205,8 @@ describe('auth refresh-token cookie routes', () => {
     expectRefreshCookie(response.headers.get('set-cookie')?.join(', ') ?? null, loginResult.refreshToken);
     expect(response.body).toMatchObject({
       accessToken: loginResult.accessToken,
-      refreshToken: loginResult.refreshToken,
     });
+    expect(response.body).not.toHaveProperty('refreshToken');
   });
 
   it('sets the refresh cookie on successful Google OAuth exchange', async () => {
@@ -218,7 +223,7 @@ describe('auth refresh-token cookie routes', () => {
     expect(setCookie).toContain('oauth-exchange-code=');
   });
 
-  it('reads refresh token from cookie before temporary body fallback and rotates the cookie', async () => {
+  it('reads refresh token only from the cookie and rotates the cookie', async () => {
     mockAuthService.refreshAccessToken.mockResolvedValue({
       accessToken: 'access-token-2',
       refreshToken: 'refresh-token-2',
@@ -227,7 +232,7 @@ describe('auth refresh-token cookie routes', () => {
     const response = await request('/refresh', {
       method: 'POST',
       cookies: { 'refresh-token': 'cookie-refresh-token' },
-      body: { refreshToken: 'body-refresh-token' },
+      body: { refreshToken: 'ignored-body-refresh-token' },
     });
 
     expect(response.statusCode).toBe(200);
@@ -235,11 +240,10 @@ describe('auth refresh-token cookie routes', () => {
     expectRefreshCookie(response.headers.get('set-cookie')?.join(', ') ?? null, 'refresh-token-2');
     expect(response.body).toEqual({
       accessToken: 'access-token-2',
-      refreshToken: 'refresh-token-2',
     });
   });
 
-  it('temporarily falls back to request body refresh token for old clients', async () => {
+  it('rejects refresh when only a body refresh token is present', async () => {
     mockAuthService.refreshAccessToken.mockResolvedValue({
       accessToken: 'access-token-2',
       refreshToken: 'refresh-token-2',
@@ -250,22 +254,41 @@ describe('auth refresh-token cookie routes', () => {
       body: { refreshToken: 'body-refresh-token' },
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(mockAuthService.refreshAccessToken).toHaveBeenCalledWith('body-refresh-token');
-    expectRefreshCookie(response.headers.get('set-cookie')?.join(', ') ?? null, 'refresh-token-2');
+    expect(response.statusCode).toBe(401);
+    expect(mockAuthService.refreshAccessToken).not.toHaveBeenCalled();
+    const setCookie = response.headers.get('set-cookie')?.join(', ') ?? null;
+    expect(setCookie).toContain('refresh-token=');
+    expect(setCookie).toContain('Path=/api/auth');
+    expect(setCookie).toContain('Expires=Thu, 01 Jan 1970 00:00:00 GMT');
   });
 
-  it('logs out with cookie refresh token before body fallback and clears the cookie', async () => {
+  it('logs out with cookie refresh token and clears the cookie', async () => {
     mockAuthService.logout.mockResolvedValue(undefined);
 
     const response = await request('/logout', {
       method: 'POST',
       cookies: { 'refresh-token': 'cookie-refresh-token' },
-      body: { refreshToken: 'body-refresh-token' },
+      body: { refreshToken: 'ignored-body-refresh-token' },
     });
 
     expect(response.statusCode).toBe(200);
     expect(mockAuthService.logout).toHaveBeenCalledWith('u1', 'cookie-refresh-token');
+    const setCookie = response.headers.get('set-cookie')?.join(', ') ?? null;
+    expect(setCookie).toContain('refresh-token=');
+    expect(setCookie).toContain('Path=/api/auth');
+    expect(setCookie).toContain('Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+  });
+
+  it('rejects logout when only a body refresh token is present', async () => {
+    mockAuthService.logout.mockResolvedValue(undefined);
+
+    const response = await request('/logout', {
+      method: 'POST',
+      body: { refreshToken: 'body-refresh-token' },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(mockAuthService.logout).not.toHaveBeenCalled();
     const setCookie = response.headers.get('set-cookie')?.join(', ') ?? null;
     expect(setCookie).toContain('refresh-token=');
     expect(setCookie).toContain('Path=/api/auth');

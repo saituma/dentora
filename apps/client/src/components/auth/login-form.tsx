@@ -83,7 +83,6 @@ export function LoginForm() {
 
   const finalizeLogin = async (result: {
     accessToken: string;
-    refreshToken?: string;
     user: { id: string; email: string; displayName: string | null; role: string };
     tenantId: string | null;
   }) => {
