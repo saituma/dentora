@@ -12,7 +12,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import * as Sentry from '@sentry/node';
-import { env } from './config/env.js';
+import { env, shouldFailStartupOnRedisError } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { checkDbHealth, closeDb } from './db/index.js';
 import { initRedis, closeRedis } from './lib/cache.js';
@@ -179,8 +179,11 @@ async function start() {
   try {
     try {
       await initRedis();
-      logger.info('Redis connected');
     } catch (err) {
+      if (shouldFailStartupOnRedisError(env.NODE_ENV)) {
+        logger.error({ err }, 'Redis connection failed at startup');
+        process.exit(1);
+      }
       logger.warn({ err }, 'Redis connection failed — continuing without cache');
     }
 

@@ -1,6 +1,17 @@
 
 import { z } from 'zod';
 
+const booleanFromString = z.preprocess((value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return value;
+}, z.boolean());
+
 function normalizeGoogleClientId(value: string): string {
   const matches = value.match(/[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com/g);
   if (!matches || matches.length === 0) {
@@ -35,7 +46,7 @@ const envSchema = z.object({
 
   REDIS_URL: z.string().default('redis://localhost:6379'),
   REDIS_MAX_CONNECTIONS: z.coerce.number().min(1).max(500).default(50),
-  REDIS_DISABLED: z.coerce.boolean().default(false),
+  REDIS_DISABLED: booleanFromString.default(false),
 
   ENCRYPTION_KEY: z.string().length(64).default('0'.repeat(64)),
 
@@ -91,6 +102,58 @@ const envSchema = z.object({
   CLIENT_URL: z.string().default('http://localhost:3000'),
 });
 
+export type Env = z.infer<typeof envSchema>;
+
+export function isDefaultOrLocalRedisUrl(redisUrl: string): boolean {
+  const normalized = redisUrl.trim().toLowerCase();
+  if (normalized === 'localhost' || normalized === '127.0.0.1') {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(redisUrl.includes('://') ? redisUrl : `redis://${redisUrl}`);
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  } catch {
+    return normalized.includes('localhost') || normalized.includes('127.0.0.1');
+  }
+}
+
+export function getProductionEnvFatalErrors(config: Pick<
+  Env,
+  'NODE_ENV' | 'JWT_SECRET' | 'ENCRYPTION_KEY' | 'DATABASE_URL' | 'DATABASE_SSL_MODE' | 'REDIS_DISABLED' | 'REDIS_URL'
+>): string[] {
+  if (config.NODE_ENV !== 'production') {
+    return [];
+  }
+
+  const fatal: string[] = [];
+  if (config.JWT_SECRET === 'development-secret-change-in-production-min32chars') {
+    fatal.push('JWT_SECRET is still set to the default development value');
+  }
+  if (config.ENCRYPTION_KEY === '0'.repeat(64)) {
+    fatal.push('ENCRYPTION_KEY is still set to the default zero-fill value');
+  }
+  const dbUrl = config.DATABASE_URL.toLowerCase();
+  if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+    fatal.push('DATABASE_URL points to localhost — use a remote database in production');
+  }
+  if (config.DATABASE_SSL_MODE === 'disable') {
+    fatal.push('DATABASE_SSL_MODE must be "require", "verify-ca", or "verify-full" in production');
+  }
+  if (config.REDIS_DISABLED) {
+    fatal.push('REDIS_DISABLED must not be true in production');
+  }
+  if (isDefaultOrLocalRedisUrl(config.REDIS_URL)) {
+    fatal.push('REDIS_URL must point to a remote Redis instance in production');
+  }
+
+  return fatal;
+}
+
+export function shouldFailStartupOnRedisError(nodeEnv: Env['NODE_ENV']): boolean {
+  return nodeEnv === 'production';
+}
+
 function loadEnv() {
   if (typeof process.env.GOOGLE_CLIENT_ID === 'string') {
     process.env.GOOGLE_CLIENT_ID = normalizeGoogleClientId(process.env.GOOGLE_CLIENT_ID);
@@ -108,26 +171,10 @@ function loadEnv() {
   }
 
   if (result.data.NODE_ENV === 'production') {
-    const fatal: string[] = [];
-    if (result.data.JWT_SECRET === 'development-secret-change-in-production-min32chars') {
-      fatal.push('JWT_SECRET is still set to the default development value');
-    }
-    if (result.data.ENCRYPTION_KEY === '0'.repeat(64)) {
-      fatal.push('ENCRYPTION_KEY is still set to the default zero-fill value');
-    }
-    // DATABASE_URL must not point to localhost in production
-    const dbUrl = result.data.DATABASE_URL.toLowerCase();
-    if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
-      fatal.push('DATABASE_URL points to localhost — use a remote database in production');
-    }
-
-    // DATABASE_SSL_MODE must be require or stricter in production
-    if (result.data.DATABASE_SSL_MODE === 'disable') {
-      fatal.push('DATABASE_SSL_MODE must be "require", "verify-ca", or "verify-full" in production');
-    }
+    const fatal = getProductionEnvFatalErrors(result.data);
 
     if (fatal.length > 0) {
-      console.error('❌ Unsafe secrets in production:');
+      console.error('❌ Unsafe production environment configuration:');
       fatal.forEach((msg) => console.error(`  - ${msg}`));
       process.exit(1);
     }
@@ -149,4 +196,3 @@ function loadEnv() {
 }
 
 export const env = loadEnv();
-export type Env = z.infer<typeof envSchema>;

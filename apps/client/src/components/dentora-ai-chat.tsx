@@ -84,24 +84,56 @@ const messageVariants: Variants = {
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-const WELCOME: TextMessage = {
+function getScreenContext(pathname: string): { isOnboarding: boolean; screenName: string; subtitle: string } {
+  if (pathname?.startsWith('/onboarding')) {
+    const step = pathname.split('/').filter(Boolean).at(-1) ?? '';
+    return {
+      isOnboarding: true,
+      screenName: step ? `onboarding / ${step.replace(/-/g, ' ')}` : 'onboarding',
+      subtitle: 'Setup Assistant',
+    };
+  }
+
+  const segments = pathname?.split('/').filter(Boolean) ?? [];
+  const page = segments.at(-1) ?? 'overview';
+  const screenName = page.replace(/-/g, ' ');
+
+  return {
+    isOnboarding: false,
+    screenName: `dashboard / ${screenName}`,
+    subtitle: 'AI Assistant',
+  };
+}
+
+const WELCOME_ONBOARDING: TextMessage = {
   id: 'welcome',
   kind: 'text',
   role: 'assistant',
   content: "Hi! I'm Dentora AI — your setup assistant. Tell me your clinic details and I'll fill in the forms for you. For example: \"My clinic is Bright Smile Dental at 42 Oak Ave, phone 555-1234\"",
 };
 
+const WELCOME_DASHBOARD: TextMessage = {
+  id: 'welcome',
+  kind: 'text',
+  role: 'assistant',
+  content: "Hey! I'm Dentora AI — your smart assistant. Ask me anything — platform help, call analytics, dental advice, appointment tips, or literally whatever's on your mind. I'm here for it all.",
+};
+
 export function DentoraAiChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [draft, setDraft] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
 
+  const screenCtx = getScreenContext(pathname ?? '');
   const currentStep = pathname?.split('/').filter(Boolean).at(-1) ?? '';
   const stepConfig = STEP_FIELDS[currentStep];
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    screenCtx.isOnboarding ? WELCOME_ONBOARDING : WELCOME_DASHBOARD,
+  ]);
 
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
@@ -156,6 +188,7 @@ export function DentoraAiChat() {
         headers,
         body: JSON.stringify({
           messages: textMessages.map((m) => ({ role: m.role, content: m.content })),
+          screenContext: screenCtx.screenName,
         }),
       });
 
@@ -267,7 +300,7 @@ export function DentoraAiChat() {
                   <div>
                     <h3 className="text-sm font-semibold text-white">Dentora AI</h3>
                     <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-500">
-                      {stepConfig ? `Step: ${currentStep.replace(/-/g, ' ')}` : 'Setup Assistant'}
+                      {screenCtx.subtitle}
                     </span>
                   </div>
                 </div>
@@ -441,7 +474,7 @@ export function DentoraAiChat() {
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Tell me your clinic details..."
+                  placeholder={screenCtx.isOnboarding ? "Tell me your clinic details..." : "Ask me anything..."}
                   className="flex-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition-all placeholder:text-gray-600 focus:border-blue-500/40 focus:ring-2 focus:ring-blue-500/10"
                 />
                 <Button
