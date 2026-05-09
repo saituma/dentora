@@ -1,5 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL, applyAuthHeaders } from '@/lib/api';
+import { API_BASE_URL, applyAuthHeaders, fetchCsrfToken } from '@/lib/api';
 
 interface RegisterRequest {
   email: string;
@@ -97,7 +97,14 @@ export const authApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
     credentials: 'include',
-    prepareHeaders: applyAuthHeaders,
+    prepareHeaders: async (headers) => {
+      applyAuthHeaders(headers);
+      const csrf = await fetchCsrfToken();
+      if (csrf) {
+        headers.set('x-csrf-token', csrf);
+      }
+      return headers;
+    },
   }),
   endpoints: (builder) => ({
     register: builder.mutation<LoginResponse, RegisterRequest>({

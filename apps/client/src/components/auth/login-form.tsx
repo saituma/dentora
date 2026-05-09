@@ -14,7 +14,7 @@ import {
 import type { OnboardingStep } from "@/features/auth/types";
 import { toast } from "sonner";
 import { getUserFriendlyApiError } from "@/lib/api-error";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, fetchCsrfToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -114,9 +114,13 @@ export function LoginForm() {
 
     const exchangeOauthCode = async () => {
       try {
+        const csrf = await fetchCsrfToken();
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (csrf) headers["x-csrf-token"] = csrf;
+
         const res = await fetch(`${API_BASE_URL}/auth/google/exchange`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           credentials: "include",
           body: JSON.stringify({}),
         });

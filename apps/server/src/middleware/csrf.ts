@@ -6,7 +6,22 @@ import { logger } from '../lib/logger.js';
 const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const CSRF_SKIP_PREFIXES = ['/api/webhooks', '/api/telephony/webhook', '/api/auth'];
+const CSRF_SKIP_PREFIXES = ['/api/webhooks', '/api/telephony/webhook'];
+const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
+  '/api/auth/email/send-otp',
+  '/api/auth/email/verify-otp',
+  '/api/auth/phone/send-otp',
+  '/api/auth/phone/verify-otp',
+  '/api/auth/register',
+  '/api/auth/login',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+]);
+const CSRF_REQUIRED_AUTH_POST_PATHS = new Set([
+  '/api/auth/refresh',
+  '/api/auth/logout',
+  '/api/auth/google/exchange',
+]);
 
 function generateToken(): string {
   return randomBytes(32).toString('hex');
@@ -25,15 +40,24 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  // Skip auth and webhook endpoints
+  // Skip webhook endpoints
   if (CSRF_SKIP_PREFIXES.some((prefix) => req.path.startsWith(prefix))) {
     return next();
   }
 
+  // Keep public auth entrypoints usable without CSRF. Cookie-backed auth endpoints
+  // such as refresh, logout, and Google exchange must pass the double-submit check.
+  if (req.method === 'POST' && CSRF_PUBLIC_AUTH_POST_PATHS.has(req.path)) {
+    return next();
+  }
+
+  const requiresAuthCookieCsrf = req.method === 'POST' && CSRF_REQUIRED_AUTH_POST_PATHS.has(req.path);
+
   // Skip when the request carries a Bearer token — JWT auth is not vulnerable to CSRF
   // because the token is stored in localStorage, not auto-sent by the browser.
+  // Cookie-backed auth endpoints still require CSRF even when an access token is present.
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (!requiresAuthCookieCsrf && authHeader && authHeader.startsWith('Bearer ')) {
     return next();
   }
 

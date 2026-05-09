@@ -105,8 +105,13 @@ const runRefreshTokenRequest = async (): Promise<string | null> => {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 
   try {
+    const csrf = await fetchCsrfToken();
+    const headers: Record<string, string> = {};
+    if (csrf) headers["x-csrf-token"] = csrf;
+
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
+      headers,
       credentials: "include",
     });
 
