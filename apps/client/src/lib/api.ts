@@ -4,7 +4,6 @@ import {
   type FetchArgs,
   type FetchBaseQueryError,
 } from "@reduxjs/toolkit/query";
-import { logout } from "@/features/auth/authSlice";
 
 const rawApiBase =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
@@ -49,7 +48,6 @@ export const fetchCsrfToken = async (): Promise<string | null> => {
 
 type RefreshResponse = {
   accessToken?: string;
-  refreshToken?: string;
 };
 
 type AccessTokenPayload = {
@@ -104,21 +102,12 @@ let refreshInFlight: Promise<string | null> | null = null;
 const runRefreshTokenRequest = async (): Promise<string | null> => {
   if (typeof window === "undefined") return null;
 
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return null;
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 
   try {
-    const csrf = await fetchCsrfToken();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (csrf) headers["x-csrf-token"] = csrf;
-
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
-      headers,
       credentials: "include",
-      body: JSON.stringify({ refreshToken }),
     });
 
     if (!response.ok) {
@@ -126,12 +115,12 @@ const runRefreshTokenRequest = async (): Promise<string | null> => {
     }
 
     const data = (await response.json()) as RefreshResponse;
-    if (!data.accessToken || !data.refreshToken) {
+    if (!data.accessToken) {
       return null;
     }
 
     localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
-    localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     return data.accessToken;
   } catch {
     return null;

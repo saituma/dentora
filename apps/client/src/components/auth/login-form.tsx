@@ -83,13 +83,13 @@ export function LoginForm() {
 
   const finalizeLogin = async (result: {
     accessToken: string;
-    refreshToken: string;
+    refreshToken?: string;
     user: { id: string; email: string; displayName: string | null; role: string };
     tenantId: string | null;
   }) => {
     if (typeof window !== "undefined") {
       localStorage.setItem("auth_token", result.accessToken);
-      localStorage.setItem("refresh_token", result.refreshToken);
+      localStorage.removeItem("refresh_token");
     }
 
     const onboardingStatus = await fetchOnboardingStep(result.accessToken);

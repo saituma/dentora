@@ -54,7 +54,7 @@ export function SignupForm() {
         displayName: clinicName,
       }).unwrap();
       localStorage.setItem("auth_token", result.accessToken);
-      localStorage.setItem("refresh_token", result.refreshToken);
+      localStorage.removeItem("refresh_token");
       dispatch(
         setCredentials({
           user: result.user,

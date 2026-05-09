@@ -6,7 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { store } from "@/store";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setCredentials, setHydrated } from "@/features/auth/authSlice";
-import { clearAuthTokens, ensureFreshAccessToken } from "@/lib/api";
+import { ensureFreshAccessToken, tryRefreshAccessToken } from "@/lib/api";
 import {
   clearAuthSession,
   loadAuthSession,
@@ -21,18 +21,20 @@ function AuthBootstrap() {
     let cancelled = false;
 
     const bootstrap = async () => {
+      localStorage.removeItem("refresh_token");
       const accessToken = localStorage.getItem("auth_token");
-      const refreshToken = localStorage.getItem("refresh_token");
 
-      if (!accessToken || !refreshToken) {
+      const validAccessToken = accessToken
+        ? await ensureFreshAccessToken()
+        : await tryRefreshAccessToken();
+
+      if (!accessToken && !validAccessToken) {
         clearAuthSession();
         if (!cancelled) {
           dispatch(setHydrated());
         }
         return;
       }
-
-      const validAccessToken = await ensureFreshAccessToken();
 
       const persisted = loadAuthSession();
       if (persisted) {
@@ -48,7 +50,15 @@ function AuthBootstrap() {
         return;
       }
 
-      const tokenPayload = parseAccessTokenPayload(validAccessToken ?? accessToken);
+      const tokenForPayload = validAccessToken ?? accessToken;
+      if (!tokenForPayload) {
+        if (!cancelled) {
+          dispatch(setHydrated());
+        }
+        return;
+      }
+
+      const tokenPayload = parseAccessTokenPayload(tokenForPayload);
       if (!tokenPayload?.userId) {
         if (!cancelled) {
           dispatch(setHydrated());

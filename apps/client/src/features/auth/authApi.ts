@@ -15,7 +15,7 @@ interface LoginRequest {
 
 interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
   user: {
     id: string;
     email: string;
@@ -25,17 +25,8 @@ interface LoginResponse {
   tenantId: string | null;
 }
 
-interface RefreshRequest {
-  refreshToken: string;
-}
-
 interface RefreshResponse {
   accessToken: string;
-  refreshToken: string;
-}
-
-interface LogoutRequest {
-  refreshToken: string;
 }
 
 interface ChangePasswordRequest {
@@ -105,6 +96,7 @@ export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
     baseUrl: API_BASE_URL,
+    credentials: 'include',
     prepareHeaders: applyAuthHeaders,
   }),
   endpoints: (builder) => ({
@@ -158,18 +150,16 @@ export const authApi = createApi({
         return `/auth/google/start${qs ? `?${qs}` : ''}`;
       },
     }),
-    refresh: builder.mutation<RefreshResponse, RefreshRequest>({
-      query: (body) => ({
+    refresh: builder.mutation<RefreshResponse, void>({
+      query: () => ({
         url: '/auth/refresh',
         method: 'POST',
-        body,
       }),
     }),
-    logout: builder.mutation<{ message: string }, LogoutRequest>({
-      query: (body) => ({
+    logout: builder.mutation<{ message: string }, void>({
+      query: () => ({
         url: '/auth/logout',
         method: 'POST',
-        body,
       }),
     }),
     changePassword: builder.mutation<{ message: string }, ChangePasswordRequest>({

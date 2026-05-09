@@ -86,13 +86,7 @@ export function DashboardSidebar() {
 
   const handleLogout = async () => {
     try {
-      const refreshToken =
-        typeof window !== "undefined"
-          ? localStorage.getItem("refresh_token")
-          : null;
-      if (refreshToken) {
-        await logoutApi({ refreshToken }).unwrap();
-      }
+      await logoutApi().unwrap();
     } catch {
       // proceed with local logout even if API call fails
     }

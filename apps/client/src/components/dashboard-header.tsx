@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout } from '@/features/auth/authSlice';
+import { useLogoutMutation } from '@/features/auth/authApi';
 import {
   markAllNotificationsRead,
   markNotificationRead,
@@ -46,13 +48,20 @@ export function DashboardHeader() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
+  const [logoutApi] = useLogoutMutation();
   const notifications = useAppSelector((state) => state.ui.notifications);
   const title = TITLES[pathname ?? ''] ?? 'Dashboard';
   const unreadCount = notifications.filter(
     (notification) => !notification.read
   ).length;
+  const [relativeTimeBase] = useState(() => Date.now());
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutApi().unwrap();
+    } catch {
+      // proceed with local logout even if API call fails
+    }
     dispatch(logout());
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
@@ -64,7 +73,7 @@ export function DashboardHeader() {
   const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'User';
 
   const getRelativeTime = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
+    const diff = relativeTimeBase - new Date(iso).getTime();
     const minute = 60 * 1000;
     const hour = 60 * minute;
 
