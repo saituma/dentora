@@ -10,6 +10,7 @@ if (process.env.OTEL_ENABLED === 'true') {
 
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import * as Sentry from '@sentry/node';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
@@ -81,6 +82,10 @@ app.use(
     optionsSuccessStatus: 204,
   }),
 );
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
