@@ -72,8 +72,9 @@ export default function LoginPage() {
       const res = await fetch(`${API_BASE_URL}/admin/seed`, { method: "POST" });
       const data = (await res.json()) as { message?: string };
       if (res.ok) {
-        toast.success(data.message || "Admin seeded");
-        setEmail("admin@gmail.com");
+        const seedEmail = (data as { email?: string }).email || "admin@gmail.com";
+        toast.success(`Admin seeded: ${seedEmail}`);
+        setEmail(seedEmail);
         setPassword("Password123!");
       } else {
         toast.error(data.message || "Seed failed");

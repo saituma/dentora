@@ -35,7 +35,15 @@ const seedRateLimiter = rateLimiter({
 
 adminRouter.post('/seed', seedRateLimiter, async (_req, res, next) => {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      res.status(403).json({ error: 'Seed endpoint is disabled in production' });
+      return;
+    }
+
     const email = 'admin@gmail.com';
+    const password = 'Password123!';
+    const passwordHash = await hashPassword(password);
+
     const [existing] = await db
       .select({ id: users.id })
       .from(users)
@@ -43,21 +51,28 @@ adminRouter.post('/seed', seedRateLimiter, async (_req, res, next) => {
       .limit(1);
 
     if (existing) {
-      res.json({ success: true, message: 'Admin user seeded' });
-      return;
+      await db
+        .update(users)
+        .set({
+          passwordHash,
+          displayName: 'Platform Admin',
+          role: 'platform_admin',
+          emailVerified: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, existing.id));
+    } else {
+      await db.insert(users).values({
+        id: generateId(),
+        email,
+        passwordHash,
+        displayName: 'Platform Admin',
+        role: 'platform_admin',
+        emailVerified: true,
+      });
     }
 
-    const passwordHash = await hashPassword('Password123!');
-    await db.insert(users).values({
-      id: generateId(),
-      email,
-      passwordHash,
-      displayName: 'Platform Admin',
-      role: 'platform_admin',
-      emailVerified: true,
-    });
-
-    res.json({ success: true, message: 'Admin user seeded' });
+    res.json({ success: true, message: 'Admin user seeded', email });
   } catch (err) {
     next(err);
   }

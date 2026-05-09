@@ -23,23 +23,8 @@ const liveLogDestination = new Writable({
   },
 });
 
-const transport = env.NODE_ENV === 'development'
-  ? {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'HH:MM:ss.l',
-        ignore: 'pid,hostname',
-      },
-    }
-  : undefined;
-
-// When using a transport (dev mode), pino pipes through it, so we
-// can't use a custom destination at the same time.  In that case the
-// live-log stream won't receive entries (acceptable for dev).
-export const logger = pino({
+const pinoOptions: pino.LoggerOptions = {
   level: env.LOG_LEVEL,
-  transport,
   base: {
     service: 'dental-flow-api',
     env: env.PLATFORM_ENV,
@@ -78,7 +63,31 @@ export const logger = pino({
     ],
     censor: '[REDACTED]',
   },
-}, transport ? undefined : liveLogDestination);
+};
+
+function createLogger(): pino.Logger {
+  if (env.NODE_ENV === 'development') {
+    const prettyStream = pino.transport({
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'HH:MM:ss.l',
+        ignore: 'pid,hostname',
+      },
+    });
+
+    const multiStream = pino.multistream([
+      { stream: liveLogDestination },
+      { stream: prettyStream },
+    ]);
+
+    return pino(pinoOptions, multiStream);
+  }
+
+  return pino(pinoOptions, liveLogDestination);
+}
+
+export const logger = createLogger();
 
 export function createTenantLogger(tenantId: string, correlationId: string) {
   return logger.child({ tenantId, correlationId });

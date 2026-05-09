@@ -8,6 +8,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -24,6 +25,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
                   Admin
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <div className="ml-auto">
+                <ThemeToggle />
               </div>
             </header>
             <main className="flex-1 p-6 md:p-8 lg:p-10">{children}</main>

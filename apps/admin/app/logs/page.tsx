@@ -82,6 +82,7 @@ export default function LogsPage() {
     };
 
     connect().catch((err) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Connection failed");
     });
 

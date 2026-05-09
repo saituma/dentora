@@ -6,7 +6,7 @@ import { logger } from '../lib/logger.js';
 const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const CSRF_SKIP_PREFIXES = ['/api/webhooks', '/api/telephony/webhook'];
+const CSRF_SKIP_PREFIXES = ['/api/webhooks', '/api/telephony/webhook', '/api/admin/seed'];
 const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
   '/api/auth/email/send-otp',
   '/api/auth/email/verify-otp',
@@ -16,11 +16,11 @@ const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/auth/refresh',
+  '/api/auth/google/exchange',
 ]);
 const CSRF_REQUIRED_AUTH_POST_PATHS = new Set([
-  '/api/auth/refresh',
   '/api/auth/logout',
-  '/api/auth/google/exchange',
 ]);
 
 function generateToken(): string {
