@@ -1,5 +1,5 @@
 
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import * as authService from './auth.service.js';
 import { authenticateJwt, validate } from '../../middleware/index.js';
 import { authRateLimiter } from '../../middleware/rateLimit.js';
@@ -10,6 +10,7 @@ import { AuthenticationError } from '../../lib/errors.js';
 export const authRouter = Router();
 
 const OAUTH_EXCHANGE_COOKIE = 'oauth-exchange-code';
+const REFRESH_TOKEN_COOKIE = 'refresh-token';
 
 const oauthExchangeCookieOptions = {
   httpOnly: true,
@@ -25,6 +26,50 @@ const clearOauthExchangeCookieOptions = {
   secure: oauthExchangeCookieOptions.secure,
   path: oauthExchangeCookieOptions.path,
 };
+
+const refreshTokenCookieOptions = {
+  httpOnly: true,
+  sameSite: env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
+  secure: env.NODE_ENV === 'production',
+  path: '/api/auth',
+  maxAge: env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+};
+
+const clearRefreshTokenCookieOptions = {
+  httpOnly: refreshTokenCookieOptions.httpOnly,
+  sameSite: refreshTokenCookieOptions.sameSite,
+  secure: refreshTokenCookieOptions.secure,
+  path: refreshTokenCookieOptions.path,
+};
+
+function setRefreshTokenCookie(res: Response, refreshToken: string): void {
+  res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, refreshTokenCookieOptions);
+}
+
+function clearRefreshTokenCookie(res: Response): void {
+  res.clearCookie(REFRESH_TOKEN_COOKIE, clearRefreshTokenCookieOptions);
+}
+
+function getRefreshTokenFromRequest(req: Request): string | undefined {
+  const cookieToken = req.cookies?.[REFRESH_TOKEN_COOKIE];
+  if (typeof cookieToken === 'string' && cookieToken) {
+    return cookieToken;
+  }
+
+  // TODO(auth-cookie-migration): remove body fallback after the client stops storing refresh tokens in localStorage.
+  const bodyToken = req.body?.refreshToken;
+  if (typeof bodyToken === 'string' && bodyToken) {
+    return bodyToken;
+  }
+
+  return undefined;
+}
+
+function sendLoginResult<T extends { refreshToken: string }>(res: Response, status: number, result: T): void {
+  setRefreshTokenCookie(res, result.refreshToken);
+  // TODO(auth-cookie-migration): remove refreshToken from JSON after the client no longer depends on localStorage.
+  res.status(status).json(result);
+}
 
 function getSafeOauthRedirectBase(returnTo?: string | null): string {
   if (!returnTo) return env.CLIENT_URL;
@@ -74,7 +119,7 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.verifyEmailOtpAndRegister(req.body);
-      res.status(200).json(result);
+      sendLoginResult(res, 200, result);
     } catch (err) {
       next(err);
     }
@@ -139,7 +184,9 @@ authRouter.post(
         throw new AuthenticationError('Missing OAuth exchange cookie');
       }
       const result = await authService.exchangeOauthCode(code);
+      setRefreshTokenCookie(res, result.refreshToken);
       res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
+      // TODO(auth-cookie-migration): remove refreshToken from JSON after the client no longer depends on localStorage.
       res.json(result);
     } catch (err) {
       res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
@@ -180,7 +227,7 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.verifyPhoneOtpAndRegister(req.body);
-      res.status(200).json(result);
+      sendLoginResult(res, 200, result);
     } catch (err) {
       next(err);
     }
@@ -201,7 +248,7 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.register(req.body);
-      res.status(201).json(result);
+      sendLoginResult(res, 201, result);
     } catch (err) {
       next(err);
     }
@@ -220,7 +267,7 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.login(req.body.email, req.body.password);
-      res.json(result);
+      sendLoginResult(res, 200, result);
     } catch (err) {
       next(err);
     }
@@ -231,14 +278,21 @@ authRouter.post(
   '/refresh',
   validate({
     body: z.object({
-      refreshToken: z.string().min(1),
-    }),
+      refreshToken: z.string().min(1).optional(),
+    }).default({}),
   }),
   async (req, res, next) => {
     try {
-      const tokens = await authService.refreshAccessToken(req.body.refreshToken);
+      const refreshToken = getRefreshTokenFromRequest(req);
+      if (!refreshToken) {
+        throw new AuthenticationError('Missing refresh token');
+      }
+      const tokens = await authService.refreshAccessToken(refreshToken);
+      setRefreshTokenCookie(res, tokens.refreshToken);
+      // TODO(auth-cookie-migration): remove refreshToken from JSON after the client no longer depends on localStorage.
       res.json(tokens);
     } catch (err) {
+      clearRefreshTokenCookie(res);
       next(err);
     }
   },
@@ -249,14 +303,20 @@ authRouter.post(
   authenticateJwt,
   validate({
     body: z.object({
-      refreshToken: z.string().min(1),
-    }),
+      refreshToken: z.string().min(1).optional(),
+    }).default({}),
   }),
   async (req, res, next) => {
     try {
-      await authService.logout(req.user!.userId, req.body.refreshToken);
+      const refreshToken = getRefreshTokenFromRequest(req);
+      if (!refreshToken) {
+        throw new AuthenticationError('Missing refresh token');
+      }
+      await authService.logout(req.user!.userId, refreshToken);
+      clearRefreshTokenCookie(res);
       res.json({ message: 'Logged out' });
     } catch (err) {
+      clearRefreshTokenCookie(res);
       next(err);
     }
   },
