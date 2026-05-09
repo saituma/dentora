@@ -86,6 +86,38 @@ export default function SettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const fieldSetters: Record<string, (v: string) => void> = {
+      clinicName: setClinicName,
+      address: setAddress,
+      phone: setPhone,
+      email: setEmail,
+      website: setWebsite,
+      timezone: setTimezone,
+      description: setDescription,
+    };
+
+    const handleAiFields = (e: Event) => {
+      const detail = (e as CustomEvent).detail as Record<string, unknown>;
+      if (!detail) return;
+      for (const [key, value] of Object.entries(detail)) {
+        const setter = fieldSetters[key];
+        if (setter && typeof value === 'string') setter(value);
+      }
+    };
+
+    const handleAiSave = () => {
+      handleSave();
+    };
+
+    window.addEventListener('dentora-ai-fields', handleAiFields);
+    window.addEventListener('dentora-ai-save', handleAiSave);
+    return () => {
+      window.removeEventListener('dentora-ai-fields', handleAiFields);
+      window.removeEventListener('dentora-ai-save', handleAiSave);
+    };
+  });
+
   const handleSave = async () => {
     try {
       await updateClinic({

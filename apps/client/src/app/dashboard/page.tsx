@@ -686,10 +686,7 @@ export default function DashboardOverviewPage() {
             <Button variant="outline" className="w-full justify-start gap-2" size="sm" render={<Link href="/dashboard/patients" />}>
               <UsersIcon className="size-3.5" /> View patients
             </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" size="sm" render={<Link href="/dashboard/browser-call" />}>
-              <PhoneIcon className="size-3.5" /> Make a test call
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" size="sm" render={<Link href="/dashboard/analytics" />}>
+<Button variant="outline" className="w-full justify-start gap-2" size="sm" render={<Link href="/dashboard/analytics" />}>
               <TrendingUpIcon className="size-3.5" /> View analytics
             </Button>
             <Button variant="outline" className="w-full justify-start gap-2" size="sm" render={<Link href="/dashboard/settings" />}>

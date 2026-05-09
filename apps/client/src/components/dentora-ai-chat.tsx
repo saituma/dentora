@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { Check, MessageSquare, Send, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, fetchCsrfToken } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
@@ -119,6 +119,14 @@ const WELCOME_DASHBOARD: TextMessage = {
   content: "Hey! I'm Dentora AI — your smart assistant. Ask me anything — platform help, call analytics, dental advice, appointment tips, or literally whatever's on your mind. I'm here for it all.",
 };
 
+interface AiAction {
+  type: 'updateFields' | 'save' | 'navigate' | 'showToast';
+  fields?: Record<string, string | number>;
+  path?: string;
+  message?: string;
+  toastType?: 'success' | 'error' | 'info';
+}
+
 export function DentoraAiChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -126,6 +134,7 @@ export function DentoraAiChat() {
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   const screenCtx = getScreenContext(pathname ?? '');
   const currentStep = pathname?.split('/').filter(Boolean).at(-1) ?? '';
@@ -134,6 +143,32 @@ export function DentoraAiChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     screenCtx.isOnboarding ? WELCOME_ONBOARDING : WELCOME_DASHBOARD,
   ]);
+
+  const executeActions = useCallback((actions: AiAction[]) => {
+    for (const action of actions) {
+      switch (action.type) {
+        case 'updateFields':
+          if (action.fields && Object.keys(action.fields).length > 0) {
+            window.dispatchEvent(new CustomEvent('dentora-ai-fields', { detail: action.fields }));
+          }
+          break;
+        case 'save':
+          window.dispatchEvent(new CustomEvent('dentora-ai-save'));
+          break;
+        case 'navigate':
+          if (action.path) {
+            router.push(action.path);
+          }
+          break;
+        case 'showToast':
+          if (action.message) {
+            const toastFn = action.toastType === 'error' ? toast.error : action.toastType === 'info' ? toast.info : toast.success;
+            toastFn(action.message);
+          }
+          break;
+      }
+    }
+  }, [router]);
 
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
@@ -192,7 +227,12 @@ export function DentoraAiChat() {
         }),
       });
 
-      const payload = (await res.json()) as { reply?: string; extractedFields?: Record<string, unknown>; error?: string };
+      const payload = (await res.json()) as {
+        reply?: string;
+        extractedFields?: Record<string, unknown>;
+        actions?: AiAction[];
+        error?: string;
+      };
       if (!res.ok || !payload.reply) throw new Error(payload.error || 'No response from AI');
 
       const newMessages: ChatMessage[] = [
@@ -214,6 +254,10 @@ export function DentoraAiChat() {
             confirmed: false,
           });
         }
+      }
+
+      if (payload.actions && payload.actions.length > 0) {
+        executeActions(payload.actions);
       }
 
       setMessages((prev) => [...prev, ...newMessages]);

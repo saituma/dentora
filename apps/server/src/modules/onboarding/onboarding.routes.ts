@@ -472,10 +472,25 @@ onboardingRouter.post(
         );
       } else {
         systemPromptParts.push(
-          '## Dashboard mode',
+          '## Dashboard mode — you can TAKE ACTIONS',
           'The user has already set up their clinic and is using the main dashboard.',
           'Help them with anything — platform questions, dental advice, general questions, data interpretation, troubleshooting, or just casual conversation.',
           'Be proactive and smart. If they ask about a feature, explain how to use it. If they ask about data, help interpret it.',
+          '',
+          '### Actions you can perform',
+          'You can take real actions on behalf of the user! When the user asks you to do something (change a setting, navigate, update a field, save), include the appropriate actions in your response.',
+          '',
+          'Available actions:',
+          '- **updateFields**: Update form fields on the current page. Provide an object of field key-value pairs.',
+          '  Settings page fields: clinicName, address, phone, email, website, timezone, description',
+          '- **save**: Trigger saving the current form (e.g. after updating fields). Set to true.',
+          '- **navigate**: Navigate to a different page. Provide the path (e.g. "/dashboard/settings", "/dashboard/calls", "/dashboard/analytics", "/dashboard/appointments", "/dashboard/patients", "/dashboard/staff", "/dashboard/integrations", "/dashboard/ai-receptionist", "/dashboard/browser-call").',
+          '- **showToast**: Show a notification message. Provide { message: string, type: "success" | "error" | "info" }.',
+          '',
+          'IMPORTANT: When the user asks you to change/update/set a value, DO IT — include the action. Do NOT just explain how to do it. You are capable of doing it directly.',
+          'If the user says "change address to 345", you MUST include updateFields with { "address": "345" } AND save: true.',
+          'If the user says "go to calls", include navigate with "/dashboard/calls".',
+          'Always confirm what you did in your message.',
           '',
         );
       }
@@ -491,7 +506,8 @@ onboardingRouter.post(
         'IMPORTANT: You MUST respond in JSON format with this structure:',
         '{',
         '  "message": "Your conversational reply to the user (supports markdown)",',
-        '  "extractedFields": {}',
+        '  "extractedFields": {},',
+        '  "actions": []',
         '}',
         '',
       );
@@ -501,10 +517,20 @@ onboardingRouter.post(
           'extractedFields: Include any configuration values the user explicitly provides. Allowed keys:',
           '- clinicName, address, phone, email, timezone, greeting, defaultDuration, cancellationHours, advanceBookingDays',
           'If no field values are provided, return empty {}.',
+          'actions: should be an empty array [] during onboarding.',
         );
       } else {
         systemPromptParts.push(
           'extractedFields should always be an empty object {} when the user is on the dashboard.',
+          '',
+          'actions: An array of action objects. Each action has a "type" and relevant data:',
+          '- { "type": "updateFields", "fields": { "fieldKey": "value" } }',
+          '- { "type": "save" }',
+          '- { "type": "navigate", "path": "/dashboard/..." }',
+          '- { "type": "showToast", "message": "...", "toastType": "success" | "error" | "info" }',
+          '',
+          'If no actions are needed, return an empty array [].',
+          'You can chain multiple actions — e.g. updateFields + save together.',
         );
       }
 
@@ -546,11 +572,13 @@ onboardingRouter.post(
       const rawContent = String(payload?.choices?.[0]?.message?.content ?? '');
       let reply = '';
       let extractedFields: Record<string, unknown> = {};
+      let actions: unknown[] = [];
 
       try {
         const parsed = JSON.parse(rawContent);
         reply = sanitizeAssistantReply(String(parsed.message ?? parsed.reply ?? ''));
         extractedFields = parsed.extractedFields && typeof parsed.extractedFields === 'object' ? parsed.extractedFields : {};
+        actions = Array.isArray(parsed.actions) ? parsed.actions : [];
       } catch {
         reply = sanitizeAssistantReply(rawContent);
       }
@@ -559,7 +587,7 @@ onboardingRouter.post(
         return res.status(502).json({ error: 'The AI returned an empty response. Please try again.' });
       }
 
-      res.json({ reply, extractedFields });
+      res.json({ reply, extractedFields, actions });
     } catch (err) {
       next(err);
     }
