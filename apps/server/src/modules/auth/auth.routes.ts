@@ -5,8 +5,41 @@ import { authenticateJwt, validate } from '../../middleware/index.js';
 import { authRateLimiter } from '../../middleware/rateLimit.js';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
+import { AuthenticationError } from '../../lib/errors.js';
 
 export const authRouter = Router();
+
+const OAUTH_EXCHANGE_COOKIE = 'oauth-exchange-code';
+
+const oauthExchangeCookieOptions = {
+  httpOnly: true,
+  sameSite: env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
+  secure: env.NODE_ENV === 'production',
+  path: '/api/auth/google/exchange',
+  maxAge: 2 * 60 * 1000,
+};
+
+const clearOauthExchangeCookieOptions = {
+  httpOnly: oauthExchangeCookieOptions.httpOnly,
+  sameSite: oauthExchangeCookieOptions.sameSite,
+  secure: oauthExchangeCookieOptions.secure,
+  path: oauthExchangeCookieOptions.path,
+};
+
+function getSafeOauthRedirectBase(returnTo?: string | null): string {
+  if (!returnTo) return env.CLIENT_URL;
+
+  try {
+    const clientUrl = new URL(env.CLIENT_URL);
+    const candidate = new URL(returnTo, clientUrl);
+    if (candidate.origin !== clientUrl.origin) {
+      return env.CLIENT_URL;
+    }
+    return candidate.origin;
+  } catch {
+    return env.CLIENT_URL;
+  }
+}
 
 authRouter.post(
   '/email/send-otp',
@@ -78,25 +111,38 @@ authRouter.get(
   async (req, res, next) => {
     try {
       const { code, state } = req.query as { code: string; state?: string };
-      const { loginResult, returnTo } = await authService.loginOrRegisterWithGoogleCode({ code, state });
+      const { returnTo, oauthExchangeCode } = await authService.loginOrRegisterWithGoogleCode({ code, state });
 
-      const redirectBase = returnTo && /^https?:\/\//i.test(returnTo)
-        ? returnTo
-        : env.CLIENT_URL;
+      const redirectBase = getSafeOauthRedirectBase(returnTo);
       const redirectUrl = new URL('/login', redirectBase);
       redirectUrl.searchParams.set('oauth', 'google');
-      redirectUrl.searchParams.set('accessToken', loginResult.accessToken);
-      redirectUrl.searchParams.set('refreshToken', loginResult.refreshToken);
-      redirectUrl.searchParams.set('tenantId', loginResult.tenantId ?? '');
-      redirectUrl.searchParams.set('userId', loginResult.user.id);
-      redirectUrl.searchParams.set('email', loginResult.user.email);
-      redirectUrl.searchParams.set('displayName', loginResult.user.displayName ?? '');
-      redirectUrl.searchParams.set('role', loginResult.user.role);
 
+      res.cookie(OAUTH_EXCHANGE_COOKIE, oauthExchangeCode, oauthExchangeCookieOptions);
       res.redirect(302, redirectUrl.toString());
     } catch (err: unknown) {
+      res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
       const { logger } = await import('../../lib/logger.js');
       logger.error({ err, msg: (err as Error)?.message, stack: (err as Error)?.stack }, 'Google OAuth callback failed');
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
+  '/google/exchange',
+  authRateLimiter,
+  async (req, res, next) => {
+    try {
+      const code = req.cookies?.[OAUTH_EXCHANGE_COOKIE];
+      if (typeof code !== 'string' || !code) {
+        res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
+        throw new AuthenticationError('Missing OAuth exchange cookie');
+      }
+      const result = await authService.exchangeOauthCode(code);
+      res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
+      res.json(result);
+    } catch (err) {
+      res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
       next(err);
     }
   },

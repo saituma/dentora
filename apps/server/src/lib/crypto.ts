@@ -1,7 +1,7 @@
 
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { randomUUID } from 'crypto';
+import { createHmac, randomUUID } from 'crypto';
 import { env } from '../config/env.js';
 
 const SALT_ROUNDS = 12;
@@ -54,6 +54,10 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
     issuer: env.JWT_ISSUER,
   });
   return decoded as RefreshTokenPayload;
+}
+
+export function hashRefreshToken(token: string): string {
+  return createHmac('sha256', env.JWT_SECRET).update(token).digest('hex');
 }
 
 export function generateId(): string {

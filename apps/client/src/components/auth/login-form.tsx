@@ -107,29 +107,31 @@ export function LoginForm() {
 
   useEffect(() => {
     const oauth = searchParams.get("oauth");
-    const accessToken = searchParams.get("accessToken");
-    const refreshToken = searchParams.get("refreshToken");
-    const userId = searchParams.get("userId");
-    const userEmail = searchParams.get("email");
-    const userRole = searchParams.get("role");
-    const displayName = searchParams.get("displayName");
-    const tenantId = searchParams.get("tenantId");
 
-    if (oauth !== "google" || !accessToken || !refreshToken || !userId || !userEmail || !userRole) {
+    if (oauth !== "google") {
       return;
     }
 
-    void finalizeLogin({
-      accessToken,
-      refreshToken,
-      tenantId: tenantId || null,
-      user: {
-        id: userId,
-        email: userEmail,
-        role: userRole,
-        displayName: displayName || null,
-      },
-    });
+    const exchangeOauthCode = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/google/exchange`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ message: "OAuth login failed" }));
+          throw new Error((err as { message?: string }).message || "OAuth login failed");
+        }
+        const result = await res.json();
+        await finalizeLogin(result);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Google login failed");
+      }
+    };
+
+    void exchangeOauthCode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 

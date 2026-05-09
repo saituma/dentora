@@ -2,7 +2,7 @@
 import { db } from '../../db/index.js';
 import { users, sessions, tenantUsers, tenantRegistry, otpChallenges, authIdentities, passwordResetTokens } from '../../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
-import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId } from '../../lib/crypto.js';
+import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId, hashRefreshToken } from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
@@ -10,6 +10,9 @@ import twilio from 'twilio';
 import { createHash, randomInt, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
+import type { InferSelectModel } from 'drizzle-orm';
+
+type UserRow = InferSelectModel<typeof users>;
 
 function isPostgresUniqueViolation(error: unknown): boolean {
   return (
@@ -35,6 +38,20 @@ interface LoginResult {
 interface GoogleAuthState {
   returnTo?: string;
 }
+
+interface AuthContext {
+  tenantId: string | null;
+  role: string;
+}
+
+interface OauthExchangeRecord {
+  userId: string;
+  sessionId: string;
+  expiresAt: number;
+}
+
+const OAUTH_EXCHANGE_TTL_MS = 2 * 60 * 1000;
+const oauthExchangeStore = new Map<string, OauthExchangeRecord>();
 
 function normalizePhoneNumber(value: string): string {
   return value.trim().replace(/\s+/g, '');
@@ -81,32 +98,70 @@ function hashOtpCode(code: string): string {
   return createHash('sha256').update(code).digest('hex');
 }
 
+function hashOauthExchangeCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
 function generateOtpCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
-async function issueLoginSession(user: typeof users.$inferSelect): Promise<LoginResult> {
+function storeOauthExchange(input: OauthExchangeRecord): string {
+  const code = randomBytes(32).toString('hex');
+  const codeHash = hashOauthExchangeCode(code);
+  const now = Date.now();
+
+  for (const [storedHash, record] of oauthExchangeStore.entries()) {
+    if (record.expiresAt <= now) {
+      oauthExchangeStore.delete(storedHash);
+    }
+  }
+
+  oauthExchangeStore.set(codeHash, input);
+  return code;
+}
+
+function consumeOauthExchange(code: string): OauthExchangeRecord {
+  const codeHash = hashOauthExchangeCode(code);
+  const record = oauthExchangeStore.get(codeHash);
+  oauthExchangeStore.delete(codeHash);
+
+  if (!record || record.expiresAt <= Date.now()) {
+    throw new AuthenticationError('Invalid or expired OAuth exchange');
+  }
+
+  return record;
+}
+
+async function getAuthContextForUser(user: UserRow): Promise<AuthContext> {
   const [tenantLink] = await db
-    .select({ tenantId: tenantUsers.tenantId })
+    .select({ tenantId: tenantUsers.tenantId, role: tenantUsers.role })
     .from(tenantUsers)
     .where(eq(tenantUsers.userId, user.id))
     .limit(1);
 
   const tenantId = tenantLink?.tenantId ?? null;
+  const role = user.role === 'platform_admin' ? user.role : tenantLink?.role ?? user.role;
+
+  return { tenantId, role };
+}
+
+async function issueLoginSession(user: UserRow): Promise<LoginResult> {
+  const authContext = await getAuthContextForUser(user);
   const sessionId = generateId();
   const accessToken = signAccessToken({
     userId: user.id,
-    role: user.role,
-    tenantId,
+    role: authContext.role,
+    tenantId: authContext.tenantId ?? '',
   });
 
-  const refreshToken = signRefreshToken({ userId: user.id, tenantId: tenantId ?? '', sessionId });
+  const refreshToken = signRefreshToken({ userId: user.id, tenantId: authContext.tenantId ?? '', sessionId });
   const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   await db.insert(sessions).values({
     id: sessionId,
     userId: user.id,
-    refreshToken,
+    refreshToken: hashRefreshToken(refreshToken),
     expiresAt: new Date(Date.now() + sessionExpiryMs),
     userAgent: null,
     ipAddress: null,
@@ -119,9 +174,9 @@ async function issueLoginSession(user: typeof users.$inferSelect): Promise<Login
       id: user.id,
       email: user.email,
       displayName: user.displayName,
-      role: user.role,
+      role: authContext.role,
     },
-    tenantId,
+    tenantId: authContext.tenantId,
   };
 }
 
@@ -482,7 +537,7 @@ export function createGoogleOauthStartUrl(input: { returnTo?: string }): string 
 export async function loginOrRegisterWithGoogleCode(input: {
   code: string;
   state?: string;
-}): Promise<{ loginResult: LoginResult; returnTo?: string | null }> {
+}): Promise<{ returnTo?: string | null; oauthExchangeCode: string }> {
   if (!isGoogleAuthConfigured()) {
     throw new ValidationError('Google OAuth is not configured');
   }
@@ -581,7 +636,53 @@ export async function loginOrRegisterWithGoogleCode(input: {
 
   const statePayload = decodeGoogleAuthState(input.state);
   const loginResult = await issueLoginSession(user);
-  return { loginResult, returnTo: statePayload?.returnTo ?? null };
+
+  const oauthExchangeCode = storeOauthExchange({
+    userId: user.id,
+    sessionId: verifyRefreshToken(loginResult.refreshToken).sessionId,
+    expiresAt: Date.now() + OAUTH_EXCHANGE_TTL_MS,
+  });
+
+  return { returnTo: statePayload?.returnTo ?? null, oauthExchangeCode };
+}
+
+export async function exchangeOauthCode(code: string): Promise<LoginResult> {
+  const payload = consumeOauthExchange(code);
+
+  const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
+  if (!user) throw new AuthenticationError('User not found');
+
+  const [session] = await db
+    .select()
+    .from(sessions)
+    .where(and(eq(sessions.userId, user.id), eq(sessions.id, payload.sessionId)))
+    .limit(1);
+  if (!session) throw new AuthenticationError('Session not found');
+
+  const authContext = await getAuthContextForUser(user);
+  const refreshToken = signRefreshToken({
+    userId: user.id,
+    tenantId: authContext.tenantId ?? '',
+    sessionId: session.id,
+  });
+  const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
+  await db
+    .update(sessions)
+    .set({
+      refreshToken: hashRefreshToken(refreshToken),
+      previousRefreshToken: null,
+      rotatedAt: new Date(),
+      expiresAt: new Date(Date.now() + sessionExpiryMs),
+    })
+    .where(eq(sessions.id, session.id));
+
+  return {
+    accessToken: signAccessToken({ userId: user.id, role: authContext.role, tenantId: authContext.tenantId ?? '' }),
+    refreshToken,
+    user: { id: user.id, email: user.email, displayName: user.displayName, role: authContext.role },
+    tenantId: authContext.tenantId,
+  };
 }
 
 export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
@@ -592,12 +693,13 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     throw new AuthenticationError('Invalid or expired refresh token');
   }
   if (!payload?.userId) throw new AuthenticationError('Invalid refresh token');
+  const refreshTokenHash = hashRefreshToken(refreshToken);
 
   // First, try to find a session where this token is the current refresh token
   const [session] = await db
     .select()
     .from(sessions)
-    .where(and(eq(sessions.userId, payload.userId), eq(sessions.refreshToken, refreshToken)))
+    .where(and(eq(sessions.userId, payload.userId), eq(sessions.refreshToken, refreshTokenHash)))
     .limit(1);
 
   if (session) {
@@ -610,7 +712,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     const [compromisedSession] = await db
       .select()
       .from(sessions)
-      .where(and(eq(sessions.userId, payload.userId), eq(sessions.previousRefreshToken, refreshToken)))
+      .where(and(eq(sessions.userId, payload.userId), eq(sessions.previousRefreshToken, refreshTokenHash)))
       .limit(1);
 
     if (compromisedSession) {
@@ -630,29 +732,23 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
   const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
   if (!user) throw new AuthenticationError('User not found');
 
-  const [tenantLink] = await db
-    .select({ tenantId: tenantUsers.tenantId })
-    .from(tenantUsers)
-    .where(eq(tenantUsers.userId, user.id))
-    .limit(1);
-
-  const tenantId = tenantLink?.tenantId ?? null;
+  const authContext = await getAuthContextForUser(user);
 
   const newAccessToken = signAccessToken({
     userId: user.id,
-    role: user.role,
-    tenantId,
+    role: authContext.role,
+    tenantId: authContext.tenantId ?? '',
   });
 
-  const newRefreshToken = signRefreshToken({ userId: user.id, tenantId: tenantId ?? '', sessionId: session.id });
+  const newRefreshToken = signRefreshToken({ userId: user.id, tenantId: authContext.tenantId ?? '', sessionId: session.id });
   const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   // Rotate: store old token as previous, set new token as current
   await db
     .update(sessions)
     .set({
-      previousRefreshToken: refreshToken,
-      refreshToken: newRefreshToken,
+      previousRefreshToken: refreshTokenHash,
+      refreshToken: hashRefreshToken(newRefreshToken),
       rotatedAt: new Date(),
       expiresAt: new Date(Date.now() + sessionExpiryMs),
     })
@@ -664,7 +760,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
 export async function logout(userId: string, refreshToken: string): Promise<void> {
   await db
     .delete(sessions)
-    .where(and(eq(sessions.userId, userId), eq(sessions.refreshToken, refreshToken)));
+    .where(and(eq(sessions.userId, userId), eq(sessions.refreshToken, hashRefreshToken(refreshToken))));
 
   logger.info({ userId }, 'User logged out');
 }
@@ -703,7 +799,9 @@ export async function changePassword(input: {
     })
     .where(eq(users.id, input.userId));
 
-  logger.info({ userId: input.userId }, 'User password changed');
+  await db.delete(sessions).where(eq(sessions.userId, input.userId));
+
+  logger.info({ userId: input.userId }, 'User password changed — all sessions invalidated');
 }
 
 export async function getUserAccountInfo(userId: string): Promise<{

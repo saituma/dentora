@@ -26,7 +26,7 @@ vi.mock('twilio', () => ({
 }));
 
 import { login, register, refreshAccessToken, logout, changePassword } from './auth.service.js';
-import { hashPassword, signRefreshToken } from '../../lib/crypto.js';
+import { hashPassword, signRefreshToken, hashRefreshToken, verifyAccessToken } from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError } from '../../lib/errors.js';
 
 function chainable(result: any) {
@@ -78,7 +78,8 @@ describe('login', () => {
     mockDb.select
       .mockReturnValueOnce(chainable(fakeUser))
       .mockReturnValueOnce(chainable({ tenantId: 't1' }));
-    mockDb.insert.mockReturnValue(insertChain({}));
+    const sessionInsert = insertChain({});
+    mockDb.insert.mockReturnValue(sessionInsert);
 
     const result = await login('test@example.com', 'password123');
 
@@ -86,6 +87,53 @@ describe('login', () => {
     expect(result.refreshToken).toBeDefined();
     expect(result.user.id).toBe('u1');
     expect(result.user.email).toBe('test@example.com');
+    expect(sessionInsert.values).toHaveBeenCalledWith(expect.objectContaining({
+      refreshToken: hashRefreshToken(result.refreshToken),
+    }));
+  });
+
+  it('signs tenant membership role for tenant-scoped users', async () => {
+    const passwordHash = await hashPassword('password123');
+    const fakeUser = {
+      id: 'u1',
+      email: 'test@example.com',
+      passwordHash,
+      displayName: 'Test',
+      role: 'viewer',
+    };
+
+    mockDb.select
+      .mockReturnValueOnce(chainable(fakeUser))
+      .mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
+    mockDb.insert.mockReturnValue(insertChain({}));
+
+    const result = await login('test@example.com', 'password123');
+    const payload = verifyAccessToken(result.accessToken);
+
+    expect(payload.role).toBe('admin');
+    expect(result.user.role).toBe('admin');
+  });
+
+  it('preserves platform_admin as the effective token role', async () => {
+    const passwordHash = await hashPassword('password123');
+    const fakeUser = {
+      id: 'u1',
+      email: 'platform@example.com',
+      passwordHash,
+      displayName: 'Platform',
+      role: 'platform_admin',
+    };
+
+    mockDb.select
+      .mockReturnValueOnce(chainable(fakeUser))
+      .mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
+    mockDb.insert.mockReturnValue(insertChain({}));
+
+    const result = await login('platform@example.com', 'password123');
+    const payload = verifyAccessToken(result.accessToken);
+
+    expect(payload.role).toBe('platform_admin');
+    expect(result.user.role).toBe('platform_admin');
   });
 
   it('throws AuthenticationError for unknown email', async () => {
@@ -119,7 +167,7 @@ describe('register', () => {
       return fn(tx);
     });
     mockDb.insert.mockReturnValue(insertChain({}));
-    mockDb.select.mockReturnValueOnce(chainable({ tenantId: 't1' }));
+    mockDb.select.mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
 
     const result = await register({
       email: 'new@test.com',
@@ -147,7 +195,7 @@ describe('refreshAccessToken', () => {
     const fakeSession = {
       id: 's1',
       userId: 'u1',
-      refreshToken,
+      refreshToken: hashRefreshToken(refreshToken),
       previousRefreshToken: null,
       rotatedAt: null,
       expiresAt: new Date(Date.now() + 86400000),
@@ -157,8 +205,9 @@ describe('refreshAccessToken', () => {
     mockDb.select
       .mockReturnValueOnce(chainable(fakeSession))
       .mockReturnValueOnce(chainable(fakeUser))
-      .mockReturnValueOnce(chainable({ tenantId: 't1' }));
-    mockDb.update.mockReturnValue(updateChain());
+      .mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
+    const sessionUpdate = updateChain();
+    mockDb.update.mockReturnValue(sessionUpdate);
 
     const result = await refreshAccessToken(refreshToken);
 
@@ -166,6 +215,10 @@ describe('refreshAccessToken', () => {
     expect(result.refreshToken).toBeDefined();
     // Verify the session was updated with rotation fields
     expect(mockDb.update).toHaveBeenCalled();
+    expect(sessionUpdate.set).toHaveBeenCalledWith(expect.objectContaining({
+      previousRefreshToken: hashRefreshToken(refreshToken),
+      refreshToken: hashRefreshToken(result.refreshToken),
+    }));
   });
 
   it('throws for expired session', async () => {
@@ -173,7 +226,7 @@ describe('refreshAccessToken', () => {
     const expiredSession = {
       id: 's1',
       userId: 'u1',
-      refreshToken,
+      refreshToken: hashRefreshToken(refreshToken),
       previousRefreshToken: null,
       rotatedAt: null,
       expiresAt: new Date(Date.now() - 1000),
@@ -197,8 +250,8 @@ describe('refreshAccessToken', () => {
     mockDb.select.mockReturnValueOnce(chainable({
       id: 's1',
       userId: 'u1',
-      refreshToken: 'new-token-that-replaced-old',
-      previousRefreshToken: oldRefreshToken,
+      refreshToken: hashRefreshToken('new-token-that-replaced-old'),
+      previousRefreshToken: hashRefreshToken(oldRefreshToken),
       rotatedAt: new Date(),
       expiresAt: new Date(Date.now() + 86400000),
     }));

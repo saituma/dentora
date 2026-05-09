@@ -1,11 +1,23 @@
 
 import { Router } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import * as tenantService from './tenant.service.js';
 import { authenticateJwt, requirePlatformAdmin, validate } from '../../middleware/index.js';
 import { apiRateLimiter } from '../../middleware/rateLimit.js';
 import { z } from 'zod';
+import { AuthorizationError } from '../../lib/errors.js';
 
 export const tenantRouter = Router();
+
+function requireTenantParamAccess(req: Request, _res: Response, next: NextFunction): void {
+  const requestedTenantId = req.params.tenantId as string;
+  if (req.user?.role === 'platform_admin' || req.user?.tenantId === requestedTenantId) {
+    next();
+    return;
+  }
+
+  next(new AuthorizationError('Cannot access another tenant'));
+}
 
 tenantRouter.post(
   '/',
@@ -58,6 +70,7 @@ tenantRouter.get(
 tenantRouter.get(
   '/:tenantId',
   authenticateJwt,
+  requireTenantParamAccess,
   async (req, res, next) => {
     try {
       const tenant = await tenantService.getTenantById(req.params.tenantId as string);
@@ -99,6 +112,7 @@ tenantRouter.patch(
 tenantRouter.get(
   '/:tenantId/config',
   authenticateJwt,
+  requireTenantParamAccess,
   async (req, res, next) => {
     try {
       const config = await tenantService.getTenantConfig(req.params.tenantId as string);
