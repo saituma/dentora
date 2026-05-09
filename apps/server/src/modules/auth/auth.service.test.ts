@@ -8,7 +8,37 @@ const mockDb = vi.hoisted(() => ({
   transaction: vi.fn(),
 }));
 
+const mockRedis = vi.hoisted(() => ({
+  getdel: vi.fn(),
+  setex: vi.fn(),
+}));
+
+const mockEnv = vi.hoisted(() => ({
+  NODE_ENV: 'development' as 'development' | 'staging' | 'production',
+  REDIS_DISABLED: false,
+  JWT_SECRET: 'test-secret-change-in-production-min32chars',
+  JWT_ISSUER: 'dental-flow-test',
+  JWT_EXPIRY_SECONDS: 900,
+  REFRESH_TOKEN_EXPIRY_DAYS: 7,
+  GOOGLE_CLIENT_ID: 'google-client-id',
+  GOOGLE_CLIENT_SECRET: 'google-client-secret',
+  GOOGLE_AUTH_REDIRECT_URI: 'http://localhost:4000/api/auth/google/callback',
+  RESEND_API_KEY: '',
+  SMTP_HOST: '',
+  SMTP_PORT: 587,
+  SMTP_SECURE: false,
+  SMTP_USER: '',
+  SMTP_PASS: '',
+  SMTP_FROM: '',
+  CLIENT_URL: 'http://localhost:3000',
+  TWILIO_ACCOUNT_SID: '',
+  TWILIO_AUTH_TOKEN: '',
+  TWILIO_VERIFY_SERVICE_SID: '',
+}));
+
 vi.mock('../../db/index.js', () => ({ db: mockDb }));
+vi.mock('../../lib/cache.js', () => ({ getRedis: () => mockRedis }));
+vi.mock('../../config/env.js', () => ({ env: mockEnv }));
 vi.mock('../../db/schema.js', () => ({
   users: { email: 'email', id: 'id', $inferSelect: {} },
   sessions: {},
@@ -25,7 +55,7 @@ vi.mock('twilio', () => ({
   default: vi.fn(),
 }));
 
-import { login, register, refreshAccessToken, logout, changePassword } from './auth.service.js';
+import { login, register, refreshAccessToken, logout, changePassword, exchangeOauthCode, loginOrRegisterWithGoogleCode } from './auth.service.js';
 import { hashPassword, signRefreshToken, hashRefreshToken, verifyAccessToken } from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError } from '../../lib/errors.js';
 
@@ -62,6 +92,9 @@ function deleteChain() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
+  mockEnv.NODE_ENV = 'development';
+  mockEnv.REDIS_DISABLED = false;
 });
 
 describe('login', () => {
@@ -281,6 +314,98 @@ describe('logout', () => {
 
     await expect(logout('u1', 'some-token')).resolves.not.toThrow();
     expect(mockDb.delete).toHaveBeenCalled();
+  });
+});
+
+describe('exchangeOauthCode', () => {
+  it('consumes the Redis-backed one-time code and rotates hashed refresh storage', async () => {
+    mockEnv.REDIS_DISABLED = true;
+    const exchangeCode = 'oauth-exchange-code';
+    const fakeUser = { id: 'u1', email: 'a@b.com', role: 'viewer', displayName: 'Test' };
+    const fakeSession = {
+      id: 's1',
+      userId: 'u1',
+      refreshToken: 'old-hash',
+      previousRefreshToken: null,
+      rotatedAt: null,
+      expiresAt: new Date(Date.now() + 86400000),
+    };
+    const sessionUpdate = updateChain();
+
+    mockRedis.getdel.mockResolvedValue(JSON.stringify({
+      userId: 'u1',
+      sessionId: 's1',
+      expiresAt: Date.now() + 60_000,
+    }));
+    mockDb.select
+      .mockReturnValueOnce(chainable(fakeUser))
+      .mockReturnValueOnce(chainable(fakeSession))
+      .mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
+    mockDb.update.mockReturnValue(sessionUpdate);
+
+    const result = await exchangeOauthCode(exchangeCode);
+
+    expect(mockRedis.getdel).toHaveBeenCalledWith(expect.stringMatching(/^global:oauth_exchange:/));
+    expect(result.refreshToken).toBeDefined();
+    expect(result.user.role).toBe('admin');
+    expect(sessionUpdate.set).toHaveBeenCalledWith(expect.objectContaining({
+      refreshToken: hashRefreshToken(result.refreshToken),
+      previousRefreshToken: null,
+    }));
+  });
+
+  it('rejects a missing or already-consumed OAuth exchange code', async () => {
+    mockRedis.getdel.mockResolvedValue(null);
+
+    await expect(exchangeOauthCode('missing-code')).rejects.toThrow(AuthenticationError);
+  });
+
+  it('rejects OAuth exchange code consumption in production when Redis is disabled', async () => {
+    mockEnv.NODE_ENV = 'production';
+    mockEnv.REDIS_DISABLED = true;
+
+    await expect(exchangeOauthCode('oauth-exchange-code')).rejects.toThrow(AuthenticationError);
+    expect(mockRedis.getdel).not.toHaveBeenCalled();
+  });
+});
+
+describe('loginOrRegisterWithGoogleCode', () => {
+  it('rejects OAuth exchange code creation in production when Redis is disabled', async () => {
+    mockEnv.NODE_ENV = 'production';
+    mockEnv.REDIS_DISABLED = true;
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'google-access-token' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: 'google-user-id',
+          email: 'oauth@example.com',
+          email_verified: true,
+          name: 'OAuth User',
+        }),
+      }));
+
+    const fakeUser = {
+      id: 'u1',
+      email: 'oauth@example.com',
+      passwordHash: 'hash',
+      displayName: 'OAuth User',
+      role: 'viewer',
+    };
+
+    mockDb.select
+      .mockReturnValueOnce(chainable(undefined))
+      .mockReturnValueOnce(chainable(fakeUser))
+      .mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
+    mockDb.update.mockReturnValue(updateChain());
+    mockDb.insert.mockReturnValue(insertChain({}));
+
+    await expect(loginOrRegisterWithGoogleCode({ code: 'google-auth-code' })).rejects.toThrow(AuthenticationError);
+    expect(mockRedis.setex).not.toHaveBeenCalled();
   });
 });
 

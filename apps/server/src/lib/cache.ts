@@ -34,6 +34,11 @@ const disabledRedis = {
   ping: async () => 'PONG',
   quit: async () => undefined,
   get: async (key: string) => getInMemory(key),
+  getdel: async (key: string) => {
+    const value = getInMemory(key);
+    inMemoryStore.delete(key);
+    return value;
+  },
   setex: async (key: string, ttl: number, value: string) => {
     setInMemory(key, value, ttl);
     return 'OK';

@@ -11,6 +11,7 @@ import { createHash, randomInt, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 import type { InferSelectModel } from 'drizzle-orm';
+import { getRedis } from '../../lib/cache.js';
 
 type UserRow = InferSelectModel<typeof users>;
 
@@ -51,7 +52,8 @@ interface OauthExchangeRecord {
 }
 
 const OAUTH_EXCHANGE_TTL_MS = 2 * 60 * 1000;
-const oauthExchangeStore = new Map<string, OauthExchangeRecord>();
+const OAUTH_EXCHANGE_TTL_SECONDS = OAUTH_EXCHANGE_TTL_MS / 1000;
+const OAUTH_EXCHANGE_CACHE_DOMAIN = 'oauth_exchange';
 
 function normalizePhoneNumber(value: string): string {
   return value.trim().replace(/\s+/g, '');
@@ -106,26 +108,42 @@ function generateOtpCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
-function storeOauthExchange(input: OauthExchangeRecord): string {
+function oauthExchangeCacheKey(codeHash: string): string {
+  return `global:${OAUTH_EXCHANGE_CACHE_DOMAIN}:${codeHash}`;
+}
+
+function getOauthExchangeRedis() {
+  if (env.NODE_ENV === 'production' && env.REDIS_DISABLED) {
+    throw new AuthenticationError('OAuth exchange is unavailable');
+  }
+  return getRedis();
+}
+
+async function storeOauthExchange(input: OauthExchangeRecord): Promise<string> {
   const code = randomBytes(32).toString('hex');
   const codeHash = hashOauthExchangeCode(code);
-  const now = Date.now();
-
-  for (const [storedHash, record] of oauthExchangeStore.entries()) {
-    if (record.expiresAt <= now) {
-      oauthExchangeStore.delete(storedHash);
-    }
-  }
-
-  oauthExchangeStore.set(codeHash, input);
+  await getOauthExchangeRedis().setex(
+    oauthExchangeCacheKey(codeHash),
+    OAUTH_EXCHANGE_TTL_SECONDS,
+    JSON.stringify(input),
+  );
   return code;
 }
 
-function consumeOauthExchange(code: string): OauthExchangeRecord {
+async function consumeOauthExchange(code: string): Promise<OauthExchangeRecord> {
   const codeHash = hashOauthExchangeCode(code);
-  const record = oauthExchangeStore.get(codeHash);
-  oauthExchangeStore.delete(codeHash);
+  const raw = await getOauthExchangeRedis().getdel(oauthExchangeCacheKey(codeHash));
 
+  if (!raw) {
+    throw new AuthenticationError('Invalid or expired OAuth exchange');
+  }
+
+  let record: OauthExchangeRecord;
+  try {
+    record = JSON.parse(raw) as OauthExchangeRecord;
+  } catch {
+    throw new AuthenticationError('Invalid or expired OAuth exchange');
+  }
   if (!record || record.expiresAt <= Date.now()) {
     throw new AuthenticationError('Invalid or expired OAuth exchange');
   }
@@ -637,7 +655,7 @@ export async function loginOrRegisterWithGoogleCode(input: {
   const statePayload = decodeGoogleAuthState(input.state);
   const loginResult = await issueLoginSession(user);
 
-  const oauthExchangeCode = storeOauthExchange({
+  const oauthExchangeCode = await storeOauthExchange({
     userId: user.id,
     sessionId: verifyRefreshToken(loginResult.refreshToken).sessionId,
     expiresAt: Date.now() + OAUTH_EXCHANGE_TTL_MS,
@@ -647,7 +665,7 @@ export async function loginOrRegisterWithGoogleCode(input: {
 }
 
 export async function exchangeOauthCode(code: string): Promise<LoginResult> {
-  const payload = consumeOauthExchange(code);
+  const payload = await consumeOauthExchange(code);
 
   const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
   if (!user) throw new AuthenticationError('User not found');
