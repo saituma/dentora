@@ -196,7 +196,7 @@
 .dark {
   --background: var(--brand-bg);
   --foreground: var(--brand-text);
-  --card: color-mix(in srgb, var(--brand-bg) 88%, var(--brand-highlight));
+  --card: color-mix(in srgb, var(--brand-bg) 60%, transparent);
   --card-foreground: var(--brand-text);
   --popover: color-mix(in srgb, var(--brand-bg) 86%, var(--brand-highlight));
   --popover-foreground: var(--brand-text);
