@@ -21,6 +21,16 @@ function AuthBootstrap() {
     let cancelled = false;
 
     const bootstrap = async () => {
+      // If the page loaded with an OAuth callback in progress, the LoginForm
+      // will call setCredentials with fresh data — don't race against it.
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("oauth") === "google") {
+          if (!cancelled) dispatch(setHydrated());
+          return;
+        }
+      }
+
       localStorage.removeItem("refresh_token");
       const accessToken = localStorage.getItem("auth_token");
 

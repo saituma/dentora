@@ -15,6 +15,18 @@ function buildRedirect(baseUrl: string, params: Record<string, string>): string 
   return url.toString();
 }
 
+function safeRedirectUrl(returnTo: string | undefined, fallback: string): string {
+  if (!returnTo) return fallback;
+  try {
+    const allowed = new URL(env.CORS_ORIGIN);
+    const candidate = new URL(returnTo, allowed);
+    if (candidate.origin !== allowed.origin) return fallback;
+    return candidate.toString();
+  } catch {
+    return fallback;
+  }
+}
+
 integrationRouter.get('/google/calendar/oauth/callback', async (req, res) => {
   const successRedirect = env.GOOGLE_OAUTH_SUCCESS_REDIRECT || `${env.CORS_ORIGIN}/onboarding/test-call`;
   const errorRedirect = env.GOOGLE_OAUTH_ERROR_REDIRECT || `${env.CORS_ORIGIN}/onboarding/test-call`;
@@ -35,7 +47,8 @@ integrationRouter.get('/google/calendar/oauth/callback', async (req, res) => {
 
   try {
     const result = await integrationService.completeGoogleCalendarOAuth({ code, state });
-    res.redirect(buildRedirect(result.returnTo || successRedirect, {
+    const destination = safeRedirectUrl(result.returnTo, successRedirect);
+    res.redirect(buildRedirect(destination, {
       googleCalendar: 'connected',
       integrationId: result.integrationId,
     }));

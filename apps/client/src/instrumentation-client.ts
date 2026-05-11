@@ -14,4 +14,7 @@ Sentry.init({
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1,
 });
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart =
+  typeof Sentry.captureRouterTransitionStart === 'function'
+    ? Sentry.captureRouterTransitionStart
+    : undefined;

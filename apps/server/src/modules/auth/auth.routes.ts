@@ -125,6 +125,7 @@ authRouter.post(
 
 authRouter.get(
   '/google/start',
+  authRateLimiter,
   validate({
     query: z.object({
       returnTo: z.string().optional(),
@@ -147,12 +148,12 @@ authRouter.get(
   validate({
     query: z.object({
       code: z.string().min(1),
-      state: z.string().optional(),
+      state: z.string().min(1),
     }),
   }),
   async (req, res, next) => {
     try {
-      const { code, state } = req.query as { code: string; state?: string };
+      const { code, state } = req.query as { code: string; state: string };
       const { returnTo, oauthExchangeCode } = await authService.loginOrRegisterWithGoogleCode({ code, state });
 
       const redirectBase = getSafeOauthRedirectBase(returnTo);

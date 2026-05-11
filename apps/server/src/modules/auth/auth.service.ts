@@ -554,7 +554,7 @@ export function createGoogleOauthStartUrl(input: { returnTo?: string }): string 
 
 export async function loginOrRegisterWithGoogleCode(input: {
   code: string;
-  state?: string;
+  state: string;
 }): Promise<{ returnTo?: string | null; oauthExchangeCode: string }> {
   if (!isGoogleAuthConfigured()) {
     throw new ValidationError('Google OAuth is not configured');
@@ -653,6 +653,9 @@ export async function loginOrRegisterWithGoogleCode(input: {
   });
 
   const statePayload = decodeGoogleAuthState(input.state);
+  if (!statePayload) {
+    throw new AuthenticationError('Invalid or expired OAuth state');
+  }
   const loginResult = await issueLoginSession(user);
 
   const oauthExchangeCode = await storeOauthExchange({
@@ -661,7 +664,7 @@ export async function loginOrRegisterWithGoogleCode(input: {
     expiresAt: Date.now() + OAUTH_EXCHANGE_TTL_MS,
   });
 
-  return { returnTo: statePayload?.returnTo ?? null, oauthExchangeCode };
+  return { returnTo: statePayload.returnTo ?? null, oauthExchangeCode };
 }
 
 export async function exchangeOauthCode(code: string): Promise<LoginResult> {

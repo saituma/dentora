@@ -78,6 +78,20 @@
       "when": 1777568400000,
       "tag": "0010_auth_otp_identities",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777600000000,
+      "tag": "0011_password_reset_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777700000000,
+      "tag": "0012_refresh_token_rotation",
+      "breakpoints": true
     }
   ]
 }

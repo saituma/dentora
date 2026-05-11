@@ -27,6 +27,7 @@ const twAnimateCssRoot = path.join(__dirname, "node_modules", "tw-animate-css");
 const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: monorepoRoot,
+  transpilePackages: ["react-markdown", "remark-gfm"],
   experimental: {
     webpackBuildWorker: false,
   },

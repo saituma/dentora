@@ -44,7 +44,7 @@ function buildMigrationDatabaseUrl(rawUrl: string, sslMode?: string): string {
   }
 
   if (!parsedUrl.searchParams.has('sslmode')) {
-    parsedUrl.searchParams.set('sslmode', sslMode && sslMode !== 'disable' ? sslMode : 'require');
+    parsedUrl.searchParams.set('sslmode', sslMode ?? 'require');
   }
 
   return parsedUrl.toString();

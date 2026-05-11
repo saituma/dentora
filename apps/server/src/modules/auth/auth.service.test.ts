@@ -404,7 +404,7 @@ describe('loginOrRegisterWithGoogleCode', () => {
     mockDb.update.mockReturnValue(updateChain());
     mockDb.insert.mockReturnValue(insertChain({}));
 
-    await expect(loginOrRegisterWithGoogleCode({ code: 'google-auth-code' })).rejects.toThrow(AuthenticationError);
+    await expect(loginOrRegisterWithGoogleCode({ code: 'google-auth-code', state: 'mock-state' })).rejects.toThrow(AuthenticationError);
     expect(mockRedis.setex).not.toHaveBeenCalled();
   });
 });
