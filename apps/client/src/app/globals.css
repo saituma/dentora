@@ -217,7 +217,7 @@
   --chart-3: color-mix(in srgb, var(--brand-primary) 60%, var(--brand-secondary));
   --chart-4: color-mix(in srgb, var(--brand-secondary) 35%, var(--brand-highlight));
   --chart-5: color-mix(in srgb, var(--brand-primary) 65%, var(--brand-bg));
-  --sidebar: color-mix(in srgb, var(--brand-bg) 92%, var(--brand-highlight));
+  --sidebar: color-mix(in srgb, var(--brand-bg) 55%, transparent);
   --sidebar-foreground: var(--brand-text);
   --sidebar-primary: var(--brand-primary);
   --sidebar-primary-foreground: var(--brand-bg);
