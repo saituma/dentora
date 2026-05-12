@@ -11,7 +11,6 @@ import {
   ArrowRight,
   PhoneCall,
   Star,
-  Sparkles,
   TrendingUp,
   Clock,
 } from 'lucide-react';
@@ -19,6 +18,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
+import TextMarque from '@/components/ui/text-marque';
 
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
@@ -70,7 +70,8 @@ function HeroSection() {
               </span>
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-gray-400">
-              Dentora is your 24/7 AI receptionist that answers calls, books appointments, confirms visits and handles patient inquiries – so your team can focus on care.
+              Dentora is your 24/7 AI receptionist that answers calls, books appointments, confirms
+              visits and handles patient inquiries – so your team can focus on care.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -112,7 +113,11 @@ function HeroSection() {
             </div>
           </motion.div>
 
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.15 }} className="relative">
+          <motion.div
+            {...fadeUp}
+            transition={{ ...fadeUp.transition, delay: 0.15 }}
+            className="relative"
+          >
             <div className="relative mx-auto max-w-md lg:max-w-none">
               <div className="absolute -top-4 left-1/4 z-20 rounded-xl border border-white/10 bg-[#1a1f35]/90 px-4 py-3 shadow-xl backdrop-blur-sm">
                 <div className="flex items-center gap-2">
@@ -125,7 +130,12 @@ function HeroSection() {
               </div>
 
               <div className="absolute left-8 top-16 z-20 space-y-2">
-                {['Book an Appointment', 'Check Appointment', 'Insurance Questions', 'Other Inquiries'].map((item) => (
+                {[
+                  'Book an Appointment',
+                  'Check Appointment',
+                  'Insurance Questions',
+                  'Other Inquiries',
+                ].map((item) => (
                   <div
                     key={item}
                     className="rounded-lg border border-white/10 bg-[#1a1f35]/80 px-4 py-2 text-xs text-gray-300 shadow backdrop-blur-sm"
@@ -236,12 +246,41 @@ function StatsSection() {
   );
 }
 
+/* ─── Marquee Section ─── */
+function MarqueeSection() {
+  return (
+    <section className="relative overflow-hidden py-4 select-none">
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-[#0a0e1a] to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-[#0a0e1a] to-transparent" />
+      <TextMarque
+        delay={300}
+        baseVelocity={-3}
+        scrollDependent
+        clasname="font-bold tracking-[-0.05em] leading-none text-white/10"
+      >
+        AI Receptionist · Book Appointments · 24/7 Answering · Reduce No-Shows · Grow Your Practice
+        ·
+      </TextMarque>
+      <TextMarque
+        delay={300}
+        baseVelocity={3}
+        scrollDependent
+        clasname="font-bold tracking-[-0.05em] leading-none text-blue-500/20"
+      >
+        Never Miss a Patient · Smart Scheduling · UK GDPR Compliant · ElevenLabs Voice AI · Dentora
+        ·
+      </TextMarque>
+    </section>
+  );
+}
+
 /* ─── Features Section (Bento Grid) ─── */
 function FeaturesSection() {
   const features = [
     {
       title: 'AI Call Answering',
-      description: 'Dentora answers calls instantly, sounds natural, and never keeps patients on hold.',
+      description:
+        'Dentora answers calls instantly, sounds natural, and never keeps patients on hold.',
     },
     {
       title: 'Smart Scheduling',
@@ -265,11 +304,15 @@ function FeaturesSection() {
     <section id="features" className="py-20">
       <div className="mx-auto max-w-6xl px-6 lg:px-8">
         <motion.div {...fadeUp} className="mb-12 text-center">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">FEATURES</p>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">
+            FEATURES
+          </p>
           <h2 className="text-3xl font-bold text-white md:text-4xl">
             Everything Your Front Desk Does.
             <br />
-            <span className="bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">And More.</span>
+            <span className="bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
+              And More.
+            </span>
           </h2>
         </motion.div>
 
@@ -288,9 +331,13 @@ function FeaturesSection() {
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium text-white">Incoming Call</p>
-                    <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400">Answered</span>
+                    <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-400">
+                      Answered
+                    </span>
                   </div>
-                  <p className="text-[10px] text-gray-500">Patient: New inquiry about teeth cleaning</p>
+                  <p className="text-[10px] text-gray-500">
+                    Patient: New inquiry about teeth cleaning
+                  </p>
                 </div>
               </div>
             </div>
@@ -303,8 +350,15 @@ function FeaturesSection() {
             <h3 className="mb-2 text-base font-semibold text-white">{features[1].title}</h3>
             <p className="text-sm leading-relaxed text-gray-400">{features[1].description}</p>
             <div className="mt-6 space-y-2">
-              {['Mon 9:00 AM — Cleaning', 'Tue 2:30 PM — Consultation', 'Wed 11:00 AM — Follow-up'].map((apt) => (
-                <div key={apt} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2">
+              {[
+                'Mon 9:00 AM — Cleaning',
+                'Tue 2:30 PM — Consultation',
+                'Wed 11:00 AM — Follow-up',
+              ].map((apt) => (
+                <div
+                  key={apt}
+                  className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2"
+                >
                   <div className="size-2 rounded-full bg-blue-400" />
                   <p className="text-xs text-gray-300">{apt}</p>
                 </div>
@@ -366,7 +420,9 @@ function HowItWorksAndDemoSection() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="grid items-start gap-10 lg:grid-cols-3">
           <motion.div {...fadeUp}>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">HOW IT WORKS</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">
+              HOW IT WORKS
+            </p>
             <h2 className="mb-10 text-3xl font-bold text-white md:text-4xl">
               Simple. Powerful. Effortless.
             </h2>
@@ -389,7 +445,11 @@ function HowItWorksAndDemoSection() {
             </div>
           </motion.div>
 
-          <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="flex justify-center">
+          <motion.div
+            {...fadeUp}
+            transition={{ ...fadeUp.transition, delay: 0.1 }}
+            className="flex justify-center"
+          >
             <div className="relative w-56">
               <div className="rounded-[2.5rem] border-2 border-white/10 bg-[#0f1424] p-2.5">
                 <div className="rounded-[2rem] bg-[#1a1f35] p-5">
@@ -434,7 +494,9 @@ function HowItWorksAndDemoSection() {
           </motion.div>
 
           <BentoCard>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">BOOK A LIVE DEMO</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-blue-400">
+              BOOK A LIVE DEMO
+            </p>
             <h2 className="mb-1 text-xl font-bold text-white">See Dentora in Action</h2>
             <p className="mb-6 text-xs text-gray-400">
               Discover how our AI receptionist can help your dental practice save time and grow.
@@ -490,17 +552,20 @@ function HowItWorksAndDemoSection() {
 function TestimonialsSection() {
   const testimonials = [
     {
-      quote: "Dentora has been a game-changer for our practice. We never miss calls anymore and our schedule is fuller than ever!",
+      quote:
+        'Dentora has been a game-changer for our practice. We never miss calls anymore and our schedule is fuller than ever!',
       name: 'Dr. Jessica Miller',
       role: 'Smile Dental Care',
     },
     {
-      quote: "The AI is incredibly natural. Patients think they're talking to a real person. Our team loves the relief it brings.",
+      quote:
+        "The AI is incredibly natural. Patients think they're talking to a real person. Our team loves the relief it brings.",
       name: 'Dr. Mark Reynolds',
       role: 'Oakridge Dental',
     },
     {
-      quote: "We reduced no-shows by 45% since using Dentora. The reminders and follow-ups work perfectly.",
+      quote:
+        'We reduced no-shows by 45% since using Dentora. The reminders and follow-ups work perfectly.',
       name: 'Dr. Amanda Lee',
       role: 'Brighter Smiles',
     },
@@ -531,7 +596,10 @@ function TestimonialsSection() {
               </p>
               <div className="flex items-center gap-3 border-t border-white/5 pt-4">
                 <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-xs font-bold text-white">
-                  {t.name.split(' ').map((n) => n[0]).join('')}
+                  {t.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-white">{t.name}</p>
@@ -555,7 +623,10 @@ function CTASection() {
           <div className="relative flex items-center justify-center p-8">
             <div className="relative size-48">
               <div className="absolute inset-0 rounded-full bg-gradient-to-b from-blue-500/20 to-transparent blur-2xl" />
-              <svg viewBox="0 0 100 120" className="relative size-full drop-shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+              <svg
+                viewBox="0 0 100 120"
+                className="relative size-full drop-shadow-[0_0_30px_rgba(59,130,246,0.3)]"
+              >
                 <path
                   d="M50 10 C30 10 15 25 15 45 C15 60 20 75 25 90 C28 100 32 110 35 110 C40 110 42 95 45 85 C47 80 50 78 50 78 C50 78 53 80 55 85 C58 95 60 110 65 110 C68 110 72 100 75 90 C80 75 85 60 85 45 C85 25 70 10 50 10Z"
                   fill="url(#toothGrad)"
@@ -597,9 +668,7 @@ function CTASection() {
           <div className="p-8">
             <div className="rounded-xl border border-white/10 bg-[#1a1f35]/80 p-6">
               <h3 className="mb-2 text-lg font-bold text-white">Get Started Today</h3>
-              <p className="mb-4 text-xs text-gray-400">
-                Book your demo and see the difference.
-              </p>
+              <p className="mb-4 text-xs text-gray-400">Book your demo and see the difference.</p>
               <Link
                 href="/contact"
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
@@ -623,8 +692,10 @@ export default function LandingPage() {
     <>
       <HeroSection />
       <StatsSection />
+      <MarqueeSection />
       <FeaturesSection />
       <HowItWorksAndDemoSection />
+      <MarqueeSection />
       <TestimonialsSection />
       <CTASection />
     </>

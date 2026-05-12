@@ -26,6 +26,7 @@
     "@fullcalendar/react": "latest",
     "@fullcalendar/timegrid": "latest",
     "@hookform/resolvers": "^5.2.2",
+    "@motionone/utils": "^10.18.0",
     "@radix-ui/react-slot": "^1.2.4",
     "@reduxjs/toolkit": "^2.11.2",
     "@sentry/nextjs": "^10.49.0",
