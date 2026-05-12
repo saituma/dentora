@@ -1,6 +1,10 @@
 import { Queue, Worker, type Job, type WorkerOptions, type QueueOptions } from 'bullmq';
+import { trace, SpanStatusCode, context } from '@opentelemetry/api';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
+import { bullmqJobsTotal } from './metrics.js';
+
+const tracer = trace.getTracer('bullmq');
 
 function parseRedisUrl(url: string) {
   try {
@@ -81,12 +85,28 @@ export function createWorker<T extends { tenantId: string }>(
       });
 
       jobLogger.info('Processing job');
+      const span = tracer.startSpan(`bullmq.process ${queueName}`, {
+        attributes: {
+          'messaging.system': 'bullmq',
+          'messaging.destination': queueName,
+          'messaging.message_id': job.id ?? '',
+          'job.tenant_id': tenantId,
+          'job.attempt': job.attemptsMade + 1,
+        },
+      });
       try {
-        await processor(job);
+        await context.with(trace.setSpan(context.active(), span), () => processor(job));
+        span.setStatus({ code: SpanStatusCode.OK });
+        bullmqJobsTotal.inc({ queue: queueName, outcome: 'success' });
         jobLogger.info('Job completed');
       } catch (err) {
+        span.recordException(err instanceof Error ? err : new Error(String(err)));
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        bullmqJobsTotal.inc({ queue: queueName, outcome: 'failure' });
         jobLogger.error({ err }, 'Job failed');
         throw err;
+      } finally {
+        span.end();
       }
     },
     {

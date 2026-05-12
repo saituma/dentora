@@ -111,12 +111,51 @@ export const circuitBreakerOpenTotal = new client.Counter({
   name: 'circuit_breaker_open_total',
   help: 'Number of times a circuit breaker transitioned to open',
   labelNames: ['service'],
+  registers: [register],
 });
 
 export const circuitBreakerRejectedTotal = new client.Counter({
   name: 'circuit_breaker_rejected_total',
   help: 'Number of requests rejected because the circuit breaker is open',
   labelNames: ['service'],
+  registers: [register],
+});
+
+// ── Business metrics ──────────────────────────────────────────────────────────
+
+export const callsPerTenantTotal = new client.Counter({
+  name: 'calls_per_tenant_total',
+  help: 'Total calls per tenant',
+  labelNames: ['tenant_id', 'status'],
+  registers: [register],
+});
+
+export const failedWebhooksTotal = new client.Counter({
+  name: 'failed_webhooks_total',
+  help: 'Total webhook processing failures',
+  labelNames: ['source', 'reason'],
+  registers: [register],
+});
+
+export const bullmqJobsTotal = new client.Counter({
+  name: 'bullmq_jobs_total',
+  help: 'Total BullMQ jobs processed',
+  labelNames: ['queue', 'outcome'],
+  registers: [register],
+});
+
+export const dsarExportsTotal = new client.Counter({
+  name: 'dsar_exports_total',
+  help: 'Total GDPR data subject access request exports',
+  labelNames: ['tenant_id'],
+  registers: [register],
+});
+
+export const patientDeletionsTotal = new client.Counter({
+  name: 'patient_deletions_total',
+  help: 'Total GDPR right-to-erasure deletions',
+  labelNames: ['tenant_id'],
+  registers: [register],
 });
 
 export { register };

@@ -91,7 +91,12 @@ services:
       GOOGLE_OAUTH_SUCCESS_REDIRECT: ${GOOGLE_OAUTH_SUCCESS_REDIRECT:-}
       GOOGLE_OAUTH_ERROR_REDIRECT: ${GOOGLE_OAUTH_ERROR_REDIRECT:-}
       # Observability
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://datadog-agent:4318}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      PLATFORM_ENV: production
+      PLATFORM_VERSION: ${PLATFORM_VERSION:-0.1.0}
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"nodejs","service":"dentora-api"}]'
     expose:
       - '3001'
     healthcheck:
@@ -131,7 +136,45 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://datadog-agent:4318}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      PLATFORM_ENV: production
+      PLATFORM_VERSION: ${PLATFORM_VERSION:-0.1.0}
+    labels:
+      com.datadoghq.ad.logs: '[{"source":"nodejs","service":"dentora-worker"}]'
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ── Datadog Agent ─────────────────────────────────────
+  # Collects metrics, traces (OTLP), and container logs → Datadog EU site
+  # Requires DD_API_KEY in .env.production (free via GitHub Student Pack)
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: datadoghq.eu
+      DD_ENV: production
+      DD_SERVICE: dentora
+      DD_VERSION: ${PLATFORM_VERSION:-0.1.0}
+      DD_APM_ENABLED: 'true'
+      DD_APM_NON_LOCAL_TRAFFIC: 'true'
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT: 0.0.0.0:4318
+      DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT: 0.0.0.0:4317
+      DD_LOGS_ENABLED: 'true'
+      DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: 'true'
+      DD_CONTAINER_EXCLUDE: 'name:datadog-agent'
+      DD_DOGSTATSD_NON_LOCAL_TRAFFIC: 'false'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    expose:
+      - '4317'
+      - '4318'
     deploy:
       resources:
         limits:

@@ -1,6 +1,6 @@
-
 import pino from 'pino';
 import { Writable } from 'stream';
+import { trace } from '@opentelemetry/api';
 import { env } from '../config/env.js';
 import { pushLogEntry, type LogEntry } from '../modules/admin/admin-log-stream.js';
 
@@ -26,9 +26,16 @@ const liveLogDestination = new Writable({
 const pinoOptions: pino.LoggerOptions = {
   level: env.LOG_LEVEL,
   base: {
-    service: 'dental-flow-api',
+    service: 'dentora-api',
     env: env.PLATFORM_ENV,
     version: env.PLATFORM_VERSION,
+  },
+  // Inject active OTel trace/span IDs so Datadog can correlate logs ↔ traces
+  mixin() {
+    const span = trace.getActiveSpan();
+    if (!span) return {};
+    const ctx = span.spanContext();
+    return { 'dd.trace_id': ctx.traceId, 'dd.span_id': ctx.spanId };
   },
   timestamp: pino.stdTimeFunctions.isoTime,
   serializers: {
@@ -93,11 +100,7 @@ export function createTenantLogger(tenantId: string, correlationId: string) {
   return logger.child({ tenantId, correlationId });
 }
 
-export function createCallLogger(
-  tenantId: string,
-  correlationId: string,
-  callSessionId: string,
-) {
+export function createCallLogger(tenantId: string, correlationId: string, callSessionId: string) {
   return logger.child({ tenantId, correlationId, callSessionId });
 }
 

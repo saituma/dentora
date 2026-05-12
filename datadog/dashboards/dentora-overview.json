@@ -1,0 +1,216 @@
+{
+  "title": "Dentora — Overview",
+  "description": "Key business and reliability metrics for the Dentora AI receptionist platform",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "Reliability",
+        "widgets": [
+          {
+            "id": 11,
+            "definition": {
+              "type": "query_value",
+              "title": "API Availability (30d)",
+              "requests": [
+                {
+                  "q": "avg:synthetics.http.response_time{service:dentora-api}",
+                  "aggregator": "avg"
+                }
+              ],
+              "precision": 2,
+              "unit": "ms"
+            }
+          },
+          {
+            "id": 12,
+            "definition": {
+              "type": "timeseries",
+              "title": "HTTP p95 Latency",
+              "requests": [
+                {
+                  "q": "p95:trace.express.request{service:dentora-api}",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "max": "2000" }
+            }
+          },
+          {
+            "id": 13,
+            "definition": {
+              "type": "timeseries",
+              "title": "5xx Error Rate",
+              "requests": [
+                {
+                  "q": "sum:http_requests_total{service:dentora-api,status_code:5*}.as_rate() / sum:http_requests_total{service:dentora-api}.as_rate() * 100",
+                  "display_type": "bars"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "Voice Calls",
+        "widgets": [
+          {
+            "id": 21,
+            "definition": {
+              "type": "query_value",
+              "title": "Active Calls",
+              "requests": [
+                {
+                  "q": "avg:active_calls{service:dentora-api}",
+                  "aggregator": "last"
+                }
+              ]
+            }
+          },
+          {
+            "id": 22,
+            "definition": {
+              "type": "timeseries",
+              "title": "Calls per Minute",
+              "requests": [
+                {
+                  "q": "sum:calls_total{service:dentora-api}.as_rate()",
+                  "display_type": "bars"
+                }
+              ]
+            }
+          },
+          {
+            "id": 23,
+            "definition": {
+              "type": "timeseries",
+              "title": "Call Duration (p50 / p95)",
+              "requests": [
+                {
+                  "q": "p50:call_duration_seconds{service:dentora-api}",
+                  "display_type": "line",
+                  "style": { "palette": "cool" }
+                },
+                {
+                  "q": "p95:call_duration_seconds{service:dentora-api}",
+                  "display_type": "line",
+                  "style": { "palette": "warm" }
+                }
+              ]
+            }
+          },
+          {
+            "id": 24,
+            "definition": {
+              "type": "timeseries",
+              "title": "Conversation Turn Latency (p95)",
+              "requests": [
+                {
+                  "q": "p95:conversation_turn_duration_seconds{service:dentora-api}",
+                  "display_type": "line"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "AI Providers",
+        "widgets": [
+          {
+            "id": 31,
+            "definition": {
+              "type": "timeseries",
+              "title": "Provider Request Duration (p95)",
+              "requests": [
+                {
+                  "q": "p95:provider_request_duration_seconds{service:dentora-api} by {provider}",
+                  "display_type": "line"
+                }
+              ]
+            }
+          },
+          {
+            "id": 32,
+            "definition": {
+              "type": "timeseries",
+              "title": "Circuit Breaker Opens",
+              "requests": [
+                {
+                  "q": "sum:circuit_breaker_open_total{service:dentora-api} by {service}.as_count()",
+                  "display_type": "bars"
+                }
+              ]
+            }
+          },
+          {
+            "id": 33,
+            "definition": {
+              "type": "timeseries",
+              "title": "Provider Failures",
+              "requests": [
+                {
+                  "q": "sum:provider_requests_total{service:dentora-api,success:false} by {provider}.as_count()",
+                  "display_type": "bars"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "Background Jobs",
+        "widgets": [
+          {
+            "id": 41,
+            "definition": {
+              "type": "timeseries",
+              "title": "BullMQ Jobs Processed",
+              "requests": [
+                {
+                  "q": "sum:bullmq_jobs_total{service:dentora-api} by {queue,outcome}.as_count()",
+                  "display_type": "bars"
+                }
+              ]
+            }
+          },
+          {
+            "id": 42,
+            "definition": {
+              "type": "query_value",
+              "title": "DLQ Jobs (last 24h)",
+              "requests": [
+                {
+                  "q": "sum:bullmq_jobs_total{service:dentora-api,queue:dead-letter}.as_count()",
+                  "aggregator": "sum"
+                }
+              ],
+              "time": { "live_span": "1d" }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed",
+  "tags": ["service:dentora", "env:production"]
+}
