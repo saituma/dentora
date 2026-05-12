@@ -1,4 +1,3 @@
-
 import Redis from 'ioredis';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
@@ -77,6 +76,7 @@ export function getRedis(): Redis {
         return delay;
       },
       lazyConnect: false,
+      tls: env.REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
     });
 
     redis.on('error', (err) => {
@@ -152,13 +152,7 @@ export async function tenantCacheInvalidateDomain(
   let deletedCount = 0;
 
   do {
-    const [nextCursor, keys] = await getRedis().scan(
-      cursor,
-      'MATCH',
-      pattern,
-      'COUNT',
-      100,
-    );
+    const [nextCursor, keys] = await getRedis().scan(cursor, 'MATCH', pattern, 'COUNT', 100);
     cursor = nextCursor;
     if (keys.length > 0) {
       await getRedis().del(...keys);
@@ -169,10 +163,7 @@ export async function tenantCacheInvalidateDomain(
   return deletedCount;
 }
 
-export async function globalCacheGet<T>(
-  domain: string,
-  identifier: string,
-): Promise<T | null> {
+export async function globalCacheGet<T>(domain: string, identifier: string): Promise<T | null> {
   const key = globalKey(domain, identifier);
   const raw = await getRedis().get(key);
   if (!raw) return null;
@@ -205,9 +196,7 @@ export async function cachePhoneMapping(
   await getRedis().setex(key, ttlSeconds, tenantId);
 }
 
-export async function getCachedPhoneMapping(
-  phoneNumber: string,
-): Promise<string | null> {
+export async function getCachedPhoneMapping(phoneNumber: string): Promise<string | null> {
   const key = globalKey(PHONE_MAPPING_PREFIX, phoneNumber);
   return getRedis().get(key);
 }
@@ -221,7 +210,11 @@ export const cache = {
     }
   },
 
-  getTenantScoped: async (tenantId: string, domain: string, identifier: string): Promise<string | null> => {
+  getTenantScoped: async (
+    tenantId: string,
+    domain: string,
+    identifier: string,
+  ): Promise<string | null> => {
     try {
       const key = tenantKey(tenantId, domain, identifier);
       return await getRedis().get(key);
@@ -230,7 +223,13 @@ export const cache = {
     }
   },
 
-  setTenantScoped: async (tenantId: string, domain: string, identifier: string, value: string, ttlSeconds: number): Promise<void> => {
+  setTenantScoped: async (
+    tenantId: string,
+    domain: string,
+    identifier: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<void> => {
     try {
       const key = tenantKey(tenantId, domain, identifier);
       await getRedis().setex(key, ttlSeconds, value);
@@ -256,7 +255,12 @@ export const cache = {
     }
   },
 
-  setGlobal: async (domain: string, identifier: string, value: string, ttlSeconds: number): Promise<void> => {
+  setGlobal: async (
+    domain: string,
+    identifier: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<void> => {
     try {
       const key = globalKey(domain, identifier);
       await getRedis().setex(key, ttlSeconds, value);
