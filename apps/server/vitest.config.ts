@@ -9,6 +9,10 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/lib/**', 'src/middleware/**', 'src/modules/**/**.service.ts', 'src/modules/**/**.routes.ts'],
       reporter: ['text', 'text-summary'],
+      thresholds: {
+        lines: 50,
+        functions: 50,
+      },
     },
     testTimeout: 15000,
     setupFiles: ['src/__tests__/setup.ts'],

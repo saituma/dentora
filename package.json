@@ -19,11 +19,25 @@
     "db:push": "pnpm --filter @repo/server db:push",
     "db:check": "pnpm --filter @repo/server db:check",
     "db:studio": "pnpm --filter @repo/server db:studio",
-    "test:sentry": "pnpm --filter @repo/server test:sentry"
+    "test:sentry": "pnpm --filter @repo/server test:sentry",
+    "test": "pnpm --filter @repo/server test && pnpm --filter @repo/client test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "apps/server/src/**/*.{ts,tsx}": "prettier --write",
+    "apps/client/src/**/*.{ts,tsx,css}": "prettier --write",
+    "apps/admin/**/*.{ts,tsx}": "biome format --write",
+    "*.{json,md,yml,yaml}": "prettier --write"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "concurrently": "^9.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.4",
+    "prettier": "^3.8.3",
     "tailwindcss": "^4"
   }
 }
