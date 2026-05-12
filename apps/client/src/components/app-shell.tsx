@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { DashboardHeader } from '@/components/dashboard-header';
 import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
@@ -11,6 +12,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
   return (
     <div className="dark relative bg-[#0a0e1a]">
       <ShatteredToothBg />
@@ -28,7 +30,10 @@ export function AppShell({ children }: AppShellProps) {
           <SidebarInset>
             <DashboardHeader />
             <div className="flex flex-1 flex-col overflow-auto">
-              <div className="flex flex-1 flex-col gap-4 p-4 animate-fade-up lg:gap-6 lg:p-6">
+              <div
+                key={pathname}
+                className="flex flex-1 flex-col gap-4 p-4 animate-fade-up lg:gap-6 lg:p-6"
+              >
                 {children}
               </div>
             </div>
