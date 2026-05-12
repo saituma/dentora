@@ -22,6 +22,7 @@ export type PatientCall = CallSession & {
 export const patientsApi = createApi({
   reducerPath: 'patientsApi',
   baseQuery: baseQueryWithReauth,
+  keepUnusedDataFor: 120,
   endpoints: (builder) => ({
     getPatients: builder.query<{ data: PatientProfile[] }, { search?: string } | void>({
       query: (params) => ({
@@ -29,13 +30,16 @@ export const patientsApi = createApi({
         params: params ?? undefined,
       }),
     }),
-    upsertPatient: builder.mutation<{ data: PatientProfile }, {
-      fullName: string;
-      phoneNumber: string;
-      dateOfBirth?: string | null;
-      notes?: string | null;
-      lastVisitAt?: string | null;
-    }>({
+    upsertPatient: builder.mutation<
+      { data: PatientProfile },
+      {
+        fullName: string;
+        phoneNumber: string;
+        dateOfBirth?: string | null;
+        notes?: string | null;
+        lastVisitAt?: string | null;
+      }
+    >({
       query: (body) => ({
         url: '/patients/upsert',
         method: 'POST',

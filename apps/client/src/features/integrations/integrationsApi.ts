@@ -19,6 +19,7 @@ export const integrationsApi = createApi({
   reducerPath: 'integrationsApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Integrations'],
+  keepUnusedDataFor: 300,
   endpoints: (builder) => ({
     getIntegrations: builder.query<{ data: Integration[] }, void>({
       query: () => '/integrations',
@@ -32,7 +33,10 @@ export const integrationsApi = createApi({
       }),
       invalidatesTags: ['Integrations'],
     }),
-    startGoogleCalendarOAuth: builder.mutation<{ authUrl: string; state: string }, StartGoogleOAuthRequest>({
+    startGoogleCalendarOAuth: builder.mutation<
+      { authUrl: string; state: string },
+      StartGoogleOAuthRequest
+    >({
       query: (body) => ({
         url: '/integrations/google/calendar/oauth/start',
         method: 'POST',

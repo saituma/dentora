@@ -11,6 +11,7 @@ export const analyticsApi = createApi({
   reducerPath: 'analyticsApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Analytics'],
+  keepUnusedDataFor: 60,
   endpoints: (builder) => ({
     getDashboardStats: builder.query<DashboardStats, DateRangeParams | void>({
       query: (params) => {

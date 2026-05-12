@@ -11,6 +11,7 @@ export const callsApi = createApi({
   reducerPath: 'callsApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Calls'],
+  keepUnusedDataFor: 30,
   endpoints: (builder) => ({
     getCalls: builder.query<{ data: CallSession[] }, GetCallsParams | void>({
       query: (params) => {

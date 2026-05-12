@@ -4,28 +4,22 @@ import './globals.css';
 import { ReduxProvider, ThemeProviderWrapper } from '@/components/providers';
 import { Toaster } from '@/components/ui/sonner';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { cn } from "@/lib/utils";
+import { RouteProgress } from '@/components/route-progress';
+import { cn } from '@/lib/utils';
 
-const geistMono = Geist_Mono({subsets:['latin'],variable:'--font-mono'});
-
-const interHeading = Inter({subsets:['latin'],variable:'--font-heading'});
-
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const manrope = Manrope({
-  subsets: ['latin'],
-  variable: '--font-ui',
-});
-
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
+const interHeading = Inter({ subsets: ['latin'], variable: '--font-heading', display: 'swap' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
+const manrope = Manrope({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
 const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-display',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
   title: '24/7 AI Receptionist for Dental Clinics',
-  description:
-    'AI-powered receptionist for dental clinics. Never miss a call again.',
+  description: 'AI-powered receptionist for dental clinics. Never miss a call again.',
 };
 
 export default function RootLayout({
@@ -34,15 +28,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-mono", inter.variable, interHeading.variable, geistMono.variable)}>
-      <body
-        className={`${manrope.variable} ${playfairDisplay.variable} antialiased`}
-      >
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn('font-mono', inter.variable, interHeading.variable, geistMono.variable)}
+    >
+      <body className={`${manrope.variable} ${playfairDisplay.variable} antialiased`}>
+        <RouteProgress />
         <ReduxProvider>
           <ThemeProviderWrapper>
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
+            <ErrorBoundary>{children}</ErrorBoundary>
             <Toaster />
           </ThemeProviderWrapper>
         </ReduxProvider>

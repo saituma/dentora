@@ -6,6 +6,7 @@ export const clinicApi = createApi({
   reducerPath: 'clinicApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Clinic'],
+  keepUnusedDataFor: 300,
   endpoints: (builder) => ({
     getClinic: builder.query<ClinicProfile, void>({
       query: () => '/config/clinic',

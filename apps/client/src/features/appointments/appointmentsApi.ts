@@ -21,6 +21,7 @@ export interface UpcomingAppointmentsResponse {
 export const appointmentsApi = createApi({
   reducerPath: 'appointmentsApi',
   baseQuery: baseQueryWithReauth,
+  keepUnusedDataFor: 60,
   endpoints: (builder) => ({
     getUpcomingAppointments: builder.query<UpcomingAppointmentsResponse, { days?: number } | void>({
       query: (params) => ({

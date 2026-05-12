@@ -6,6 +6,7 @@ export const aiConfigApi = createApi({
   reducerPath: 'aiConfigApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Voice', 'Services', 'BookingRules', 'Policies', 'Faqs', 'ConfigVersions'],
+  keepUnusedDataFor: 300,
   endpoints: (builder) => ({
     // Voice profile
     getVoiceProfile: builder.query<VoiceProfile | null, void>({
@@ -26,7 +27,17 @@ export const aiConfigApi = createApi({
       query: () => '/config/services',
       providesTags: ['Services'],
     }),
-    addService: builder.mutation<Service, { serviceName: string; category?: string; description?: string; durationMinutes?: number; price?: string; isActive?: boolean }>({
+    addService: builder.mutation<
+      Service,
+      {
+        serviceName: string;
+        category?: string;
+        description?: string;
+        durationMinutes?: number;
+        price?: string;
+        isActive?: boolean;
+      }
+    >({
       query: (data) => ({
         url: '/config/services',
         method: 'POST',
