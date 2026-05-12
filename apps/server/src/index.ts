@@ -60,7 +60,8 @@ if (env.NODE_ENV === 'development') {
 }
 
 const allowedOriginSet = new Set(allowedOrigins);
-const vercelDentoraOriginPattern = /^https:\/\/dentora-client(?:-[a-z0-9-]+)?\.vercel\.app$/i;
+const vercelDentoraOriginPattern =
+  /^https:\/\/dentora-(?:client|admin)(?:-[a-z0-9-]+)?\.vercel\.app$/i;
 const renderWebOriginPattern = /^https:\/\/[a-z0-9-][a-z0-9-]*\.onrender\.com$/i;
 
 app.use(
