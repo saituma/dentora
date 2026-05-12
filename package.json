@@ -23,7 +23,8 @@
     "test": "pnpm --filter @repo/server test && pnpm --filter @repo/client test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "heroku-postbuild": "pnpm --filter @repo/server build"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
