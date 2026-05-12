@@ -302,7 +302,7 @@ export default function DashboardOverviewPage() {
       i.integrationType === 'calendar' && i.provider === 'google_calendar' && i.status === 'active',
   );
 
-  const refetchOpts = { refetchOnFocus: true, refetchOnReconnect: true } as const;
+  const refetchOpts = { refetchOnFocus: true, refetchOnReconnect: true, pollingInterval: 60_000 } as const;
   const {
     data: dashboardStats,
     isLoading: statsLoading,

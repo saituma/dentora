@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -43,10 +44,10 @@ export default function PatientsPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editingPatient, setEditingPatient] = useState<PatientProfile | null>(null);
-  const { data, isLoading, refetch } = useGetPatientsQuery(search ? { search } : undefined);
-  const [upsertPatient, { isLoading: isSaving }] = useUpsertPatientMutation();
+  const { data, isLoading } = useGetPatientsQuery(search ? { search } : undefined, { refetchOnFocus: true });
+  const [upsertPatient] = useUpsertPatientMutation();
 
-  const patients = data?.data ?? [];
+  const patients = useMemo(() => data?.data ?? [], [data?.data]);
 
   const selectedPatient = editingPatient ?? blankPatient;
 
@@ -59,21 +60,17 @@ export default function PatientsPage() {
     ));
   }, [patients, search]);
 
-  const handleSave = async () => {
-    try {
-      await upsertPatient({
+  const handleSave = () => {
+    toast.promise(
+      upsertPatient({
         fullName: selectedPatient.fullName,
         phoneNumber: selectedPatient.phoneNumber,
         dateOfBirth: selectedPatient.dateOfBirth || null,
         notes: selectedPatient.notes || null,
         lastVisitAt: selectedPatient.lastVisitAt || null,
-      }).unwrap();
-      toast.success('Patient profile saved.');
-      setEditingPatient(null);
-      refetch();
-    } catch (error) {
-      toast.error('Failed to save patient profile.');
-    }
+      }).unwrap().then(() => { setEditingPatient(null); }),
+      { loading: 'Saving…', success: 'Patient saved', error: 'Failed to save' },
+    );
   };
 
   return (
@@ -103,13 +100,40 @@ export default function PatientsPage() {
               placeholder="Search by name or phone"
               className="sm:max-w-xs"
             />
-            <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-              Refresh
-            </Button>
           </div>
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading patients...</p>
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead className="hidden sm:table-cell">DOB</TableHead>
+                    <TableHead className="hidden md:table-cell">Last visit</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-36" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                      </TableCell>
+                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-14" /></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : filteredPatients.length === 0 ? (
             <EmptyState
               icon={UsersIcon}
@@ -117,14 +141,14 @@ export default function PatientsPage() {
               description="Profiles appear after the receptionist books appointments."
             />
           ) : (
-            <div className="rounded-md border">
+            <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Patient</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>DOB</TableHead>
-                    <TableHead>Last visit</TableHead>
+                    <TableHead className="hidden sm:table-cell">DOB</TableHead>
+                    <TableHead className="hidden md:table-cell">Last visit</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -141,8 +165,8 @@ export default function PatientsPage() {
                         <div className="text-xs text-muted-foreground">{patient.notes || 'No notes'}</div>
                       </TableCell>
                       <TableCell>{patient.phoneNumber}</TableCell>
-                      <TableCell>{formatDate(patient.dateOfBirth)}</TableCell>
-                      <TableCell>{formatDateTime(patient.lastVisitAt)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{formatDate(patient.dateOfBirth)}</TableCell>
+                      <TableCell className="hidden md:table-cell">{formatDateTime(patient.lastVisitAt)}</TableCell>
                       <TableCell>
                         <Badge variant="outline">Active</Badge>
                       </TableCell>
@@ -216,8 +240,8 @@ export default function PatientsPage() {
             </div>
           </div>
           <div className="mt-6 flex gap-2">
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save profile'}
+            <Button onClick={handleSave}>
+              Save profile
             </Button>
             <Button variant="outline" onClick={() => setEditingPatient(null)}>
               Cancel

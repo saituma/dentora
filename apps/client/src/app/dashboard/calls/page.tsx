@@ -35,7 +35,10 @@ import {
 export default function CallsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const { data: callsData, isLoading: callsLoading } = useGetCallsQuery({ limit: 50 });
+  const { data: callsData, isLoading: callsLoading } = useGetCallsQuery(
+    { limit: 50 },
+    { pollingInterval: 30_000, refetchOnFocus: true },
+  );
   const calls = useMemo(() => callsData?.data ?? [], [callsData?.data]);
 
   const filteredCalls = useMemo(() => {
@@ -65,6 +68,13 @@ export default function CallsPage() {
         </div>
         {!callsLoading && summaryStats.total > 0 && (
           <div className="flex items-center gap-4 text-sm">
+            <span className="flex items-center gap-1.5 text-xs text-emerald-500">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+              </span>
+              Live
+            </span>
             <span className="text-muted-foreground">
               <span className="font-semibold tabular-nums text-foreground">
                 {summaryStats.total}
@@ -111,7 +121,7 @@ export default function CallsPage() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           {callsLoading ? (
             <Table>
               <TableHeader>
@@ -120,7 +130,7 @@ export default function CallsPage() {
                   <TableHead>Caller</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Cost</TableHead>
+                  <TableHead className="hidden sm:table-cell">Cost</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -138,7 +148,7 @@ export default function CallsPage() {
                     <TableCell>
                       <Skeleton className="h-5 w-20 rounded-full" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Skeleton className="h-4 w-16" />
                     </TableCell>
                   </TableRow>
@@ -159,7 +169,7 @@ export default function CallsPage() {
                   <TableHead>Caller</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Cost</TableHead>
+                  <TableHead className="hidden sm:table-cell">Cost</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,7 +200,7 @@ export default function CallsPage() {
                         </Badge>
                       </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-muted-foreground">
                       <Link href={`/dashboard/calls/${call.id}`} className="block">
                         {formatMoney(call.costEstimate)}
                       </Link>
