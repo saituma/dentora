@@ -1,11 +1,19 @@
 'use client';
 
+import { useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout } from '@/features/auth/authSlice';
 import { useLogoutMutation } from '@/features/auth/authApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
+import { clinicApi } from '@/features/clinic/clinicApi';
+import { callsApi } from '@/features/calls/callsApi';
+import { analyticsApi } from '@/features/analytics/analyticsApi';
+import { patientsApi } from '@/features/patients/patientsApi';
+import { appointmentsApi } from '@/features/appointments/appointmentsApi';
+import { integrationsApi } from '@/features/integrations/integrationsApi';
+import { aiConfigApi } from '@/features/aiConfig/aiConfigApi';
 import {
   Sidebar,
   SidebarContent,
@@ -79,6 +87,47 @@ export function DashboardSidebar() {
   const { data: clinic } = useGetClinicQuery();
   const [logoutApi] = useLogoutMutation();
 
+  const handlePrefetch = useCallback(
+    (url: string) => {
+      const opts = { ifOlderThan: 60 } as const;
+      switch (url) {
+        case '/dashboard/calls':
+          dispatch(callsApi.util.prefetch('getCalls', { limit: 50 }, opts));
+          break;
+        case '/dashboard/analytics': {
+          const params = {
+            startDate: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+            endDate: new Date().toISOString(),
+          };
+          dispatch(analyticsApi.util.prefetch('getDashboardStats', params, opts));
+          dispatch(analyticsApi.util.prefetch('getHourlyVolume', params, opts));
+          break;
+        }
+        case '/dashboard/patients':
+          dispatch(patientsApi.util.prefetch('getPatients', undefined, opts));
+          break;
+        case '/dashboard/appointments':
+          dispatch(appointmentsApi.util.prefetch('getUpcomingAppointments', undefined, opts));
+          break;
+        case '/dashboard/integrations':
+          dispatch(integrationsApi.util.prefetch('getIntegrations', undefined, opts));
+          break;
+        case '/dashboard/ai-receptionist':
+          dispatch(aiConfigApi.util.prefetch('getVoiceProfile', undefined, opts));
+          dispatch(aiConfigApi.util.prefetch('getServices', undefined, opts));
+          dispatch(aiConfigApi.util.prefetch('getBookingRules', undefined, opts));
+          break;
+        case '/dashboard/settings':
+        case '/dashboard/staff':
+          dispatch(clinicApi.util.prefetch('getClinic', undefined, opts));
+          break;
+        default:
+          break;
+      }
+    },
+    [dispatch],
+  );
+
   const handleLogout = async () => {
     try {
       await logoutApi().unwrap();
@@ -123,7 +172,7 @@ export function DashboardSidebar() {
           {navItems.map((item) => {
             const isActive = pathname === item.url;
             return (
-              <SidebarMenuItem key={item.title}>
+              <SidebarMenuItem key={item.title} onMouseEnter={() => handlePrefetch(item.url)}>
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={isActive}
