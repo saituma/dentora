@@ -2,11 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -39,7 +36,7 @@ export default function CallsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const { data: callsData, isLoading: callsLoading } = useGetCallsQuery({ limit: 50 });
-  const calls = callsData?.data ?? [];
+  const calls = useMemo(() => callsData?.data ?? [], [callsData?.data]);
 
   const filteredCalls = useMemo(() => {
     return calls.filter((call) => {
@@ -50,6 +47,13 @@ export default function CallsPage() {
     });
   }, [calls, statusFilter, search]);
 
+  const summaryStats = useMemo(() => {
+    const completed = calls.filter((c) => c.status === 'completed').length;
+    const totalSecs = calls.reduce((s, c) => s + (c.durationSeconds ?? 0), 0);
+    const totalMins = Math.round(totalSecs / 60);
+    return { total: calls.length, completed, totalMins };
+  }, [calls]);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -59,6 +63,28 @@ export default function CallsPage() {
             Real-time view of your AI receptionist call activity
           </p>
         </div>
+        {!callsLoading && summaryStats.total > 0 && (
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-muted-foreground">
+              <span className="font-semibold tabular-nums text-foreground">
+                {summaryStats.total}
+              </span>{' '}
+              calls
+            </span>
+            <span className="text-muted-foreground">
+              <span className="font-semibold tabular-nums text-foreground">
+                {summaryStats.completed}
+              </span>{' '}
+              completed
+            </span>
+            <span className="text-muted-foreground">
+              <span className="font-semibold tabular-nums text-foreground">
+                {summaryStats.totalMins}
+              </span>{' '}
+              min total
+            </span>
+          </div>
+        )}
       </div>
 
       <Card>
@@ -70,10 +96,7 @@ export default function CallsPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-xs"
             />
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value ?? 'all')}
-            >
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value ?? 'all')}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -90,7 +113,38 @@ export default function CallsPage() {
         </CardHeader>
         <CardContent>
           {callsLoading ? (
-            <div className="text-sm text-muted-foreground">Loading calls…</div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Caller</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Cost</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton className="h-4 w-28" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-32" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-14" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           ) : filteredCalls.length === 0 ? (
             <EmptyState
               icon={PhoneIcon}
@@ -131,10 +185,7 @@ export default function CallsPage() {
                     </TableCell>
                     <TableCell>
                       <Link href={`/dashboard/calls/${call.id}`} className="block">
-                        <Badge
-                          variant="secondary"
-                          className={statusColors[call.status] ?? ''}
-                        >
+                        <Badge variant="secondary" className={statusColors[call.status] ?? ''}>
                           {formatStatusLabel(call.status)}
                         </Badge>
                       </Link>

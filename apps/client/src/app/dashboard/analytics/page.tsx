@@ -1,13 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -24,7 +18,10 @@ import {
 import { StatsCard } from '@/components/stats-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Bar, BarChart, XAxis as BarXAxis, YAxis, CartesianGrid } from 'recharts';
-import { useGetDashboardStatsQuery, useGetHourlyVolumeQuery } from '@/features/analytics/analyticsApi';
+import {
+  useGetDashboardStatsQuery,
+  useGetHourlyVolumeQuery,
+} from '@/features/analytics/analyticsApi';
 
 const hourlyChartConfig = {
   calls: { label: 'Calls', color: 'var(--chart-1)' },
@@ -60,15 +57,10 @@ export default function AnalyticsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Analytics</h2>
-          <p className="text-sm text-muted-foreground">
-            Performance metrics and insights
-          </p>
+          <p className="text-sm text-muted-foreground">Performance metrics and insights</p>
         </div>
         <div className="flex gap-2">
-          <Select
-            value={dateRange}
-            onValueChange={(value) => setDateRange(value ?? '30d')}
-          >
+          <Select value={dateRange} onValueChange={(value) => setDateRange(value ?? '30d')}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
@@ -84,7 +76,9 @@ export default function AnalyticsPage() {
       {noData ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No call data yet. Analytics will appear once your AI receptionist handles calls.</p>
+            <p className="text-muted-foreground">
+              No call data yet. Analytics will appear once your AI receptionist handles calls.
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -96,22 +90,15 @@ export default function AnalyticsPage() {
               ))
             ) : (
               <>
-                <StatsCard
-                  title="Total calls"
-                  value={String(totalCalls)}
-                />
-                <StatsCard
-                  title="Completion rate"
-                  value={`${completionRate.toFixed(1)}%`}
-                />
+                <StatsCard title="Total calls" value={String(totalCalls)} />
+                <StatsCard title="Completion rate" value={`${completionRate.toFixed(1)}%`} />
                 <StatsCard
                   title="Avg duration"
-                  value={avgDuration > 0 ? `${Math.floor(avgDuration / 60)}m ${avgDuration % 60}s` : '—'}
+                  value={
+                    avgDuration > 0 ? `${Math.floor(avgDuration / 60)}m ${avgDuration % 60}s` : '—'
+                  }
                 />
-                <StatsCard
-                  title="Avg latency"
-                  value={avgLatency > 0 ? `${avgLatency}ms` : '—'}
-                />
+                <StatsCard title="Avg latency" value={avgLatency > 0 ? `${avgLatency}ms` : '—'} />
               </>
             )}
           </div>
@@ -132,14 +119,40 @@ export default function AnalyticsPage() {
                 ) : Object.keys(callsByStatus).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No data</p>
                 ) : (
-                  <div className="space-y-3">
-                    {Object.entries(callsByStatus).map(([status, count]) => (
-                      <div key={status} className="flex items-center justify-between rounded-lg border p-3">
-                        <span className="text-sm font-medium capitalize">{status.replace(/_/g, ' ')}</span>
-                        <span className="text-sm text-muted-foreground">{count}</span>
+                  (() => {
+                    const maxCount = Math.max(...Object.values(callsByStatus).map(Number));
+                    const statusColorMap: Record<string, string> = {
+                      completed: 'bg-emerald-500',
+                      escalated: 'bg-blue-500',
+                      in_progress: 'bg-amber-500',
+                      started: 'bg-amber-400',
+                      failed: 'bg-red-500',
+                    };
+                    return (
+                      <div className="space-y-3">
+                        {Object.entries(callsByStatus).map(([status, count]) => {
+                          const pct = maxCount > 0 ? (Number(count) / maxCount) * 100 : 0;
+                          const barColor = statusColorMap[status] ?? 'bg-muted-foreground';
+                          return (
+                            <div key={status} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium capitalize">
+                                  {status.replace(/_/g, ' ')}
+                                </span>
+                                <span className="tabular-nums text-muted-foreground">{count}</span>
+                              </div>
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()
                 )}
               </CardContent>
             </Card>
@@ -159,14 +172,33 @@ export default function AnalyticsPage() {
                 ) : topIntents.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No intent data yet</p>
                 ) : (
-                  <div className="space-y-3">
-                    {topIntents.map((item) => (
-                      <div key={item.intent} className="flex items-center justify-between rounded-lg border p-3">
-                        <span className="text-sm font-medium">{item.intent}</span>
-                        <span className="text-sm text-muted-foreground">{item.count}</span>
+                  (() => {
+                    const maxCount = Math.max(...topIntents.map((i) => i.count));
+                    return (
+                      <div className="space-y-3">
+                        {topIntents.map((item, idx) => {
+                          const pct = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+                          const opacity = Math.max(40, 100 - idx * 12);
+                          return (
+                            <div key={item.intent} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium capitalize">{item.intent}</span>
+                                <span className="tabular-nums text-muted-foreground">
+                                  {item.count}
+                                </span>
+                              </div>
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                                  style={{ width: `${pct}%`, opacity: opacity / 100 }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()
                 )}
               </CardContent>
             </Card>
@@ -175,7 +207,9 @@ export default function AnalyticsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Hourly call volume</CardTitle>
-              <CardDescription>Peak windows to optimize staffing and transfer policy</CardDescription>
+              <CardDescription>
+                Peak windows to optimize staffing and transfer policy
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {hourlyLoading ? (
