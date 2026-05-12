@@ -15,7 +15,7 @@ import helmet from 'helmet';
 import * as Sentry from '@sentry/node';
 import { env, shouldFailStartupOnRedisError } from './config/env.js';
 import { logger } from './lib/logger.js';
-import { checkDbHealth, closeDb } from './db/index.js';
+import { checkDbHealth, closeDb, runMigrations } from './db/index.js';
 import { initRedis, closeRedis } from './lib/cache.js';
 import { getMetrics, getMetricsContentType } from './lib/metrics.js';
 
@@ -197,6 +197,8 @@ async function start() {
       process.exit(1);
     }
     logger.info('Database connected');
+
+    await runMigrations();
 
     const server = app.listen(port, '0.0.0.0', () => {
       logger.info({ port, env: env.NODE_ENV }, `Dentora API listening on 0.0.0.0:${port}`);

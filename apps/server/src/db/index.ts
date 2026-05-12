@@ -1,5 +1,7 @@
+import path from 'path';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from './schema.js';
 import { env } from '../config/env.js';
 import { logger } from '../lib/logger.js';
@@ -83,3 +85,11 @@ export async function closeDb(): Promise<void> {
 }
 
 export { schema };
+
+export async function runMigrations(): Promise<void> {
+  // __dirname = dist/db/; migrations live at apps/server/drizzle/ (two levels up from dist/db/)
+  const migrationsFolder = path.join(__dirname, '../../drizzle');
+  logger.info({ migrationsFolder }, 'Running database migrations');
+  await migrate(db, { migrationsFolder });
+  logger.info('Database migrations complete');
+}

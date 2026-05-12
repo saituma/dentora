@@ -52,14 +52,12 @@ jobs:
             # Pull new images
             docker compose -f docker-compose.prod.yaml pull server client
 
-            # Run migrations
-            docker compose -f docker-compose.prod.yaml run --rm server \
-              node -e "const { execSync } = require('child_process'); execSync('pnpm --filter @repo/server exec drizzle-kit push', { stdio: 'inherit' });"
+            # Migrations run automatically at server startup via drizzle migrate()
 
             # Rolling restart
             docker compose -f docker-compose.prod.yaml up -d --no-deps --remove-orphans server client nginx
 
-            # Verify health
-            sleep 15
-            curl -sf http://localhost/api/health || exit 1
+            # Verify health — wait longer to allow migrations to complete
+            sleep 30
+            curl -sf https://localhost/api/health || curl -sf http://localhost/api/health || exit 1
             echo "Deploy successful: ${{ steps.sha.outputs.short }}"

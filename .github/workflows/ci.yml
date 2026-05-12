@@ -180,4 +180,4 @@ jobs:
         working-directory: apps/server
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/dental_flow_test
-        run: pnpm exec drizzle-kit push
+        run: pnpm exec drizzle-kit migrate
