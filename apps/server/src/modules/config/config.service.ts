@@ -1,4 +1,3 @@
-
 import { db } from '../../db/index.js';
 import {
   tenantConfigVersions,
@@ -12,7 +11,14 @@ import {
 } from '../../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
-import { cache } from '../../lib/cache.js';
+import {
+  cache,
+  tenantCacheGet,
+  tenantCacheSet,
+  tenantCacheInvalidateDomain,
+} from '../../lib/cache.js';
+
+const CONFIG_CACHE_TTL = 300; // 5 minutes
 import { logger } from '../../lib/logger.js';
 import { NotFoundError, ConflictError } from '../../lib/errors.js';
 import { listAvailableVoices } from '../onboarding/onboarding.service.js';
@@ -46,15 +52,15 @@ function normalizeClinicProfile(profile: ClinicProfileSelect | undefined) {
     address:
       typeof profile.address === 'string' && profile.address.trim().length > 0
         ? profile.address
-        : locationAddress ?? null,
+        : (locationAddress ?? null),
     phone:
       typeof profile.phone === 'string' && profile.phone.trim().length > 0
         ? profile.phone
-        : profile.primaryPhone ?? null,
+        : (profile.primaryPhone ?? null),
     email:
       typeof profile.email === 'string' && profile.email.trim().length > 0
         ? profile.email
-        : profile.supportEmail ?? null,
+        : (profile.supportEmail ?? null),
   };
 }
 
@@ -79,7 +85,10 @@ function normalizeVoiceProfile(profile: Record<string, unknown> | undefined | nu
   };
 }
 
-function normalizeStoredGreetingMessage(clinicName: string, greetingMessage?: string | null): string | null {
+function normalizeStoredGreetingMessage(
+  clinicName: string,
+  greetingMessage?: string | null,
+): string | null {
   const normalized = String(greetingMessage ?? '').trim();
   const replacement = `Hi, welcome to ${clinicName}, what can I help you with today?`;
 
@@ -87,9 +96,9 @@ function normalizeStoredGreetingMessage(clinicName: string, greetingMessage?: st
 
   const comparable = normalized.toLowerCase().replace(/\s+/g, ' ');
   if (
-    comparable === 'hi, thank you for calling. how can i help you today?'
-    || comparable === 'hello, thank you for calling. how can i help you today?'
-    || comparable === 'hello, thank you for calling. how may i help you today?'
+    comparable === 'hi, thank you for calling. how can i help you today?' ||
+    comparable === 'hello, thank you for calling. how can i help you today?' ||
+    comparable === 'hello, thank you for calling. how may i help you today?'
   ) {
     return replacement;
   }
@@ -124,7 +133,10 @@ async function replacePaidVoiceWithFreeLiveVoice(profile: Record<string, unknown
       fallbackVoiceId: fallbackVoice.voiceId,
     };
   } catch (error) {
-    logger.warn({ err: error, tenantId: profile.tenantId }, 'Failed to replace paid-only voice with free live voice');
+    logger.warn(
+      { err: error, tenantId: profile.tenantId },
+      'Failed to replace paid-only voice with free live voice',
+    );
     return profile;
   }
 }
@@ -179,7 +191,10 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
       .set({ ...mappedData, updatedAt: new Date() } as Partial<ClinicProfileInsert>)
       .where(eq(clinicProfile.tenantId, tenantId))
       .returning();
-    await cache.invalidateTenantDomain(tenantId, 'ai');
+    await Promise.all([
+      cache.invalidateTenantDomain(tenantId, 'ai'),
+      tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined),
+    ]);
     return normalizeClinicProfile(updated);
   }
 
@@ -187,17 +202,30 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
     .insert(clinicProfile)
     .values({ id: generateId(), tenantId, ...mappedData } as ClinicProfileInsert)
     .returning();
-  await cache.invalidateTenantDomain(tenantId, 'ai');
+  await Promise.all([
+    cache.invalidateTenantDomain(tenantId, 'ai'),
+    tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined),
+  ]);
   return normalizeClinicProfile(created);
 }
 
 export async function getClinicProfile(tenantId: string) {
+  const cached = await tenantCacheGet<ReturnType<typeof normalizeClinicProfile>>(
+    tenantId,
+    'config',
+    'clinic',
+  );
+  if (cached) return cached;
   const [profile] = await db
     .select()
     .from(clinicProfile)
     .where(eq(clinicProfile.tenantId, tenantId))
     .limit(1);
-  return normalizeClinicProfile(profile);
+  const result = normalizeClinicProfile(profile);
+  await tenantCacheSet(tenantId, 'config', 'clinic', result, CONFIG_CACHE_TTL).catch(
+    () => undefined,
+  );
+  return result;
 }
 
 export async function addService(tenantId: string, data: Record<string, unknown>) {
@@ -205,25 +233,42 @@ export async function addService(tenantId: string, data: Record<string, unknown>
     .insert(services)
     .values({ id: generateId(), tenantId, ...data } as ServicesInsert)
     .returning();
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return svc;
 }
 
-export async function updateService(tenantId: string, serviceId: string, data: Record<string, unknown>) {
+export async function updateService(
+  tenantId: string,
+  serviceId: string,
+  data: Record<string, unknown>,
+) {
   const [updated] = await db
     .update(services)
     .set({ ...data, updatedAt: new Date() } as Partial<ServicesInsert>)
     .where(and(eq(services.id, serviceId), eq(services.tenantId, tenantId)))
     .returning();
   if (!updated) throw new NotFoundError('Service not found');
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return updated;
 }
 
 export async function deleteService(tenantId: string, serviceId: string) {
   await db.delete(services).where(and(eq(services.id, serviceId), eq(services.tenantId, tenantId)));
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
 }
 
-export async function getServices(tenantId: string) {
-  return await db.select().from(services).where(eq(services.tenantId, tenantId)).limit(500);
+export async function getServices(tenantId: string): Promise<(typeof services.$inferSelect)[]> {
+  const cached = await tenantCacheGet<(typeof services.$inferSelect)[]>(
+    tenantId,
+    'config',
+    'services',
+  );
+  if (cached) return cached;
+  const rows = await db.select().from(services).where(eq(services.tenantId, tenantId)).limit(500);
+  await tenantCacheSet(tenantId, 'config', 'services', rows, CONFIG_CACHE_TTL).catch(
+    () => undefined,
+  );
+  return rows;
 }
 
 export async function upsertBookingRules(tenantId: string, data: Record<string, unknown>) {
@@ -239,6 +284,7 @@ export async function upsertBookingRules(tenantId: string, data: Record<string, 
       .set({ ...data, updatedAt: new Date() } as Partial<BookingRulesInsert>)
       .where(eq(bookingRules.tenantId, tenantId))
       .returning();
+    await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
     return updated;
   }
 
@@ -246,12 +292,27 @@ export async function upsertBookingRules(tenantId: string, data: Record<string, 
     .insert(bookingRules)
     .values({ id: generateId(), tenantId, ...data } as BookingRulesInsert)
     .returning();
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return created;
 }
 
 export async function getBookingRules(tenantId: string) {
-  const [rules] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
-  return rules ?? null;
+  const cached = await tenantCacheGet<typeof bookingRules.$inferSelect | null>(
+    tenantId,
+    'config',
+    'booking-rules',
+  );
+  if (cached !== null && cached !== undefined) return cached;
+  const [rules] = await db
+    .select()
+    .from(bookingRules)
+    .where(eq(bookingRules.tenantId, tenantId))
+    .limit(1);
+  const result = rules ?? null;
+  await tenantCacheSet(tenantId, 'config', 'booking-rules', result, CONFIG_CACHE_TTL).catch(
+    () => undefined,
+  );
+  return result;
 }
 
 export async function addPolicy(tenantId: string, data: Record<string, unknown>) {
@@ -259,25 +320,42 @@ export async function addPolicy(tenantId: string, data: Record<string, unknown>)
     .insert(policies)
     .values({ id: generateId(), tenantId, ...data } as PoliciesInsert)
     .returning();
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return policy;
 }
 
-export async function updatePolicy(tenantId: string, policyId: string, data: Record<string, unknown>) {
+export async function updatePolicy(
+  tenantId: string,
+  policyId: string,
+  data: Record<string, unknown>,
+) {
   const [updated] = await db
     .update(policies)
     .set({ ...data, updatedAt: new Date() } as Partial<PoliciesInsert>)
     .where(and(eq(policies.id, policyId), eq(policies.tenantId, tenantId)))
     .returning();
   if (!updated) throw new NotFoundError('Policy not found');
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return updated;
 }
 
 export async function deletePolicy(tenantId: string, policyId: string) {
   await db.delete(policies).where(and(eq(policies.id, policyId), eq(policies.tenantId, tenantId)));
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
 }
 
-export async function getPolicies(tenantId: string) {
-  return await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(500);
+export async function getPolicies(tenantId: string): Promise<(typeof policies.$inferSelect)[]> {
+  const cached = await tenantCacheGet<(typeof policies.$inferSelect)[]>(
+    tenantId,
+    'config',
+    'policies',
+  );
+  if (cached) return cached;
+  const rows = await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(500);
+  await tenantCacheSet(tenantId, 'config', 'policies', rows, CONFIG_CACHE_TTL).catch(
+    () => undefined,
+  );
+  return rows;
 }
 
 export async function upsertVoiceProfile(tenantId: string, data: Record<string, unknown>) {
@@ -294,6 +372,7 @@ export async function upsertVoiceProfile(tenantId: string, data: Record<string, 
       .set({ ...mappedData, updatedAt: new Date() } as Partial<VoiceProfileInsert>)
       .where(eq(voiceProfile.tenantId, tenantId))
       .returning();
+    await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
     return normalizeVoiceProfile(updated);
   }
 
@@ -301,16 +380,28 @@ export async function upsertVoiceProfile(tenantId: string, data: Record<string, 
     .insert(voiceProfile)
     .values({ id: generateId(), tenantId, ...mappedData } as VoiceProfileInsert)
     .returning();
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return normalizeVoiceProfile(created);
 }
 
 export async function getVoiceProfile(tenantId: string) {
-  const [profile] = await db.select().from(voiceProfile).where(eq(voiceProfile.tenantId, tenantId)).limit(1);
-  const [clinic] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  const [profile] = await db
+    .select()
+    .from(voiceProfile)
+    .where(eq(voiceProfile.tenantId, tenantId))
+    .limit(1);
+  const [clinic] = await db
+    .select()
+    .from(clinicProfile)
+    .where(eq(clinicProfile.tenantId, tenantId))
+    .limit(1);
   const normalizedProfile = await replacePaidVoiceWithFreeLiveVoice(profile);
   return normalizeVoiceProfile({
     ...(normalizedProfile ?? {}),
-    greetingMessage: normalizeStoredGreetingMessage(clinic?.clinicName ?? 'our clinic', normalizedProfile?.greetingMessage as string | null | undefined),
+    greetingMessage: normalizeStoredGreetingMessage(
+      clinic?.clinicName ?? 'our clinic',
+      normalizedProfile?.greetingMessage as string | null | undefined,
+    ),
   });
 }
 
@@ -319,6 +410,7 @@ export async function addFaq(tenantId: string, data: Record<string, unknown>) {
     .insert(faqLibrary)
     .values({ id: generateId(), tenantId, ...data } as FaqLibraryInsert)
     .returning();
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return faq;
 }
 
@@ -329,15 +421,31 @@ export async function updateFaq(tenantId: string, faqId: string, data: Record<st
     .where(and(eq(faqLibrary.id, faqId), eq(faqLibrary.tenantId, tenantId)))
     .returning();
   if (!updated) throw new NotFoundError('FAQ not found');
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
   return updated;
 }
 
 export async function deleteFaq(tenantId: string, faqId: string) {
-  await db.delete(faqLibrary).where(and(eq(faqLibrary.id, faqId), eq(faqLibrary.tenantId, tenantId)));
+  await db
+    .delete(faqLibrary)
+    .where(and(eq(faqLibrary.id, faqId), eq(faqLibrary.tenantId, tenantId)));
+  await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
 }
 
-export async function getFaqs(tenantId: string) {
-  return await db.select().from(faqLibrary).where(eq(faqLibrary.tenantId, tenantId)).limit(500);
+export async function getFaqs(tenantId: string): Promise<(typeof faqLibrary.$inferSelect)[]> {
+  const cached = await tenantCacheGet<(typeof faqLibrary.$inferSelect)[]>(
+    tenantId,
+    'config',
+    'faqs',
+  );
+  if (cached) return cached;
+  const rows = await db
+    .select()
+    .from(faqLibrary)
+    .where(eq(faqLibrary.tenantId, tenantId))
+    .limit(500);
+  await tenantCacheSet(tenantId, 'config', 'faqs', rows, CONFIG_CACHE_TTL).catch(() => undefined);
+  return rows;
 }
 
 export async function createConfigVersion(tenantId: string, userId: string) {
@@ -379,7 +487,9 @@ export async function publishConfigVersion(tenantId: string, versionId: string) 
     const [version] = await tx
       .select()
       .from(tenantConfigVersions)
-      .where(and(eq(tenantConfigVersions.id, versionId), eq(tenantConfigVersions.tenantId, tenantId)))
+      .where(
+        and(eq(tenantConfigVersions.id, versionId), eq(tenantConfigVersions.tenantId, tenantId)),
+      )
       .limit(1);
 
     if (!version) throw new NotFoundError('Config version not found');

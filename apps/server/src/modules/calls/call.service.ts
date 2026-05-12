@@ -6,7 +6,7 @@ import {
   callCostLineItems,
   callTranscripts,
 } from '../../db/schema.js';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, lt, or } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { logger } from '../../lib/logger.js';
 import { encryptField, decryptField, hashForSearch } from '../../lib/encrypted-column.js';
@@ -202,22 +202,55 @@ export async function getCallSession(tenantId: string, callId: string): Promise<
   return decryptCallSession(session);
 }
 
+// Cursor = base64(JSON.stringify({ at: ISO_DATE, id: UUID })) — opaque to callers.
+function encodeCursor(at: Date, id: string): string {
+  return Buffer.from(JSON.stringify({ at: at.toISOString(), id })).toString('base64url');
+}
+
+function decodeCursor(cursor: string): { at: Date; id: string } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString()) as {
+      at: string;
+      id: string;
+    };
+    return { at: new Date(parsed.at), id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
 export async function listCallSessions(opts: {
   tenantId: string;
   limit: number;
-  offset: number;
-  startDate?: Date;
-  endDate?: Date;
+  cursor?: string;
+  /** @deprecated use cursor instead */
+  offset?: number;
 }) {
-  const query = db
+  const limit = Math.min(opts.limit, 100);
+  const cursorData = opts.cursor ? decodeCursor(opts.cursor) : null;
+
+  const baseWhere = eq(callSessions.tenantId, opts.tenantId);
+  const cursorWhere = cursorData
+    ? or(
+        lt(callSessions.startedAt, cursorData.at),
+        and(eq(callSessions.startedAt, cursorData.at), lt(callSessions.id, cursorData.id)),
+      )
+    : undefined;
+
+  const rows = await db
     .select()
     .from(callSessions)
-    .where(eq(callSessions.tenantId, opts.tenantId))
-    .orderBy(desc(callSessions.startedAt))
-    .limit(opts.limit)
-    .offset(opts.offset);
+    .where(cursorWhere ? and(baseWhere, cursorWhere) : baseWhere)
+    .orderBy(desc(callSessions.startedAt), desc(callSessions.id))
+    .limit(limit + 1) // fetch one extra to know if there's a next page
+    .offset(!cursorData && opts.offset ? opts.offset : 0);
 
-  return (await query).map(decryptCallSession);
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items.at(-1);
+  const nextCursor = hasMore && last ? encodeCursor(last.startedAt, last.id) : undefined;
+
+  return { items: items.map(decryptCallSession), nextCursor, hasMore };
 }
 
 export async function listCallSessionsByCaller(input: {

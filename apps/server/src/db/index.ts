@@ -32,7 +32,9 @@ function hostLooksLikeManagedPostgres(hostname: string): boolean {
  * SSL for node-postgres. Prefer sslmode on the URL (common on Neon / Render),
  * then DATABASE_SSL_MODE, then require TLS for known managed Postgres hosts.
  */
-function resolvePgSsl(connectionString: string): boolean | { rejectUnauthorized: boolean } | undefined {
+function resolvePgSsl(
+  connectionString: string,
+): boolean | { rejectUnauthorized: boolean } | undefined {
   const url = new URL(connectionString);
   const fromUrl = url.searchParams.get('sslmode');
   let mode = fromUrl ?? env.DATABASE_SSL_MODE;
@@ -63,6 +65,22 @@ const pool = new Pool({
 });
 
 export const db = drizzle(pool, { schema, logger: env.NODE_ENV === 'development' });
+
+// Read replica — use for analytics and read-heavy queries to offload primary.
+// Falls back to primary if DATABASE_REPLICA_URL is not set.
+const replicaConnectionString = env.DATABASE_REPLICA_URL
+  ? buildConnectionString(env.DATABASE_REPLICA_URL)
+  : connectionString;
+
+const replicaPool = new Pool({
+  connectionString: replicaConnectionString,
+  max: Math.ceil(env.DATABASE_POOL_SIZE / 2),
+  connectionTimeoutMillis: env.DATABASE_CONNECTION_TIMEOUT_MS,
+  idleTimeoutMillis: 10000,
+  ssl: resolvePgSsl(replicaConnectionString),
+});
+
+export const dbReplica = drizzle(replicaPool, { schema, logger: false });
 
 export async function checkDbHealth(): Promise<boolean> {
   try {

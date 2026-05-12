@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 const booleanFromString = z.preprocess((value) => {
@@ -40,6 +39,7 @@ const envSchema = z.object({
   COST_MARGIN_PERCENT: z.coerce.number().min(0).max(100).default(30),
 
   DATABASE_URL: z.string().url(),
+  DATABASE_REPLICA_URL: z.string().url().optional(), // read replica — falls back to primary if unset
   DATABASE_POOL_SIZE: z.coerce.number().min(1).max(100).default(20),
   DATABASE_CONNECTION_TIMEOUT_MS: z.coerce.number().min(1000).max(120000).default(15000),
   DATABASE_SSL_MODE: z.enum(['disable', 'require', 'verify-ca', 'verify-full']).default('disable'),
@@ -76,7 +76,9 @@ const envSchema = z.object({
 
   GOOGLE_CLIENT_ID: z.string().default(''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
-  GOOGLE_OAUTH_REDIRECT_URI: z.string().default('http://localhost:4000/api/integrations/google/calendar/oauth/callback'),
+  GOOGLE_OAUTH_REDIRECT_URI: z
+    .string()
+    .default('http://localhost:4000/api/integrations/google/calendar/oauth/callback'),
   GOOGLE_OAUTH_SUCCESS_REDIRECT: z.string().default('http://localhost:3000/onboarding/ai-chat'),
   GOOGLE_OAUTH_ERROR_REDIRECT: z.string().default('http://localhost:3000/onboarding/ai-chat'),
   GOOGLE_AUTH_REDIRECT_URI: z.string().default('http://localhost:4000/api/auth/google/callback'),
@@ -118,10 +120,18 @@ export function isDefaultOrLocalRedisUrl(redisUrl: string): boolean {
   }
 }
 
-export function getProductionEnvFatalErrors(config: Pick<
-  Env,
-  'NODE_ENV' | 'JWT_SECRET' | 'ENCRYPTION_KEY' | 'DATABASE_URL' | 'DATABASE_SSL_MODE' | 'REDIS_DISABLED' | 'REDIS_URL'
->): string[] {
+export function getProductionEnvFatalErrors(
+  config: Pick<
+    Env,
+    | 'NODE_ENV'
+    | 'JWT_SECRET'
+    | 'ENCRYPTION_KEY'
+    | 'DATABASE_URL'
+    | 'DATABASE_SSL_MODE'
+    | 'REDIS_DISABLED'
+    | 'REDIS_URL'
+  >,
+): string[] {
   if (config.NODE_ENV !== 'production') {
     return [];
   }
@@ -160,7 +170,9 @@ function loadEnv() {
   }
 
   if (typeof process.env.GOOGLE_CLIENT_SECRET === 'string') {
-    process.env.GOOGLE_CLIENT_SECRET = normalizeGoogleClientSecret(process.env.GOOGLE_CLIENT_SECRET);
+    process.env.GOOGLE_CLIENT_SECRET = normalizeGoogleClientSecret(
+      process.env.GOOGLE_CLIENT_SECRET,
+    );
   }
 
   const result = envSchema.safeParse(process.env);
@@ -187,8 +199,14 @@ function loadEnv() {
       console.warn('⚠️  SMTP_HOST is not set — transactional emails will fail in production');
     }
     const webhookUrl = result.data.TWILIO_WEBHOOK_BASE_URL.toLowerCase();
-    if (webhookUrl.includes('localhost') || webhookUrl.includes('127.0.0.1') || webhookUrl.includes('ngrok')) {
-      console.warn('⚠️  TWILIO_WEBHOOK_BASE_URL points to a local/tunnel address — Twilio calls will fail in production');
+    if (
+      webhookUrl.includes('localhost') ||
+      webhookUrl.includes('127.0.0.1') ||
+      webhookUrl.includes('ngrok')
+    ) {
+      console.warn(
+        '⚠️  TWILIO_WEBHOOK_BASE_URL points to a local/tunnel address — Twilio calls will fail in production',
+      );
     }
   }
 
