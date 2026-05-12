@@ -3,7 +3,10 @@
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from 'next-themes';
+import { setupListeners } from '@reduxjs/toolkit/query';
 import { store } from '@/store';
+
+setupListeners(store.dispatch);
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setCredentials, setHydrated, logout } from '@/features/auth/authSlice';
 import { ensureFreshAccessToken, tryRefreshAccessToken } from '@/lib/api';
