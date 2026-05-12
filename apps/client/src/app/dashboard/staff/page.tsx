@@ -2,13 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,7 +31,7 @@ function newStaffRow(): StaffMember {
 
 export default function StaffPage() {
   const { data: clinic, isLoading } = useGetClinicQuery();
-  const [updateClinic, { isLoading: isSaving }] = useUpdateClinicMutation();
+  const [updateClinic] = useUpdateClinicMutation();
   const [rows, setRows] = useState<StaffMember[]>([]);
 
   const staffKey = useMemo(
@@ -48,6 +42,7 @@ export default function StaffPage() {
   useEffect(() => {
     if (!clinic) return;
     const list = clinic.staffMembers ?? [];
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRows(
       list.map((m) => ({
         id: m.id ?? crypto.randomUUID(),
@@ -68,12 +63,10 @@ export default function StaffPage() {
   };
 
   const updateRow = (index: number, patch: Partial<StaffMember>) => {
-    setRows((prev) =>
-      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
-    );
+    setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const trimmed = rows
       .map((row) => ({
         id: row.id,
@@ -90,12 +83,11 @@ export default function StaffPage() {
       return;
     }
 
-    try {
-      await updateClinic({ staffMembers: trimmed }).unwrap();
-      toast.success('Staff saved');
-    } catch {
-      toast.error('Failed to save staff');
-    }
+    toast.promise(updateClinic({ staffMembers: trimmed }).unwrap(), {
+      loading: 'Saving…',
+      success: 'Staff saved',
+      error: 'Failed to save staff',
+    });
   };
 
   return (
@@ -122,8 +114,8 @@ export default function StaffPage() {
               <PlusIcon className="size-4" />
               Add staff
             </Button>
-            <Button type="button" size="sm" onClick={handleSave} disabled={isSaving || isLoading}>
-              {isSaving ? 'Saving…' : 'Save'}
+            <Button type="button" size="sm" onClick={handleSave} disabled={isLoading}>
+              Save
             </Button>
           </div>
         </CardHeader>

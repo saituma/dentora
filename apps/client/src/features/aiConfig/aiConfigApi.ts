@@ -58,6 +58,18 @@ export const aiConfigApi = createApi({
         url: `/config/services/${id}`,
         method: 'DELETE',
       }),
+      onQueryStarted: async (id, { dispatch, queryFulfilled }) => {
+        const undo = dispatch(
+          aiConfigApi.util.updateQueryData('getServices', undefined, (draft) => {
+            draft.data = draft.data.filter((s) => s.id !== id);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          undo.undo();
+        }
+      },
       invalidatesTags: ['Services'],
     }),
 
@@ -101,6 +113,18 @@ export const aiConfigApi = createApi({
         url: `/config/policies/${id}`,
         method: 'DELETE',
       }),
+      onQueryStarted: async (id, { dispatch, queryFulfilled }) => {
+        const undo = dispatch(
+          aiConfigApi.util.updateQueryData('getPolicies', undefined, (draft) => {
+            draft.data = draft.data.filter((p) => p.id !== id);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          undo.undo();
+        }
+      },
       invalidatesTags: ['Policies'],
     }),
 
@@ -130,6 +154,18 @@ export const aiConfigApi = createApi({
         url: `/config/faqs/${id}`,
         method: 'DELETE',
       }),
+      onQueryStarted: async (id, { dispatch, queryFulfilled }) => {
+        const undo = dispatch(
+          aiConfigApi.util.updateQueryData('getFaqs', undefined, (draft) => {
+            draft.data = draft.data.filter((f) => f.id !== id);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          undo.undo();
+        }
+      },
       invalidatesTags: ['Faqs'],
     }),
 

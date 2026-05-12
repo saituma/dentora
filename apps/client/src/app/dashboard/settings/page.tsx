@@ -1,14 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -25,7 +19,11 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
 import { useAppSelector } from '@/store/hooks';
-import { useChangePasswordMutation, useSetPasswordMutation, useGetMeQuery } from '@/features/auth/authApi';
+import {
+  useChangePasswordMutation,
+  useSetPasswordMutation,
+  useGetMeQuery,
+} from '@/features/auth/authApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 
 const timezones = [
@@ -39,7 +37,7 @@ const timezones = [
 export default function SettingsPage() {
   const { user } = useAppSelector((state) => state.auth);
   const { data: clinic, isLoading } = useGetClinicQuery();
-  const [updateClinic, { isLoading: isSaving }] = useUpdateClinicMutation();
+  const [updateClinic] = useUpdateClinicMutation();
   const [changePassword, { isLoading: updatingPassword }] = useChangePasswordMutation();
   const [setPassword, { isLoading: settingPassword }] = useSetPasswordMutation();
   const { data: accountInfo } = useGetMeQuery();
@@ -58,6 +56,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (clinic) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClinicName(clinic.clinicName ?? '');
       setAddress(clinic.address ?? '');
       setPhone(clinic.phone ?? '');
@@ -79,12 +78,20 @@ export default function SettingsPage() {
         emailAlerts?: boolean;
         smsAlerts?: boolean;
       };
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEmailAlerts(parsed.emailAlerts ?? true);
       setSmsAlerts(parsed.smsAlerts ?? false);
     } catch {
       // ignore invalid local state
     }
   }, []);
+
+  const handleSave = useCallback(() => {
+    toast.promise(
+      updateClinic({ clinicName, address, phone, email, website, timezone, description }).unwrap(),
+      { loading: 'Saving…', success: 'Settings saved', error: 'Failed to save settings' },
+    );
+  }, [updateClinic, clinicName, address, phone, email, website, timezone, description]);
 
   useEffect(() => {
     const fieldSetters: Record<string, (v: string) => void> = {
@@ -106,41 +113,17 @@ export default function SettingsPage() {
       }
     };
 
-    const handleAiSave = () => {
-      handleSave();
-    };
-
     window.addEventListener('dentora-ai-fields', handleAiFields);
-    window.addEventListener('dentora-ai-save', handleAiSave);
+    window.addEventListener('dentora-ai-save', handleSave);
     return () => {
       window.removeEventListener('dentora-ai-fields', handleAiFields);
-      window.removeEventListener('dentora-ai-save', handleAiSave);
+      window.removeEventListener('dentora-ai-save', handleSave);
     };
-  });
-
-  const handleSave = async () => {
-    try {
-      await updateClinic({
-        clinicName,
-        address,
-        phone,
-        email,
-        website,
-        timezone,
-        description,
-      }).unwrap();
-      toast.success('Settings saved');
-    } catch {
-      toast.error('Failed to save settings');
-    }
-  };
+  }, [handleSave]);
 
   const handleSaveNotifications = () => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(
-        'settings_notifications',
-        JSON.stringify({ emailAlerts, smsAlerts }),
-      );
+      localStorage.setItem('settings_notifications', JSON.stringify({ emailAlerts, smsAlerts }));
     }
     toast.success('Notification preferences saved');
   };
@@ -184,9 +167,7 @@ export default function SettingsPage() {
             Manage your clinic profile and preferences
           </p>
         </div>
-        <Button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save changes'}
-        </Button>
+        <Button onClick={handleSave}>Save changes</Button>
       </div>
 
       <Tabs defaultValue="profile">
@@ -201,9 +182,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Clinic information</CardTitle>
-              <CardDescription>
-                Basic details about your practice
-              </CardDescription>
+              <CardDescription>Basic details about your practice</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -216,25 +195,16 @@ export default function SettingsPage() {
                 <FieldGroup>
                   <Field>
                     <FieldLabel>Clinic name</FieldLabel>
-                    <Input
-                      value={clinicName}
-                      onChange={(e) => setClinicName(e.target.value)}
-                    />
+                    <Input value={clinicName} onChange={(e) => setClinicName(e.target.value)} />
                   </Field>
                   <Field>
                     <FieldLabel>Address</FieldLabel>
-                    <Input
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                    />
+                    <Input value={address} onChange={(e) => setAddress(e.target.value)} />
                   </Field>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field>
                       <FieldLabel>Phone</FieldLabel>
-                      <Input
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
+                      <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
                     </Field>
                     <Field>
                       <FieldLabel>Email</FieldLabel>
@@ -247,18 +217,13 @@ export default function SettingsPage() {
                   </div>
                   <Field>
                     <FieldLabel>Website</FieldLabel>
-                    <Input
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                    />
+                    <Input value={website} onChange={(e) => setWebsite(e.target.value)} />
                   </Field>
                   <Field>
                     <FieldLabel>Timezone</FieldLabel>
                     <Select
                       value={timezone}
-                      onValueChange={(value) =>
-                        setTimezone(value ?? 'America/New_York')
-                      }
+                      onValueChange={(value) => setTimezone(value ?? 'America/New_York')}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -318,18 +283,14 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
-              <CardDescription>
-                Choose how you want to be notified
-              </CardDescription>
+              <CardDescription>Choose how you want to be notified</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup>
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
                     <p className="font-medium">Email alerts</p>
-                    <p className="text-sm text-muted-foreground">
-                      Important events and reports
-                    </p>
+                    <p className="text-sm text-muted-foreground">Important events and reports</p>
                   </div>
                   <Checkbox
                     checked={emailAlerts}
@@ -339,9 +300,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
                     <p className="font-medium">SMS alerts</p>
-                    <p className="text-sm text-muted-foreground">
-                      Urgent notifications
-                    </p>
+                    <p className="text-sm text-muted-foreground">Urgent notifications</p>
                   </div>
                   <Checkbox
                     checked={smsAlerts}
@@ -366,7 +325,8 @@ export default function SettingsPage() {
               <FieldGroup>
                 {!hasPassword && (
                   <p className="text-sm text-muted-foreground">
-                    You signed in with Google. Set a password to also log in with email and password.
+                    You signed in with Google. Set a password to also log in with email and
+                    password.
                   </p>
                 )}
                 <Field>
@@ -393,9 +353,11 @@ export default function SettingsPage() {
                   onClick={handleChangePassword}
                   disabled={updatingPassword || settingPassword}
                 >
-                  {(updatingPassword || settingPassword)
+                  {updatingPassword || settingPassword
                     ? 'Updating...'
-                    : hasPassword ? 'Update password' : 'Set password'}
+                    : hasPassword
+                      ? 'Update password'
+                      : 'Set password'}
                 </Button>
               </FieldGroup>
             </CardContent>

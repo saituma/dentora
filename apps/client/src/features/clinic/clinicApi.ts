@@ -18,6 +18,18 @@ export const clinicApi = createApi({
         method: 'PUT',
         body: data,
       }),
+      onQueryStarted: async (patch, { dispatch, queryFulfilled }) => {
+        const undo = dispatch(
+          clinicApi.util.updateQueryData('getClinic', undefined, (draft) => {
+            Object.assign(draft, patch);
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          undo.undo();
+        }
+      },
       invalidatesTags: ['Clinic'],
     }),
   }),
