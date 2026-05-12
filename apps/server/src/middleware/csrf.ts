@@ -16,11 +16,13 @@ const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
-  '/api/auth/refresh',
-  '/api/auth/google/exchange',
 ]);
+// Cookie-backed endpoints: token/session is set via httpOnly cookie so the
+// browser auto-sends it on cross-origin requests → CSRF protection required.
 const CSRF_REQUIRED_AUTH_POST_PATHS = new Set([
   '/api/auth/logout',
+  '/api/auth/refresh',
+  '/api/auth/google/exchange',
 ]);
 
 function generateToken(): string {

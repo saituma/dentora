@@ -91,7 +91,9 @@ function deleteChain() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks clears both call history AND queued mockReturnValueOnce values,
+  // preventing stale return values from leaking between tests.
+  vi.resetAllMocks();
   vi.unstubAllGlobals();
   mockEnv.NODE_ENV = 'development';
   mockEnv.REDIS_DISABLED = false;
@@ -415,6 +417,7 @@ describe('changePassword', () => {
     const fakeUser = { id: 'u1', passwordHash: currentHash };
     mockDb.select.mockReturnValueOnce(chainable(fakeUser));
     mockDb.update.mockReturnValue(updateChain());
+    mockDb.delete.mockReturnValue(deleteChain());
 
     await expect(
       changePassword({ userId: 'u1', currentPassword: 'old-pass', newPassword: 'new-pass1' }),

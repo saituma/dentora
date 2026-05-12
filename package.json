@@ -25,12 +25,6 @@
     "format:check": "prettier --check .",
     "prepare": "husky"
   },
-  "lint-staged": {
-    "apps/server/src/**/*.{ts,tsx}": "prettier --write",
-    "apps/client/src/**/*.{ts,tsx,css}": "prettier --write",
-    "apps/admin/**/*.{ts,tsx}": "biome format --write",
-    "*.{json,md,yml,yaml}": "prettier --write"
-  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
