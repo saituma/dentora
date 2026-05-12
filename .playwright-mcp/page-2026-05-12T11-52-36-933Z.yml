@@ -1,0 +1,1155 @@
+- generic [active] [ref=e1]:
+    - generic [ref=e3]:
+        - banner [ref=e7]:
+            - navigation [ref=e8]:
+                - generic [ref=e10]:
+                    - link [ref=e13] [cursor=pointer]:
+                        - /url: ./
+                    - generic [ref=e17]:
+                        - link "Product Product" [ref=e20] [cursor=pointer]:
+                            - /url: ./product
+                            - paragraph [ref=e23]: Product
+                            - paragraph [ref=e26]: Product
+                        - link "Pricing Pricing" [ref=e29] [cursor=pointer]:
+                            - /url: ./pricing
+                            - paragraph [ref=e32]: Pricing
+                            - paragraph [ref=e35]: Pricing
+                        - link "Customers Customers" [ref=e38] [cursor=pointer]:
+                            - /url: ./casestudies
+                            - paragraph [ref=e41]: Customers
+                            - paragraph [ref=e44]: Customers
+                        - link "Resources Resources" [ref=e47] [cursor=pointer]:
+                            - /url: ./blog
+                            - paragraph [ref=e50]: Resources
+                            - paragraph [ref=e53]: Resources
+                        - link "Product Tour Product Tour" [ref=e56] [cursor=pointer]:
+                            - /url: https://joinvalley.navattic.com/l8k017s
+                            - paragraph [ref=e59]: Product Tour
+                            - paragraph [ref=e62]: Product Tour
+                        - link "Affiliate (20%) Affiliate (20%)" [ref=e65] [cursor=pointer]:
+                            - /url: https://withvalley.notion.site/valley-affiliate-partner-program
+                            - paragraph [ref=e68]: Affiliate (20%)
+                            - paragraph [ref=e71]: Affiliate (20%)
+                    - generic [ref=e72]:
+                        - paragraph [ref=e74]:
+                            - link "Enter App" [ref=e75] [cursor=pointer]:
+                                - /url: https://app.joinvalley.co/
+                        - button "Book a Demo → Book a Demo →" [ref=e77] [cursor=pointer]:
+                            - paragraph [ref=e79]: Book a Demo →
+                            - paragraph [ref=e81]: Book a Demo →
+            - generic [ref=e82]:
+                - generic [ref=e83]:
+                    - generic [ref=e84]:
+                        - paragraph [ref=e87]: Features
+                        - generic [ref=e88]:
+                            - generic [ref=e89]:
+                                - img [ref=e92]
+                                - paragraph [ref=e96]: LinkedIn profile viewers
+                            - generic [ref=e97]:
+                                - img [ref=e100]
+                                - paragraph [ref=e104]: Company profile viewers
+                            - generic [ref=e105]:
+                                - img [ref=e108]
+                                - paragraph [ref=e112]: LinkedIn post engagers
+                            - generic [ref=e113]:
+                                - img [ref=e116]
+                                - paragraph [ref=e120]: LinkedIn post engagers
+                    - generic [ref=e121]:
+                        - paragraph [ref=e124]: Features
+                        - generic [ref=e125]:
+                            - generic [ref=e126]:
+                                - img [ref=e129]
+                                - paragraph [ref=e133]: LinkedIn profile viewers
+                            - generic [ref=e134]:
+                                - img [ref=e137]
+                                - paragraph [ref=e141]: Company profile viewers
+                            - generic [ref=e142]:
+                                - img [ref=e145]
+                                - paragraph [ref=e149]: LinkedIn post engagers
+                            - generic [ref=e150]:
+                                - img [ref=e153]
+                                - paragraph [ref=e157]: LinkedIn post engagers
+                    - generic [ref=e158]:
+                        - paragraph [ref=e161]: Features
+                        - generic [ref=e164]:
+                            - generic [ref=e165]:
+                                - img [ref=e168]
+                                - paragraph [ref=e172]: I've been doing this about 12 years and I've never used a tool like this before - we have Outreach, HubSpot, Seamless, but Valley has booked us more meetings than anything else we're using right now.
+                            - generic [ref=e178]:
+                                - paragraph [ref=e180]: Jason Hardman
+                                - paragraph [ref=e182]: Founding Enterprise Account Executive
+                - generic [ref=e187]:
+                    - generic [ref=e188]:
+                        - paragraph [ref=e190]: PRIVACY POLICY
+                        - paragraph [ref=e192]: TERMS OF SERVICES
+                    - paragraph [ref=e194]: © 2025 Valley. All rights reserved
+        - generic [ref=e197]:
+            - generic [ref=e200]:
+                - generic [ref=e201]:
+                    - paragraph [ref=e205] [cursor=pointer]: Watch a 90 Second Demo
+                    - generic [ref=e206]:
+                        - heading "AI that Finds High Intent Leads" [level=2] [ref=e208]
+                        - generic [ref=e209]:
+                            - paragraph [ref=e211]: 'on'
+                            - generic [ref=e212]:
+                                - img [ref=e216]
+                                - paragraph [ref=e219]: LinkedIn
+                            - paragraph [ref=e221]: '& Messages'
+                        - paragraph [ref=e223]: them Like You Would
+                    - heading "The first LinkedIn automation platform for warm outbound. Capture signals, research leads, and book meetings - automatically. Loved by sales teams and GTM agencies." [level=1] [ref=e225]
+                - generic [ref=e226]:
+                    - generic [ref=e227]:
+                        - textbox [ref=e230]:
+                            - /placeholder: Enter your email here
+                        - button "Book a Demo → Book a Demo →" [ref=e232] [cursor=pointer]:
+                            - paragraph [ref=e234]: Book a Demo →
+                            - paragraph [ref=e236]: Book a Demo →
+                    - generic [ref=e248]:
+                        - paragraph [ref=e250]: bolt booked 25 enterprise demos in 45 days
+                        - paragraph [ref=e252]: Gallea AI generated 15 MEETINGS in 14 DAYS
+                        - paragraph [ref=e254]: Linarca booked 15 demos in the first month
+                        - paragraph [ref=e256]: Thinkfish books >400 Meetings Every month
+                        - paragraph [ref=e258]: bolt booked 25 enterprise demos in 45 days
+            - generic [ref=e280]:
+                - generic [ref=e281]:
+                    - img [ref=e284]
+                    - paragraph [ref=e287]: Company Page Visitors
+                - generic [ref=e288]:
+                    - generic [ref=e289]:
+                        - img [ref=e292]
+                        - paragraph [ref=e295]: LinkedIN Followers
+                    - generic [ref=e296]:
+                        - img [ref=e299]
+                        - paragraph [ref=e302]: Post Engagers
+                - generic [ref=e303]:
+                    - generic [ref=e304]:
+                        - img [ref=e307]
+                        - paragraph [ref=e310]: Post Commenters
+                    - img [ref=e313]
+                    - generic [ref=e318]:
+                        - img [ref=e321]
+                        - paragraph [ref=e324]: Post Visitors
+                - img [ref=e327]
+        - generic [ref=e329]:
+            - generic [ref=e334]:
+                - generic [ref=e338]:
+                    - generic: Loading Lottie…
+                - paragraph [ref=e343]: Continue Scrolling
+            - generic [ref=e345]:
+                - generic [ref=e347]:
+                    - paragraph [ref=e348]: 300+ teams trust Valley's LinkedIn automation
+                    - paragraph [ref=e349]: because we keep their calendars full of high quality prospects
+                - generic [ref=e350]:
+                    - generic [ref=e351]:
+                        - generic [ref=e352]:
+                            - generic [ref=e353]:
+                                - img "Ridge" [ref=e360] [cursor=pointer]
+                                - img "Capsule" [ref=e366] [cursor=pointer]
+                                - img "Heyreach" [ref=e370]
+                            - generic [ref=e371]:
+                                - img "Circuit" [ref=e377] [cursor=pointer]
+                                - img "Ditchcarbon" [ref=e383] [cursor=pointer]
+                        - generic [ref=e384]:
+                            - generic [ref=e385]:
+                                - img "growthexperts" [ref=e391] [cursor=pointer]
+                                - img "storygen" [ref=e397] [cursor=pointer]
+                                - img "Expandi" [ref=e401]
+                            - generic [ref=e402]:
+                                - img "wegoliath" [ref=e408] [cursor=pointer]
+                                - img "more" [ref=e414] [cursor=pointer]
+                        - generic [ref=e415]:
+                            - generic [ref=e416]:
+                                - img "experio" [ref=e422] [cursor=pointer]
+                                - img "websity" [ref=e428] [cursor=pointer]
+                                - img "Lemlist" [ref=e432]
+                            - generic [ref=e433]:
+                                - img "salesmotion" [ref=e439] [cursor=pointer]
+                                - img "more" [ref=e445] [cursor=pointer]
+                    - generic [ref=e447]:
+                        - img "UiPath" [ref=e453] [cursor=pointer]
+                        - img "smallest.ai" [ref=e459] [cursor=pointer]
+                        - img "miro" [ref=e466] [cursor=pointer]
+                        - img "peecai" [ref=e472] [cursor=pointer]
+                        - img "glean" [ref=e478] [cursor=pointer]
+                        - img "10X" [ref=e485] [cursor=pointer]
+                        - img "Tacnode" [ref=e492] [cursor=pointer]
+                        - img "ggwp" [ref=e498] [cursor=pointer]
+                        - img "growthproctocol" [ref=e505] [cursor=pointer]
+                        - img "kaster" [ref=e512] [cursor=pointer]
+                        - img "bolt" [ref=e519] [cursor=pointer]
+                        - img "gocanvas" [ref=e526] [cursor=pointer]
+                        - img "Panda Doc" [ref=e532] [cursor=pointer]
+                        - img "stubhub" [ref=e538] [cursor=pointer]
+                        - img "franq" [ref=e545] [cursor=pointer]
+                        - img "darwinian" [ref=e552] [cursor=pointer]
+                        - img "antler" [ref=e558] [cursor=pointer]
+                        - img "more" [ref=e564] [cursor=pointer]
+                    - paragraph [ref=e568]: MIGRATED OFF
+            - generic [ref=e571]:
+                - generic [ref=e572]:
+                    - paragraph [ref=e577]: built for the top 1%
+                    - generic [ref=e579]:
+                        - heading "Valley Starts Where Competitors Don't - With People Who've Already Shown Interest." [level=2] [ref=e581]
+                        - paragraph [ref=e584]: Most teams stitch together Sales Navigator, Clay, ChatGPT, and HeyReach into a $750/month duct-tape stack - and still get 2% reply rates. Valley replaces the stack with one engine that researches 60+ data points per prospect, writes in your voice, and drives 15-45% reply rates.
+                - generic [ref=e585]:
+                    - paragraph [ref=e595] [cursor=pointer]: Find Leads
+                    - generic [ref=e598] [cursor=pointer]:
+                        - img "BG" [ref=e601]
+                        - paragraph [ref=e606]: Qualify & Enrich
+                    - generic [ref=e609] [cursor=pointer]:
+                        - img "BG" [ref=e612]
+                        - paragraph [ref=e617]: Research & Personalize
+                    - generic [ref=e620] [cursor=pointer]:
+                        - img "Bg" [ref=e623]
+                        - paragraph [ref=e628]: LinkedIn Messaging
+        - generic [ref=e632]:
+            - paragraph [ref=e639]: Features
+            - generic [ref=e646]:
+                - generic [ref=e647]:
+                    - link "Capture warm signals Valley tracks who viewed your profile, engaged with your posts, followed your company page, and visited your website. You only reach people already in your orbit - not cold strangers from a database." [ref=e650] [cursor=pointer]:
+                        - /url: ./#f1
+                        - img [ref=e655]
+                        - generic [ref=e657]:
+                            - paragraph [ref=e659]: Capture warm signals
+                            - paragraph [ref=e662]: Valley tracks who viewed your profile, engaged with your posts, followed your company page, and visited your website. You only reach people already in your orbit - not cold strangers from a database.
+                    - link "Qualify for ICP Fit Every lead gets enriched and scored against your ICP automatically. Valley deletes the noise so you only message the top 20%. No Clay tables to maintain. No manual filtering." [ref=e669] [cursor=pointer]:
+                        - /url: ./#f2
+                        - img [ref=e674]
+                        - generic [ref=e676]:
+                            - paragraph [ref=e678]: Qualify for ICP Fit
+                            - paragraph [ref=e680]: Every lead gets enriched and scored against your ICP automatically. Valley deletes the noise so you only message the top 20%. No Clay tables to maintain. No manual filtering.
+                    - link "Research and write in your voice Analyzes 60+ signals (blogs, newsletters, videos) humans would miss. Writes in your voice. Gets replies." [ref=e687] [cursor=pointer]:
+                        - /url: ./#f3
+                        - img [ref=e692]
+                        - generic [ref=e694]:
+                            - paragraph [ref=e696]: Research and write in your voice
+                            - paragraph [ref=e698]: Analyzes 60+ signals (blogs, newsletters, videos) humans would miss. Writes in your voice. Gets replies.
+                    - link "Send safely and book meetings Connection requests and InMails go out inside LinkedIn's limits with dedicated IPs and account safety rails. Valley manages replies, handles follow-ups, and routes positive responses to your calendar." [ref=e705] [cursor=pointer]:
+                        - /url: ./#f4
+                        - img [ref=e710]
+                        - generic [ref=e712]:
+                            - paragraph [ref=e714]: Send safely and book meetings
+                            - paragraph [ref=e716]: Connection requests and InMails go out inside LinkedIn's limits with dedicated IPs and account safety rails. Valley manages replies, handles follow-ups, and routes positive responses to your calendar.
+                - img [ref=e723]
+                - paragraph [ref=e733] [cursor=pointer]: Book a Demo →
+        - generic [ref=e753]:
+            - img "Valley AI" [ref=e755]
+            - generic [ref=e756]:
+                - img [ref=e759]
+                - generic [ref=e761]:
+                    - generic [ref=e762]:
+                        - img [ref=e765]
+                        - generic [ref=e768]:
+                            - generic [ref=e769]: There
+                            - generic [ref=e770]: has
+                            - generic [ref=e771]: been
+                            - generic [ref=e772]: a
+                            - generic [ref=e773]: lot
+                            - generic [ref=e774]: of
+                            - generic [ref=e775]: talk
+                            - generic [ref=e776]: surrounding
+                            - generic [ref=e777]: what
+                            - generic [ref=e778]: works
+                            - generic [ref=e779]: in
+                            - generic [ref=e780]: outbound
+                            - generic [ref=e781]: now.
+                            - generic [ref=e782]: The
+                            - generic [ref=e783]: answer
+                            - generic [ref=e784]: is
+                            - generic [ref=e785]: Valley.
+                            - generic [ref=e786]: Full
+                            - generic [ref=e787]: Stop.
+                            - generic [ref=e788]: Valley
+                            - generic [ref=e789]: is
+                            - generic [ref=e790]: the
+                            - generic [ref=e791]: next
+                            - generic [ref=e792]: generation
+                            - generic [ref=e793]: of
+                            - text: outbound.
+                    - generic [ref=e794]:
+                        - img "jeff becker" [ref=e798]
+                        - generic [ref=e799]:
+                            - paragraph [ref=e801]: Jeff Becker
+                            - paragraph [ref=e803]: EX - HEAD OF SALES, LINKEDIN
+                - img [ref=e806]
+        - generic [ref=e808]:
+            - generic [ref=e811]:
+                - generic [ref=e812]:
+                    - paragraph [ref=e817]: 15-45% REPLY RATES VS. 2% INDUSTRY AVERAGE
+                    - generic [ref=e819]:
+                        - heading "The messages are why teams stay." [level=2] [ref=e822]
+                        - generic [ref=e824]:
+                            - paragraph [ref=e825]:
+                                - text: Other tools automate sending. Valley automates the
+                                - emphasis [ref=e826]: research
+                                - text: . 200+ data points per prospect - recent posts, company news, podcasts, funding rounds - turned into messages that sound like you spent 20 minutes on each one.
+                            - paragraph [ref=e827]: 'The difference: prospects reply instead of ignore'
+                - generic [ref=e828]:
+                    - generic [ref=e836]:
+                        - generic [ref=e837]:
+                            - img [ref=e840]
+                            - paragraph [ref=e844]:
+                                - generic [ref=e845]:
+                                    - generic [ref=e846]: I
+                                    - generic [ref=e847]: "'"
+                                    - generic [ref=e848]: v
+                                    - generic [ref=e849]: e
+                                - generic [ref=e850]:
+                                    - generic [ref=e851]: b
+                                    - generic [ref=e852]: e
+                                    - generic [ref=e853]: e
+                                    - generic [ref=e854]: 'n'
+                                - generic [ref=e855]:
+                                    - generic [ref=e856]: d
+                                    - generic [ref=e857]: o
+                                    - generic [ref=e858]: i
+                                    - generic [ref=e859]: 'n'
+                                    - generic [ref=e860]: g
+                                - generic [ref=e861]:
+                                    - generic [ref=e862]: t
+                                    - generic [ref=e863]: h
+                                    - generic [ref=e864]: i
+                                    - generic [ref=e865]: s
+                                - generic [ref=e866]:
+                                    - generic [ref=e867]: a
+                                    - generic [ref=e868]: b
+                                    - generic [ref=e869]: o
+                                    - generic [ref=e870]: u
+                                    - generic [ref=e871]: t
+                                - generic [ref=e872]:
+                                    - generic [ref=e873]: '1'
+                                    - generic [ref=e874]: '2'
+                                - generic [ref=e875]:
+                                    - generic [ref=e876]: 'y'
+                                    - generic [ref=e877]: e
+                                    - generic [ref=e878]: a
+                                    - generic [ref=e879]: r
+                                    - generic [ref=e880]: s
+                                - generic [ref=e881]:
+                                    - generic [ref=e882]: a
+                                    - generic [ref=e883]: 'n'
+                                    - generic [ref=e884]: d
+                                - generic [ref=e885]:
+                                    - generic [ref=e886]: I
+                                    - generic [ref=e887]: "'"
+                                    - generic [ref=e888]: v
+                                    - generic [ref=e889]: e
+                                - generic [ref=e890]:
+                                    - generic [ref=e891]: 'n'
+                                    - generic [ref=e892]: e
+                                    - generic [ref=e893]: v
+                                    - generic [ref=e894]: e
+                                    - generic [ref=e895]: r
+                                - generic [ref=e896]:
+                                    - generic [ref=e897]: u
+                                    - generic [ref=e898]: s
+                                    - generic [ref=e899]: e
+                                    - generic [ref=e900]: d
+                                - generic [ref=e902]: a
+                                - generic [ref=e903]:
+                                    - generic [ref=e904]: t
+                                    - generic [ref=e905]: o
+                                    - generic [ref=e906]: o
+                                    - generic [ref=e907]: l
+                                - generic [ref=e908]:
+                                    - generic [ref=e909]: l
+                                    - generic [ref=e910]: i
+                                    - generic [ref=e911]: k
+                                    - generic [ref=e912]: e
+                                - generic [ref=e913]:
+                                    - generic [ref=e914]: t
+                                    - generic [ref=e915]: h
+                                    - generic [ref=e916]: i
+                                    - generic [ref=e917]: s
+                                - generic [ref=e918]:
+                                    - generic [ref=e919]: b
+                                    - generic [ref=e920]: e
+                                    - generic [ref=e921]: f
+                                    - generic [ref=e922]: o
+                                    - generic [ref=e923]: r
+                                    - generic [ref=e924]: e
+                                - generic [ref=e926]: '-'
+                                - generic [ref=e927]:
+                                    - generic [ref=e928]: w
+                                    - generic [ref=e929]: e
+                                - generic [ref=e930]:
+                                    - generic [ref=e931]: h
+                                    - generic [ref=e932]: a
+                                    - generic [ref=e933]: v
+                                    - generic [ref=e934]: e
+                                - generic [ref=e935]:
+                                    - generic [ref=e936]: O
+                                    - generic [ref=e937]: u
+                                    - generic [ref=e938]: t
+                                    - generic [ref=e939]: r
+                                    - generic [ref=e940]: e
+                                    - generic [ref=e941]: a
+                                    - generic [ref=e942]: c
+                                    - generic [ref=e943]: h
+                                    - generic [ref=e944]: ','
+                                - generic [ref=e945]:
+                                    - generic [ref=e946]: H
+                                    - generic [ref=e947]: u
+                                    - generic [ref=e948]: b
+                                    - generic [ref=e949]: S
+                                    - generic [ref=e950]: p
+                                    - generic [ref=e951]: o
+                                    - generic [ref=e952]: t
+                                    - generic [ref=e953]: ','
+                                - generic [ref=e954]:
+                                    - generic [ref=e955]: S
+                                    - generic [ref=e956]: e
+                                    - generic [ref=e957]: a
+                                    - generic [ref=e958]: m
+                                    - generic [ref=e959]: l
+                                    - generic [ref=e960]: e
+                                    - generic [ref=e961]: s
+                                    - generic [ref=e962]: s
+                                    - generic [ref=e963]: ','
+                                - generic [ref=e964]:
+                                    - generic [ref=e965]: b
+                                    - generic [ref=e966]: u
+                                    - generic [ref=e967]: t
+                                - generic [ref=e968]:
+                                    - generic [ref=e969]: V
+                                    - generic [ref=e970]: a
+                                    - generic [ref=e971]: l
+                                    - generic [ref=e972]: l
+                                    - generic [ref=e973]: e
+                                    - generic [ref=e974]: 'y'
+                                - generic [ref=e975]:
+                                    - generic [ref=e976]: h
+                                    - generic [ref=e977]: a
+                                    - generic [ref=e978]: s
+                                - generic [ref=e979]:
+                                    - generic [ref=e980]: b
+                                    - generic [ref=e981]: o
+                                    - generic [ref=e982]: o
+                                    - generic [ref=e983]: k
+                                    - generic [ref=e984]: e
+                                    - generic [ref=e985]: d
+                                - generic [ref=e986]:
+                                    - generic [ref=e987]: u
+                                    - generic [ref=e988]: s
+                                - generic [ref=e989]:
+                                    - generic [ref=e990]: m
+                                    - generic [ref=e991]: o
+                                    - generic [ref=e992]: r
+                                    - generic [ref=e993]: e
+                                - generic [ref=e994]:
+                                    - generic [ref=e995]: m
+                                    - generic [ref=e996]: e
+                                    - generic [ref=e997]: e
+                                    - generic [ref=e998]: t
+                                    - generic [ref=e999]: i
+                                    - generic [ref=e1000]: 'n'
+                                    - generic [ref=e1001]: g
+                                    - generic [ref=e1002]: s
+                                - generic [ref=e1003]:
+                                    - generic [ref=e1004]: t
+                                    - generic [ref=e1005]: h
+                                    - generic [ref=e1006]: a
+                                    - generic [ref=e1007]: 'n'
+                                - generic [ref=e1008]:
+                                    - generic [ref=e1009]: a
+                                    - generic [ref=e1010]: 'n'
+                                    - generic [ref=e1011]: 'y'
+                                    - generic [ref=e1012]: t
+                                    - generic [ref=e1013]: h
+                                    - generic [ref=e1014]: i
+                                    - generic [ref=e1015]: 'n'
+                                    - generic [ref=e1016]: g
+                                - generic [ref=e1017]:
+                                    - generic [ref=e1018]: e
+                                    - generic [ref=e1019]: l
+                                    - generic [ref=e1020]: s
+                                    - generic [ref=e1021]: e
+                                - generic [ref=e1022]:
+                                    - generic [ref=e1023]: w
+                                    - generic [ref=e1024]: e
+                                    - generic [ref=e1025]: "'"
+                                    - generic [ref=e1026]: r
+                                    - generic [ref=e1027]: e
+                                - generic [ref=e1028]:
+                                    - generic [ref=e1029]: u
+                                    - generic [ref=e1030]: s
+                                    - generic [ref=e1031]: i
+                                    - generic [ref=e1032]: 'n'
+                                    - generic [ref=e1033]: g
+                                - generic [ref=e1034]:
+                                    - generic [ref=e1035]: r
+                                    - generic [ref=e1036]: i
+                                    - generic [ref=e1037]: g
+                                    - generic [ref=e1038]: h
+                                    - generic [ref=e1039]: t
+                                - generic [ref=e1040]:
+                                    - generic [ref=e1041]: 'n'
+                                    - generic [ref=e1042]: o
+                                    - generic [ref=e1043]: w
+                                    - generic [ref=e1044]: .
+                        - generic [ref=e1046]:
+                            - img "jason" [ref=e1050]
+                            - generic [ref=e1051]:
+                                - paragraph [ref=e1053]: Jason Hardman
+                                - paragraph [ref=e1055]: Founding Enterprise AE @ Tacnode
+                    - paragraph [ref=e1059]: Reply rates
+            - generic [ref=e1062]:
+                - generic [ref=e1063]:
+                    - paragraph [ref=e1068]: REAL RESULTS FROM REAL TEAMS
+                    - heading "The World's Best Revenue Leaders Run Outbound with Valley" [level=2] [ref=e1073]:
+                        - text: The World's Best Revenue Leaders
+                        - text: Run Outbound with Valley
+                - generic [ref=e1075]:
+                    - generic [ref=e1078]:
+                        - generic [ref=e1079]:
+                            - generic [ref=e1080]:
+                                - generic [ref=e1082] [cursor=pointer]:
+                                    - link [ref=e1083]:
+                                        - /url: ./casestudies/how-bolt.new-generated-seven-figures-in-pipeline-with-valley-in-under-60-days/
+                                    - paragraph [ref=e1090]: June 2025
+                                    - generic [ref=e1091]:
+                                        - paragraph [ref=e1093]: How Bolt.new generated seven figures in pipeline with Valley in under 60 days
+                                        - generic [ref=e1094]:
+                                            - paragraph [ref=e1097]: Bolt
+                                            - paragraph [ref=e1100]: Dec 2025
+                                - generic [ref=e1102] [cursor=pointer]:
+                                    - link [ref=e1103]:
+                                        - /url: ./casestudies/how-ggwp-generated-4m-in-pipeline-with-valley/
+                                    - generic [ref=e1109]:
+                                        - paragraph [ref=e1111]: How GGWP generated $4M in pipeline with Valley
+                                        - generic [ref=e1112]:
+                                            - paragraph [ref=e1115]: GGWP
+                                            - paragraph [ref=e1118]: June 2025
+                                    - img [ref=e1121]
+                            - generic [ref=e1123]:
+                                - generic [ref=e1125] [cursor=pointer]:
+                                    - link [ref=e1126]:
+                                        - /url: ./casestudies/how-thinkfish-books-380-400-meetings-monthly-with-valley/
+                                    - generic [ref=e1132]:
+                                        - paragraph [ref=e1134]: How ThinkFish booked 400 meetings monthly with Valley
+                                        - generic [ref=e1135]:
+                                            - paragraph [ref=e1138]: THINKFISH
+                                            - paragraph [ref=e1141]: June 2025
+                                - generic [ref=e1143] [cursor=pointer]:
+                                    - link [ref=e1144]:
+                                        - /url: ./casestudies/how-linarca-booked-14-qualified-meetings-in-their-first-month-with-valley/
+                                    - paragraph [ref=e1151]: DEC 2025
+                                    - paragraph [ref=e1154]: How Linarca booked 14 qualified meetings in its first month with Valley
+                        - generic [ref=e1156] [cursor=pointer]:
+                            - link [ref=e1157]:
+                                - /url: ./casestudies/how-gallea-ai-generated-600k-in-pipeline-with-valley-in-just-3-weeks/
+                            - generic [ref=e1164]:
+                                - paragraph [ref=e1166]: How Gallea AI booked 15 meetinngs in 14 days using Valley
+                                - generic [ref=e1167]:
+                                    - paragraph [ref=e1170]: Gallea AI
+                                    - paragraph [ref=e1173]: APR 2026
+                            - generic [ref=e1175]:
+                                - generic [ref=e1176]:
+                                    - paragraph [ref=e1178]: '15'
+                                    - paragraph [ref=e1180]: Meetings/month
+                                - generic [ref=e1181]:
+                                    - paragraph [ref=e1183]: '>$200k'
+                                    - paragraph [ref=e1185]: Revenue generated
+                    - generic [ref=e1191] [cursor=pointer]:
+                        - generic [ref=e1192]:
+                            - paragraph [ref=e1195]: by responding to interest, not creating it
+                            - paragraph [ref=e1199]: Fastest growing companies have already moved on to signal based warm outreach to identify leads already in the market. Have you?
+                        - paragraph [ref=e1207]: Book Demo →
+        - generic [ref=e1244]:
+            - generic [ref=e1245]:
+                - heading "Powered by The Valley Warm" [level=2] [ref=e1249]
+                - generic [ref=e1253]:
+                    - generic [ref=e1254]:
+                        - paragraph [ref=e1255]: Most teams using a complex stack (ChatGPT, Clay, Phantombuster, Heyreach) see just 1–2% conversions.
+                        - paragraph [ref=e1256]: With Valley, LinkedIn outreach drives 15 - 45% reply rates.
+                    - paragraph [ref=e1265] [cursor=pointer]: Book a demo →
+            - generic [ref=e1268]:
+                - generic [ref=e1269]:
+                    - generic [ref=e1274] [cursor=pointer]:
+                        - paragraph [ref=e1276]: FIND LEADS
+                        - paragraph [ref=e1278]:
+                            - strong [ref=e1279]: Capture every warm lead. Automatically track profile views, post engagement, and competitor followers so you never miss a buyer showing intent.
+                    - generic [ref=e1288] [cursor=pointer]:
+                        - generic [ref=e1289]:
+                            - paragraph [ref=e1291]: DEEP RESEARCH
+                            - paragraph [ref=e1293]:
+                                - strong [ref=e1294]: Deep research in seconds. Conduct deep-dives into blogs, newsletters, and 100+ data points to find the "why" behind every signal - at scale.
+                        - img [ref=e1297]
+                    - generic [ref=e1305] [cursor=pointer]:
+                        - img [ref=e1308]
+                        - generic [ref=e1310]:
+                            - paragraph [ref=e1312]: LINKEDIN MESSAGING
+                            - paragraph [ref=e1314]:
+                                - strong [ref=e1315]: Safe, native outreach. Execute connection requests and InMails directly inside LinkedIn using safety rails that protect your account and your brand.
+                - generic [ref=e1323]:
+                    - generic [ref=e1330] [cursor=pointer]:
+                        - img [ref=e1333]
+                        - generic [ref=e1335]:
+                            - paragraph [ref=e1337]: QUALITY FOR ICP
+                            - paragraph [ref=e1339]:
+                                - strong [ref=e1340]: Focus only on ICP fit. Enrich lead data and score every prospect against your firmographics. The engine deletes the noise so you only message high-value targets.
+                    - generic [ref=e1347] [cursor=pointer]:
+                        - generic [ref=e1348]:
+                            - paragraph [ref=e1350]: PERSONALIZATION
+                            - paragraph [ref=e1352]:
+                                - strong [ref=e1353]: Sound human, not robotic. Clone your writing style to draft contextual openers that reference exactly what they viewed or engaged with.
+                        - img [ref=e1356]
+        - generic [ref=e1360]:
+            - generic [ref=e1361]:
+                - generic [ref=e1364]:
+                    - paragraph [ref=e1369]: WHO VALLEY IS BUILT FOR
+                    - paragraph [ref=e1373]:
+                        - generic [ref=e1374]: Four teams. Same engine. Different way to win.
+                - generic [ref=e1377]:
+                    - generic [ref=e1378]:
+                        - paragraph [ref=e1385] [cursor=pointer]: Agencies & Lead Gen Teams
+                        - paragraph [ref=e1392] [cursor=pointer]: B2B Sales Teams
+                        - paragraph [ref=e1399] [cursor=pointer]: Finance, Insurance & Advisory
+                        - paragraph [ref=e1406] [cursor=pointer]: Recruitment and Staffing
+                    - generic [ref=e1409]:
+                        - generic [ref=e1410]:
+                            - paragraph [ref=e1413]: Scale client outbound without scaling your team.
+                            - paragraph [ref=e1421] [cursor=pointer]: Book a Demo →
+                        - generic [ref=e1422]:
+                            - generic [ref=e1423]:
+                                - generic [ref=e1424]:
+                                    - img [ref=e1427]
+                                    - paragraph [ref=e1430]: Why agencies buy Valley
+                                - paragraph [ref=e1433]: Valley replaces the Clay + HeyReach + ChatGPT stack agencies use today - one platform per client, 15-25% reply rates, zero LinkedIn account restrictions. Onboard a new client in 30 minutes instead of 4 hours.
+                            - generic [ref=e1434]:
+                                - generic [ref=e1435]:
+                                    - img [ref=e1438]
+                                    - paragraph [ref=e1441]: Results
+                                - paragraph [ref=e1444]: ThinkFish books 400+ meetings every month. WeLaunch generated $5M in client ARR
+            - generic [ref=e1452]:
+                - generic [ref=e1453]:
+                    - paragraph [ref=e1457]: REAL MESSAGES, REAL FEEDBACK
+                    - generic [ref=e1458]:
+                        - paragraph [ref=e1460]: Wall of Loooooveee
+                        - paragraph [ref=e1462]: Automatically engage & book qualified sales calls from your LinkedIn network without manual outreach.
+                - generic [ref=e1463]:
+                    - generic [ref=e1464]:
+                        - generic [ref=e1466]:
+                            - generic [ref=e1469]:
+                                - img "ggwp" [ref=e1472]
+                                - paragraph [ref=e1475]: I found myself looking at some of the messages that it's created and thinking like, wow, where did it find this? This went really deep to find information that you could never do in just a cursory search.
+                                - generic [ref=e1477]:
+                                    - img "Tim O Niel" [ref=e1481]
+                                    - generic [ref=e1482]:
+                                        - paragraph [ref=e1484]: Tim O Niel
+                                        - paragraph [ref=e1486]: CRO VP Sales & BizDev
+                            - generic [ref=e1492]:
+                                - paragraph [ref=e1494]:
+                                    - generic [ref=e1495]: $638
+                                - paragraph [ref=e1497]: REDUCTION IN CAC
+                        - generic [ref=e1499]:
+                            - generic [ref=e1502]:
+                                - paragraph [ref=e1507]: 'A real response to a message Valley sent a prospect: “I was never considering anything until you reached out with a message that literally spoke to me.” The automation is great but the sauce within Valley is the messaging itself.'
+                                - generic [ref=e1513]:
+                                    - paragraph [ref=e1515]: Conrad de Claro
+                                    - paragraph [ref=e1517]: Director of Growth Marketing @GoCanvas
+                            - generic [ref=e1523]:
+                                - paragraph [ref=e1525]:
+                                    - generic [ref=e1526]: 23%
+                                - paragraph [ref=e1528]: higher inbounds
+                        - generic [ref=e1530]:
+                            - generic [ref=e1533]:
+                                - paragraph [ref=e1538]: The GTM landscape is evolving daily, and Valley peaked my interest early on as a company that will be the future of GTM tools
+                                - generic [ref=e1544]:
+                                    - paragraph [ref=e1546]: Director of Strat Sales
+                                    - paragraph [ref=e1548]: Miro
+                            - generic [ref=e1554]:
+                                - paragraph [ref=e1556]:
+                                    - generic [ref=e1557]: 23%
+                                - paragraph [ref=e1559]: higher inbounds
+                    - generic [ref=e1560]:
+                        - generic [ref=e1562]:
+                            - generic [ref=e1565]:
+                                - paragraph [ref=e1570]: I'm able to come into those [pipeline review] meetings and be like, look at what I booked through Valley. You know, if my other kind of channels have slowed down, I'm like, but Valley, Valley's there.
+                                - generic [ref=e1572]:
+                                    - img "Angelene" [ref=e1576]
+                                    - generic [ref=e1577]:
+                                        - paragraph [ref=e1579]: Angelene Perez-Vento
+                                        - paragraph [ref=e1581]: AE @Growth Protocol
+                            - generic [ref=e1587]:
+                                - paragraph [ref=e1589]:
+                                    - generic [ref=e1590]: 23%
+                                - paragraph [ref=e1592]: higher inbounds
+                        - generic [ref=e1594]:
+                            - generic [ref=e1597]:
+                                - paragraph [ref=e1602]: If you don't have an active, engaged LinkedIn pipeline and you have a clearly defined ICP and persona, you need to add Valley to your tech stack immediately to supplement your sales.
+                                - generic [ref=e1604]:
+                                    - img "Greg" [ref=e1608]
+                                    - generic [ref=e1609]:
+                                        - paragraph [ref=e1611]: Greg
+                                        - paragraph [ref=e1613]: Co-Founder @Kaster
+                            - generic [ref=e1619]:
+                                - paragraph [ref=e1621]:
+                                    - generic [ref=e1622]: $125k
+                                - paragraph [ref=e1624]: higher inbounds
+                    - generic [ref=e1625]:
+                        - generic [ref=e1627]:
+                            - generic [ref=e1630]:
+                                - paragraph [ref=e1635]: Email and LinkedIn definitely work but the personalization requirements to make them work have just gotten higher. The new bar is being set by Valley. Go see it for yourself.
+                                - generic [ref=e1641]:
+                                    - paragraph [ref=e1643]: Garrett Marker
+                                    - paragraph [ref=e1645]: CRO @ Brex
+                            - generic [ref=e1651]:
+                                - paragraph [ref=e1653]:
+                                    - generic [ref=e1654]: 23%
+                                - paragraph [ref=e1656]: higher inbounds
+                        - generic [ref=e1658]:
+                            - generic [ref=e1661]:
+                                - img "Ridge" [ref=e1664]
+                                - paragraph [ref=e1667]: I would say to book me 14 meetings with qualified prospects in that traditional method could take me three months, two to three months amongst all the other things that I'm balancing. So you're thinking of shrinking it down from 90 days down to 20, which is absolutely wild.
+                                - generic [ref=e1669]:
+                                    - img "Owen" [ref=e1673]
+                                    - generic [ref=e1674]:
+                                        - paragraph [ref=e1676]: Brandon Kay
+                                        - paragraph [ref=e1678]: VP Sales @Gallea AI
+                            - generic [ref=e1684]:
+                                - paragraph [ref=e1686]:
+                                    - generic [ref=e1687]: $638
+                                - paragraph [ref=e1689]: higher inbounds
+                    - generic [ref=e1690]:
+                        - generic [ref=e1692]:
+                            - generic [ref=e1695]:
+                                - img "10X" [ref=e1698]
+                                - paragraph [ref=e1701]: Valley gave us control of what we were doing as opposed to giving the keys and letting them go. But most importantly, the reason why we joined Valley is because it was a third of the price of the agency that we were using to do a similar type of outreach
+                                - generic [ref=e1703]:
+                                    - img "Sam Z" [ref=e1707]
+                                    - generic [ref=e1708]:
+                                        - paragraph [ref=e1710]: Sam Z
+                                        - paragraph [ref=e1712]: Sales Lead 10X Management
+                            - generic [ref=e1718]:
+                                - paragraph [ref=e1720]:
+                                    - generic [ref=e1721]: $125k
+                                - paragraph [ref=e1723]: higher inbounds
+                        - generic [ref=e1725]:
+                            - generic [ref=e1728]:
+                                - img "Super Position" [ref=e1731]
+                                - paragraph [ref=e1734]: The messages it writes are actually really high-taste. I was really surprised by the personalization. I don’t want to be a bottleneck for those connection requests going out - it’s that good.
+                                - generic [ref=e1736]:
+                                    - img "Edmund" [ref=e1740]
+                                    - generic [ref=e1741]:
+                                        - paragraph [ref=e1743]: Edmund Cuthbert
+                                        - paragraph [ref=e1745]: Founder at Superposition
+                            - generic [ref=e1751]:
+                                - paragraph [ref=e1753]:
+                                    - generic [ref=e1754]: 23%
+                                - paragraph [ref=e1756]: higher inbounds
+                        - generic [ref=e1758]:
+                            - generic [ref=e1761]:
+                                - paragraph [ref=e1766]: I've been doing this about 12 years and I've never used a tool like this before. We have Outreach, HubSpot, Seamless, but Valley has booked us more meetings than anything else we're using right now.
+                                - generic [ref=e1772]:
+                                    - paragraph [ref=e1774]: Jason Hardman
+                                    - paragraph [ref=e1776]: CEO @Technode
+                            - generic [ref=e1782]:
+                                - paragraph [ref=e1784]:
+                                    - generic [ref=e1785]: 23%
+                                - paragraph [ref=e1787]: higher inbounds
+            - generic [ref=e1793]:
+                - generic [ref=e1794]:
+                    - paragraph [ref=e1798]: UNBELIEVABLY GOOD LINKEDIN AUTOMATION
+                    - heading "Crafted by The Best Sales Teams" [level=2] [ref=e1801]
+                - generic [ref=e1803]:
+                    - list [ref=e1804]:
+                        - listitem "1 of 5" [ref=e1805]:
+                            - generic [ref=e1810]:
+                                - paragraph [ref=e1814]: Valley is outbound obsessed & is making a truly transformative impact on sales.
+                                - generic [ref=e1817]:
+                                    - paragraph [ref=e1819]: Jeff Ruby
+                                    - paragraph [ref=e1821]: Director of Sales @ Deel
+                        - listitem "2 of 5" [ref=e1827]:
+                            - generic [ref=e1832]:
+                                - paragraph [ref=e1836]: Valley is changing the way sales goes to market at scale. I'm all about how to scale everything. And, I want to get involved with a company that knows and is using Al so that I can learn and help figure out the way that we can implement for you and for the industry I'm in.
+                                - generic [ref=e1839]:
+                                    - paragraph [ref=e1841]: Dan Green
+                                    - paragraph [ref=e1843]: Director of Sales @ Lyft
+                        - listitem "3 of 5" [ref=e1849]:
+                            - generic [ref=e1854]:
+                                - paragraph [ref=e1858]: When I realized how incredible Valley would have been when I was an SDR in 2015/2016, it was a no brainer to become a part of the journey.
+                                - generic [ref=e1861]:
+                                    - paragraph [ref=e1863]: Nicolas Demaranis
+                                    - paragraph [ref=e1865]: VP of Sales @ WeWork
+                        - listitem "4 of 5" [ref=e1871]:
+                            - generic [ref=e1876]:
+                                - paragraph [ref=e1880]: The GTM landscape is evolving daily, and Valley will play / is playing in the future state of GTM tools.
+                                - generic [ref=e1883]:
+                                    - paragraph [ref=e1885]: Kevin Gillies
+                                    - paragraph [ref=e1887]: Director of Strat Sales @ Miro
+                        - listitem "5 of 5" [ref=e1893]:
+                            - generic [ref=e1898]:
+                                - paragraph [ref=e1902]: Email and Linkedin definitely work but the personalization requirements to make them work have just gotten higher. The new bar is being set by Valley. Go see it for yourself.
+                                - generic [ref=e1905]:
+                                    - paragraph [ref=e1907]: Garrett Marker
+                                    - paragraph [ref=e1909]: CRO @ Brex
+                    - group "Carousel pagination controls":
+                        - button "Previous"
+                        - button "Next" [ref=e1915] [cursor=pointer]
+            - generic [ref=e1924]:
+                - generic [ref=e1925]:
+                    - paragraph [ref=e1929]: HELP YOUR SALES TEAM BOOK MORE DEALS IN THE NEXT 30 DAYS
+                    - generic [ref=e1930]:
+                        - paragraph [ref=e1932]: The Only Way Outbound Should be
+                        - generic [ref=e1933]:
+                            - paragraph [ref=e1935]: Done on
+                            - generic [ref=e1936]:
+                                - img [ref=e1939]
+                                - paragraph [ref=e1942]: LinkedIn
+                - iframe [ref=e1944]:
+
+            - generic [ref=e1951]:
+                - generic [ref=e1952]:
+                    - generic [ref=e1953]:
+                        - paragraph [ref=e1956]: YOUR CALENDAR, 30 DAYS FROM NOW
+                        - paragraph [ref=e1958]: See what Valley fills your calendar with.
+                    - paragraph [ref=e1962]: Valley sends 100 outbounds a day
+                    - generic [ref=e1989]:
+                        - link "Try Valley Now" [ref=e1993] [cursor=pointer]:
+                            - /url: https://app.joinvalley.co/signup
+                            - paragraph [ref=e1997]: Try Valley Now
+                        - paragraph [ref=e1999]: Most teams using a complex stack (ChatGPT, Clay, Phantombuster, Heyreach) see just 1–2% conversions. With Valley, your all-in-one AI platform drives 15–45%, all without lifting a finger.
+                - generic [ref=e2000]:
+                    - paragraph [ref=e2003]: July 2025
+                    - generic [ref=e2007]:
+                        - generic [ref=e2008]:
+                            - generic:
+                                - paragraph: Sun
+                        - generic [ref=e2009]:
+                            - generic:
+                                - paragraph: Mon
+                        - generic [ref=e2010]:
+                            - generic:
+                                - paragraph: Tue
+                        - generic [ref=e2011]:
+                            - generic:
+                                - paragraph: Wed
+                        - generic [ref=e2012]:
+                            - generic:
+                                - paragraph: Thu
+                        - generic [ref=e2013]:
+                            - generic:
+                                - paragraph: Fri
+                        - generic [ref=e2014]:
+                            - generic:
+                                - paragraph: Sat
+                    - generic [ref=e2015]:
+                        - generic [ref=e2017]:
+                            - paragraph [ref=e2020]: '29'
+                            - generic [ref=e2021]:
+                                - paragraph [ref=e2024]: Danny/Followup
+                                - paragraph [ref=e2029]: Demo Call
+                        - generic [ref=e2035]:
+                            - paragraph [ref=e2038]: '30'
+                            - paragraph [ref=e2042]: Kastor CEO
+                        - generic [ref=e2047]:
+                            - paragraph [ref=e2050]: '1'
+                            - generic [ref=e2051]:
+                                - paragraph [ref=e2054]: Discovery Call
+                                - paragraph [ref=e2059]: Acme<>John
+                        - generic [ref=e2065]:
+                            - paragraph [ref=e2068]: '2'
+                            - generic [ref=e2069]:
+                                - paragraph [ref=e2072]: Liam/Followup
+                                - paragraph [ref=e2077]: Demo Call
+                                - paragraph [ref=e2082]: Valley/Demo
+                        - generic [ref=e2089]:
+                            - paragraph [ref=e2092]: '3'
+                            - paragraph [ref=e2096]: Demo Call
+                        - generic [ref=e2101]:
+                            - paragraph [ref=e2104]: '4'
+                            - generic [ref=e2105]:
+                                - paragraph [ref=e2108]: Liam/Followup
+                                - paragraph [ref=e2113]: Demo Call
+                                - paragraph [ref=e2118]: Valley/Demo
+                        - generic [ref=e2125]:
+                            - paragraph [ref=e2128]: '5'
+                            - generic [ref=e2129]:
+                                - paragraph [ref=e2132]: Intro/OpenAI
+                                - paragraph [ref=e2137]: Demo Call
+                        - generic [ref=e2143]:
+                            - paragraph [ref=e2146]: '6'
+                            - generic [ref=e2147]:
+                                - paragraph [ref=e2150]: Liam/Followup
+                                - paragraph [ref=e2155]: Demo Call
+                                - paragraph [ref=e2160]: Valley/Demo
+                        - generic [ref=e2167]:
+                            - paragraph [ref=e2170]: '7'
+                            - generic [ref=e2171]:
+                                - paragraph [ref=e2174]: Discovery Call
+                                - paragraph [ref=e2179]: Quick Deo
+                                - paragraph [ref=e2184]: Acme<>Sophie
+                        - generic [ref=e2191]:
+                            - paragraph [ref=e2194]: '8'
+                            - generic [ref=e2195]:
+                                - paragraph [ref=e2198]: Demo Call
+                                - paragraph [ref=e2203]: Close/Outline
+                        - generic [ref=e2209]:
+                            - paragraph [ref=e2212]: '9'
+                            - generic [ref=e2213]:
+                                - paragraph [ref=e2216]: Liam/Followup
+                                - paragraph [ref=e2221]: Demo Call
+                                - paragraph [ref=e2226]: Valley/Demo
+                        - generic [ref=e2233]:
+                            - paragraph [ref=e2236]: '10'
+                            - generic [ref=e2237]:
+                                - paragraph [ref=e2240]: Liam/Followup
+                                - paragraph [ref=e2245]: Demo Call
+                                - paragraph [ref=e2250]: Valley/Demo
+                        - generic [ref=e2257]:
+                            - paragraph [ref=e2260]: '11'
+                            - generic [ref=e2261]:
+                                - paragraph [ref=e2264]: Liam/Followup
+                                - paragraph [ref=e2269]: Demo Call
+                                - paragraph [ref=e2274]: Valley/Demo
+                        - generic [ref=e2281]:
+                            - paragraph [ref=e2284]: '12'
+                            - generic [ref=e2285]:
+                                - paragraph [ref=e2288]: Asheley's Demo
+                                - paragraph [ref=e2293]: Growth Team
+                        - generic [ref=e2299]:
+                            - paragraph [ref=e2302]: '13'
+                            - generic [ref=e2303]:
+                                - paragraph [ref=e2306]: Liam/Followup
+                                - paragraph [ref=e2311]: Jake/Intro
+                                - paragraph [ref=e2316]: Valley/Demo
+                        - generic [ref=e2323]:
+                            - paragraph [ref=e2326]: '14'
+                            - generic [ref=e2327]:
+                                - paragraph [ref=e2330]: Rahee Demo
+                                - paragraph [ref=e2335]: Discovery Call
+                        - generic [ref=e2341]:
+                            - paragraph [ref=e2344]: '15'
+                            - paragraph [ref=e2348]: Valley Demo
+                        - generic [ref=e2353]:
+                            - paragraph [ref=e2356]: '16'
+                            - generic [ref=e2357]:
+                                - paragraph [ref=e2360]: Liam/Followup
+                                - paragraph [ref=e2365]: Demo Call
+                                - paragraph [ref=e2370]: Valley/Demo
+                        - generic [ref=e2377]:
+                            - paragraph [ref=e2380]: '17'
+                            - generic [ref=e2381]:
+                                - paragraph [ref=e2384]: Close/Outline
+                                - paragraph [ref=e2389]: Demo Call
+                        - generic [ref=e2395]:
+                            - paragraph [ref=e2398]: '18'
+                            - paragraph [ref=e2402]: Clay/AE Demo
+                        - generic [ref=e2407]:
+                            - paragraph [ref=e2410]: '19'
+                            - generic [ref=e2411]:
+                                - paragraph [ref=e2414]: Liam/Followup
+                                - paragraph [ref=e2419]: Demo Call
+                                - paragraph [ref=e2424]: Valley/Demo
+                        - generic [ref=e2431]:
+                            - paragraph [ref=e2434]: '20'
+                            - paragraph [ref=e2438]: Jessica/Intro
+                        - generic [ref=e2443]:
+                            - paragraph [ref=e2446]: '21'
+                            - generic [ref=e2447]:
+                                - paragraph [ref=e2450]: Liam/Followup
+                                - paragraph [ref=e2455]: Demo Call
+                                - paragraph [ref=e2460]: Valley/Demo
+                        - generic [ref=e2467]:
+                            - paragraph [ref=e2470]: '22'
+                            - generic [ref=e2471]:
+                                - paragraph [ref=e2474]: Demo Call
+                                - paragraph [ref=e2479]: Folk Demo
+                        - generic [ref=e2485]:
+                            - paragraph [ref=e2488]: '23'
+                            - generic [ref=e2489]:
+                                - paragraph [ref=e2492]: Liam/Followup
+                                - paragraph [ref=e2497]: Demo Call
+                                - paragraph [ref=e2502]: Valley/Demo
+                        - generic [ref=e2509]:
+                            - paragraph [ref=e2512]: '24'
+                            - generic [ref=e2513]:
+                                - paragraph [ref=e2516]: Liam/Followup
+                                - paragraph [ref=e2521]: Demo Call
+                                - paragraph [ref=e2526]: Valley/Demo
+                        - generic [ref=e2533]:
+                            - paragraph [ref=e2536]: '25'
+                            - paragraph [ref=e2540]: Rahee Demo
+                        - generic [ref=e2545]:
+                            - paragraph [ref=e2548]: '26'
+                            - generic [ref=e2549]:
+                                - paragraph [ref=e2552]: Liam/Followup
+                                - paragraph [ref=e2557]: Demo Call
+                                - paragraph [ref=e2562]: Valley/Demo
+                        - generic [ref=e2569]:
+                            - paragraph [ref=e2572]: '27'
+                            - generic [ref=e2573]:
+                                - paragraph [ref=e2576]: Liam/Followup
+                                - paragraph [ref=e2581]: Demo Call
+                                - paragraph [ref=e2586]: Valley/Demo
+                        - generic [ref=e2593]:
+                            - paragraph [ref=e2596]: '28'
+                            - paragraph [ref=e2600]: Demo
+                        - generic [ref=e2605]:
+                            - paragraph [ref=e2608]: '29'
+                            - generic [ref=e2609]:
+                                - paragraph [ref=e2612]: Growth Team
+                                - paragraph [ref=e2617]: Zayd/Demo
+                        - generic [ref=e2623]:
+                            - paragraph [ref=e2626]: '30'
+                            - generic [ref=e2627]:
+                                - paragraph [ref=e2630]: Liam/Followup
+                                - paragraph [ref=e2635]: Demo Call
+                                - paragraph [ref=e2640]: Valley/Demo
+                        - generic [ref=e2647]:
+                            - paragraph [ref=e2650]: '31'
+                            - paragraph [ref=e2654]: Monthly Review
+                        - generic [ref=e2659]:
+                            - paragraph [ref=e2662]: '01'
+                            - generic [ref=e2663]:
+                                - paragraph [ref=e2666]: Liam/Followup
+                                - paragraph [ref=e2671]: Demo Call
+                                - paragraph [ref=e2676]: Valley/Demo
+                        - generic [ref=e2683]:
+                            - paragraph [ref=e2686]: '02'
+                            - generic [ref=e2687]:
+                                - paragraph [ref=e2690]: Liam/Followup
+                                - paragraph [ref=e2695]: Demo Call
+                                - paragraph [ref=e2700]: Valley/Demo
+            - generic [ref=e2708]:
+                - img "Valley AI" [ref=e2711]
+                - generic [ref=e2713]:
+                    - paragraph [ref=e2718]: SEE IT IN THEIR WORDS
+                    - generic [ref=e2719]:
+                        - heading "Here's Why Sales Teams Love Valley" [level=2] [ref=e2721]:
+                            - text: Here's Why Sales
+                            - text: Teams Love Valley
+                        - paragraph [ref=e2724]:
+                            - text: Valley makes monthly pipeline reviews less
+                            - text: anxiety inducing. Run top 1% outbound that
+                            - text: makes you say 'Valley's there for me!"
+                    - paragraph [ref=e2733] [cursor=pointer]: Book a demo →
+            - generic [ref=e2759]:
+                - generic [ref=e2760]:
+                    - paragraph [ref=e2763]:
+                        - text: Have questions?
+                        - text: We got answers
+                    - img [ref=e2766]
+                - generic [ref=e2769]:
+                    - generic [ref=e2773] [cursor=pointer]:
+                        - paragraph [ref=e2775]: Are Valley's messages really personalized, or just sophisticated templates?
+                        - paragraph [ref=e2777]: Every Valley message is based on 60+ data points of research - recent LinkedIn posts, company news, podcast appearances, funding rounds, job changes, mutual connections. The AI references what the prospect actually cares about, in your voice. Prospects reply with "This is one of the best cold DMs I've ever gotten" (real quote). See 100+ unedited examples at coolmessagebro.com.
+                    - generic [ref=e2784] [cursor=pointer]:
+                        - paragraph [ref=e2786]: Does Valley find leads, or do I provide lists?
+                        - paragraph [ref=e2788]: Both. Valley automatically captures people who viewed your profile, engaged with your posts, followed your company, or liked a competitor’s post - these are your warmest leads. You can also import custom lists via CSV or Sales Navigator. Most teams use both - warm signals for quality, imported lists for scale.
+                    - generic [ref=e2795] [cursor=pointer]:
+                        - paragraph [ref=e2797]: Will my LinkedIn account get restricted?
+                        - paragraph [ref=e2799]: Every Valley account runs on dedicated IPs (not shared with other users) and stays inside LinkedIn's limits. We've managed 1,000+ accounts for over a year with zero restrictions. We're so confident we offer a 5x money-back guarantee - if your account is ever suspended because of Valley, we refund 5x your subscription.
+                    - generic [ref=e2806] [cursor=pointer]:
+                        - paragraph [ref=e2808]: What does Valley replace in my current stack?
+                        - paragraph [ref=e2810]: "For most teams: Sales Navigator (lead finding) + Clay (enrichment) + ChatGPT (message writing) + HeyReach or Phantombuster (sending) + Zapier (glue between them). That's $750+/month and hours of maintenance. Valley replaces all of it."
+        - generic [ref=e2816]:
+            - generic [ref=e2817]:
+                - paragraph [ref=e2818]: '"Just get me on the call. I''ll close it."'
+                - paragraph [ref=e2819]: You've said this. We believe you. Let's fill your calendar.
+            - paragraph [ref=e2828] [cursor=pointer]: Join Valley →
+        - generic [ref=e2831]:
+            - generic [ref=e2833]:
+                - generic [ref=e2835]:
+                    - generic [ref=e2836]:
+                        - link "Valley" [ref=e2837] [cursor=pointer]:
+                            - /url: ./
+                            - img [ref=e2840]
+                            - paragraph [ref=e2843]: Valley
+                        - generic [ref=e2844]:
+                            - paragraph [ref=e2846]: Valley AI - LinkedIn Outbound That Books Meetings
+                            - paragraph [ref=e2848]:
+                                - text: 'Contact:'
+                                - link "hey@joinvalley.co" [ref=e2849] [cursor=pointer]:
+                                    - /url: mailto:hey@joinvalley.co
+                    - generic [ref=e2850]:
+                        - textbox [ref=e2853]:
+                            - /placeholder: Work Email
+                        - button [ref=e2855] [cursor=pointer]
+                - generic [ref=e2859]:
+                    - generic [ref=e2860]:
+                        - generic [ref=e2861]:
+                            - paragraph [ref=e2863]: Company
+                            - generic [ref=e2864]:
+                                - link "About" [ref=e2866] [cursor=pointer]:
+                                    - /url: https://www.joinvalley.co/about
+                                    - paragraph [ref=e2868]: About
+                                - link "Careers" [ref=e2870] [cursor=pointer]:
+                                    - /url: https://www.linkedin.com/company/welcometovalley/jobs/
+                                    - paragraph [ref=e2872]: Careers
+                        - generic [ref=e2873]:
+                            - paragraph [ref=e2875]: Products
+                            - generic [ref=e2876]:
+                                - paragraph [ref=e2880] [cursor=pointer]: Personalization
+                                - link "Pricing" [ref=e2882] [cursor=pointer]:
+                                    - /url: ./pricing
+                                    - paragraph [ref=e2884]: Pricing
+                    - generic [ref=e2885]:
+                        - generic [ref=e2886]:
+                            - paragraph [ref=e2888]: Resources
+                            - generic [ref=e2889]:
+                                - link "ROI Calculator" [ref=e2891] [cursor=pointer]:
+                                    - /url: https://roi.joinvalley.co/?utm_source=website
+                                    - paragraph [ref=e2893]: ROI Calculator
+                                - link "Messaging Examples" [ref=e2895] [cursor=pointer]:
+                                    - /url: https://coolmessagebro.com/
+                                    - paragraph [ref=e2897]: Messaging Examples
+                                - link "Is Valley a fit for me?" [ref=e2899] [cursor=pointer]:
+                                    - /url: https://valley-assessment-production.up.railway.app/
+                                    - paragraph [ref=e2901]: Is Valley a fit for me?
+                                - link "Blog" [ref=e2903] [cursor=pointer]:
+                                    - /url: ./blog
+                                    - paragraph [ref=e2905]: Blog
+                        - generic [ref=e2906]:
+                            - paragraph [ref=e2908]: Socials
+                            - generic [ref=e2909]:
+                                - link "LinkedIn" [ref=e2911] [cursor=pointer]:
+                                    - /url: https://www.linkedin.com/company/welcometovalley/
+                                    - paragraph [ref=e2913]: LinkedIn
+                                - link "Enabled" [ref=e2915] [cursor=pointer]:
+                                    - /url: https://enabled.beehiiv.com/
+                                    - paragraph [ref=e2917]: Enabled
+            - generic [ref=e2918]:
+                - paragraph [ref=e2920]:
+                    - link "© 2026 Valley. All rights reserved" [ref=e2921] [cursor=pointer]:
+                        - /url: ./
+                - paragraph [ref=e2923]:
+                    - link "PRIVACY POLICY" [ref=e2924] [cursor=pointer]:
+                        - /url: ./privacy-policy
+                - paragraph [ref=e2926]:
+                    - link "TERMS OF SERVICES" [ref=e2927] [cursor=pointer]:
+                        - /url: ./terms-of-service
+            - img [ref=e2931]
+    - img [ref=e2937]
+    - img [ref=e2939]
+    - img [ref=e2941]
+    - img [ref=e2945]
+    - img [ref=e2947]
+    - img [ref=e2949]
+    - img [ref=e2951]
+    - img [ref=e2953]
+    - img [ref=e2959]
+    - img [ref=e2962]
+    - img [ref=e2968]
+    - img [ref=e2975]
+    - img [ref=e2980]
+    - img [ref=e2982]
+    - img [ref=e2988]
+    - img [ref=e2993]
+    - img [ref=e2995]
+    - img [ref=e3019]
+    - img [ref=e3021]
+    - img [ref=e3023]
+    - img [ref=e3034]
+    - img [ref=e3038]
+    - img [ref=e3044]
+    - img [ref=e3046]
+    - img [ref=e3048]
+    - img [ref=e3050]
+    - img [ref=e3052]
+    - img [ref=e3054]
+    - img [ref=e3056]
+    - img [ref=e3060]
+    - img [ref=e3062]
+    - img [ref=e3066]

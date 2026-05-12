@@ -1,101 +1,141 @@
 "use client";
 
-import { Search, Users } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { formatDistanceToNow } from "date-fns";
+import { ExternalLink, Search, Users } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { BentoCard } from "@/components/bento-card";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { useGetUsersQuery } from "@/features/admin/adminApi";
+import { DataTable } from "@/components/data-table";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
+import { type AdminUser, useGetUsersQuery } from "@/features/admin/adminApi";
+
+const PAGE_SIZE = 25;
 
 export default function UsersPage() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+
   const { data, isLoading } = useGetUsersQuery({
-    limit: 50,
-    offset: 0,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
     search: search || undefined,
   });
+
   const users = data?.data ?? [];
+  const total = data?.total ?? 0;
+
+  const columns: ColumnDef<AdminUser>[] = [
+    {
+      accessorKey: "email",
+      header: "Email",
+      cell: ({ row }) => (
+        <div>
+          <Link
+            href={`/users/${row.original.id}`}
+            className="font-medium text-zinc-900 dark:text-zinc-100 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors flex items-center gap-1 group"
+          >
+            {row.original.email}
+            <ExternalLink
+              size={11}
+              className="opacity-0 group-hover:opacity-50 transition-opacity"
+            />
+          </Link>
+          {row.original.displayName && (
+            <div className="text-[10px] text-zinc-400 mt-0.5">
+              {row.original.displayName}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+      cell: ({ row }) => <StatusBadge value={row.original.role} />,
+      size: 140,
+    },
+    {
+      accessorKey: "clinicName",
+      header: "Clinic",
+      cell: ({ row }) =>
+        row.original.clinicName ? (
+          <Link
+            href={`/tenants/${row.original.tenantId}`}
+            className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+          >
+            {row.original.clinicName}
+          </Link>
+        ) : (
+          <span className="text-xs text-zinc-400">—</span>
+        ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ row }) => (
+        <span className="text-xs text-zinc-400">
+          {formatDistanceToNow(new Date(row.original.createdAt), {
+            addSuffix: true,
+          })}
+        </span>
+      ),
+      size: 140,
+    },
+  ];
 
   return (
     <DashboardShell>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50">
-              Users
-            </h1>
-            <p className="text-sm text-zinc-500">
-              Platform and tenant user accounts
-            </p>
-          </div>
-          <div className="relative">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by email..."
-              className="pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 w-64 transition"
-            />
-          </div>
-        </div>
+        <PageHeader
+          title="Users"
+          description={`${total.toLocaleString()} user account${total !== 1 ? "s" : ""}`}
+          actions={
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="Search by email…"
+                className="pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 w-56 transition"
+              />
+            </div>
+          }
+        />
 
-        <BentoCard title="User Directory" icon={<Users size={14} />}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-zinc-500 dark:text-zinc-400 text-xs font-medium border-b border-zinc-100 dark:border-zinc-800/50">
-                <tr>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Clinic</th>
-                  <th className="px-4 py-3 text-right">Created</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                {isLoading ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-12 text-center text-zinc-500"
-                    >
-                      Loading users...
-                    </td>
-                  </tr>
-                ) : users.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-12 text-center text-zinc-500"
-                    >
-                      No users found
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors"
-                    >
-                      <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
-                        {user.email}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">
-                        {user.role}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">
-                        {user.clinicName || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs text-zinc-500">
-                        {new Date(user.createdAt).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+        <BentoCard>
+          {!isLoading && users.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No users found"
+              description={
+                search
+                  ? "Try a different search term."
+                  : "No user accounts exist yet."
+              }
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={users}
+              total={total}
+              page={page}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+              isLoading={isLoading}
+              emptyMessage="No users found"
+            />
+          )}
         </BentoCard>
       </div>
     </DashboardShell>

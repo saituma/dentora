@@ -1,124 +1,190 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Phone } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { formatDistanceToNow } from "date-fns";
+import { ExternalLink, Phone, Search } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { BentoCard } from "@/components/bento-card";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { useGetCallsQuery } from "@/features/admin/adminApi";
+import { DataTable } from "@/components/data-table";
+import { EmptyState } from "@/components/empty-state";
+import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
+import { type CallSession, useGetCallsQuery } from "@/features/admin/adminApi";
 
-const statusBadge: Record<string, string> = {
-  completed: "bg-emerald-500/10 text-emerald-400",
-  in_progress: "bg-blue-500/10 text-blue-400",
-  started: "bg-amber-500/10 text-amber-400",
-  failed: "bg-rose-500/10 text-rose-400",
-  escalated: "bg-orange-500/10 text-orange-400",
-};
+const PAGE_SIZE = 25;
+const STATUSES = [
+  "",
+  "completed",
+  "in_progress",
+  "started",
+  "failed",
+  "escalated",
+];
 
 export default function CallsPage() {
   const [page, setPage] = useState(0);
-  const limit = 20;
-  const { data, isLoading } = useGetCallsQuery({ limit, offset: page * limit });
-  const calls = data?.data ?? [];
+  const [statusFilter, setStatusFilter] = useState("");
+  const [tenantSearch, setTenantSearch] = useState("");
+
+  const { data, isLoading } = useGetCallsQuery({
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+    status: statusFilter || undefined,
+  });
+
+  const calls = (data?.data ?? []).filter((c) =>
+    tenantSearch
+      ? c.clinicName?.toLowerCase().includes(tenantSearch.toLowerCase())
+      : true,
+  );
   const total = data?.total ?? 0;
+
+  const columns: ColumnDef<CallSession>[] = [
+    {
+      accessorKey: "clinicName",
+      header: "Clinic",
+      cell: ({ row }) => (
+        <span className="font-medium text-zinc-900 dark:text-zinc-100 truncate max-w-[160px] block">
+          {row.original.clinicName || "Unknown"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "callerNumber",
+      header: "Caller",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-zinc-500">
+          {row.original.callerNumber || "—"}
+        </span>
+      ),
+      size: 130,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <StatusBadge value={row.original.status} dot />,
+      size: 120,
+    },
+    {
+      accessorKey: "intentSummary",
+      header: "Intent",
+      cell: ({ row }) => (
+        <span className="text-xs text-zinc-500 line-clamp-1 max-w-[200px]">
+          {row.original.intentSummary || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "durationSeconds",
+      header: "Duration",
+      cell: ({ row }) => {
+        const s = row.original.durationSeconds ?? 0;
+        const min = Math.floor(s / 60);
+        const sec = s % 60;
+        return (
+          <span className="font-mono text-xs text-zinc-500">
+            {min > 0 ? `${min}m ${sec}s` : `${sec}s`}
+          </span>
+        );
+      },
+      size: 90,
+    },
+    {
+      accessorKey: "startedAt",
+      header: "Started",
+      cell: ({ row }) => (
+        <span className="text-xs text-zinc-400">
+          {row.original.startedAt
+            ? formatDistanceToNow(new Date(row.original.startedAt), {
+                addSuffix: true,
+              })
+            : "—"}
+        </span>
+      ),
+      size: 120,
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      size: 50,
+      cell: ({ row }) => (
+        <Link
+          href={`/calls/${row.original.id}`}
+          className="text-zinc-400 hover:text-emerald-500 transition-colors"
+          aria-label="View call details"
+        >
+          <ExternalLink size={14} />
+        </Link>
+      ),
+    },
+  ];
 
   return (
     <DashboardShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50">
-            Calls
-          </h1>
-          <p className="text-sm text-zinc-500">
-            Recent and in-flight call sessions
-          </p>
-        </div>
-
-        <BentoCard title="Call Sessions" icon={<Phone size={14} />}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-zinc-500 dark:text-zinc-400 text-xs font-medium border-b border-zinc-100 dark:border-zinc-800/50">
-                <tr>
-                  <th className="px-4 py-3">Clinic</th>
-                  <th className="px-4 py-3">Caller</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Intent</th>
-                  <th className="px-4 py-3 text-right">Duration</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
-                {isLoading ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-12 text-center text-zinc-500"
-                    >
-                      Loading calls...
-                    </td>
-                  </tr>
-                ) : calls.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-12 text-center text-zinc-500"
-                    >
-                      No calls found
-                    </td>
-                  </tr>
-                ) : (
-                  calls.map((call) => (
-                    <tr
-                      key={call.id}
-                      className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors"
-                    >
-                      <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
-                        {call.clinicName || "Unknown"}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-zinc-500">
-                        {call.callerNumber || "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusBadge[call.status] ?? "bg-zinc-500/10 text-zinc-400"}`}
-                        >
-                          {call.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-500 text-xs">
-                        {call.intentSummary || "-"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-zinc-500 font-mono text-xs">
-                        {call.durationSeconds ?? 0}s
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          {total > limit && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-800/50">
-              <span className="text-xs text-zinc-500">
-                Page {page + 1} of {Math.ceil(total / limit)}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPage(Math.max(0, page - 1))}
-                  disabled={page === 0}
-                  className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPage(page + 1)}
-                  disabled={(page + 1) * limit >= total}
-                  className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 disabled:opacity-30 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                >
-                  <ChevronRight size={14} />
-                </button>
+        <PageHeader
+          title="Calls"
+          description="All call sessions across the platform"
+          actions={
+            <div className="flex items-center gap-2">
+              {/* Status pills */}
+              <div className="flex gap-1 flex-wrap">
+                {STATUSES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter(s);
+                      setPage(0);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                      statusFilter === s
+                        ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    {s === "" ? "All" : s.replace("_", " ")}
+                  </button>
+                ))}
+              </div>
+              {/* Clinic search */}
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                />
+                <input
+                  type="text"
+                  value={tenantSearch}
+                  onChange={(e) => setTenantSearch(e.target.value)}
+                  placeholder="Filter by clinic…"
+                  className="pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 w-44 transition"
+                />
               </div>
             </div>
+          }
+        />
+
+        <BentoCard>
+          {!isLoading && calls.length === 0 ? (
+            <EmptyState
+              icon={Phone}
+              title="No calls found"
+              description="No call sessions match the current filters."
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={calls}
+              total={total}
+              page={page}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+              isLoading={isLoading}
+              emptyMessage="No calls found"
+            />
           )}
         </BentoCard>
       </div>

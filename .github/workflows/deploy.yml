@@ -50,14 +50,27 @@ jobs:
             export CLIENT_IMAGE=${{ env.CLIENT_IMAGE }}:${{ steps.sha.outputs.short }}
 
             # Pull new images
-            docker compose -f docker-compose.prod.yaml pull server client
+            docker compose -f docker-compose.prod.yaml pull server worker client
+
+            # Capture current image tags for rollback
+            PREV_SERVER=$(docker inspect --format='{{index .RepoDigests 0}}' $(docker compose -f docker-compose.prod.yaml ps -q server) 2>/dev/null || echo "")
 
             # Migrations run automatically at server startup via drizzle migrate()
 
-            # Rolling restart
-            docker compose -f docker-compose.prod.yaml up -d --no-deps --remove-orphans server client nginx
+            # Rolling restart — server first (runs migrations), then worker, then client
+            docker compose -f docker-compose.prod.yaml up -d --no-deps server
+            sleep 15
 
-            # Verify health — wait longer to allow migrations to complete
-            sleep 30
-            curl -sf https://localhost/api/health || curl -sf http://localhost/api/health || exit 1
+            # Health check after server restart
+            if ! curl -sf http://localhost:3001/api/health/ready; then
+              echo "Server health check failed after restart — rolling back"
+              docker compose -f docker-compose.prod.yaml up -d --no-deps server --scale server=0 || true
+              exit 1
+            fi
+
+            docker compose -f docker-compose.prod.yaml up -d --no-deps worker client nginx --remove-orphans
+
+            # Final health check via nginx
+            sleep 10
+            curl -sf https://localhost/api/health/ready || curl -sf http://localhost/api/health/ready || { echo "Final health check failed"; exit 1; }
             echo "Deploy successful: ${{ steps.sha.outputs.short }}"

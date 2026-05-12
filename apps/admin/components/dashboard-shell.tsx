@@ -8,7 +8,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
@@ -16,21 +15,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <TooltipProvider>
         <SidebarProvider>
           <AppSidebar />
-          <SidebarInset className="bg-[#fafafa] dark:bg-[#050505]">
-            <header className="flex h-14 shrink-0 items-center gap-2 px-6 border-b border-zinc-200/50 dark:border-white/5">
-              <SidebarTrigger className="-ml-1" />
-              <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-2" />
+          <SidebarInset className="bg-[#F6F6F6]">
+            <header className="flex h-12 shrink-0 items-center gap-3 px-5 bg-white border-b border-black/[0.07]">
+              <SidebarTrigger className="-ml-1 text-zinc-500 hover:text-zinc-900" />
+              <div className="h-4 w-px bg-black/10" />
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-emerald-500 uppercase tracking-widest">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-zinc-900 uppercase tracking-widest">
                   Admin
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <div className="ml-auto">
-                <ThemeToggle />
               </div>
             </header>
-            <main className="flex-1 p-6 md:p-8 lg:p-10">{children}</main>
+            <main className="flex-1 p-6 md:p-8">{children}</main>
           </SidebarInset>
         </SidebarProvider>
       </TooltipProvider>

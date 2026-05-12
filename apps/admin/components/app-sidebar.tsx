@@ -48,24 +48,29 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   };
 
   return (
-    <Sidebar variant="inset" {...props} className="border-none bg-transparent">
-      <SidebarHeader className="p-6">
+    <Sidebar
+      variant="inset"
+      {...props}
+      className="border-r border-black/[0.07] bg-white"
+    >
+      <SidebarHeader className="px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.4)] text-white">
-            <Activity size={24} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-[0_2px_8px_rgba(16,185,129,0.35)]">
+            <Activity size={18} />
           </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <div>
+            <div className="text-sm font-bold tracking-tight text-zinc-900">
               Dentora
-            </span>
-            <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-500">
-              Admin Portal
-            </span>
+            </div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+              Admin
+            </div>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-4">
-        <SidebarMenu>
+
+      <SidebarContent className="px-3">
+        <SidebarMenu className="space-y-0.5">
           {navItems.map((item) => {
             const isActive =
               item.href === "/"
@@ -79,29 +84,29 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   onClick={() => router.push(item.href)}
                   className={
                     isActive
-                      ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/15"
-                      : ""
+                      ? "bg-zinc-900 text-white hover:bg-zinc-900 hover:text-white rounded-xl font-semibold"
+                      : "text-zinc-500 hover:text-zinc-900 hover:bg-black/[0.04] rounded-xl font-medium"
                   }
                 >
-                  <span className="flex items-center gap-3 font-medium">
-                    <item.icon size={20} />
-                    <span>{item.title}</span>
-                  </span>
+                  <item.icon size={16} />
+                  <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );
           })}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-4 mt-auto">
+
+      <SidebarFooter className="px-3 pb-4">
+        <div className="h-px bg-black/[0.06] mb-3" />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip="Logout"
               onClick={handleLogout}
-              className="flex items-center gap-3 font-medium text-zinc-500 dark:text-zinc-400 hover:text-rose-500 cursor-pointer"
+              className="text-zinc-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl font-medium"
             >
-              <LogOut size={20} />
+              <LogOut size={16} />
               <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

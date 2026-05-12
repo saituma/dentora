@@ -4,51 +4,55 @@ import { baseQueryWithReauth } from "@/lib/api";
 export const adminApi = createApi({
   reducerPath: "adminApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Stats", "Tenants", "Calls", "Users", "AuditLog", "Health"],
+  tagTypes: [
+    "Stats",
+    "Tenants",
+    "Tenant",
+    "Calls",
+    "Call",
+    "Users",
+    "AuditLog",
+    "Health",
+    "Config",
+  ],
   endpoints: (builder) => ({
-    getStats: builder.query<
-      {
-        totalTenants: number;
-        activeTenants: number;
-        totalCallsToday: number;
-        activeProviders: number;
-      },
-      void
-    >({
+    // ── Platform ───────────────────────────────────────────────────────
+    getStats: builder.query<PlatformStats, void>({
       query: () => "/admin/stats",
       providesTags: ["Stats"],
     }),
-
-    getHealth: builder.query<
-      { status: string; services: Record<string, boolean>; timestamp: string },
-      void
-    >({
+    getHealth: builder.query<HealthResponse, void>({
       query: () => "/admin/health",
       providesTags: ["Health"],
     }),
-
-    getTenants: builder.query<
-      { data: Tenant[]; total: number },
-      { limit?: number; offset?: number; search?: string }
+    runDataRetention: builder.mutation<{ deleted: number }, void>({
+      query: () => ({ url: "/admin/data-retention/run", method: "POST" }),
+    }),
+    getConfig: builder.query<{ key: string; value: string }, string>({
+      query: (key) => `/admin/config/${key}`,
+      providesTags: (_r, _e, key) => [{ type: "Config", id: key }],
+    }),
+    setConfig: builder.mutation<
+      { message: string },
+      { key: string; value: string; description?: string }
     >({
-      query: (params) => ({
-        url: "/admin/tenants",
-        params,
+      query: ({ key, ...body }) => ({
+        url: `/admin/config/${key}`,
+        method: "PUT",
+        body,
       }),
+      invalidatesTags: (_r, _e, { key }) => [{ type: "Config", id: key }],
+    }),
+
+    // ── Tenants ────────────────────────────────────────────────────────
+    getTenants: builder.query<PaginatedResponse<Tenant>, TenantsQuery>({
+      query: (params) => ({ url: "/admin/tenants", params }),
       providesTags: ["Tenants"],
     }),
-
-    getTenant: builder.query<
-      Tenant & {
-        clinic?: Record<string, unknown>;
-        integrations?: unknown[];
-        users?: unknown[];
-      },
-      string
-    >({
+    getTenant: builder.query<TenantDetail, string>({
       query: (id) => `/admin/tenants/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "Tenant", id }],
     }),
-
     updateTenantStatus: builder.mutation<
       unknown,
       { tenantId: string; status: string }
@@ -61,43 +65,29 @@ export const adminApi = createApi({
       invalidatesTags: ["Tenants"],
     }),
 
-    getCalls: builder.query<
-      { data: CallSession[]; total: number },
-      { limit?: number; offset?: number; tenantId?: string; status?: string }
-    >({
-      query: (params) => ({
-        url: "/admin/calls",
-        params,
-      }),
+    // ── Calls ──────────────────────────────────────────────────────────
+    getCalls: builder.query<PaginatedResponse<CallSession>, CallsQuery>({
+      query: (params) => ({ url: "/admin/calls", params }),
       providesTags: ["Calls"],
     }),
-
-    getCall: builder.query<
-      { session: CallSession; events: unknown[]; transcript: unknown },
-      string
-    >({
+    getCall: builder.query<CallDetail, string>({
       query: (id) => `/admin/calls/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "Call", id }],
     }),
 
-    getUsers: builder.query<
-      { data: AdminUser[]; total: number },
-      { limit?: number; offset?: number; search?: string }
-    >({
-      query: (params) => ({
-        url: "/admin/users",
-        params,
-      }),
+    // ── Users ──────────────────────────────────────────────────────────
+    getUsers: builder.query<PaginatedResponse<AdminUser>, UsersQuery>({
+      query: (params) => ({ url: "/admin/users", params }),
       providesTags: ["Users"],
     }),
+    getUser: builder.query<AdminUser, string>({
+      query: (id) => `/admin/users/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "Users", id }],
+    }),
 
-    getAuditLog: builder.query<
-      { data: AuditEntry[]; total: number },
-      { limit?: number; offset?: number; tenantId?: string; action?: string }
-    >({
-      query: (params) => ({
-        url: "/admin/audit-log",
-        params,
-      }),
+    // ── Audit log ──────────────────────────────────────────────────────
+    getAuditLog: builder.query<PaginatedResponse<AuditEntry>, AuditQuery>({
+      query: (params) => ({ url: "/admin/audit-log", params }),
       providesTags: ["AuditLog"],
     }),
   }),
@@ -106,14 +96,69 @@ export const adminApi = createApi({
 export const {
   useGetStatsQuery,
   useGetHealthQuery,
+  useRunDataRetentionMutation,
+  useGetConfigQuery,
+  useSetConfigMutation,
   useGetTenantsQuery,
   useGetTenantQuery,
   useUpdateTenantStatusMutation,
   useGetCallsQuery,
   useGetCallQuery,
   useGetUsersQuery,
+  useGetUserQuery,
   useGetAuditLogQuery,
 } = adminApi;
+
+// ── Query param types ───────────────────────────────────────────────────
+
+export interface TenantsQuery {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  status?: string;
+  plan?: string;
+}
+
+export interface CallsQuery {
+  limit?: number;
+  offset?: number;
+  tenantId?: string;
+  status?: string;
+}
+
+export interface UsersQuery {
+  limit?: number;
+  offset?: number;
+  search?: string;
+}
+
+export interface AuditQuery {
+  limit?: number;
+  offset?: number;
+  tenantId?: string;
+  action?: string;
+  actorId?: string;
+}
+
+// ── Response types ──────────────────────────────────────────────────────
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+}
+
+export interface PlatformStats {
+  totalTenants: number;
+  activeTenants: number;
+  totalCallsToday: number;
+  activeProviders: number;
+}
+
+export interface HealthResponse {
+  status: string;
+  services: Record<string, boolean>;
+  timestamp: string;
+}
 
 export interface Tenant {
   id: string;
@@ -121,10 +166,33 @@ export interface Tenant {
   clinicSlug: string;
   plan: string;
   status: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
   totalCalls?: number;
   activeNumbers?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TenantDetail extends Tenant {
+  clinicProfile?: Record<string, unknown>[];
+  integrations?: Integration[];
+  users?: TenantUser[];
+}
+
+export interface TenantUser {
+  id: string;
+  email: string;
+  displayName?: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface Integration {
+  id: string;
+  provider: string;
+  status: string;
+  createdAt: string;
 }
 
 export interface CallSession {
@@ -137,9 +205,37 @@ export interface CallSession {
   intentSummary?: string;
   durationSeconds?: number;
   endReason?: string;
+  aiProvider?: string;
+  aiModel?: string;
+  costEstimate?: string;
   startedAt?: string;
   endedAt?: string;
   createdAt: string;
+}
+
+export interface CallEvent {
+  id: string;
+  eventType: string;
+  actor?: string;
+  payload?: Record<string, unknown>;
+  latencyMs?: number;
+  timestamp: string;
+}
+
+export interface CallTranscript {
+  id: string;
+  fullTranscript: unknown[];
+  summary?: string;
+  sentiment?: string;
+  intentDetected?: string;
+  createdAt: string;
+}
+
+export interface CallDetail {
+  data: CallSession & {
+    events: CallEvent[];
+    transcripts: CallTranscript[];
+  };
 }
 
 export interface AdminUser {
@@ -160,6 +256,8 @@ export interface AuditEntry {
   action: string;
   entityType?: string;
   entityId?: string;
+  beforeState?: Record<string, unknown>;
+  afterState?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
