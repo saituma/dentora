@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { logout } from "@/features/auth/authSlice";
-import { useLogoutMutation } from "@/features/auth/authApi";
-import { useGetClinicQuery } from "@/features/clinic/clinicApi";
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { logout } from '@/features/auth/authSlice';
+import { useLogoutMutation } from '@/features/auth/authApi';
+import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import {
   Sidebar,
   SidebarContent,
@@ -14,8 +14,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { NavUser } from "@/components/nav-user";
+} from '@/components/ui/sidebar';
+import { NavUser } from '@/components/nav-user';
 import {
   LayoutDashboardIcon,
   BotIcon,
@@ -28,47 +28,47 @@ import {
   ChevronsUpDownIcon,
   UsersIcon,
   StethoscopeIcon,
-} from "lucide-react";
+} from 'lucide-react';
 
 const navItems = [
-  { title: "Overview", url: "/dashboard", icon: <LayoutDashboardIcon /> },
+  { title: 'Overview', url: '/dashboard', icon: <LayoutDashboardIcon /> },
   {
-    title: "AI Receptionist",
-    url: "/dashboard/ai-receptionist",
+    title: 'AI Receptionist',
+    url: '/dashboard/ai-receptionist',
     icon: <BotIcon />,
   },
   {
-    title: "Dentora Agent",
-    url: "/dashboard/elevenlabs-agent",
+    title: 'Dentora Agent',
+    url: '/dashboard/elevenlabs-agent',
     icon: <BotIcon />,
   },
-{
-    title: "Appointments",
-    url: "/dashboard/appointments",
+  {
+    title: 'Appointments',
+    url: '/dashboard/appointments',
     icon: <CalendarIcon />,
   },
   {
-    title: "Patients",
-    url: "/dashboard/patients",
+    title: 'Patients',
+    url: '/dashboard/patients',
     icon: <UsersIcon />,
   },
   {
-    title: "Staff",
-    url: "/dashboard/staff",
+    title: 'Staff',
+    url: '/dashboard/staff',
     icon: <StethoscopeIcon />,
   },
-  { title: "Calls", url: "/dashboard/calls", icon: <PhoneIcon /> },
+  { title: 'Calls', url: '/dashboard/calls', icon: <PhoneIcon /> },
   {
-    title: "Analytics",
-    url: "/dashboard/analytics",
+    title: 'Analytics',
+    url: '/dashboard/analytics',
     icon: <BarChart3Icon />,
   },
   {
-    title: "Integrations",
-    url: "/dashboard/integrations",
+    title: 'Integrations',
+    url: '/dashboard/integrations',
     icon: <PlugIcon />,
   },
-  { title: "Settings", url: "/dashboard/settings", icon: <SettingsIcon /> },
+  { title: 'Settings', url: '/dashboard/settings', icon: <SettingsIcon /> },
 ];
 
 export function DashboardSidebar() {
@@ -86,11 +86,11 @@ export function DashboardSidebar() {
       // proceed with local logout even if API call fails
     }
     dispatch(logout());
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
     }
-    router.push("/login");
+    router.push('/login');
   };
 
   return (
@@ -107,13 +107,10 @@ export function DashboardSidebar() {
               </div>
               <div className="min-w-0 flex-1 text-left leading-tight">
                 <span className="block truncate text-sm font-semibold">
-                  {clinic?.clinicName ?? "Your Clinic"}
+                  {clinic?.clinicName ?? 'Your Clinic'}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">
-                  {clinic?.phone ??
-                    clinic?.email ??
-                    user?.email ??
-                    "Dental clinic"}
+                  {clinic?.phone ?? clinic?.email ?? user?.email ?? 'Dental clinic'}
                 </span>
               </div>
               <ChevronsUpDownIcon className="text-muted-foreground ml-auto size-4" />
@@ -123,26 +120,30 @@ export function DashboardSidebar() {
       </SidebarHeader>
       <SidebarContent className="px-2 pb-2">
         <SidebarMenu>
-          {navItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                tooltip={item.title}
-                isActive={pathname === item.url}
-                render={<Link href={item.url} />}
-              >
-                {item.icon}
-                <span>{item.title}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {navItems.map((item) => {
+            const isActive = pathname === item.url;
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={isActive}
+                  render={<Link href={item.url} />}
+                  className={isActive ? 'nav-active-accent' : ''}
+                >
+                  {item.icon}
+                  <span>{item.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
         <NavUser
           user={{
-            name: user?.displayName ?? "Clinic Admin",
-            email: user?.email ?? "admin@clinic.com",
-            avatar: "",
+            name: user?.displayName ?? 'Clinic Admin',
+            email: user?.email ?? 'admin@clinic.com',
+            avatar: '',
           }}
           onLogout={handleLogout}
         />

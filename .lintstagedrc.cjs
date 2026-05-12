@@ -11,11 +11,14 @@ module.exports = {
     `prettier --write ${files.join(' ')}`,
   ],
 
-  // Client TypeScript/CSS — use client package's eslint config
-  'apps/client/src/**/*.{ts,tsx,css}': (files) => [
+  // Client TypeScript — use client package's eslint config
+  'apps/client/src/**/*.{ts,tsx}': (files) => [
     `pnpm --filter @repo/client exec eslint --fix --max-warnings=0 ${files.join(' ')}`,
     `prettier --write ${files.join(' ')}`,
   ],
+
+  // Client CSS — Prettier only (ESLint does not process CSS)
+  'apps/client/src/**/*.css': (files) => `prettier --write ${files.join(' ')}`,
 
   // Admin — Biome handles both lint and format
   'apps/admin/**/*.{ts,tsx,css}': (files) =>

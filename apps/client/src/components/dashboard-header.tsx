@@ -6,10 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { logout } from '@/features/auth/authSlice';
 import { useLogoutMutation } from '@/features/auth/authApi';
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from '@/features/ui/uiSlice';
+import { markAllNotificationsRead, markNotificationRead } from '@/features/ui/uiSlice';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -23,12 +20,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  UserIcon,
-  SettingsIcon,
-  BellIcon,
-  LogOutIcon,
-} from 'lucide-react';
+import { UserIcon, SettingsIcon, BellIcon, LogOutIcon } from 'lucide-react';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Overview',
@@ -51,9 +43,7 @@ export function DashboardHeader() {
   const [logoutApi] = useLogoutMutation();
   const notifications = useAppSelector((state) => state.ui.notifications);
   const title = TITLES[pathname ?? ''] ?? 'Dashboard';
-  const unreadCount = notifications.filter(
-    (notification) => !notification.read
-  ).length;
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
   const [relativeTimeBase] = useState(() => Date.now());
 
   const handleLogout = async () => {
@@ -87,17 +77,22 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 transition-[width,height] ease-linear lg:px-6">
-      <SidebarTrigger className="-ms-1" />
-      <Separator orientation="vertical" className="mx-2 h-4" />
-      <h1 className="text-base font-medium">{title}</h1>
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.06] bg-[#0a0e1a]/75 px-4 backdrop-blur-xl transition-[width,height] ease-linear lg:px-6">
+      <SidebarTrigger className="-ms-1 opacity-60 hover:opacity-100 transition-opacity" />
+      <Separator orientation="vertical" className="mx-2 h-4 opacity-20" />
+      <h1 className="text-sm font-semibold tracking-tight text-foreground/90">{title}</h1>
       <div className="ml-auto flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative" aria-label="Open notifications menu">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              aria-label="Open notifications menu"
+            >
               <BellIcon className="size-4" />
               {unreadCount > 0 && (
-                <span className="bg-primary absolute end-1.5 top-1.5 size-2 rounded-full" />
+                <span className="bg-primary animate-pulse-dot absolute end-1.5 top-1.5 size-2 rounded-full shadow-[0_0_6px_1px] shadow-primary/60" />
               )}
               <span className="sr-only">Notifications</span>
             </Button>
@@ -128,22 +123,16 @@ export function DashboardHeader() {
                   <DropdownMenuItem
                     key={notification.id}
                     className="items-start"
-                    onClick={() =>
-                      dispatch(markNotificationRead(notification.id))
-                    }
+                    onClick={() => dispatch(markNotificationRead(notification.id))}
                   >
                     <div className="flex w-full items-start gap-3">
                       <span
                         className={`mt-1.5 size-2 shrink-0 rounded-full ${
-                          notification.read
-                            ? 'bg-muted-foreground/40'
-                            : 'bg-primary'
+                          notification.read ? 'bg-muted-foreground/40' : 'bg-primary'
                         }`}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {notification.title}
-                        </p>
+                        <p className="truncate text-sm font-medium">{notification.title}</p>
                         <p className="text-muted-foreground line-clamp-2 text-xs">
                           {notification.message}
                         </p>
@@ -160,7 +149,11 @@ export function DashboardHeader() {
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="Open account menu">
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 rounded-full"
+              aria-label="Open account menu"
+            >
               <Avatar className="size-8">
                 <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
@@ -171,9 +164,7 @@ export function DashboardHeader() {
               <DropdownMenuLabel>
                 <div className="flex flex-col">
                   <span>{displayName}</span>
-                  <span className="text-xs font-normal text-muted-foreground">
-                    {user?.email}
-                  </span>
+                  <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
                 </div>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
