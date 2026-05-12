@@ -223,7 +223,7 @@ export async function deleteService(tenantId: string, serviceId: string) {
 }
 
 export async function getServices(tenantId: string) {
-  return await db.select().from(services).where(eq(services.tenantId, tenantId));
+  return await db.select().from(services).where(eq(services.tenantId, tenantId)).limit(500);
 }
 
 export async function upsertBookingRules(tenantId: string, data: Record<string, unknown>) {
@@ -277,7 +277,7 @@ export async function deletePolicy(tenantId: string, policyId: string) {
 }
 
 export async function getPolicies(tenantId: string) {
-  return await db.select().from(policies).where(eq(policies.tenantId, tenantId));
+  return await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(500);
 }
 
 export async function upsertVoiceProfile(tenantId: string, data: Record<string, unknown>) {
@@ -337,7 +337,7 @@ export async function deleteFaq(tenantId: string, faqId: string) {
 }
 
 export async function getFaqs(tenantId: string) {
-  return await db.select().from(faqLibrary).where(eq(faqLibrary.tenantId, tenantId));
+  return await db.select().from(faqLibrary).where(eq(faqLibrary.tenantId, tenantId)).limit(500);
 }
 
 export async function createConfigVersion(tenantId: string, userId: string) {

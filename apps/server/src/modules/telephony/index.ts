@@ -1,2 +1,2 @@
 export { telephonyRouter } from './telephony.routes.js';
-export { attachMediaStreamWebSocket, getActiveSessionCount, getActiveSessionIds } from './media-stream.js';
+export { attachMediaStreamWebSocket, getActiveSessionCount, getActiveSessionIds, clearSessionTimeoutInterval } from './media-stream.js';

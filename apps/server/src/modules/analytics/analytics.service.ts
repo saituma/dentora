@@ -2,6 +2,7 @@
 import { db } from '../../db/index.js';
 import { callSessions, callEvents, callCosts, callTranscripts } from '../../db/schema.js';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { tenantCacheGet, tenantCacheSet } from '../../lib/cache.js';
 
 export interface DashboardStats {
   totalCalls: number;
@@ -20,6 +21,11 @@ export async function getDashboardStats(input: {
   endDate: Date;
 }): Promise<DashboardStats> {
   const { tenantId, startDate, endDate } = input;
+
+  const cacheSlot = Math.floor(Date.now() / 300_000);
+  const cacheId = `dashboard:${startDate.toISOString()}:${endDate.toISOString()}:${cacheSlot}`;
+  const cached = await tenantCacheGet<DashboardStats>(tenantId, 'analytics', cacheId);
+  if (cached) return cached;
 
   const [callStats] = await db
     .select({
@@ -120,7 +126,7 @@ export async function getDashboardStats(input: {
     ? (callStats.completed / callStats.totalCalls) * 100
     : 0;
 
-  return {
+  const result: DashboardStats = {
     totalCalls: callStats.totalCalls,
     averageDurationSeconds: callStats.avgDuration,
     completionRate: Math.round(completionRate * 100) / 100,
@@ -130,6 +136,9 @@ export async function getDashboardStats(input: {
     callsByStatus,
     averageLatencyMs: latencyStats.avgLatency,
   };
+
+  await tenantCacheSet(tenantId, 'analytics', cacheId, result, 300);
+  return result;
 }
 
 export async function getHourlyCallVolume(input: {

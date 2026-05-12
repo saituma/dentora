@@ -418,6 +418,8 @@ export const callTranscripts = pgTable('call_transcripts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('call_transcripts_tenant_session_idx').on(table.tenantId, table.callSessionId),
+  index('call_transcripts_tenant_sentiment_idx').on(table.tenantId, table.sentiment),
+  index('call_transcripts_tenant_intent_idx').on(table.tenantId, table.intentDetected),
 ]);
 
 export const auditLog = pgTable('audit_log', {

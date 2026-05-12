@@ -7,7 +7,7 @@ import {
   callCostLineItems,
   callTranscripts,
 } from '../../db/schema.js';
-import { eq, and, desc, ilike, or } from 'drizzle-orm';
+import { eq, and, desc, ilike, or, inArray } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { logger } from '../../lib/logger.js';
 import { NotFoundError } from '../../lib/errors.js';
@@ -230,33 +230,31 @@ export async function listCallSessionsByCaller(input: {
     .orderBy(desc(callSessions.startedAt))
     .limit(limit);
 
-  const summaries = await Promise.all(calls.map(async (call) => {
-    const transcript = await getCallTranscript(input.tenantId, call.id);
-    return {
-      callId: call.id,
-      summary: transcript?.summary ?? null,
-      intentDetected: transcript?.intentDetected ?? null,
-    };
-  }));
-
-  const summaryMap = new Map(summaries.map((entry) => [entry.callId, entry]));
+  const callIds = calls.map((c) => c.id);
+  const transcripts = callIds.length > 0
+    ? await db.select().from(callTranscripts)
+        .where(and(eq(callTranscripts.tenantId, input.tenantId), inArray(callTranscripts.callSessionId, callIds)))
+    : [];
+  const summaryMap = new Map(transcripts.map((t) => [t.callSessionId, t]));
 
   return calls.map((call) => {
-    const summary = summaryMap.get(call.id);
+    const t = summaryMap.get(call.id);
     return {
       ...call,
-      transcriptSummary: summary?.summary ?? null,
-      intentDetected: summary?.intentDetected ?? null,
+      transcriptSummary: t?.summary ?? null,
+      intentDetected: t?.intentDetected ?? null,
     };
   });
 }
 
-export async function getCallEvents(tenantId: string, callSessionId: string) {
+export async function getCallEvents(tenantId: string, callSessionId: string, limit = 200, offset = 0) {
   return await db
     .select()
     .from(callEvents)
     .where(and(eq(callEvents.callSessionId, callSessionId), eq(callEvents.tenantId, tenantId)))
-    .orderBy(callEvents.timestamp);
+    .orderBy(callEvents.timestamp)
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getCallTranscript(

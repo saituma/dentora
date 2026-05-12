@@ -8,6 +8,7 @@ if (process.env.OTEL_ENABLED === 'true') {
   initTelemetry();
 }
 
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -28,7 +29,7 @@ import { tenantRouter } from './modules/tenants/index.js';
 import { authRouter } from './modules/auth/index.js';
 import { callRouter } from './modules/calls/index.js';
 import { telephonyRouter } from './modules/telephony/index.js';
-import { attachMediaStreamWebSocket } from './modules/telephony/index.js';
+import { attachMediaStreamWebSocket, clearSessionTimeoutInterval } from './modules/telephony/index.js';
 import { aiRouter } from './modules/ai/index.js';
 import { providerRouter } from './modules/providers/index.js';
 import { integrationRouter } from './modules/integrations/index.js';
@@ -88,6 +89,7 @@ app.use(helmet({
   crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy: false,
 }));
+app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -213,6 +215,7 @@ async function start() {
       isShuttingDown = true;
       logger.info({ signal }, 'Shutdown signal received');
 
+      clearSessionTimeoutInterval();
       server.close(async () => {
         logger.info('HTTP server closed');
         await closeDb();

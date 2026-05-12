@@ -911,7 +911,7 @@ export function getActiveSessionIds(): string[] {
   return Array.from(activeSessions.keys());
 }
 
-setInterval(() => {
+const sessionTimeoutInterval = setInterval(() => {
   const now = Date.now();
   for (const [callSessionId, session] of activeSessions.entries()) {
     if (now - session.lastActivityAt > MAX_SESSION_DURATION_MS) {
@@ -921,3 +921,7 @@ setInterval(() => {
     }
   }
 }, 60_000);
+
+export function clearSessionTimeoutInterval(): void {
+  clearInterval(sessionTimeoutInterval);
+}

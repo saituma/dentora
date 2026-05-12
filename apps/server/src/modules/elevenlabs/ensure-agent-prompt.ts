@@ -1,7 +1,6 @@
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { logger } from '../../lib/logger.js';
-
-const patchedAgents = new Set<string>();
+import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 const HARDCODED_DATE_PATTERNS = [
   /today(?:'s date)? is \w+ \d{1,2}(?:,? \d{4})?/gi,
@@ -16,7 +15,8 @@ const HARDCODED_DATE_PATTERNS = [
 const DATE_REPLACEMENT = "today's date is {{today_date}} and the current year is {{current_year}}";
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  if (patchedAgents.has(agentId)) return;
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched', agentId);
+  if (alreadyPatched) return;
 
   try {
     const { apiKey } = await resolveApiKey(tenantId, 'elevenlabs');
@@ -41,7 +41,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     const prompt = agent.conversation_config?.agent?.prompt?.prompt;
     if (!prompt) {
-      patchedAgents.add(agentId);
+      await globalCacheSet('elevenlabs-patched', agentId, true, 86400);
       return;
     }
 
@@ -87,7 +87,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       }
     }
 
-    patchedAgents.add(agentId);
+    await globalCacheSet('elevenlabs-patched', agentId, true, 86400);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }
