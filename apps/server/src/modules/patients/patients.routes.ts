@@ -8,6 +8,8 @@ import {
   getPatientProfileById,
 } from './patients.service.js';
 import { listCallSessionsByCaller } from '../calls/call.service.js';
+import { deletePatientAndAllData } from './patient.deletion.js';
+import { exportPatientData } from './patient.export.js';
 
 const patientsRateLimiter = rateLimiter({
   maxRequests: 120,
@@ -162,6 +164,62 @@ patientsRouter.get(
       });
 
       res.json({ data: calls });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+patientsRouter.get(
+  '/:patientId/export',
+  authenticateJwt,
+  resolveTenant,
+  patientsRateLimiter,
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantContext!.tenantId;
+      const data = await exportPatientData({
+        tenantId,
+        patientId: String(req.params.patientId),
+      });
+
+      req.audit?.({
+        action: 'patient.export',
+        entityType: 'patient_profile',
+        entityId: String(req.params.patientId),
+      });
+
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="patient-export-${req.params.patientId}.json"`,
+      );
+      res.json(data);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+patientsRouter.delete(
+  '/:patientId',
+  authenticateJwt,
+  resolveTenant,
+  patientsRateLimiter,
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantContext!.tenantId;
+      const result = await deletePatientAndAllData({
+        tenantId,
+        patientId: String(req.params.patientId),
+      });
+
+      req.audit?.({
+        action: 'patient.delete',
+        entityType: 'patient_profile',
+        entityId: String(req.params.patientId),
+      });
+
+      res.json({ data: result });
     } catch (error) {
       next(error);
     }
