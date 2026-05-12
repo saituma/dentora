@@ -1,7 +1,11 @@
-
 import { Router } from 'express';
 import * as callService from './call.service.js';
-import { authenticateJwt, validate, resolveTenant, apiRateLimiter } from '../../middleware/index.js';
+import {
+  authenticateJwt,
+  validate,
+  resolveTenant,
+  apiRateLimiter,
+} from '../../middleware/index.js';
 import { z } from 'zod';
 
 export const callRouter = Router();
@@ -22,6 +26,7 @@ callRouter.get(
       const tenantId = req.tenantContext!.tenantId;
       const { limit, offset } = req.query as unknown as { limit: number; offset: number };
       const calls = await callService.listCallSessions({ tenantId, limit, offset });
+      req.audit?.({ action: 'call.list', entityType: 'call_session' });
       res.json({ data: calls });
     } catch (err) {
       next(err);
@@ -35,6 +40,7 @@ callRouter.get('/:callId', async (req, res, next) => {
       req.tenantContext!.tenantId,
       req.params.callId,
     );
+    req.audit?.({ action: 'call.read', entityType: 'call_session', entityId: req.params.callId });
     res.json(session);
   } catch (err) {
     next(err);
@@ -43,10 +49,7 @@ callRouter.get('/:callId', async (req, res, next) => {
 
 callRouter.get('/:callId/events', async (req, res, next) => {
   try {
-    const events = await callService.getCallEvents(
-      req.tenantContext!.tenantId,
-      req.params.callId,
-    );
+    const events = await callService.getCallEvents(req.tenantContext!.tenantId, req.params.callId);
     res.json({ data: events });
   } catch (err) {
     next(err);
@@ -59,6 +62,11 @@ callRouter.get('/:callId/transcript', async (req, res, next) => {
       req.tenantContext!.tenantId,
       req.params.callId,
     );
+    req.audit?.({
+      action: 'call.transcript.read',
+      entityType: 'call_transcript',
+      entityId: req.params.callId,
+    });
     res.json({ data: transcript });
   } catch (err) {
     next(err);

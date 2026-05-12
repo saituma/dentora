@@ -1,18 +1,17 @@
 import { lt, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { sessions, passwordResetTokens, callSessions, callTranscripts, auditLog } from '../db/schema.js';
+import { sessions, passwordResetTokens, callTranscripts, auditLog } from '../db/schema.js';
 import { logger } from './logger.js';
 
 /**
- * Data retention policies (in days).
- * These define how long each data type is kept after creation or expiry.
+ * Data retention policies — UK GDPR / DPA 2018 compliant defaults.
+ * ICO guidance: retain only as long as necessary for the original purpose.
  */
 export const retentionPolicies = {
-  callRecordings: { days: 90, description: 'Call recordings' },
-  callTranscripts: { days: 180, description: 'Call transcripts' },
-  auditLogs: { days: 365, description: 'Audit logs' },
-  expiredSessions: { days: 7, description: 'Expired sessions (after expiry)' },
-  passwordResetTokens: { days: 1, description: 'Password reset tokens (after expiry)' },
+  callTranscripts: { days: 730, description: 'Call transcripts (2 years)' },
+  auditLogs: { days: 2555, description: 'Audit logs (7 years — legal obligation)' },
+  expiredSessions: { days: 7, description: 'Expired sessions (7 days after expiry)' },
+  passwordResetTokens: { days: 1, description: 'Password reset tokens (1 day after expiry)' },
 } as const;
 
 function daysAgo(days: number): Date {
@@ -24,11 +23,8 @@ function daysAgo(days: number): Date {
 export async function runDataRetention(): Promise<{
   deletedSessions: number;
   deletedPasswordResetTokens: number;
-  dryRun: {
-    callRecordingsEligible: number;
-    callTranscriptsEligible: number;
-    auditLogsEligible: number;
-  };
+  deletedCallTranscripts: number;
+  deletedAuditLogs: number;
 }> {
   const log = logger.child({ module: 'data-retention' });
 
@@ -41,63 +37,57 @@ export async function runDataRetention(): Promise<{
     .where(lt(sessions.expiresAt, sessionCutoff))
     .returning({ id: sessions.id });
   const deletedSessions = deletedSessionsResult.length;
-  log.info({ count: deletedSessions, cutoff: sessionCutoff.toISOString() }, 'Deleted expired sessions');
+  log.info(
+    { count: deletedSessions, cutoff: sessionCutoff.toISOString() },
+    'Deleted expired sessions',
+  );
 
-  // 2. Delete expired password reset tokens (expiresAt < now - 1 day)
+  // 2. Delete expired password reset tokens
   const tokenCutoff = daysAgo(retentionPolicies.passwordResetTokens.days);
   const deletedTokensResult = await db
     .delete(passwordResetTokens)
     .where(lt(passwordResetTokens.expiresAt, tokenCutoff))
     .returning({ id: passwordResetTokens.id });
   const deletedPasswordResetTokens = deletedTokensResult.length;
-  log.info({ count: deletedPasswordResetTokens, cutoff: tokenCutoff.toISOString() }, 'Deleted expired password reset tokens');
-
-  // 3. Dry-run: count call recordings eligible for deletion (call sessions older than 90 days)
-  // Recordings are stored in R2, so we only log what would be affected
-  const recordingCutoff = daysAgo(retentionPolicies.callRecordings.days);
-  const [recordingCount] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(callSessions)
-    .where(lt(callSessions.createdAt, recordingCutoff));
-  const callRecordingsEligible = recordingCount?.count ?? 0;
   log.info(
-    { count: callRecordingsEligible, cutoff: recordingCutoff.toISOString() },
-    'DRY RUN: Call recordings eligible for deletion (requires R2 cleanup)',
+    { count: deletedPasswordResetTokens, cutoff: tokenCutoff.toISOString() },
+    'Deleted expired password reset tokens',
   );
 
-  // 4. Dry-run: count call transcripts eligible for deletion (older than 180 days)
+  // 3. Delete call transcripts older than 2 years
   const transcriptCutoff = daysAgo(retentionPolicies.callTranscripts.days);
   const [transcriptCount] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(callTranscripts)
     .where(lt(callTranscripts.createdAt, transcriptCutoff));
-  const callTranscriptsEligible = transcriptCount?.count ?? 0;
-  log.info(
-    { count: callTranscriptsEligible, cutoff: transcriptCutoff.toISOString() },
-    'DRY RUN: Call transcripts eligible for deletion (requires R2 cleanup)',
-  );
+  const deletedCallTranscripts = transcriptCount?.count ?? 0;
+  if (deletedCallTranscripts > 0) {
+    await db.delete(callTranscripts).where(lt(callTranscripts.createdAt, transcriptCutoff));
+    log.info(
+      { count: deletedCallTranscripts, cutoff: transcriptCutoff.toISOString() },
+      'Deleted old call transcripts',
+    );
+  }
 
-  // 5. Dry-run: count audit logs eligible for deletion (older than 365 days)
+  // 4. Delete audit logs older than 7 years
   const auditCutoff = daysAgo(retentionPolicies.auditLogs.days);
   const [auditCount] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(auditLog)
     .where(lt(auditLog.createdAt, auditCutoff));
-  const auditLogsEligible = auditCount?.count ?? 0;
+  const deletedAuditLogs = auditCount?.count ?? 0;
+  if (deletedAuditLogs > 0) {
+    await db.delete(auditLog).where(lt(auditLog.createdAt, auditCutoff));
+    log.info(
+      { count: deletedAuditLogs, cutoff: auditCutoff.toISOString() },
+      'Deleted old audit logs',
+    );
+  }
+
   log.info(
-    { count: auditLogsEligible, cutoff: auditCutoff.toISOString() },
-    'DRY RUN: Audit logs eligible for deletion',
+    { deletedSessions, deletedPasswordResetTokens, deletedCallTranscripts, deletedAuditLogs },
+    'Data retention cleanup complete',
   );
 
-  log.info('Data retention cleanup complete');
-
-  return {
-    deletedSessions,
-    deletedPasswordResetTokens,
-    dryRun: {
-      callRecordingsEligible,
-      callTranscriptsEligible,
-      auditLogsEligible,
-    },
-  };
+  return { deletedSessions, deletedPasswordResetTokens, deletedCallTranscripts, deletedAuditLogs };
 }

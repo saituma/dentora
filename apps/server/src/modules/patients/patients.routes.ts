@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
-import { findPatientProfile, listPatientProfiles, upsertPatientProfile, getPatientProfileById } from './patients.service.js';
+import {
+  findPatientProfile,
+  listPatientProfiles,
+  upsertPatientProfile,
+  getPatientProfileById,
+} from './patients.service.js';
 import { listCallSessionsByCaller } from '../calls/call.service.js';
 
 const patientsRateLimiter = rateLimiter({
@@ -36,6 +41,7 @@ patientsRouter.get(
       const search = typeof req.query.search === 'string' ? req.query.search : undefined;
       const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
       const profiles = await listPatientProfiles({ tenantId, search, limit });
+      req.audit?.({ action: 'patient.list', entityType: 'patient_profile' });
       res.json({ data: profiles });
     } catch (error) {
       next(error);
@@ -58,6 +64,11 @@ patientsRouter.post(
         dateOfBirth: req.body.dateOfBirth,
       });
 
+      req.audit?.({
+        action: 'patient.lookup',
+        entityType: 'patient_profile',
+        entityId: profile?.id,
+      });
       res.json({ data: profile });
     } catch (error) {
       next(error);
@@ -83,6 +94,11 @@ patientsRouter.post(
         notes: req.body.notes ?? null,
       });
 
+      req.audit?.({
+        action: 'patient.upsert',
+        entityType: 'patient_profile',
+        entityId: profile.id,
+      });
       res.json({ data: profile });
     } catch (error) {
       next(error);
@@ -108,6 +124,7 @@ patientsRouter.get(
         return;
       }
 
+      req.audit?.({ action: 'patient.read', entityType: 'patient_profile', entityId: profile.id });
       res.json({ data: profile });
     } catch (error) {
       next(error);

@@ -1,6 +1,6 @@
-
 import { Router, type Request, type Response } from 'express';
 import * as authService from './auth.service.js';
+import * as mfaService from './mfa.service.js';
 import { authenticateJwt, validate } from '../../middleware/index.js';
 import { authRateLimiter } from '../../middleware/rateLimit.js';
 import { z } from 'zod';
@@ -14,7 +14,7 @@ const REFRESH_TOKEN_COOKIE = 'refresh-token';
 
 const oauthExchangeCookieOptions = {
   httpOnly: true,
-  sameSite: env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
+  sameSite: env.NODE_ENV === 'production' ? ('none' as const) : ('lax' as const),
   secure: env.NODE_ENV === 'production',
   path: '/api/auth/google/exchange',
   maxAge: 2 * 60 * 1000,
@@ -29,7 +29,7 @@ const clearOauthExchangeCookieOptions = {
 
 const refreshTokenCookieOptions = {
   httpOnly: true,
-  sameSite: env.NODE_ENV === 'production' ? 'none' as const : 'lax' as const,
+  sameSite: env.NODE_ENV === 'production' ? ('none' as const) : ('lax' as const),
   secure: env.NODE_ENV === 'production',
   path: '/api/auth',
   maxAge: env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
@@ -58,12 +58,19 @@ function getRefreshTokenFromRequest(req: Request): string | undefined {
   return undefined;
 }
 
-function withoutRefreshToken<T extends { refreshToken: string }>(result: T): Omit<T, 'refreshToken'> {
+function withoutRefreshToken<T extends { refreshToken: string }>(
+  result: T,
+): Omit<T, 'refreshToken'> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { refreshToken: _refreshToken, ...body } = result;
   return body;
 }
 
-function sendLoginResult<T extends { refreshToken: string }>(res: Response, status: number, result: T): void {
+function sendLoginResult<T extends { refreshToken: string }>(
+  res: Response,
+  status: number,
+  result: T,
+): void {
   setRefreshTokenCookie(res, result.refreshToken);
   res.status(status).json(withoutRefreshToken(result));
 }
@@ -154,7 +161,10 @@ authRouter.get(
   async (req, res, next) => {
     try {
       const { code, state } = req.query as { code: string; state: string };
-      const { returnTo, oauthExchangeCode } = await authService.loginOrRegisterWithGoogleCode({ code, state });
+      const { returnTo, oauthExchangeCode } = await authService.loginOrRegisterWithGoogleCode({
+        code,
+        state,
+      });
 
       const redirectBase = getSafeOauthRedirectBase(returnTo);
       const redirectUrl = new URL('/login', redirectBase);
@@ -165,32 +175,31 @@ authRouter.get(
     } catch (err: unknown) {
       res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
       const { logger } = await import('../../lib/logger.js');
-      logger.error({ err, msg: (err as Error)?.message, stack: (err as Error)?.stack }, 'Google OAuth callback failed');
+      logger.error(
+        { err, msg: (err as Error)?.message, stack: (err as Error)?.stack },
+        'Google OAuth callback failed',
+      );
       next(err);
     }
   },
 );
 
-authRouter.post(
-  '/google/exchange',
-  authRateLimiter,
-  async (req, res, next) => {
-    try {
-      const code = req.cookies?.[OAUTH_EXCHANGE_COOKIE];
-      if (typeof code !== 'string' || !code) {
-        res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-        throw new AuthenticationError('Missing OAuth exchange cookie');
-      }
-      const result = await authService.exchangeOauthCode(code);
-      setRefreshTokenCookie(res, result.refreshToken);
+authRouter.post('/google/exchange', authRateLimiter, async (req, res, next) => {
+  try {
+    const code = req.cookies?.[OAUTH_EXCHANGE_COOKIE];
+    if (typeof code !== 'string' || !code) {
       res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-      res.json(withoutRefreshToken(result));
-    } catch (err) {
-      res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-      next(err);
+      throw new AuthenticationError('Missing OAuth exchange cookie');
     }
-  },
-);
+    const result = await authService.exchangeOauthCode(code);
+    setRefreshTokenCookie(res, result.refreshToken);
+    res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
+    res.json(withoutRefreshToken(result));
+  } catch (err) {
+    res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
+    next(err);
+  }
+});
 
 authRouter.post(
   '/phone/send-otp',
@@ -398,13 +407,65 @@ authRouter.post(
   },
 );
 
-authRouter.get(
-  '/me',
+authRouter.get('/me', authenticateJwt, async (req, res, next) => {
+  try {
+    const info = await authService.getUserAccountInfo(req.user!.userId);
+    res.json(info);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── MFA endpoints ────────────────────────────────────────────────────────────
+
+authRouter.post('/mfa/setup', authenticateJwt, async (req, res, next) => {
+  try {
+    const info = await authService.getUserAccountInfo(req.user!.userId);
+    const result = await mfaService.setupMfa(req.user!.userId, info.email);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post(
+  '/mfa/confirm',
   authenticateJwt,
+  validate({ body: z.object({ token: z.string().min(6).max(8) }) }),
   async (req, res, next) => {
     try {
-      const info = await authService.getUserAccountInfo(req.user!.userId);
-      res.json(info);
+      await mfaService.confirmMfa(req.user!.userId, req.body.token);
+      req.audit?.({ action: 'mfa.enabled', entityType: 'user', entityId: req.user!.userId });
+      res.json({ message: 'MFA enabled' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
+  '/mfa/verify',
+  authenticateJwt,
+  validate({ body: z.object({ token: z.string().min(6).max(14) }) }),
+  async (req, res, next) => {
+    try {
+      await mfaService.verifyMfaChallenge(req.user!.userId, req.body.token);
+      res.json({ verified: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+authRouter.post(
+  '/mfa/disable',
+  authenticateJwt,
+  validate({ body: z.object({ password: z.string().min(1) }) }),
+  async (req, res, next) => {
+    try {
+      await mfaService.disableMfa(req.user!.userId, req.body.password);
+      req.audit?.({ action: 'mfa.disabled', entityType: 'user', entityId: req.user!.userId });
+      res.json({ message: 'MFA disabled' });
     } catch (err) {
       next(err);
     }

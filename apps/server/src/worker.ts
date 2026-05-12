@@ -8,6 +8,7 @@ import { logger } from './lib/logger.js';
 import { initRedis, closeRedis } from './lib/cache.js';
 import { closeAllQueues, QUEUE_NAMES } from './lib/queue.js';
 import { shutdownTelemetry } from './lib/telemetry.js';
+import { runDataRetention } from './lib/data-retention.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
@@ -57,6 +58,18 @@ async function start(): Promise<void> {
     { concurrency: 1 },
   );
   workers.push(dlqWorker);
+
+  // Daily data retention — runs once at startup then every 24 h
+  async function scheduleDataRetention(): Promise<void> {
+    try {
+      const result = await runDataRetention();
+      logger.info(result, 'Scheduled data retention complete');
+    } catch (err) {
+      logger.error({ err }, 'Scheduled data retention failed');
+    }
+    setTimeout(scheduleDataRetention, 24 * 60 * 60 * 1000);
+  }
+  scheduleDataRetention().catch(() => undefined);
 
   logger.info({ queues: Object.values(QUEUE_NAMES) }, 'Worker process ready');
 }

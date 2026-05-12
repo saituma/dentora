@@ -1,6 +1,7 @@
-import { and, eq, ilike, or, desc, isNull } from 'drizzle-orm';
+import { and, eq, isNull, desc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { patientProfiles } from '../../db/schema.js';
+import { encryptField, decryptField, hashForSearch } from '../../lib/encrypted-column.js';
 
 export type PatientProfileRecord = {
   id: string;
@@ -8,17 +9,28 @@ export type PatientProfileRecord = {
   fullName: string;
   dateOfBirth: string | null;
   phoneNumber: string;
+  phoneNumberHash: string | null;
   lastVisitAt: Date | null;
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
+function decryptRow(row: typeof patientProfiles.$inferSelect): PatientProfileRecord {
+  return {
+    ...row,
+    fullName: decryptField(row.fullName) ?? '',
+    phoneNumber: decryptField(row.phoneNumber) ?? '',
+    notes: decryptField(row.notes),
+  };
+}
+
 export async function findPatientProfile(input: {
   tenantId: string;
   phoneNumber: string;
   dateOfBirth?: string | null;
 }): Promise<PatientProfileRecord | null> {
+  const phoneHash = hashForSearch(input.phoneNumber);
   const normalizedDob = input.dateOfBirth?.trim() ?? null;
   const dobFilter = normalizedDob
     ? eq(patientProfiles.dateOfBirth, normalizedDob)
@@ -27,30 +39,36 @@ export async function findPatientProfile(input: {
   const [row] = await db
     .select()
     .from(patientProfiles)
-    .where(and(
-      eq(patientProfiles.tenantId, input.tenantId),
-      eq(patientProfiles.phoneNumber, input.phoneNumber.trim()),
-      dobFilter,
-    ))
+    .where(
+      and(
+        eq(patientProfiles.tenantId, input.tenantId),
+        eq(patientProfiles.phoneNumberHash, phoneHash),
+        dobFilter,
+      ),
+    )
     .limit(1);
 
-  return (row as PatientProfileRecord | undefined) ?? null;
+  return row ? decryptRow(row) : null;
 }
 
 export async function findPatientProfileByPhone(input: {
   tenantId: string;
   phoneNumber: string;
 }): Promise<PatientProfileRecord | null> {
+  const phoneHash = hashForSearch(input.phoneNumber);
+
   const [row] = await db
     .select()
     .from(patientProfiles)
-    .where(and(
-      eq(patientProfiles.tenantId, input.tenantId),
-      eq(patientProfiles.phoneNumber, input.phoneNumber.trim()),
-    ))
+    .where(
+      and(
+        eq(patientProfiles.tenantId, input.tenantId),
+        eq(patientProfiles.phoneNumberHash, phoneHash),
+      ),
+    )
     .limit(1);
 
-  return (row as PatientProfileRecord | undefined) ?? null;
+  return row ? decryptRow(row) : null;
 }
 
 export async function getPatientProfileById(input: {
@@ -60,13 +78,12 @@ export async function getPatientProfileById(input: {
   const [row] = await db
     .select()
     .from(patientProfiles)
-    .where(and(
-      eq(patientProfiles.tenantId, input.tenantId),
-      eq(patientProfiles.id, input.patientId),
-    ))
+    .where(
+      and(eq(patientProfiles.tenantId, input.tenantId), eq(patientProfiles.id, input.patientId)),
+    )
     .limit(1);
 
-  return (row as PatientProfileRecord | undefined) ?? null;
+  return row ? decryptRow(row) : null;
 }
 
 export async function upsertPatientProfile(input: {
@@ -78,13 +95,17 @@ export async function upsertPatientProfile(input: {
   notes?: string | null;
 }): Promise<PatientProfileRecord> {
   const now = new Date();
+  const plainPhone = input.phoneNumber.trim();
+  const phoneHash = hashForSearch(plainPhone);
+
   const payload = {
     tenantId: input.tenantId,
-    fullName: input.fullName.trim(),
+    fullName: encryptField(input.fullName.trim()) as string,
     dateOfBirth: input.dateOfBirth?.trim() ?? null,
-    phoneNumber: input.phoneNumber.trim(),
+    phoneNumber: encryptField(plainPhone) as string,
+    phoneNumberHash: phoneHash,
     lastVisitAt: input.lastVisitAt ?? null,
-    notes: input.notes ?? null,
+    notes: encryptField(input.notes ?? null),
     updatedAt: now,
   };
 
@@ -92,11 +113,13 @@ export async function upsertPatientProfile(input: {
     const [existing] = await db
       .select()
       .from(patientProfiles)
-      .where(and(
-        eq(patientProfiles.tenantId, payload.tenantId),
-        eq(patientProfiles.phoneNumber, payload.phoneNumber),
-        isNull(patientProfiles.dateOfBirth),
-      ))
+      .where(
+        and(
+          eq(patientProfiles.tenantId, payload.tenantId),
+          eq(patientProfiles.phoneNumberHash, phoneHash),
+          isNull(patientProfiles.dateOfBirth),
+        ),
+      )
       .limit(1);
 
     if (existing?.id) {
@@ -105,23 +128,20 @@ export async function upsertPatientProfile(input: {
         .set(payload)
         .where(eq(patientProfiles.id, existing.id))
         .returning();
-      return updated as PatientProfileRecord;
+      return decryptRow(updated);
     }
   }
 
   const [row] = await db
     .insert(patientProfiles)
-    .values({
-      ...payload,
-      createdAt: now,
-    })
+    .values({ ...payload, createdAt: now })
     .onConflictDoUpdate({
-      target: [patientProfiles.tenantId, patientProfiles.phoneNumber, patientProfiles.dateOfBirth],
+      target: [patientProfiles.phoneNumberHash],
       set: payload,
     })
     .returning();
 
-  return row as PatientProfileRecord;
+  return decryptRow(row);
 }
 
 export async function listPatientProfiles(input: {
@@ -130,21 +150,24 @@ export async function listPatientProfiles(input: {
   limit?: number;
 }): Promise<PatientProfileRecord[]> {
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
-  const filters = [eq(patientProfiles.tenantId, input.tenantId)];
   const search = input.search?.trim();
 
-  if (search) {
-    const pattern = `%${search}%`;
-    filters.push(or(
-      ilike(patientProfiles.fullName, pattern),
-      ilike(patientProfiles.phoneNumber, pattern),
-    )!);
-  }
+  // Fetch a larger batch when searching so we have rows to filter after decryption
+  const fetchLimit = search ? 500 : limit;
 
-  return db
+  const rows = await db
     .select()
     .from(patientProfiles)
-    .where(and(...filters))
+    .where(eq(patientProfiles.tenantId, input.tenantId))
     .orderBy(desc(patientProfiles.lastVisitAt), desc(patientProfiles.updatedAt))
-    .limit(limit) as Promise<PatientProfileRecord[]>;
+    .limit(fetchLimit);
+
+  const decrypted = rows.map(decryptRow);
+
+  if (!search) return decrypted.slice(0, limit);
+
+  const lower = search.toLowerCase();
+  return decrypted
+    .filter((p) => p.fullName.toLowerCase().includes(lower) || p.phoneNumber.includes(lower))
+    .slice(0, limit);
 }

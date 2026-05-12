@@ -1,4 +1,3 @@
-
 import { db } from '../../db/index.js';
 import {
   callSessions,
@@ -7,15 +6,24 @@ import {
   callCostLineItems,
   callTranscripts,
 } from '../../db/schema.js';
-import { eq, and, desc, ilike, or, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { logger } from '../../lib/logger.js';
+import { encryptField, decryptField, hashForSearch } from '../../lib/encrypted-column.js';
 import { NotFoundError } from '../../lib/errors.js';
 import type { InferSelectModel } from 'drizzle-orm';
 import { executeLlmWithFailover } from '../ai/engine/index.js';
 import type { LlmMessage } from '../ai/providers/base.js';
 
 type CallSession = InferSelectModel<typeof callSessions>;
+
+function decryptCallSession(s: CallSession): CallSession {
+  return {
+    ...s,
+    callerNumber: decryptField(s.callerNumber),
+    intentSummary: decryptField(s.intentSummary),
+  };
+}
 
 export async function createCallSession(input: {
   tenantId: string;
@@ -26,6 +34,7 @@ export async function createCallSession(input: {
 }): Promise<CallSession> {
   const id = generateId();
 
+  const plainCaller = input.callerNumber.trim();
   const [session] = await db
     .insert(callSessions)
     .values({
@@ -33,7 +42,8 @@ export async function createCallSession(input: {
       tenantId: input.tenantId,
       twilioCallSid: input.twilioCallSid,
       twilioNumberId: input.twilioNumberId,
-      callerNumber: input.callerNumber,
+      callerNumber: encryptField(plainCaller),
+      callerNumberHash: hashForSearch(plainCaller),
       configVersionId: input.configVersionId,
       status: 'started',
     })
@@ -106,7 +116,11 @@ export async function updateCallCallerNumber(
   if (!normalized) return;
   await db
     .update(callSessions)
-    .set({ callerNumber: normalized, updatedAt: new Date() })
+    .set({
+      callerNumber: encryptField(normalized),
+      callerNumberHash: hashForSearch(normalized),
+      updatedAt: new Date(),
+    })
     .where(and(eq(callSessions.id, callId), eq(callSessions.tenantId, tenantId)));
 }
 
@@ -171,7 +185,10 @@ export async function attributeCallCost(input: {
     }
   });
 
-  logger.info({ tenantId: input.tenantId, callSessionId: input.callSessionId, totalCost }, 'Call cost attributed');
+  logger.info(
+    { tenantId: input.tenantId, callSessionId: input.callSessionId, totalCost },
+    'Call cost attributed',
+  );
 }
 
 export async function getCallSession(tenantId: string, callId: string): Promise<CallSession> {
@@ -182,7 +199,7 @@ export async function getCallSession(tenantId: string, callId: string): Promise<
     .limit(1);
 
   if (!session) throw new NotFoundError('Call session not found');
-  return session;
+  return decryptCallSession(session);
 }
 
 export async function listCallSessions(opts: {
@@ -200,54 +217,59 @@ export async function listCallSessions(opts: {
     .limit(opts.limit)
     .offset(opts.offset);
 
-  return await query;
-}
-
-function normalizePhoneDigits(value: string): string {
-  return value.replace(/\D/g, '');
+  return (await query).map(decryptCallSession);
 }
 
 export async function listCallSessionsByCaller(input: {
   tenantId: string;
   phoneNumber: string;
   limit?: number;
-}): Promise<Array<CallSession & { transcriptSummary: string | null; intentDetected: string | null }>> {
+}): Promise<
+  Array<CallSession & { transcriptSummary: string | null; intentDetected: string | null }>
+> {
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
-  const rawPhone = input.phoneNumber.trim();
-  const digits = normalizePhoneDigits(rawPhone);
-  const likePattern = digits.length >= 7 ? `%${digits.slice(-7)}%` : `%${digits}%`;
+  const phoneHash = hashForSearch(input.phoneNumber);
 
   const calls = await db
     .select()
     .from(callSessions)
-    .where(and(
-      eq(callSessions.tenantId, input.tenantId),
-      or(
-        eq(callSessions.callerNumber, rawPhone),
-        ilike(callSessions.callerNumber, likePattern),
-      )!,
-    ))
+    .where(
+      and(eq(callSessions.tenantId, input.tenantId), eq(callSessions.callerNumberHash, phoneHash)),
+    )
     .orderBy(desc(callSessions.startedAt))
     .limit(limit);
 
   const callIds = calls.map((c) => c.id);
-  const transcripts = callIds.length > 0
-    ? await db.select().from(callTranscripts)
-        .where(and(eq(callTranscripts.tenantId, input.tenantId), inArray(callTranscripts.callSessionId, callIds)))
-    : [];
+  const transcripts =
+    callIds.length > 0
+      ? await db
+          .select()
+          .from(callTranscripts)
+          .where(
+            and(
+              eq(callTranscripts.tenantId, input.tenantId),
+              inArray(callTranscripts.callSessionId, callIds),
+            ),
+          )
+      : [];
   const summaryMap = new Map(transcripts.map((t) => [t.callSessionId, t]));
 
   return calls.map((call) => {
     const t = summaryMap.get(call.id);
     return {
-      ...call,
-      transcriptSummary: t?.summary ?? null,
+      ...decryptCallSession(call),
+      transcriptSummary: decryptField(t?.summary) ?? null,
       intentDetected: t?.intentDetected ?? null,
     };
   });
 }
 
-export async function getCallEvents(tenantId: string, callSessionId: string, limit = 200, offset = 0) {
+export async function getCallEvents(
+  tenantId: string,
+  callSessionId: string,
+  limit = 200,
+  offset = 0,
+) {
   return await db
     .select()
     .from(callEvents)
@@ -257,24 +279,21 @@ export async function getCallEvents(tenantId: string, callSessionId: string, lim
     .offset(offset);
 }
 
-export async function getCallTranscript(
-  tenantId: string,
-  callSessionId: string,
-) {
+export async function getCallTranscript(tenantId: string, callSessionId: string) {
   const [transcript] = await db
     .select()
     .from(callTranscripts)
-    .where(and(eq(callTranscripts.callSessionId, callSessionId), eq(callTranscripts.tenantId, tenantId)))
+    .where(
+      and(eq(callTranscripts.callSessionId, callSessionId), eq(callTranscripts.tenantId, tenantId)),
+    )
     .orderBy(desc(callTranscripts.createdAt))
     .limit(1);
 
-  return transcript ?? null;
+  if (!transcript) return null;
+  return { ...transcript, summary: decryptField(transcript.summary) };
 }
 
-export async function getCallCostBreakdown(
-  tenantId: string,
-  callSessionId: string,
-) {
+export async function getCallCostBreakdown(tenantId: string, callSessionId: string) {
   const [cost] = await db
     .select()
     .from(callCosts)
@@ -287,12 +306,7 @@ export async function getCallCostBreakdown(
   const lineItems = await db
     .select()
     .from(callCostLineItems)
-    .where(
-      and(
-        eq(callCostLineItems.callCostId, cost.id),
-        eq(callCostLineItems.tenantId, tenantId),
-      ),
-    )
+    .where(and(eq(callCostLineItems.callCostId, cost.id), eq(callCostLineItems.tenantId, tenantId)))
     .orderBy(desc(callCostLineItems.createdAt));
 
   return { ...cost, lineItems };
@@ -311,13 +325,15 @@ export async function saveTranscript(input: {
     tenantId: input.tenantId,
     callSessionId: input.callSessionId,
     fullTranscript: input.fullTranscript,
-    summary: input.summary,
+    summary: encryptField(input.summary ?? null),
     sentiment: input.sentiment,
     intentDetected: input.intentDetected,
   });
 }
 
-function formatTranscriptForSummary(turns: Array<{ role?: string; content?: string; text?: string }>): string {
+function formatTranscriptForSummary(
+  turns: Array<{ role?: string; content?: string; text?: string }>,
+): string {
   const lines = turns
     .map((turn) => {
       const role = (turn.role ?? 'unknown').toString().trim();
