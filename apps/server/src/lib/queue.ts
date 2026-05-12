@@ -26,6 +26,7 @@ export const QUEUE_NAMES = {
   CONFIG_VALIDATION: 'config-validation',
   RECORDING_PROCESSING: 'recording-processing',
   DAILY_AGGREGATION: 'daily-aggregation',
+  DEAD_LETTER: 'dead-letter',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -99,8 +100,25 @@ export function createWorker<T extends { tenantId: string }>(
     if (job && job.attemptsMade >= (job.opts.attempts ?? 3)) {
       logger.error(
         { jobId: job.id, queue: queueName, err },
-        'Job moved to dead-letter (max retries exceeded)',
+        'Job exhausted retries — forwarding to dead-letter queue',
       );
+      // Forward to DLQ so ops can inspect/replay without digging through BullMQ failed state
+      getQueue(QUEUE_NAMES.DEAD_LETTER)
+        .add(
+          'dead-letter',
+          {
+            originalQueue: queueName,
+            originalJobId: job.id,
+            data: job.data,
+            failedReason: err instanceof Error ? err.message : String(err),
+            failedAt: new Date().toISOString(),
+            tenantId: (job.data as { tenantId?: string }).tenantId ?? 'unknown',
+          },
+          { removeOnComplete: { count: 500 }, removeOnFail: { count: 500 } },
+        )
+        .catch((dlqErr) => {
+          logger.error({ dlqErr, jobId: job.id }, 'Failed to enqueue to dead-letter queue');
+        });
     }
   });
 

@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import * as telephonyService from './telephony.service.js';
@@ -14,6 +13,24 @@ import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { getRedis } from '../../lib/cache.js';
+
+const WEBHOOK_IDEMPOTENCY_TTL = 86_400; // 24 h
+
+/** Returns true if this webhook event has already been processed (duplicate replay). */
+async function checkAndMarkWebhook(callSid: string, event: string): Promise<boolean> {
+  const key = `twilio:idempotency:${event}:${callSid}`;
+  try {
+    const redis = getRedis();
+    const existing = await redis.get(key);
+    if (existing !== null) return true; // duplicate
+    await redis.setex(key, WEBHOOK_IDEMPOTENCY_TTL, '1');
+    return false;
+  } catch {
+    // Fail open — never drop a real call due to Redis unavailability
+    return false;
+  }
+}
 
 export const telephonyRouter = Router();
 
@@ -81,19 +98,14 @@ function twimlErrorBoundary(...middleware: RequestHandler[]): RequestHandler[] {
   });
 }
 
-telephonyRouter.get(
-  '/webhook-base',
-  authenticateJwt,
-  resolveTenant,
-  async (_req, res, next) => {
-    try {
-      const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
-      res.json({ baseUrl });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+telephonyRouter.get('/webhook-base', authenticateJwt, resolveTenant, async (_req, res, next) => {
+  try {
+    const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
+    res.json({ baseUrl });
+  } catch (err) {
+    next(err);
+  }
+});
 
 telephonyRouter.get(
   '/public/status',
@@ -168,48 +180,33 @@ telephonyRouter.post(
   },
 );
 
-telephonyRouter.get(
-  '/numbers',
-  authenticateJwt,
-  resolveTenant,
-  async (req, res, next) => {
-    try {
-      const numbers = await telephonyService.listPhoneNumbers(req.tenantContext!.tenantId);
-      res.json({ data: numbers });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+telephonyRouter.get('/numbers', authenticateJwt, resolveTenant, async (req, res, next) => {
+  try {
+    const numbers = await telephonyService.listPhoneNumbers(req.tenantContext!.tenantId);
+    res.json({ data: numbers });
+  } catch (err) {
+    next(err);
+  }
+});
 
-telephonyRouter.get(
-  '/twilio/numbers',
-  authenticateJwt,
-  resolveTenant,
-  async (req, res, next) => {
-    try {
-      const numbers = await telephonyService.fetchTwilioIncomingNumbers(req.tenantContext!.tenantId);
-      res.json({ data: numbers });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+telephonyRouter.get('/twilio/numbers', authenticateJwt, resolveTenant, async (req, res, next) => {
+  try {
+    const numbers = await telephonyService.fetchTwilioIncomingNumbers(req.tenantContext!.tenantId);
+    res.json({ data: numbers });
+  } catch (err) {
+    next(err);
+  }
+});
 
-telephonyRouter.post(
-  '/client/token',
-  authenticateJwt,
-  resolveTenant,
-  async (req, res, next) => {
-    try {
-      const identity = `tenant:${req.tenantContext!.tenantId}:user:${req.user?.userId ?? 'unknown'}`;
-      const token = telephonyService.createClientAccessToken({ identity });
-      res.json({ data: token });
-    } catch (err) {
-      next(err);
-    }
-  },
-);
+telephonyRouter.post('/client/token', authenticateJwt, resolveTenant, async (req, res, next) => {
+  try {
+    const identity = `tenant:${req.tenantContext!.tenantId}:user:${req.user?.userId ?? 'unknown'}`;
+    const token = telephonyService.createClientAccessToken({ identity });
+    res.json({ data: token });
+  } catch (err) {
+    next(err);
+  }
+});
 
 telephonyRouter.delete(
   '/numbers/:numberId',
@@ -239,6 +236,13 @@ telephonyRouter.post(
   async (req, res) => {
     try {
       const { CallSid, To, From, AccountSid } = req.body;
+
+      if (await checkAndMarkWebhook(CallSid, 'client-voice')) {
+        logger.warn({ callSid: CallSid }, 'Duplicate client-voice webhook — skipping');
+        res.type('text/xml').send('<Response></Response>');
+        return;
+      }
+
       const destination = To || req.body?.ToNumber;
 
       if (!destination) {
@@ -326,6 +330,12 @@ telephonyRouter.post(
     try {
       const { CallSid, To, From, AccountSid } = req.body;
 
+      if (await checkAndMarkWebhook(CallSid, 'voice')) {
+        logger.warn({ callSid: CallSid }, 'Duplicate voice webhook — skipping');
+        res.type('text/xml').send('<Response></Response>');
+        return;
+      }
+
       logger.info(
         {
           callSid: CallSid,
@@ -343,7 +353,10 @@ telephonyRouter.post(
 
       const afterHours = await telephonyService.getAfterHoursInfo(tenantId);
       if (afterHours.isAfterHours) {
-        logger.info({ callSid: CallSid, tenantId }, 'After-hours call — playing message and recording voicemail');
+        logger.info(
+          { callSid: CallSid, tenantId },
+          'After-hours call — playing message and recording voicemail',
+        );
         const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
         const afterHoursTwiml = twimlXml([
           '<Response>',
@@ -452,7 +465,8 @@ telephonyRouter.post(
   ...twimlErrorBoundary(webhookRateLimiter, validateTwilioSignature),
   async (req, res) => {
     try {
-      const { RecordingUrl, RecordingSid, RecordingDuration, TranscriptionText, CallSid } = req.body;
+      const { RecordingUrl, RecordingSid, RecordingDuration, TranscriptionText, CallSid } =
+        req.body;
       const tenantId = (req.query.tenantId as string) || '';
       const callSessionId = (req.query.callSessionId as string) || '';
 

@@ -127,7 +127,9 @@ const truncate = (value: string, max = 800): string => {
   return `${value.slice(0, max - 3)}...`;
 };
 
-const formatBusinessHours = (hours?: Record<string, { start: string; end: string } | null>): string => {
+const formatBusinessHours = (
+  hours?: Record<string, { start: string; end: string } | null>,
+): string => {
   if (!hours) return '';
   const lines = WEEKDAYS.map((day) => {
     const slot = hours[day];
@@ -137,7 +139,9 @@ const formatBusinessHours = (hours?: Record<string, { start: string; end: string
   return lines.join('; ');
 };
 
-const formatServices = (services: Array<{ serviceName?: string; durationMinutes?: number; price?: string }>): string => {
+const formatServices = (
+  services: Array<{ serviceName?: string; durationMinutes?: number; price?: string }>,
+): string => {
   if (!services.length) return '';
   const lines = services.slice(0, 12).map((service) => {
     const parts = [service.serviceName];
@@ -159,21 +163,24 @@ const formatPolicies = (policies: Array<{ policyType?: string; content?: string 
 
 const formatFaqs = (faqs: Array<{ question?: string; answer?: string }>): string => {
   if (!faqs.length) return '';
-  const lines = faqs.slice(0, 8).map((faq) => {
-    if (!faq.question && !faq.answer) return '';
-    return `Q: ${faq.question ?? ''} A: ${faq.answer ?? ''}`.trim();
-  }).filter(Boolean);
+  const lines = faqs
+    .slice(0, 8)
+    .map((faq) => {
+      if (!faq.question && !faq.answer) return '';
+      return `Q: ${faq.question ?? ''} A: ${faq.answer ?? ''}`.trim();
+    })
+    .filter(Boolean);
   return truncate(lines.join(' | '), 1200);
 };
 
 const formatEmergencyInfo = (policies: Array<{ emergencyDisclaimer?: string | null }>): string => {
-  const disclaimers = policies
-    .map((policy) => policy.emergencyDisclaimer?.trim())
-    .filter(Boolean);
+  const disclaimers = policies.map((policy) => policy.emergencyDisclaimer?.trim()).filter(Boolean);
   return truncate(disclaimers.join(' | '), 800);
 };
 
-const formatEscalationInfo = (policies: Array<{ escalationConditions?: { type?: string; content?: string } | null }>): string => {
+const formatEscalationInfo = (
+  policies: Array<{ escalationConditions?: { type?: string; content?: string } | null }>,
+): string => {
   const lines = policies
     .map((policy) => policy.escalationConditions)
     .filter((entry): entry is { type?: string; content?: string } => Boolean(entry))
@@ -185,17 +192,23 @@ const formatEscalationInfo = (policies: Array<{ escalationConditions?: { type?: 
   return truncate(lines.join(' | '), 800);
 };
 
-const formatBookingRules = (rules?: {
-  defaultAppointmentDurationMinutes?: number | null;
-  bufferBetweenAppointmentsMinutes?: number | null;
-  minNoticePeriodHours?: number | null;
-  maxAdvanceBookingDays?: number | null;
-  closedDates?: string[] | null;
-} | null): string => {
+const formatBookingRules = (
+  rules?: {
+    defaultAppointmentDurationMinutes?: number | null;
+    bufferBetweenAppointmentsMinutes?: number | null;
+    minNoticePeriodHours?: number | null;
+    maxAdvanceBookingDays?: number | null;
+    closedDates?: string[] | null;
+  } | null,
+): string => {
   if (!rules) return '';
   const parts = [
-    rules.defaultAppointmentDurationMinutes ? `default ${rules.defaultAppointmentDurationMinutes} min` : null,
-    rules.bufferBetweenAppointmentsMinutes ? `buffer ${rules.bufferBetweenAppointmentsMinutes} min` : null,
+    rules.defaultAppointmentDurationMinutes
+      ? `default ${rules.defaultAppointmentDurationMinutes} min`
+      : null,
+    rules.bufferBetweenAppointmentsMinutes
+      ? `buffer ${rules.bufferBetweenAppointmentsMinutes} min`
+      : null,
     rules.minNoticePeriodHours ? `min notice ${rules.minNoticePeriodHours} hrs` : null,
     rules.maxAdvanceBookingDays ? `max advance ${rules.maxAdvanceBookingDays} days` : null,
     rules.closedDates?.length ? `closed dates: ${rules.closedDates.length}` : null,
@@ -250,29 +263,40 @@ async function buildConvaiContext(tenantId: string) {
   ]);
 
   const contextDocs = (policies ?? [])
-    .flatMap((policy) => Array.isArray((policy as PolicyRecord)?.sensitiveTopics) ? (policy as PolicyRecord).sensitiveTopics as SensitiveTopic[] : [])
+    .flatMap((policy) =>
+      Array.isArray((policy as PolicyRecord)?.sensitiveTopics)
+        ? ((policy as PolicyRecord).sensitiveTopics as SensitiveTopic[])
+        : [],
+    )
     .filter((topic: SensitiveTopic) => topic?.type === 'context_document');
 
   const formatStaffMembers = (staff: Array<{ name?: string; role?: string; phone?: string }>) => {
     if (!staff || !staff.length) return '';
-    return staff.map((s) => {
-      const base = `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`;
-      return s.phone ? `${base} [${s.phone}]` : base;
-    }).join(' | ');
+    return staff
+      .map((s) => {
+        const base = `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`;
+        return s.phone ? `${base} [${s.phone}]` : base;
+      })
+      .join(' | ');
   };
 
-  const legacyStaffDirectory = contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Staff Directory')?.content ?? '';
-  const staffDirectory = Array.isArray(clinic?.staffMembers) && clinic.staffMembers.length > 0
-    ? truncate(formatStaffMembers(clinic.staffMembers), 1000)
-    : legacyStaffDirectory;
+  const legacyStaffDirectory =
+    contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Staff Directory')?.content ?? '';
+  const staffDirectory =
+    Array.isArray(clinic?.staffMembers) && clinic.staffMembers.length > 0
+      ? truncate(formatStaffMembers(clinic.staffMembers), 1000)
+      : legacyStaffDirectory;
 
-  const clinicNotes = contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Clinic Notes')?.content ?? '';
+  const clinicNotes =
+    contextDocs.find((doc: SensitiveTopic) => doc?.title === 'Clinic Notes')?.content ?? '';
 
   const normalizedBookingRules = bookingRules
     ? {
         ...bookingRules,
         closedDates: Array.isArray(bookingRules.closedDates)
-          ? bookingRules.closedDates.filter((value: unknown): value is string => typeof value === 'string')
+          ? bookingRules.closedDates.filter(
+              (value: unknown): value is string => typeof value === 'string',
+            )
           : null,
       }
     : null;
@@ -301,15 +325,16 @@ async function buildConvaiContext(tenantId: string) {
       ? speechSpeedValue
       : undefined;
 
-  const speechSpeedInstruction = normalizedSpeechSpeed === undefined
-    ? 'Speak slightly slower than normal and pause between sentences.'
-    : normalizedSpeechSpeed <= 0.9
-      ? 'Speak at a slow, deliberate pace and pause between sentences.'
-      : normalizedSpeechSpeed < 1.0
-        ? 'Speak slightly slower than normal and pause between sentences.'
-        : normalizedSpeechSpeed <= 1.1
-          ? 'Speak at a natural, steady pace with clear pauses between sentences.'
-          : 'Speak at a brisk, efficient pace while staying easy to understand.';
+  const speechSpeedInstruction =
+    normalizedSpeechSpeed === undefined
+      ? 'Speak slightly slower than normal and pause between sentences.'
+      : normalizedSpeechSpeed <= 0.9
+        ? 'Speak at a slow, deliberate pace and pause between sentences.'
+        : normalizedSpeechSpeed < 1.0
+          ? 'Speak slightly slower than normal and pause between sentences.'
+          : normalizedSpeechSpeed <= 1.1
+            ? 'Speak at a natural, steady pace with clear pauses between sentences.'
+            : 'Speak at a brisk, efficient pace while staying easy to understand.';
 
   const dynamicVariables = {
     agent_name: 'Receptionist',
@@ -323,9 +348,15 @@ async function buildConvaiContext(tenantId: string) {
     current_year: currentYear,
     clinic_description: clinic?.description ?? '',
     clinic_specialties: Array.isArray(clinic?.specialties) ? clinic.specialties.join(', ') : '',
-    business_hours: formatBusinessHours(clinic?.businessHours as Record<string, { start: string; end: string } | null> | undefined),
-    services_list: formatServices((services ?? []) as Array<{ serviceName?: string; durationMinutes?: number; price?: string }>),
-    policies_list: formatPolicies((policies ?? []) as Array<{ policyType?: string; content?: string }>),
+    business_hours: formatBusinessHours(
+      clinic?.businessHours as Record<string, { start: string; end: string } | null> | undefined,
+    ),
+    services_list: formatServices(
+      (services ?? []) as Array<{ serviceName?: string; durationMinutes?: number; price?: string }>,
+    ),
+    policies_list: formatPolicies(
+      (policies ?? []) as Array<{ policyType?: string; content?: string }>,
+    ),
     faqs_list: formatFaqs((faqs ?? []) as Array<{ question?: string; answer?: string }>),
     booking_rules: formatBookingRules(normalizedBookingRules),
     voice_tone: (vp?.tone as string) ?? '',
@@ -335,8 +366,14 @@ async function buildConvaiContext(tenantId: string) {
     greeting_message: (vp?.greetingMessage as string) ?? '',
     after_hours_message: (vp?.afterHoursMessage as string) ?? '',
     hold_music: (vp?.holdMusic as string) ?? '',
-    emergency_disclaimer: formatEmergencyInfo((policies ?? []) as Array<{ emergencyDisclaimer?: string | null }>),
-    escalation_conditions: formatEscalationInfo((policies ?? []) as Array<{ escalationConditions?: { type?: string; content?: string } | null }>),
+    emergency_disclaimer: formatEmergencyInfo(
+      (policies ?? []) as Array<{ emergencyDisclaimer?: string | null }>,
+    ),
+    escalation_conditions: formatEscalationInfo(
+      (policies ?? []) as Array<{
+        escalationConditions?: { type?: string; content?: string } | null;
+      }>,
+    ),
     staff_directory: String(staffDirectory ?? ''),
     clinic_notes: String(clinicNotes ?? ''),
   } as Record<string, unknown>;
@@ -354,7 +391,10 @@ async function buildConvaiContext(tenantId: string) {
   return { dynamicVariables, contextualUpdate, voiceProfile };
 }
 
-async function createConvaiWebSocket(session: MediaStreamSession, agentId: string): Promise<WebSocket> {
+async function createConvaiWebSocket(
+  session: MediaStreamSession,
+  agentId: string,
+): Promise<WebSocket> {
   const { apiKey } = await resolveApiKey(session.tenantId, 'elevenlabs');
   const response = await fetch(
     `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
@@ -375,7 +415,7 @@ async function createConvaiWebSocket(session: MediaStreamSession, agentId: strin
     'ElevenLabs signed URL created',
   );
 
-  const payload = await response.json() as { signed_url?: string };
+  const payload = (await response.json()) as { signed_url?: string };
   if (!payload.signed_url) {
     throw new Error('ElevenLabs signed URL response missing signed_url');
   }
@@ -423,7 +463,10 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
 
         switch (message.event) {
           case 'connected':
-            logger.info({ callSessionId, protocol: message.protocol }, 'Twilio media stream connected');
+            logger.info(
+              { callSessionId, protocol: message.protocol },
+              'Twilio media stream connected',
+            );
             break;
 
           case 'start':
@@ -558,7 +601,9 @@ async function handleStreamStart(
       payload: { streamSid },
     });
 
-    const agentId = (voiceProfile as Record<string, unknown> | null)?.voiceAgentId as string | undefined;
+    const agentId = (voiceProfile as Record<string, unknown> | null)?.voiceAgentId as
+      | string
+      | undefined;
     if (!agentId) {
       logger.error({ tenantId, callSessionId }, 'No ElevenLabs agent ID configured for tenant');
       ws.close();
@@ -571,7 +616,10 @@ async function handleStreamStart(
     session.elevenSocket = elevenSocket;
 
     elevenSocket.on('message', (data) => {
-      logger.debug({ callSessionId, length: data.toString().length }, 'ElevenLabs message received');
+      logger.debug(
+        { callSessionId, length: data.toString().length },
+        'ElevenLabs message received',
+      );
       handleElevenLabsMessage(session, data.toString()).catch((err) => {
         logger.error({ err, callSessionId }, 'Failed to handle ElevenLabs message');
       });
@@ -588,10 +636,7 @@ async function handleStreamStart(
       logger.error({ err, callSessionId }, 'ElevenLabs WebSocket error');
     });
 
-    logger.info(
-      { tenantId, callSessionId, streamSid },
-      'Media stream session initialized',
-    );
+    logger.info({ tenantId, callSessionId, streamSid }, 'Media stream session initialized');
   } catch (err) {
     logger.error({ err, callSessionId }, 'Failed to initialize media stream session');
     ws.close();
@@ -644,10 +689,12 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
           },
           'Sending contextual update to ElevenLabs',
         );
-        session.elevenSocket.send(JSON.stringify({
-          type: 'contextual_update',
-          text: session.contextualUpdate,
-        }));
+        session.elevenSocket.send(
+          JSON.stringify({
+            type: 'contextual_update',
+            text: session.contextualUpdate,
+          }),
+        );
       }
 
       flushPendingAudio(session);
@@ -732,27 +779,32 @@ async function handleElevenLabsMessage(session: MediaStreamSession, raw: string)
           callSessionId: session.callSessionId,
         });
         logger.info(
-          { callSessionId: session.callSessionId, toolName, resultPreview: truncate(JSON.stringify(result), 300) },
+          {
+            callSessionId: session.callSessionId,
+            toolName,
+            resultPreview: truncate(JSON.stringify(result), 300),
+          },
           'Tool call handled successfully',
         );
-        session.elevenSocket.send(JSON.stringify({
-          type: 'client_tool_result',
-          tool_call_id: toolCallId,
-          result: typeof result === 'string' ? result : JSON.stringify(result),
-          is_error: false,
-        }));
-      } catch (error) {
-        logger.error(
-          { callSessionId: session.callSessionId, toolName, error },
-          'Tool call failed',
+        session.elevenSocket.send(
+          JSON.stringify({
+            type: 'client_tool_result',
+            tool_call_id: toolCallId,
+            result: typeof result === 'string' ? result : JSON.stringify(result),
+            is_error: false,
+          }),
         );
+      } catch (error) {
+        logger.error({ callSessionId: session.callSessionId, toolName, error }, 'Tool call failed');
         const messageText = error instanceof Error ? error.message : String(error);
-        session.elevenSocket.send(JSON.stringify({
-          type: 'client_tool_result',
-          tool_call_id: toolCallId,
-          result: messageText,
-          is_error: true,
-        }));
+        session.elevenSocket.send(
+          JSON.stringify({
+            type: 'client_tool_result',
+            tool_call_id: toolCallId,
+            result: messageText,
+            is_error: true,
+          }),
+        );
       }
       break;
     }
@@ -833,18 +885,17 @@ function sendAudioToTwilio(session: MediaStreamSession, audioBase64: string): vo
     session.ws.send(mediaMessage);
     chunkCount += 1;
   }
-  logger.debug(
-    { callSessionId: session.callSessionId, chunkCount },
-    'Sent audio chunks to Twilio',
-  );
+  logger.debug({ callSessionId: session.callSessionId, chunkCount }, 'Sent audio chunks to Twilio');
 }
 
 function sendClearToTwilio(session: MediaStreamSession): void {
   if (session.ws.readyState !== WebSocket.OPEN) return;
-  session.ws.send(JSON.stringify({
-    event: 'clear',
-    streamSid: session.streamSid,
-  }));
+  session.ws.send(
+    JSON.stringify({
+      event: 'clear',
+      streamSid: session.streamSid,
+    }),
+  );
 }
 
 async function handleStreamEnd(callSessionId: string, endReason: string): Promise<void> {
@@ -862,8 +913,7 @@ async function handleStreamEnd(callSessionId: string, endReason: string): Promis
           tenantId: session.tenantId,
           callSessionId,
           transcriptTurns: session.conversationHistory,
-        }))
-        || `Call with ${session.turnCount} turns`;
+        })) || `Call with ${session.turnCount} turns`;
 
       await callService.saveTranscript({
         tenantId: session.tenantId,
@@ -924,4 +974,19 @@ const sessionTimeoutInterval = setInterval(() => {
 
 export function clearSessionTimeoutInterval(): void {
   clearInterval(sessionTimeoutInterval);
+}
+
+export async function closeAllSessions(): Promise<void> {
+  const sessionIds = Array.from(activeSessions.keys());
+  logger.info(
+    { count: sessionIds.length },
+    'Closing all active media-stream sessions for shutdown',
+  );
+  await Promise.all(
+    sessionIds.map((id) =>
+      handleStreamEnd(id, 'server_shutdown').catch((err) => {
+        logger.error({ err, callSessionId: id }, 'Error closing session during shutdown');
+      }),
+    ),
+  );
 }

@@ -16,7 +16,7 @@ import * as Sentry from '@sentry/node';
 import { env, shouldFailStartupOnRedisError } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { checkDbHealth, closeDb, runMigrations } from './db/index.js';
-import { initRedis, closeRedis } from './lib/cache.js';
+import { initRedis, closeRedis, getRedis } from './lib/cache.js';
 import { getMetrics, getMetricsContentType } from './lib/metrics.js';
 
 import { requestId } from './middleware/requestId.js';
@@ -29,7 +29,11 @@ import { tenantRouter } from './modules/tenants/index.js';
 import { authRouter } from './modules/auth/index.js';
 import { callRouter } from './modules/calls/index.js';
 import { telephonyRouter } from './modules/telephony/index.js';
-import { attachMediaStreamWebSocket, clearSessionTimeoutInterval } from './modules/telephony/index.js';
+import {
+  attachMediaStreamWebSocket,
+  clearSessionTimeoutInterval,
+  closeAllSessions,
+} from './modules/telephony/index.js';
 import { aiRouter } from './modules/ai/index.js';
 import { providerRouter } from './modules/providers/index.js';
 import { integrationRouter } from './modules/integrations/index.js';
@@ -47,7 +51,9 @@ import { patientsRouter } from './modules/patients/index.js';
 const app = express();
 
 app.set('trust proxy', 1);
-let allowedOrigins = env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean);
+let allowedOrigins = env.CORS_ORIGIN.split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 if (env.NODE_ENV === 'development') {
   const devOrigins = ['http://localhost:3000', 'http://localhost:3001'];
   allowedOrigins = [...new Set([...allowedOrigins, ...devOrigins])];
@@ -83,12 +89,14 @@ app.use(
     optionsSuccessStatus: 204,
   }),
 );
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: false,
-  crossOriginOpenerPolicy: false,
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+    crossOriginOpenerPolicy: false,
+  }),
+);
 app.use(compression());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -102,13 +110,16 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     if (req.path === '/api/health' || req.path === '/api/health/ready') return;
     const duration = Date.now() - start;
-    logger.info({
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      duration,
-      correlationId: req.headers['x-correlation-id'],
-    }, `${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+    logger.info(
+      {
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        duration,
+        correlationId: req.headers['x-correlation-id'],
+      },
+      `${req.method} ${req.path} ${res.statusCode} ${duration}ms`,
+    );
   });
   next();
 });
@@ -129,9 +140,17 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/health/ready', async (_req, res) => {
-  const dbOk = await checkDbHealth();
-  const status = dbOk ? 'ready' : 'not_ready';
-  res.status(dbOk ? 200 : 503).json({ status, database: dbOk });
+  const [dbOk, redisOk] = await Promise.all([
+    checkDbHealth(),
+    getRedis()
+      .ping()
+      .then(() => true)
+      .catch(() => false),
+  ]);
+  const ok = dbOk && redisOk;
+  res
+    .status(ok ? 200 : 503)
+    .json({ status: ok ? 'ready' : 'not_ready', database: dbOk, redis: redisOk });
 });
 
 app.get('/metrics', async (_req, res) => {
@@ -218,6 +237,7 @@ async function start() {
       logger.info({ signal }, 'Shutdown signal received');
 
       clearSessionTimeoutInterval();
+      await closeAllSessions();
       server.close(async () => {
         logger.info('HTTP server closed');
         await closeDb();
@@ -241,9 +261,7 @@ async function start() {
 
     process.on('unhandledRejection', (reason) => {
       if (env.SENTRY_DSN) {
-        Sentry.captureException(
-          reason instanceof Error ? reason : new Error(String(reason)),
-        );
+        Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
       }
       logger.error({ err: reason }, 'Unhandled rejection');
     });

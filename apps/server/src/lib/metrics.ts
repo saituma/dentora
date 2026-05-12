@@ -1,4 +1,3 @@
-
 import client from 'prom-client';
 
 const register = new client.Registry();
@@ -106,6 +105,18 @@ export const callCostHistogram = new client.Histogram({
   labelNames: ['tenant_id'],
   buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1],
   registers: [register],
+});
+
+export const circuitBreakerOpenTotal = new client.Counter({
+  name: 'circuit_breaker_open_total',
+  help: 'Number of times a circuit breaker transitioned to open',
+  labelNames: ['service'],
+});
+
+export const circuitBreakerRejectedTotal = new client.Counter({
+  name: 'circuit_breaker_rejected_total',
+  help: 'Number of requests rejected because the circuit breaker is open',
+  labelNames: ['service'],
 });
 
 export { register };

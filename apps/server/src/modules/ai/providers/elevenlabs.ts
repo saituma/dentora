@@ -1,8 +1,8 @@
-
 import type { TtsProvider, TtsRequest, TtsResponse } from './base.js';
 import { env } from '../../../config/env.js';
 import { logger } from '../../../lib/logger.js';
 import { ProviderError } from '../../../lib/errors.js';
+import { withCircuitBreaker } from '../../../lib/circuit-breaker.js';
 
 const VOICE_MAP: Record<string, string> = {
   professional: 'pNInz6obpgDQGcFmaJgB',
@@ -27,10 +27,9 @@ export class ElevenLabsProvider implements TtsProvider {
     const start = Date.now();
     const voiceId = request.voiceId ?? VOICE_MAP.professional;
 
-    try {
-      const response = await fetch(
-        `${this.baseUrl}/text-to-speech/${voiceId}`,
-        {
+    return withCircuitBreaker(this.name, async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/text-to-speech/${voiceId}`, {
           method: 'POST',
           headers: {
             'xi-api-key': this.apiKey,
@@ -48,35 +47,35 @@ export class ElevenLabsProvider implements TtsProvider {
             },
           }),
           signal: AbortSignal.timeout(15_000),
-        },
-      );
+        });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new ProviderError(
+            `ElevenLabs API error: ${response.status} ${errorBody}`,
+            this.name,
+            response.status,
+          );
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const audio = Buffer.from(arrayBuffer);
+        const latencyMs = Date.now() - start;
+
+        return {
+          audio,
+          provider: this.name,
+          latencyMs,
+          characterCount: request.text.length,
+        };
+      } catch (error) {
+        if (error instanceof ProviderError) throw error;
+        logger.error({ err: error, provider: this.name }, 'ElevenLabs request failed');
         throw new ProviderError(
-          `ElevenLabs API error: ${response.status} ${errorBody}`,
+          `ElevenLabs request failed: ${(error as Error).message}`,
           this.name,
-          response.status,
         );
       }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const audio = Buffer.from(arrayBuffer);
-      const latencyMs = Date.now() - start;
-
-      return {
-        audio,
-        provider: this.name,
-        latencyMs,
-        characterCount: request.text.length,
-      };
-    } catch (error) {
-      if (error instanceof ProviderError) throw error;
-      logger.error({ err: error, provider: this.name }, 'ElevenLabs request failed');
-      throw new ProviderError(
-        `ElevenLabs request failed: ${(error as Error).message}`,
-        this.name,
-      );
-    }
+    });
   }
 }
