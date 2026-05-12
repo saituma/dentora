@@ -1,110 +1,109 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { Provider } from "react-redux";
-import { ThemeProvider } from "next-themes";
-import { store } from "@/store";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setCredentials, setHydrated } from "@/features/auth/authSlice";
-import { ensureFreshAccessToken, tryRefreshAccessToken } from "@/lib/api";
+import { useEffect } from 'react';
+import { Provider } from 'react-redux';
+import { ThemeProvider } from 'next-themes';
+import { store } from '@/store';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setCredentials, setHydrated, logout } from '@/features/auth/authSlice';
+import { ensureFreshAccessToken, tryRefreshAccessToken } from '@/lib/api';
 import {
   clearAuthSession,
   loadAuthSession,
   parseAccessTokenPayload,
   saveAuthSession,
-} from "@/features/auth/session";
+} from '@/features/auth/session';
+
+// Module-level flag: bootstrap runs exactly once per page lifecycle.
+let bootstrapRan = false;
 
 function AuthBootstrap() {
   const dispatch = useAppDispatch();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    let cancelled = false;
+    if (bootstrapRan) return;
+    bootstrapRan = true;
 
-    const bootstrap = async () => {
-      // If the page loaded with an OAuth callback in progress, the LoginForm
-      // will call setCredentials with fresh data — don't race against it.
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("oauth") === "google") {
-          if (!cancelled) dispatch(setHydrated());
-          return;
-        }
+    // OAuth callback: LoginForm handles credentials, just mark hydrated.
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('oauth') === 'google') {
+        dispatch(setHydrated());
+        return;
       }
+    }
 
-      localStorage.removeItem("refresh_token");
-      const accessToken = localStorage.getItem("auth_token");
+    if (isAuthenticated) {
+      // Store was preloaded from localStorage — user sees the dashboard immediately.
+      // Validate the token in the background; if invalid, logout without blocking UI.
+      void ensureFreshAccessToken().then((valid) => {
+        if (!valid) {
+          clearAuthSession();
+          dispatch(logout());
+        }
+      });
+      return;
+    }
+
+    // No persisted session — full async bootstrap for first-time or logged-out users.
+    const runFullBootstrap = async () => {
+      localStorage.removeItem('refresh_token');
+      const accessToken = localStorage.getItem('auth_token');
 
       const validAccessToken = accessToken
         ? await ensureFreshAccessToken()
         : await tryRefreshAccessToken();
 
-      if (!accessToken && !validAccessToken) {
+      if (!validAccessToken) {
         clearAuthSession();
-        if (!cancelled) {
-          dispatch(setHydrated());
-        }
+        dispatch(setHydrated());
         return;
       }
 
       const persisted = loadAuthSession();
       if (persisted) {
-        if (!cancelled) {
-          dispatch(
-            setCredentials({
-              user: persisted.user,
-              tenantId: persisted.tenantId,
-              onboardingStatus: persisted.onboardingStatus,
-            })
-          );
-        }
-        return;
-      }
-
-      const tokenForPayload = validAccessToken ?? accessToken;
-      if (!tokenForPayload) {
-        if (!cancelled) {
-          dispatch(setHydrated());
-        }
-        return;
-      }
-
-      const tokenPayload = parseAccessTokenPayload(tokenForPayload);
-      if (!tokenPayload?.userId) {
-        if (!cancelled) {
-          dispatch(setHydrated());
-        }
-        return;
-      }
-
-      if (!cancelled) {
         dispatch(
           setCredentials({
-            user: {
-              id: tokenPayload.userId,
-              email: "",
-              displayName: null,
-              role: tokenPayload.role ?? "admin",
-            },
-            tenantId: tokenPayload.tenantId ?? null,
-            onboardingStatus: "clinic-profile",
-          })
+            user: persisted.user,
+            tenantId: persisted.tenantId,
+            onboardingStatus: persisted.onboardingStatus,
+          }),
         );
+        return;
       }
+
+      const tokenPayload = parseAccessTokenPayload(validAccessToken);
+      if (!tokenPayload?.userId) {
+        dispatch(setHydrated());
+        return;
+      }
+
+      dispatch(
+        setCredentials({
+          user: {
+            id: tokenPayload.userId,
+            email: '',
+            displayName: null,
+            role: tokenPayload.role ?? 'admin',
+          },
+          tenantId: tokenPayload.tenantId ?? null,
+          onboardingStatus: 'clinic-profile',
+        }),
+      );
     };
 
-    void bootstrap();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dispatch]);
+    void runFullBootstrap();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return null;
 }
 
 function AuthSessionSync() {
-  const { isHydrated, isAuthenticated, user, tenantId, onboardingStatus } =
-    useAppSelector((state) => state.auth);
+  const { isHydrated, isAuthenticated, user, tenantId, onboardingStatus } = useAppSelector(
+    (state) => state.auth,
+  );
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -130,11 +129,7 @@ export function ReduxProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ThemeProviderWrapper({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       {children}

@@ -1,25 +1,46 @@
-import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "@/features/auth/authSlice";
-import clinicReducer from "@/features/clinic/clinicSlice";
-import aiConfigReducer from "@/features/aiConfig/aiConfigSlice";
-import callsReducer from "@/features/calls/callsSlice";
-import analyticsReducer from "@/features/analytics/analyticsSlice";
-import integrationsReducer from "@/features/integrations/integrationsSlice";
-import uiReducer from "@/features/ui/uiSlice";
-import { authApi } from "@/features/auth/authApi";
-import { clinicApi } from "@/features/clinic/clinicApi";
-import { aiConfigApi } from "@/features/aiConfig/aiConfigApi";
-import { callsApi } from "@/features/calls/callsApi";
-import { analyticsApi } from "@/features/analytics/analyticsApi";
-import { integrationsApi } from "@/features/integrations/integrationsApi";
-import { onboardingApi } from "@/features/onboarding/onboardingApi";
-import { llmApi } from "@/features/llm/llmApi";
-import { elevenlabsApi } from "@/features/elevenlabs/elevenlabsApi";
-import { appointmentsApi } from "@/features/appointments/appointmentsApi";
-import { patientsApi } from "@/features/patients/patientsApi";
-import { telephonyApi } from "@/features/telephony/telephonyApi";
+import { configureStore } from '@reduxjs/toolkit';
+import authReducer from '@/features/auth/authSlice';
+import clinicReducer from '@/features/clinic/clinicSlice';
+import aiConfigReducer from '@/features/aiConfig/aiConfigSlice';
+import callsReducer from '@/features/calls/callsSlice';
+import analyticsReducer from '@/features/analytics/analyticsSlice';
+import integrationsReducer from '@/features/integrations/integrationsSlice';
+import uiReducer from '@/features/ui/uiSlice';
+import { loadAuthSession } from '@/features/auth/session';
+import type { AuthState } from '@/features/auth/types';
+
+// Synchronously read the persisted auth session so isHydrated=true before the
+// first React paint. Returning users see the dashboard immediately; background
+// token validation in AuthBootstrap handles security without blocking the UI.
+function getPreloadedAuthState(): { auth: AuthState } | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const session = loadAuthSession();
+  if (!session) return undefined;
+  return {
+    auth: {
+      user: session.user,
+      tenantId: session.tenantId,
+      isAuthenticated: true,
+      onboardingStatus: session.onboardingStatus ?? 'clinic-profile',
+      isHydrated: true,
+    },
+  };
+}
+import { authApi } from '@/features/auth/authApi';
+import { clinicApi } from '@/features/clinic/clinicApi';
+import { aiConfigApi } from '@/features/aiConfig/aiConfigApi';
+import { callsApi } from '@/features/calls/callsApi';
+import { analyticsApi } from '@/features/analytics/analyticsApi';
+import { integrationsApi } from '@/features/integrations/integrationsApi';
+import { onboardingApi } from '@/features/onboarding/onboardingApi';
+import { llmApi } from '@/features/llm/llmApi';
+import { elevenlabsApi } from '@/features/elevenlabs/elevenlabsApi';
+import { appointmentsApi } from '@/features/appointments/appointmentsApi';
+import { patientsApi } from '@/features/patients/patientsApi';
+import { telephonyApi } from '@/features/telephony/telephonyApi';
 
 export const store = configureStore({
+  preloadedState: getPreloadedAuthState(),
   reducer: {
     auth: authReducer,
     clinic: clinicReducer,
