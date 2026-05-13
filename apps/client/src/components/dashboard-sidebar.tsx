@@ -39,6 +39,7 @@ import {
   UsersIcon,
   StethoscopeIcon,
   ActivityIcon,
+  ClipboardCheckIcon,
 } from 'lucide-react';
 
 const navMain = [
@@ -48,6 +49,7 @@ const navMain = [
   { title: 'Appointments', url: '/dashboard/appointments', icon: CalendarIcon },
   { title: 'Patients', url: '/dashboard/patients', icon: UsersIcon },
   { title: 'Staff', url: '/dashboard/staff', icon: StethoscopeIcon },
+  { title: 'Staff Review', url: '/dashboard/staff-review', icon: ClipboardCheckIcon },
   { title: 'Calls', url: '/dashboard/calls', icon: PhoneIcon },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3Icon },
 ];

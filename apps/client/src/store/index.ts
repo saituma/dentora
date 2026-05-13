@@ -38,6 +38,7 @@ import { elevenlabsApi } from '@/features/elevenlabs/elevenlabsApi';
 import { appointmentsApi } from '@/features/appointments/appointmentsApi';
 import { patientsApi } from '@/features/patients/patientsApi';
 import { telephonyApi } from '@/features/telephony/telephonyApi';
+import { staffReviewApi } from '@/features/staffReview/staffReviewApi';
 
 export const store = configureStore({
   preloadedState: getPreloadedAuthState(),
@@ -61,6 +62,7 @@ export const store = configureStore({
     [appointmentsApi.reducerPath]: appointmentsApi.reducer,
     [patientsApi.reducerPath]: patientsApi.reducer,
     [telephonyApi.reducerPath]: telephonyApi.reducer,
+    [staffReviewApi.reducerPath]: staffReviewApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -78,6 +80,7 @@ export const store = configureStore({
       appointmentsApi.middleware,
       patientsApi.middleware,
       telephonyApi.middleware,
+      staffReviewApi.middleware,
     ),
 });
 
