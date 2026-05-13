@@ -20,6 +20,8 @@ export const features = {
 
   aiAppointmentChangesRequireReview:
     process.env.FF_AI_APPOINTMENT_CHANGES_REQUIRE_REVIEW === 'true',
+
+  pilotPreflightRequired: process.env.FF_PILOT_PREFLIGHT_REQUIRED === 'true',
 } as const;
 
 export type FeatureFlags = typeof features;

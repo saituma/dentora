@@ -6,6 +6,10 @@ const mockListStaffReviewItems = vi.hoisted(() => vi.fn());
 const mockComputeOnboardingReadiness = vi.hoisted(() => vi.fn());
 const mockGetAppointmentReconciliationHealthSummary = vi.hoisted(() => vi.fn());
 const mockScanLegacyGoogleCalendarPhi = vi.hoisted(() => vi.fn());
+const mockDb = vi.hoisted(() => ({
+  select: vi.fn(),
+  insert: vi.fn(),
+}));
 const mockFeatures = vi.hoisted(() => ({
   appointmentReconciliationProcessor: true,
 }));
@@ -30,6 +34,10 @@ vi.mock('../integrations/google-calendar-phi-scanner.js', () => ({
   scanLegacyGoogleCalendarPhi: mockScanLegacyGoogleCalendarPhi,
 }));
 
+vi.mock('../../db/index.js', () => ({
+  db: mockDb,
+}));
+
 vi.mock('../../config/features.js', () => ({
   features: mockFeatures,
 }));
@@ -38,7 +46,7 @@ vi.mock('../../lib/logger.js', () => ({
   logger: mockLogger,
 }));
 
-import { getPilotPreflightReport } from './pilot-preflight.js';
+import { assertPilotPreflightCleanForGoLive, getPilotPreflightReport } from './pilot-preflight.js';
 
 const readyReadiness = {
   ready: true,
@@ -58,6 +66,26 @@ function withTenant<T>(tenantId: string, callback: () => T): T {
   return runWithTenantContext({ tenantId, source: 'test' }, callback);
 }
 
+function selectStatus(result: unknown[]) {
+  const chain = {
+    from: vi.fn(),
+    where: vi.fn(),
+    limit: vi.fn().mockResolvedValue(result),
+  };
+  chain.from.mockReturnValue(chain);
+  chain.where.mockReturnValue(chain);
+  return chain;
+}
+
+function insertStatus() {
+  const chain = {
+    values: vi.fn(),
+    onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+  };
+  chain.values.mockReturnValue(chain);
+  return chain;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockFeatures.appointmentReconciliationProcessor = true;
@@ -70,6 +98,8 @@ beforeEach(() => {
     checkedCount: 0,
   });
   mockScanLegacyGoogleCalendarPhi.mockResolvedValue(cleanCalendarReport);
+  mockDb.select.mockReturnValue(selectStatus([]));
+  mockDb.insert.mockReturnValue(insertStatus());
 });
 
 describe('pilot preflight report', () => {
@@ -191,15 +221,80 @@ describe('pilot preflight report', () => {
     );
   });
 
-  it('warns when calendar PHI scan is not run', async () => {
+  it('blocks when calendar PHI scan is not run and no recent persisted scan exists', async () => {
     const report = await withTenant('tenant-a', () =>
       getPilotPreflightReport({ tenantId: 'tenant-a', runCalendarPhiScan: false }),
     );
 
-    expect(report.warnings).toContainEqual(
-      expect.objectContaining({ code: 'CALENDAR_PHI_SCAN_NOT_RUN', area: 'calendar_phi' }),
+    expect(report.readyForSupervisedPilot).toBe(false);
+    expect(report.blockingIssues).toContainEqual(
+      expect.objectContaining({ code: 'CALENDAR_PHI_SCAN_REQUIRED', area: 'calendar_phi' }),
     );
     expect(mockScanLegacyGoogleCalendarPhi).not.toHaveBeenCalled();
+  });
+
+  it('uses a recent persisted clean calendar PHI scan when scan is not rerun', async () => {
+    mockDb.select.mockReturnValueOnce(
+      selectStatus([
+        {
+          latestCalendarPhiScanAt: new Date('2026-05-14T11:00:00.000Z'),
+          latestCalendarPhiTotalEvents: 7,
+          latestCalendarPhiRiskyEvents: 0,
+        },
+      ]),
+    );
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({
+        tenantId: 'tenant-a',
+        runCalendarPhiScan: false,
+        now: new Date('2026-05-14T12:00:00.000Z'),
+      }),
+    );
+
+    expect(report.readyForSupervisedPilot).toBe(true);
+    expect(report.summary.legacyCalendarPhiRiskyEvents).toBe(0);
+    expect(report.blockingIssues).not.toContainEqual(
+      expect.objectContaining({ code: 'CALENDAR_PHI_SCAN_REQUIRED' }),
+    );
+  });
+
+  it('blocks when persisted calendar PHI scan is stale', async () => {
+    mockDb.select.mockReturnValueOnce(
+      selectStatus([
+        {
+          latestCalendarPhiScanAt: new Date('2026-05-01T12:00:00.000Z'),
+          latestCalendarPhiTotalEvents: 7,
+          latestCalendarPhiRiskyEvents: 0,
+        },
+      ]),
+    );
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({
+        tenantId: 'tenant-a',
+        runCalendarPhiScan: false,
+        now: new Date('2026-05-14T12:00:00.000Z'),
+      }),
+    );
+
+    expect(report.readyForSupervisedPilot).toBe(false);
+    expect(report.blockingIssues).toContainEqual(
+      expect.objectContaining({ code: 'CALENDAR_PHI_SCAN_REQUIRED', area: 'calendar_phi' }),
+    );
+  });
+
+  it('blocks when reconciliation processor is disabled', async () => {
+    mockFeatures.appointmentReconciliationProcessor = false;
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({ tenantId: 'tenant-a', calendarPhiScanReport: cleanCalendarReport }),
+    );
+
+    expect(report.readyForSupervisedPilot).toBe(false);
+    expect(report.blockingIssues).toContainEqual(
+      expect.objectContaining({ code: 'RECONCILIATION_PROCESSOR_DISABLED', area: 'worker' }),
+    );
   });
 
   it('runs calendar PHI scan only when explicitly requested', async () => {
@@ -217,5 +312,60 @@ describe('pilot preflight report', () => {
     await expect(
       withTenant('tenant-a', () => getPilotPreflightReport({ tenantId: 'tenant-b' })),
     ).rejects.toThrow(AuthorizationError);
+  });
+
+  it('go-live guard rejects when no calendar PHI scan state exists', async () => {
+    await expect(
+      withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
+    ).rejects.toMatchObject({
+      details: {
+        errors: expect.arrayContaining([
+          expect.objectContaining({ code: 'PILOT_PREFLIGHT_NOT_CLEAN' }),
+          expect.objectContaining({ code: 'CALENDAR_PHI_SCAN_REQUIRED' }),
+        ]),
+      },
+    });
+  });
+
+  it('go-live guard rejects when latest calendar PHI scan has risky events', async () => {
+    mockDb.select.mockReturnValueOnce(
+      selectStatus([
+        {
+          latestCalendarPhiScanAt: new Date('2026-05-14T11:00:00.000Z'),
+          latestCalendarPhiTotalEvents: 10,
+          latestCalendarPhiRiskyEvents: 2,
+        },
+      ]),
+    );
+
+    await expect(
+      withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
+    ).rejects.toMatchObject({
+      details: {
+        errors: expect.arrayContaining([
+          expect.objectContaining({ code: 'PILOT_PREFLIGHT_NOT_CLEAN' }),
+          expect.objectContaining({ code: 'LEGACY_CALENDAR_PHI_FOUND' }),
+        ]),
+      },
+    });
+  });
+
+  it('go-live guard succeeds when persisted preflight dependencies are clean', async () => {
+    mockDb.select.mockReturnValueOnce(
+      selectStatus([
+        {
+          latestCalendarPhiScanAt: new Date('2026-05-14T11:00:00.000Z'),
+          latestCalendarPhiTotalEvents: 10,
+          latestCalendarPhiRiskyEvents: 0,
+        },
+      ]),
+    );
+
+    await expect(
+      withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
+    ).resolves.toMatchObject({
+      readyForSupervisedPilot: true,
+      blockingIssues: [],
+    });
   });
 });

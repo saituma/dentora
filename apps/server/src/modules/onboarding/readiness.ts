@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import { features } from '../../config/features.js';
 import { db } from '../../db/index.js';
 import {
   bookingRules,
@@ -398,6 +399,10 @@ export async function assertTenantReadyForGoLive(
   });
   if (!readiness.ready) {
     throw new ValidationError('Tenant is not ready to go live', readiness.blockingIssues);
+  }
+  if (features.pilotPreflightRequired) {
+    const { assertPilotPreflightCleanForGoLive } = await import('./pilot-preflight.js');
+    await assertPilotPreflightCleanForGoLive(tenantId);
   }
   return readiness;
 }

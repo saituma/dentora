@@ -584,6 +584,27 @@ export const tenantActiveConfig = pgTable('tenant_active_config', {
   activatedBy: uuid('activated_by').notNull(),
 });
 
+export const pilotPreflightStatus = pgTable(
+  'pilot_preflight_status',
+  {
+    tenantId: uuid('tenant_id')
+      .primaryKey()
+      .references(() => tenantRegistry.id),
+    latestCalendarPhiScanAt: timestamp('latest_calendar_phi_scan_at', { withTimezone: true }),
+    latestCalendarPhiTotalEvents: integer('latest_calendar_phi_total_events'),
+    latestCalendarPhiRiskyEvents: integer('latest_calendar_phi_risky_events'),
+    lastPreflightCheckedAt: timestamp('last_preflight_checked_at', { withTimezone: true }),
+    lastPreflightReady: boolean('last_preflight_ready'),
+    lastBlockingIssueCodes: jsonb('last_blocking_issue_codes').notNull().default([]),
+    lastWarningCodes: jsonb('last_warning_codes').notNull().default([]),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('pilot_preflight_status_checked_idx').on(table.tenantId, table.lastPreflightCheckedAt),
+  ],
+);
+
 export const users = pgTable(
   'users',
   {

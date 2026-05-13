@@ -4,8 +4,13 @@ import { AuthorizationError, ValidationError } from '../../lib/errors.js';
 const mockDb = vi.hoisted(() => ({
   select: vi.fn(),
 }));
+const mockFeatures = vi.hoisted(() => ({
+  pilotPreflightRequired: false,
+}));
+const mockAssertPilotPreflightCleanForGoLive = vi.hoisted(() => vi.fn());
 
 vi.mock('../../db/index.js', () => ({ db: mockDb }));
+vi.mock('../../config/features.js', () => ({ features: mockFeatures }));
 vi.mock('../../lib/cache.js', () => ({
   cache: {
     getTenantScoped: vi.fn().mockResolvedValue(null),
@@ -19,6 +24,9 @@ vi.mock('../../lib/logger.js', () => ({
     info: vi.fn(),
     warn: vi.fn(),
   },
+}));
+vi.mock('./pilot-preflight.js', () => ({
+  assertPilotPreflightCleanForGoLive: mockAssertPilotPreflightCleanForGoLive,
 }));
 
 import { runWithTenantContext } from '../../db/tenant-context.js';
@@ -206,6 +214,13 @@ function codes(result: { blockingIssues: Array<{ code: string }> }): string[] {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFeatures.pilotPreflightRequired = false;
+  mockAssertPilotPreflightCleanForGoLive.mockResolvedValue({
+    readyForSupervisedPilot: true,
+    blockingIssues: [],
+    warnings: [],
+    summary: {},
+  });
 });
 
 describe('onboarding readiness gate', () => {
@@ -304,6 +319,45 @@ describe('onboarding readiness gate', () => {
     await expect(withTenant(() => assertTenantReadyForGoLive('tenant-a'))).resolves.toMatchObject({
       ready: true,
       blockingIssues: [],
+    });
+  });
+
+  it('go-live guard requires clean pilot preflight when enabled', async () => {
+    mockFeatures.pilotPreflightRequired = true;
+    queueReadinessRows({ requirePublishedConfig: false });
+
+    await expect(withTenant(() => assertTenantReadyForGoLive('tenant-a'))).resolves.toMatchObject({
+      ready: true,
+    });
+
+    expect(mockAssertPilotPreflightCleanForGoLive).toHaveBeenCalledWith('tenant-a');
+  });
+
+  it('go-live guard returns safe pilot blocking issues when preflight is not clean', async () => {
+    mockFeatures.pilotPreflightRequired = true;
+    mockAssertPilotPreflightCleanForGoLive.mockRejectedValueOnce(
+      new ValidationError('Pilot preflight is not clean', [
+        {
+          code: 'PILOT_PREFLIGHT_NOT_CLEAN',
+          area: 'readiness',
+          message: 'Pilot preflight must be clean before go-live.',
+        },
+        {
+          code: 'CALENDAR_PHI_SCAN_REQUIRED',
+          area: 'calendar_phi',
+          message: 'A recent legacy Google Calendar PHI scan is required before pilot go-live.',
+        },
+      ]),
+    );
+    queueReadinessRows({ requirePublishedConfig: false });
+
+    await expect(withTenant(() => assertTenantReadyForGoLive('tenant-a'))).rejects.toMatchObject({
+      details: {
+        errors: expect.arrayContaining([
+          expect.objectContaining({ code: 'PILOT_PREFLIGHT_NOT_CLEAN' }),
+          expect.objectContaining({ code: 'CALENDAR_PHI_SCAN_REQUIRED' }),
+        ]),
+      },
     });
   });
 
