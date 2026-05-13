@@ -1,49 +1,45 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAppDispatch } from "@/store/hooks";
-import { setCredentials } from "@/features/auth/authSlice";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '@/features/auth/authSlice';
 import {
   useLazyGetGoogleStartUrlQuery,
   useLoginMutation,
   useSendEmailOtpMutation,
   useVerifyEmailOtpMutation,
-} from "@/features/auth/authApi";
-import type { OnboardingStep } from "@/features/auth/types";
-import { toast } from "sonner";
-import { getUserFriendlyApiError } from "@/lib/api-error";
-import { API_BASE_URL, fetchCsrfToken } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+} from '@/features/auth/authApi';
+import type { OnboardingStep } from '@/features/auth/types';
+import { toast } from 'sonner';
+import { getUserFriendlyApiError } from '@/lib/api-error';
+import { API_BASE_URL, fetchCsrfToken } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 
 const mapServerStepToClientStep = (step?: string): OnboardingStep => {
-  if (!step) return "clinic-profile";
+  if (!step) return 'clinic-profile';
 
-  if (step === "clinic-profile") return "clinic-profile";
-  if (step === "services" || step === "knowledge-base") return "knowledge-base";
-  if (step === "voice") return "voice";
-  if (step === "phone-number") return "phone-number";
-  if (step === "booking-rules" || step === "policies" || step === "rules") {
-    return "rules";
+  if (step === 'clinic-profile') return 'clinic-profile';
+  if (step === 'services' || step === 'knowledge-base') return 'knowledge-base';
+  if (step === 'voice') return 'voice';
+  if (step === 'phone-number') return 'phone-number';
+  if (step === 'booking-rules' || step === 'policies' || step === 'rules') {
+    return 'rules';
   }
-  if (step === "integrations") return "integrations";
-  if (step === "schedule") return "schedule";
-  if (step === "review") return "ai-chat";
-  if (step === "test-call") return "test-call";
-  if (step === "complete") return "complete";
+  if (step === 'integrations') return 'integrations';
+  if (step === 'schedule') return 'schedule';
+  if (step === 'review') return 'ai-chat';
+  if (step === 'test-call') return 'test-call';
+  if (step === 'complete') return 'complete';
 
-  return "clinic-profile";
+  return 'clinic-profile';
 };
 
 const getLoginDestination = (step: OnboardingStep): string => {
-  if (step === "complete") return "/dashboard";
+  if (step === 'complete') return '/dashboard';
   return `/onboarding/${step}`;
 };
 
@@ -51,11 +47,11 @@ export function LoginForm() {
   const dispatch = useAppDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [otpCode, setOtpCode] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const otpInputId = "login-otp-code";
+  const otpInputId = 'login-otp-code';
 
   const [login, { isLoading }] = useLoginMutation();
   const [sendEmailOtp, { isLoading: sendingOtp }] = useSendEmailOtpMutation();
@@ -71,13 +67,13 @@ export function LoginForm() {
       });
 
       if (!response.ok) {
-        return "clinic-profile";
+        return 'clinic-profile';
       }
 
       const data = (await response.json()) as { currentStep?: string };
       return mapServerStepToClientStep(data.currentStep);
     } catch {
-      return "clinic-profile";
+      return 'clinic-profile';
     }
   };
 
@@ -86,9 +82,9 @@ export function LoginForm() {
     user: { id: string; email: string; displayName: string | null; role: string };
     tenantId: string | null;
   }) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", result.accessToken);
-      localStorage.removeItem("refresh_token");
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', result.accessToken);
+      localStorage.removeItem('refresh_token');
     }
 
     const onboardingStatus = await fetchOnboardingStep(result.accessToken);
@@ -98,39 +94,42 @@ export function LoginForm() {
         user: result.user,
         tenantId: result.tenantId,
         onboardingStatus,
-      })
+      }),
     );
-    toast.success("Welcome back!");
+    toast.success('Welcome back!');
     router.push(getLoginDestination(onboardingStatus));
   };
 
   useEffect(() => {
-    const oauth = searchParams.get("oauth");
+    const oauth = searchParams.get('oauth');
 
-    if (oauth !== "google") {
+    if (oauth !== 'google') {
       return;
     }
 
     const exchangeOauthCode = async () => {
       try {
+        const code = searchParams.get('code');
+        if (!code) throw new Error('Missing OAuth exchange code');
+
         const csrf = await fetchCsrfToken();
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (csrf) headers["x-csrf-token"] = csrf;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (csrf) headers['x-csrf-token'] = csrf;
 
         const res = await fetch(`${API_BASE_URL}/auth/google/exchange`, {
-          method: "POST",
+          method: 'POST',
           headers,
-          credentials: "include",
-          body: JSON.stringify({}),
+          credentials: 'include',
+          body: JSON.stringify({ code }),
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({ message: "OAuth login failed" }));
-          throw new Error((err as { message?: string }).message || "OAuth login failed");
+          const err = await res.json().catch(() => ({ message: 'OAuth login failed' }));
+          throw new Error((err as { message?: string }).message || 'OAuth login failed');
         }
         const result = await res.json();
         await finalizeLogin(result);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Google login failed");
+        toast.error(err instanceof Error ? err.message : 'Google login failed');
       }
     };
 
@@ -144,7 +143,7 @@ export function LoginForm() {
       const result = await login({ email, password }).unwrap();
       await finalizeLogin(result);
     } catch (err: unknown) {
-      toast.error(getUserFriendlyApiError(err, { operation: "login" }));
+      toast.error(getUserFriendlyApiError(err, { operation: 'login' }));
     }
   };
 
@@ -152,7 +151,7 @@ export function LoginForm() {
     try {
       await sendEmailOtp({ email }).unwrap();
       setOtpSent(true);
-      toast.success("Verification code sent.");
+      toast.success('Verification code sent.');
     } catch (err: unknown) {
       toast.error(getUserFriendlyApiError(err));
     }
@@ -188,7 +187,9 @@ export function LoginForm() {
         <form onSubmit={handlePasswordLogin} aria-label="Login form">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="email" className="text-gray-300">Email</FieldLabel>
+              <FieldLabel htmlFor="email" className="text-gray-300">
+                Email
+              </FieldLabel>
               <Input
                 id="email"
                 type="email"
@@ -204,7 +205,9 @@ export function LoginForm() {
             </Field>
             <Field>
               <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="password" className="text-gray-300">Password</FieldLabel>
+                <FieldLabel htmlFor="password" className="text-gray-300">
+                  Password
+                </FieldLabel>
                 <Link
                   href="/forgot-password"
                   className="text-sm text-blue-400 underline-offset-2 hover:underline"
@@ -224,19 +227,37 @@ export function LoginForm() {
               />
             </Field>
             <Field>
-              <Button type="submit" className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in with password"}
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Sign in with password'}
               </Button>
             </Field>
             <Field>
-              <Button type="button" variant="outline" className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white" onClick={startGoogle} disabled={googleLoading} aria-label="Continue with Google">
-                {googleLoading ? "Redirecting..." : "Continue with Google"}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white"
+                onClick={startGoogle}
+                disabled={googleLoading}
+                aria-label="Continue with Google"
+              >
+                {googleLoading ? 'Redirecting...' : 'Continue with Google'}
               </Button>
             </Field>
             <Field>
               {!otpSent ? (
-                <Button type="button" variant="outline" className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white" onClick={handleSendOtp} disabled={sendingOtp || !email} aria-label="Send sign in code to email">
-                  {sendingOtp ? "Sending code..." : "Send email code"}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white"
+                  onClick={handleSendOtp}
+                  disabled={sendingOtp || !email}
+                  aria-label="Send sign in code to email"
+                >
+                  {sendingOtp ? 'Sending code...' : 'Send email code'}
                 </Button>
               ) : (
                 <div className="space-y-2">
@@ -247,25 +268,28 @@ export function LoginForm() {
                     id={otpInputId}
                     placeholder="Enter 6-digit code"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     autoComplete="one-time-code"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     aria-label="Email verification code"
                     className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
                   />
-                  <Button type="button" variant="outline" className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white" onClick={handleOtpLogin} disabled={verifyingOtp || otpCode.length !== 6}>
-                    {verifyingOtp ? "Verifying..." : "Sign in with email code"}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white"
+                    onClick={handleOtpLogin}
+                    disabled={verifyingOtp || otpCode.length !== 6}
+                  >
+                    {verifyingOtp ? 'Verifying...' : 'Sign in with email code'}
                   </Button>
                 </div>
               )}
             </Field>
             <p className="text-gray-500 text-xs text-center">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="text-blue-400 underline-offset-2 hover:underline"
-              >
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="text-blue-400 underline-offset-2 hover:underline">
                 Sign up
               </Link>
             </p>

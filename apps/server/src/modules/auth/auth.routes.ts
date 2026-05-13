@@ -9,23 +9,7 @@ import { AuthenticationError } from '../../lib/errors.js';
 
 export const authRouter = Router();
 
-const OAUTH_EXCHANGE_COOKIE = 'oauth-exchange-code';
 const REFRESH_TOKEN_COOKIE = 'refresh-token';
-
-const oauthExchangeCookieOptions = {
-  httpOnly: true,
-  sameSite: env.NODE_ENV === 'production' ? ('none' as const) : ('lax' as const),
-  secure: env.NODE_ENV === 'production',
-  path: '/api/auth/google/exchange',
-  maxAge: 2 * 60 * 1000,
-};
-
-const clearOauthExchangeCookieOptions = {
-  httpOnly: oauthExchangeCookieOptions.httpOnly,
-  sameSite: oauthExchangeCookieOptions.sameSite,
-  secure: oauthExchangeCookieOptions.secure,
-  path: oauthExchangeCookieOptions.path,
-};
 
 const refreshTokenCookieOptions = {
   httpOnly: true,
@@ -169,11 +153,10 @@ authRouter.get(
       const redirectBase = getSafeOauthRedirectBase(returnTo);
       const redirectUrl = new URL('/login', redirectBase);
       redirectUrl.searchParams.set('oauth', 'google');
+      redirectUrl.searchParams.set('code', oauthExchangeCode);
 
-      res.cookie(OAUTH_EXCHANGE_COOKIE, oauthExchangeCode, oauthExchangeCookieOptions);
       res.redirect(302, redirectUrl.toString());
     } catch (err: unknown) {
-      res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
       const { logger } = await import('../../lib/logger.js');
       logger.error(
         { err, msg: (err as Error)?.message, stack: (err as Error)?.stack },
@@ -184,22 +167,21 @@ authRouter.get(
   },
 );
 
-authRouter.post('/google/exchange', authRateLimiter, async (req, res, next) => {
-  try {
-    const code = req.cookies?.[OAUTH_EXCHANGE_COOKIE];
-    if (typeof code !== 'string' || !code) {
-      res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-      throw new AuthenticationError('Missing OAuth exchange cookie');
+authRouter.post(
+  '/google/exchange',
+  authRateLimiter,
+  validate({ body: z.object({ code: z.string().min(1) }) }),
+  async (req, res, next) => {
+    try {
+      const { code } = req.body as { code: string };
+      const result = await authService.exchangeOauthCode(code);
+      setRefreshTokenCookie(res, result.refreshToken);
+      res.json(withoutRefreshToken(result));
+    } catch (err) {
+      next(err);
     }
-    const result = await authService.exchangeOauthCode(code);
-    setRefreshTokenCookie(res, result.refreshToken);
-    res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-    res.json(withoutRefreshToken(result));
-  } catch (err) {
-    res.clearCookie(OAUTH_EXCHANGE_COOKIE, clearOauthExchangeCookieOptions);
-    next(err);
-  }
-});
+  },
+);
 
 authRouter.post(
   '/phone/send-otp',
