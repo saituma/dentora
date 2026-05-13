@@ -1,5 +1,4 @@
-
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { createHmac, randomUUID } from 'crypto';
 import { env } from '../config/env.js';

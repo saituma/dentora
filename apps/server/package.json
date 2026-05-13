@@ -39,7 +39,7 @@
     "@types/compression": "^1.8.1",
     "@types/pdfkit": "^0.17.5",
     "aws4fetch": "^1.0.20",
-    "bcryptjs": "^3.0.3",
+    "bcrypt": "^6.0.0",
     "bullmq": "^5.70.1",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
@@ -70,7 +70,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/bcryptjs": "^3.0.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "latest",
     "@types/express": "latest",
