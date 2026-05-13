@@ -1,15 +1,20 @@
-import { and, desc, eq, gt, gte, inArray, lt } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { appointmentHolds, appointments } from '../../db/schema.js';
 import { assertTenantAccess } from '../../db/tenant-context.js';
 import { generateId } from '../../lib/crypto.js';
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
 import type { InferSelectModel } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type * as schema from '../../db/schema.js';
 
 export type Appointment = InferSelectModel<typeof appointments>;
 export type AppointmentHold = InferSelectModel<typeof appointmentHolds>;
 export type AppointmentStatus = Appointment['status'];
 export type AppointmentHoldStatus = AppointmentHold['status'];
+type AppDb = NodePgDatabase<typeof schema>;
+type AppDbTransaction = Parameters<Parameters<AppDb['transaction']>[0]>[0];
+type AppointmentLedgerDb = AppDb | AppDbTransaction;
 
 export interface CreateAppointmentInput {
   tenantId: string;
@@ -55,6 +60,13 @@ export interface AttachExternalCalendarEventInput {
   externalCalendarEventId: string;
 }
 
+export interface MarkAppointmentReconciliationNeededInput {
+  tenantId: string;
+  appointmentId: string;
+  externalCalendarEventId: string;
+  reason: string;
+}
+
 const ALLOWED_APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
   held: ['scheduled', 'cancelled'],
   scheduled: ['confirmed', 'cancelled', 'completed', 'no_show'],
@@ -81,6 +93,7 @@ function assertIdempotencyKey(idempotencyKey: string): void {
 }
 
 async function assertNoConflictingAppointments(input: {
+  executor?: AppointmentLedgerDb;
   tenantId: string;
   startAt: Date;
   endAt: Date;
@@ -103,7 +116,8 @@ async function assertNoConflictingAppointments(input: {
     predicates.push(eq(appointments.staffId, input.staffId));
   }
 
-  const conflicts = await db
+  const executor = input.executor ?? db;
+  const conflicts = await executor
     .select()
     .from(appointments)
     .where(and(...predicates))
@@ -112,6 +126,31 @@ async function assertNoConflictingAppointments(input: {
   if (conflict) {
     throw new ValidationError('Appointment slot conflicts with an existing appointment');
   }
+}
+
+function bookingLockKey(input: {
+  tenantId: string;
+  serviceId?: string | null;
+  staffId?: string | null;
+  startAt: Date;
+}): string {
+  const resource = input.staffId ?? input.serviceId ?? 'tenant';
+  const day = input.startAt.toISOString().slice(0, 10);
+  return `${input.tenantId}:${resource}:${day}`;
+}
+
+async function acquireBookingLock(
+  executor: AppointmentLedgerDb,
+  input: {
+    tenantId: string;
+    serviceId?: string | null;
+    staffId?: string | null;
+    startAt: Date;
+  },
+): Promise<void> {
+  await executor.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtextextended(${bookingLockKey(input)}, 0))`,
+  );
 }
 
 export async function createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
@@ -274,6 +313,39 @@ export async function attachExternalCalendarEvent(
   return updated;
 }
 
+export async function markAppointmentReconciliationNeeded(
+  input: MarkAppointmentReconciliationNeededInput,
+): Promise<void> {
+  assertTenantAccess(input.tenantId);
+  if (!input.externalCalendarEventId.trim()) {
+    throw new ValidationError('External calendar event id is required');
+  }
+
+  const current = await getAppointment(input.tenantId, input.appointmentId);
+  const metadata =
+    current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+      ? (current.metadata as Record<string, unknown>)
+      : {};
+
+  await db
+    .update(appointments)
+    .set({
+      metadata: {
+        ...metadata,
+        reconciliation: {
+          status: 'external_created_local_confirm_failed',
+          externalCalendarEventId: input.externalCalendarEventId,
+          reason: input.reason,
+          detectedAt: new Date().toISOString(),
+        },
+      },
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
+    );
+}
+
 export async function createAppointmentHold(
   input: CreateAppointmentHoldInput,
 ): Promise<AppointmentHold> {
@@ -359,51 +431,84 @@ export async function confirmAppointmentHold(
   const existing = await findAppointmentByIdempotencyKey(input.tenantId, input.idempotencyKey);
   if (existing) return existing;
 
-  const hold = await getAppointmentHold(input.tenantId, input.holdId);
-  const now = input.now ?? new Date();
-  if (hold.status !== 'active') {
-    throw new ValidationError('Appointment hold is not active');
-  }
-  if (hold.expiresAt <= now) {
-    throw new ValidationError('Appointment hold has expired');
-  }
+  return await db.transaction(async (tx) => {
+    const [hold] = await tx
+      .select()
+      .from(appointmentHolds)
+      .where(
+        and(eq(appointmentHolds.tenantId, input.tenantId), eq(appointmentHolds.id, input.holdId)),
+      )
+      .limit(1);
 
-  await assertNoConflictingAppointments({
-    tenantId: input.tenantId,
-    startAt: hold.startAt,
-    endAt: hold.endAt,
-    serviceId: hold.serviceId,
-    staffId: hold.staffId,
-  });
+    if (!hold) {
+      throw new NotFoundError('Appointment hold not found');
+    }
 
-  const [appointment] = await db
-    .insert(appointments)
-    .values({
-      id: generateId(),
+    await acquireBookingLock(tx, {
       tenantId: input.tenantId,
-      patientId: hold.patientId,
       serviceId: hold.serviceId,
       staffId: hold.staffId,
-      callSessionId: hold.callSessionId,
-      status: 'scheduled',
+      startAt: hold.startAt,
+    });
+
+    const [existingInsideTransaction] = await tx
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.tenantId, input.tenantId),
+          eq(appointments.idempotencyKey, input.idempotencyKey),
+        ),
+      )
+      .limit(1);
+    if (existingInsideTransaction) return existingInsideTransaction;
+
+    const now = input.now ?? new Date();
+    if (hold.status !== 'active') {
+      throw new ValidationError('Appointment hold is not active');
+    }
+    if (hold.expiresAt <= now) {
+      throw new ValidationError('Appointment hold has expired');
+    }
+
+    await assertNoConflictingAppointments({
+      executor: tx,
+      tenantId: input.tenantId,
       startAt: hold.startAt,
       endAt: hold.endAt,
-      timezone: hold.timezone,
-      calendarIntegrationId: hold.calendarIntegrationId,
-      externalCalendarEventId: null,
-      idempotencyKey: input.idempotencyKey,
-      metadata: hold.metadata ?? {},
-    })
-    .returning();
+      serviceId: hold.serviceId,
+      staffId: hold.staffId,
+    });
 
-  await db
-    .update(appointmentHolds)
-    .set({ status: 'converted', updatedAt: new Date() })
-    .where(
-      and(eq(appointmentHolds.tenantId, input.tenantId), eq(appointmentHolds.id, input.holdId)),
-    );
+    const [appointment] = await tx
+      .insert(appointments)
+      .values({
+        id: generateId(),
+        tenantId: input.tenantId,
+        patientId: hold.patientId,
+        serviceId: hold.serviceId,
+        staffId: hold.staffId,
+        callSessionId: hold.callSessionId,
+        status: 'scheduled',
+        startAt: hold.startAt,
+        endAt: hold.endAt,
+        timezone: hold.timezone,
+        calendarIntegrationId: hold.calendarIntegrationId,
+        externalCalendarEventId: null,
+        idempotencyKey: input.idempotencyKey,
+        metadata: hold.metadata ?? {},
+      })
+      .returning();
 
-  return appointment;
+    await tx
+      .update(appointmentHolds)
+      .set({ status: 'converted', updatedAt: new Date() })
+      .where(
+        and(eq(appointmentHolds.tenantId, input.tenantId), eq(appointmentHolds.id, input.holdId)),
+      );
+
+    return appointment;
+  });
 }
 
 export async function listActiveAppointmentHolds(input: {

@@ -8,6 +8,7 @@ import {
   confirmAppointmentHold,
   getAppointment,
   listActiveAppointmentHolds,
+  markAppointmentReconciliationNeeded,
   updateAppointmentStatus,
   type Appointment,
   type AppointmentHold,
@@ -38,6 +39,8 @@ interface MockDb {
   select: Mock;
   insert: Mock;
   update: Mock;
+  execute: Mock;
+  transaction: Mock;
 }
 
 const mockDb = db as unknown as MockDb;
@@ -122,6 +125,10 @@ function withTenant<T>(tenantId: string, callback: () => T): T {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockDb.transaction.mockImplementation(async (callback: (tx: MockDb) => Promise<unknown>) =>
+    callback(mockDb),
+  );
+  mockDb.execute.mockResolvedValue(undefined);
 });
 
 describe('appointment ledger service', () => {
@@ -191,7 +198,8 @@ describe('appointment ledger service', () => {
         selectChain<AppointmentHold>([
           { ...baseHold, expiresAt: new Date('2000-01-01T00:00:00.000Z') },
         ]),
-      );
+      )
+      .mockReturnValueOnce(selectChain<Appointment>([]));
 
     await expect(
       withTenant('tenant-a', () =>
@@ -203,6 +211,7 @@ describe('appointment ledger service', () => {
         }),
       ),
     ).rejects.toThrow(ValidationError);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(mockDb.insert).not.toHaveBeenCalled();
   });
 
@@ -223,6 +232,7 @@ describe('appointment ledger service', () => {
     mockDb.select
       .mockReturnValueOnce(selectChain<Appointment>([]))
       .mockReturnValueOnce(selectChain<AppointmentHold>([baseHold]))
+      .mockReturnValueOnce(selectChain<Appointment>([]))
       .mockReturnValueOnce(
         selectChain<Appointment>([
           { ...baseAppointment, id: 'appointment-conflict', status: 'confirmed' },
@@ -239,6 +249,7 @@ describe('appointment ledger service', () => {
         }),
       ),
     ).rejects.toThrow(ValidationError);
+    expect(mockDb.execute).toHaveBeenCalledTimes(1);
     expect(mockDb.insert).not.toHaveBeenCalled();
   });
 
@@ -255,6 +266,7 @@ describe('appointment ledger service', () => {
     mockDb.select
       .mockReturnValueOnce(selectChain<Appointment>([]))
       .mockReturnValueOnce(selectChain<AppointmentHold>([baseHold]))
+      .mockReturnValueOnce(selectChain<Appointment>([]))
       .mockReturnValueOnce(selectChain<Appointment>([]));
     mockDb.insert.mockReturnValueOnce(insert);
     mockDb.update.mockReturnValueOnce(holdUpdate);
@@ -269,6 +281,8 @@ describe('appointment ledger service', () => {
     );
 
     expect(appointment).toEqual(scheduledAppointment);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+    expect(mockDb.execute).toHaveBeenCalledTimes(1);
     expect(insert.values).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-a',
@@ -307,6 +321,7 @@ describe('appointment ledger service', () => {
     mockDb.select
       .mockReturnValueOnce(selectChain<Appointment>([]))
       .mockReturnValueOnce(selectChain<AppointmentHold>([baseHold]))
+      .mockReturnValueOnce(selectChain<Appointment>([]))
       .mockReturnValueOnce(selectChain<Appointment>([]));
     mockDb.insert.mockReturnValueOnce(insertChain<Appointment>([scheduledAppointment]));
     mockDb.update.mockReturnValueOnce(
@@ -324,6 +339,42 @@ describe('appointment ledger service', () => {
 
     expect(appointment.status).toBe('scheduled');
     expect(appointment.externalCalendarEventId).toBeNull();
+  });
+
+  it('marks appointments for reconciliation when external calendar succeeds but local finalization fails', async () => {
+    const update = updateChain<Appointment>([]);
+    mockDb.select.mockReturnValueOnce(
+      selectChain<Appointment>([
+        {
+          ...baseAppointment,
+          metadata: { source: 'appointments.book' },
+        },
+      ]),
+    );
+    mockDb.update.mockReturnValueOnce(update);
+
+    await withTenant('tenant-a', () =>
+      markAppointmentReconciliationNeeded({
+        tenantId: 'tenant-a',
+        appointmentId: baseAppointment.id,
+        externalCalendarEventId: 'google-event-a',
+        reason: 'local update failed',
+      }),
+    );
+
+    const updatePayload = update.set.mock.calls[0]?.[0] as {
+      metadata?: Record<string, unknown>;
+      updatedAt?: unknown;
+    };
+    expect(updatePayload.updatedAt).toBeInstanceOf(Date);
+    expect(updatePayload.metadata).toMatchObject({
+      source: 'appointments.book',
+      reconciliation: {
+        status: 'external_created_local_confirm_failed',
+        externalCalendarEventId: 'google-event-a',
+        reason: 'local update failed',
+      },
+    });
   });
 
   it('filters active holds by expiry through the repository query', async () => {

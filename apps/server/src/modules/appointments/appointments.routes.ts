@@ -17,6 +17,7 @@ import {
   attachExternalCalendarEvent,
   confirmAppointmentHold,
   createAppointmentHold,
+  markAppointmentReconciliationNeeded,
 } from './appointment-ledger.service.js';
 
 const appointmentsRateLimiter = rateLimiter({
@@ -359,11 +360,21 @@ appointmentsRouter.post(
         patient: req.body.patient,
       });
 
-      await attachExternalCalendarEvent({
-        tenantId,
-        appointmentId: localAppointment.id,
-        externalCalendarEventId: calendarAppointment.eventId,
-      });
+      try {
+        await attachExternalCalendarEvent({
+          tenantId,
+          appointmentId: localAppointment.id,
+          externalCalendarEventId: calendarAppointment.eventId,
+        });
+      } catch (error) {
+        await markAppointmentReconciliationNeeded({
+          tenantId,
+          appointmentId: localAppointment.id,
+          externalCalendarEventId: calendarAppointment.eventId,
+          reason: error instanceof Error ? error.message : 'Unknown local confirmation failure',
+        });
+        throw error;
+      }
 
       res.json({
         data: calendarAppointment,
