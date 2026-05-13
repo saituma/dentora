@@ -165,6 +165,38 @@ export const staffReviewQueueWriteFailuresTotal = new client.Counter({
   registers: [register],
 });
 
+export const mediaStreamStartTimeoutTotal = new client.Counter({
+  name: 'media_stream_start_timeout_total',
+  help: 'Total media stream connections that timed out before a valid start event',
+  registers: [register],
+});
+
+export const mediaStreamInvalidStartTotal = new client.Counter({
+  name: 'media_stream_invalid_start_total',
+  help: 'Total invalid media stream start attempts',
+  registers: [register],
+});
+
+export const mediaStreamPendingLimitExceededTotal = new client.Counter({
+  name: 'media_stream_pending_limit_exceeded_total',
+  help: 'Total media stream pending-connection limit rejections',
+  registers: [register],
+});
+
+export const appointmentReconciliationFailedTotal = new client.Counter({
+  name: 'appointment_reconciliation_failed_total',
+  help: 'Total appointment reconciliation failures requiring staff review',
+  labelNames: ['tenant_id'],
+  registers: [register],
+});
+
+export const appointmentReconciliationRetryScheduledTotal = new client.Counter({
+  name: 'appointment_reconciliation_retry_scheduled_total',
+  help: 'Total appointment reconciliation retries scheduled',
+  labelNames: ['tenant_id'],
+  registers: [register],
+});
+
 export { register };
 
 export function getMetricsContentType(): string {

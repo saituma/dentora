@@ -168,6 +168,32 @@ onboardingRouter.get('/readiness', async (req, res, next) => {
   }
 });
 
+onboardingRouter.get(
+  '/pilot-preflight',
+  validate({
+    query: z.object({
+      runCalendarPhiScan: z.coerce.boolean().optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const query = req.query as unknown as { runCalendarPhiScan?: boolean };
+      const report = await onboardingService.getPilotPreflightReport({
+        tenantId: req.tenantContext!.tenantId,
+        runCalendarPhiScan: query.runCalendarPhiScan === true,
+      });
+      req.audit?.({
+        action: 'onboarding.pilot_preflight',
+        entityType: 'tenant',
+        entityId: req.tenantContext!.tenantId,
+      });
+      res.json(report);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 onboardingRouter.get('/context-documents', async (req, res, next) => {
   try {
     const tenantId = req.tenantContext!.tenantId;

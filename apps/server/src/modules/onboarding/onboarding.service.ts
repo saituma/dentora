@@ -15,6 +15,7 @@ export {
   getOnboardingStatus,
   publishOnboardingConfig,
 } from './readiness.js';
+export { getPilotPreflightReport } from './pilot-preflight.js';
 export { buildOnboardingAiChatServerContext } from './onboarding-ai-context.js';
 export { listAvailableVoices } from './voice-catalog.js';
 export { generateVoicePreview, transcribeLiveAudio } from './transcription.js';

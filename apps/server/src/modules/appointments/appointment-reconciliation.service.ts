@@ -8,6 +8,10 @@ import {
 } from '../integrations/google-calendar-appointments.js';
 import { ValidationError } from '../../lib/errors.js';
 import {
+  appointmentReconciliationFailedTotal,
+  appointmentReconciliationRetryScheduledTotal,
+} from '../../lib/metrics.js';
+import {
   attachExternalCalendarEvent,
   getAppointment,
   type Appointment,
@@ -88,6 +92,13 @@ export interface AppointmentReconciliationProcessResult {
   reason?: string;
 }
 
+export interface AppointmentReconciliationHealthSummary {
+  pendingCount: number;
+  retryingCount: number;
+  failedCount: number;
+  checkedCount: number;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
@@ -163,6 +174,46 @@ export async function findReconciliationRetryCandidates(
     limit: input.limit,
     statuses: [...SUPPORTED_RECONCILIATION_STATUSES],
   });
+}
+
+export async function getAppointmentReconciliationHealthSummary(input: {
+  tenantId: string;
+  limit?: number;
+}): Promise<AppointmentReconciliationHealthSummary> {
+  assertTenantAccess(input.tenantId);
+  const limit = Math.min(Math.max(input.limit ?? 500, 1), 1000);
+  const rows = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.tenantId, input.tenantId),
+        inArray(sql<string>`${appointments.metadata}->'reconciliation'->>'status'`, [
+          ...SUPPORTED_RECONCILIATION_STATUSES,
+        ]),
+      ),
+    )
+    .limit(limit);
+
+  const summary: AppointmentReconciliationHealthSummary = {
+    pendingCount: 0,
+    retryingCount: 0,
+    failedCount: 0,
+    checkedCount: rows.length,
+  };
+
+  for (const row of rows) {
+    const workflowState = stringFrom(reconciliationMetadata(row).workflowState);
+    if (workflowState === 'failed') {
+      summary.failedCount += 1;
+    } else if (workflowState === 'retrying') {
+      summary.retryingCount += 1;
+    } else {
+      summary.pendingCount += 1;
+    }
+  }
+
+  return summary;
 }
 
 export async function markAppointmentReconciliationPending(
@@ -311,6 +362,7 @@ async function scheduleRetry(input: {
   const nextRetryAt = new Date(
     input.now.getTime() + retryDelayMs(input.retryCount, input.baseRetryDelayMs),
   );
+  appointmentReconciliationRetryScheduledTotal.labels(input.tenantId).inc();
   await markAppointmentReconciliationPending({
     tenantId: input.tenantId,
     appointmentId: input.appointmentId,
@@ -333,6 +385,7 @@ async function failReconciliation(input: {
   reason: string;
   now: Date;
 }): Promise<AppointmentReconciliationProcessResult> {
+  appointmentReconciliationFailedTotal.labels(input.tenantId).inc();
   await createStaffReviewItemSafely({
     tenantId: input.tenantId,
     type: 'reconciliation_failed',

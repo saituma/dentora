@@ -14,6 +14,11 @@ import {
   assertMediaStreamCallSessionMatchesToken,
   verifyMediaStreamBinding,
 } from './stream-token.js';
+import {
+  mediaStreamInvalidStartTotal,
+  mediaStreamPendingLimitExceededTotal,
+  mediaStreamStartTimeoutTotal,
+} from '../../lib/metrics.js';
 
 interface SensitiveTopic {
   type?: string;
@@ -282,6 +287,7 @@ export function registerPendingMediaStreamConnection(input: {
   const currentIpPending = pendingMediaStreamsByIp.get(remoteAddress) ?? 0;
 
   if (pendingMediaStreams.size >= maxGlobalPending || currentIpPending >= maxPendingPerIp) {
+    mediaStreamPendingLimitExceededTotal.inc();
     logger.warn(
       {
         callSessionId: input.callSessionId,
@@ -308,6 +314,7 @@ export function registerPendingMediaStreamConnection(input: {
     remoteAddress,
     cleanedUp: false,
     timer: setTimeout(() => {
+      mediaStreamStartTimeoutTotal.inc();
       logger.warn(
         { callSessionId: input.callSessionId, remoteAddress },
         'media_stream_start_timeout',
@@ -631,6 +638,7 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
             logger.debug({ event: message.event, callSessionId }, 'Unknown media stream event');
         }
       } catch (err) {
+        mediaStreamInvalidStartTotal.inc();
         logger.warn({ callSessionId }, 'media_stream_invalid_start');
         pendingConnection.cleanup();
         ws.close();
@@ -818,6 +826,7 @@ export async function handleStreamStart(
     logger.info({ tenantId, callSessionId, streamSid }, 'Media stream session initialized');
     return true;
   } catch (err) {
+    mediaStreamInvalidStartTotal.inc();
     logger.warn({ callSessionId }, 'media_stream_invalid_start');
     logger.error({ err, callSessionId }, 'Failed to initialize media stream session');
     ws.close();
