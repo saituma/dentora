@@ -208,7 +208,7 @@ async function createUserWithTenant(input: {
   const userId = generateId();
   const tenantId = generateId();
 
-  const role = input.role ?? 'admin';
+  const role = input.role ?? 'owner';
 
   const [user] = await db.transaction(async (tx) => {
     await tx.insert(tenantRegistry).values({
