@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { appointmentHolds, appointments } from '../../db/schema.js';
 import {
@@ -100,6 +100,12 @@ export interface LedgerAvailabilityBlocker {
   startAt: Date;
   endAt: Date;
   source: 'appointment' | 'hold';
+}
+
+export interface ExpireAppointmentHoldsInput {
+  tenantId: string;
+  now?: Date;
+  limit?: number;
 }
 
 const ALLOWED_APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
@@ -843,6 +849,44 @@ export async function listActiveAppointmentHolds(input: {
       .orderBy(desc(appointmentHolds.startAt))
       .limit(limit),
   );
+}
+
+export async function expireAppointmentHolds(
+  input: ExpireAppointmentHoldsInput,
+): Promise<AppointmentHold[]> {
+  assertTenantAccess(input.tenantId);
+  const now = input.now ?? new Date();
+  const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
+
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const expiredHolds = await tx
+      .select({ id: appointmentHolds.id })
+      .from(appointmentHolds)
+      .where(
+        and(
+          eq(appointmentHolds.tenantId, input.tenantId),
+          eq(appointmentHolds.status, 'active'),
+          lte(appointmentHolds.expiresAt, now),
+        ),
+      )
+      .limit(limit);
+
+    if (expiredHolds.length === 0) return [];
+
+    return await tx
+      .update(appointmentHolds)
+      .set({ status: 'expired', updatedAt: now })
+      .where(
+        and(
+          eq(appointmentHolds.tenantId, input.tenantId),
+          inArray(
+            appointmentHolds.id,
+            expiredHolds.map((hold) => hold.id),
+          ),
+        ),
+      )
+      .returning();
+  });
 }
 
 export async function listLedgerAvailabilityBlockers(input: {

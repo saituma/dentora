@@ -21,6 +21,12 @@ export interface FindAppointmentsNeedingReconciliationInput {
   limit?: number;
 }
 
+export interface FindReconciliationRetryCandidatesInput {
+  tenantId: string;
+  now?: Date;
+  limit?: number;
+}
+
 export interface MarkReconciliationPendingInput {
   tenantId: string;
   appointmentId: string;
@@ -92,6 +98,17 @@ export async function findAppointmentsNeedingReconciliation(
       ),
     )
     .limit(limit);
+}
+
+export async function findReconciliationRetryCandidates(
+  input: FindReconciliationRetryCandidatesInput,
+): Promise<Appointment[]> {
+  return await findAppointmentsNeedingReconciliation({
+    tenantId: input.tenantId,
+    now: input.now,
+    limit: input.limit,
+    statuses: [...SUPPORTED_RECONCILIATION_STATUSES],
+  });
 }
 
 export async function markAppointmentReconciliationPending(

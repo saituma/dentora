@@ -8,6 +8,7 @@ import {
   createAppointment,
   createAppointmentHold,
   confirmAppointmentHold,
+  expireAppointmentHolds,
   getAppointment,
   listActiveAppointmentHolds,
   listLedgerAvailabilityBlockers,
@@ -417,6 +418,61 @@ describe('appointment ledger service', () => {
 
     expect(holds).toEqual([baseHold]);
     expect(list.where).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks tenant-scoped expired active holds as expired', async () => {
+    const expiredHold = {
+      ...baseHold,
+      status: 'expired' as const,
+      expiresAt: new Date('2026-05-13T11:00:00.000Z'),
+    };
+    const expiredLookup = selectChain<Pick<AppointmentHold, 'id'>>([{ id: baseHold.id }]);
+    const update = updateChain<AppointmentHold>([expiredHold]);
+    mockDb.select.mockReturnValueOnce(expiredLookup);
+    mockDb.update.mockReturnValueOnce(update);
+    const now = new Date('2026-05-13T12:00:00.000Z');
+
+    const holds = await withTenant('tenant-a', () =>
+      expireAppointmentHolds({
+        tenantId: 'tenant-a',
+        now,
+      }),
+    );
+
+    expect(holds).toEqual([expiredHold]);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(1);
+    expect(expiredLookup.where).toHaveBeenCalledTimes(1);
+    expect(update.set).toHaveBeenCalledWith({ status: 'expired', updatedAt: now });
+    expect(update.where).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves non-expired or non-active holds unchanged when the cleanup query returns no rows', async () => {
+    const expiredLookup = selectChain<Pick<AppointmentHold, 'id'>>([]);
+    mockDb.select.mockReturnValueOnce(expiredLookup);
+
+    const holds = await withTenant('tenant-a', () =>
+      expireAppointmentHolds({
+        tenantId: 'tenant-a',
+        now: new Date('2026-05-13T12:00:00.000Z'),
+      }),
+    );
+
+    expect(holds).toEqual([]);
+    expect(expiredLookup.where).toHaveBeenCalledTimes(1);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects cross-tenant expired hold cleanup', async () => {
+    await expect(
+      withTenant('tenant-a', () =>
+        expireAppointmentHolds({
+          tenantId: 'tenant-b',
+          now: new Date('2026-05-13T12:00:00.000Z'),
+        }),
+      ),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockDb.select).not.toHaveBeenCalled();
+    expect(mockDb.update).not.toHaveBeenCalled();
   });
 
   it('lists tenant-scoped ledger availability blockers from appointments and holds', async () => {

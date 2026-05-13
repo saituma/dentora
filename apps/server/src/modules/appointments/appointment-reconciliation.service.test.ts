@@ -5,6 +5,7 @@ import { AuthorizationError } from '../../lib/errors.js';
 import type { Appointment } from './appointment-ledger.service.js';
 import {
   findAppointmentsNeedingReconciliation,
+  findReconciliationRetryCandidates,
   markAppointmentReconciliationFailed,
   markAppointmentReconciliationPending,
   markAppointmentReconciliationResolved,
@@ -114,6 +115,34 @@ describe('appointment reconciliation service', () => {
     expect(appointments).toEqual([baseAppointment]);
     expect(list.where).toHaveBeenCalledTimes(1);
     expect(list.limit).toHaveBeenCalledWith(100);
+  });
+
+  it('finds retryable reconciliation candidates by tenant and due time', async () => {
+    const retryCandidate = {
+      ...baseAppointment,
+      metadata: {
+        reconciliation: {
+          status: 'local_rescheduled_external_reschedule_failed',
+          workflowState: 'retrying',
+          retryCount: 2,
+          nextRetryAt: '2026-05-13T12:00:00.000Z',
+        },
+      },
+    };
+    const list = selectChain<Appointment>([retryCandidate]);
+    mockDb.select.mockReturnValueOnce(list);
+
+    const appointments = await withTenant('tenant-a', () =>
+      findReconciliationRetryCandidates({
+        tenantId: 'tenant-a',
+        now: new Date('2026-05-13T12:05:00.000Z'),
+        limit: 25,
+      }),
+    );
+
+    expect(appointments).toEqual([retryCandidate]);
+    expect(list.where).toHaveBeenCalledTimes(1);
+    expect(list.limit).toHaveBeenCalledWith(25);
   });
 
   it('updates retry metadata when marking reconciliation retrying', async () => {
