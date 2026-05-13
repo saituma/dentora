@@ -469,6 +469,7 @@ export async function processAppointmentReconciliationCandidate(
     await rescheduleGoogleCalendarAppointment({
       tenantId: input.tenantId,
       eventId: externalCalendarEventId,
+      appAppointmentId: input.appointment.id,
       timezone: input.appointment.timezone,
       slot: {
         startIso: input.appointment.startAt.toISOString(),

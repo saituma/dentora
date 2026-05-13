@@ -20,7 +20,47 @@ function getCalendarId(config: Record<string, unknown>): string {
     : 'primary';
 }
 
-export async function createGoogleCalendarAppointment(input: CreateCalendarAppointmentInput): Promise<{ eventId: string; htmlLink?: string; slot: CalendarSlot }> {
+function safeCalendarEventMetadata(input: {
+  tenantId: string;
+  appAppointmentId?: string;
+}): Record<string, string> {
+  return {
+    tenantId: input.tenantId,
+    source: 'dentalflow',
+    ...(input.appAppointmentId ? { appAppointmentId: input.appAppointmentId } : {}),
+  };
+}
+
+function buildSafeGoogleCalendarAppointmentEvent(input: {
+  tenantId: string;
+  timezone: string;
+  appAppointmentId?: string;
+  slot: { startIso: string; endIso: string };
+}): Record<string, unknown> {
+  return {
+    summary: 'Dental Appointment',
+    description:
+      'Appointment managed by DentalFlow. View patient details inside the DentalFlow dashboard.',
+    extendedProperties: {
+      private: safeCalendarEventMetadata({
+        tenantId: input.tenantId,
+        appAppointmentId: input.appAppointmentId,
+      }),
+    },
+    start: {
+      dateTime: input.slot.startIso,
+      timeZone: input.timezone,
+    },
+    end: {
+      dateTime: input.slot.endIso,
+      timeZone: input.timezone,
+    },
+  };
+}
+
+export async function createGoogleCalendarAppointment(
+  input: CreateCalendarAppointmentInput,
+): Promise<{ eventId: string; htmlLink?: string; slot: CalendarSlot }> {
   const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
   if (!integration) {
     throw new ValidationError('Google Calendar is not connected for this clinic');
@@ -36,40 +76,25 @@ export async function createGoogleCalendarAppointment(input: CreateCalendarAppoi
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        summary: input.summary,
-        description: [
-          `Patient name: ${input.patient.fullName}`,
-          input.patient.dateOfBirth ? `Date of birth: ${input.patient.dateOfBirth}` : null,
-          input.patient.age != null ? `Age: ${input.patient.age}` : null,
-          `Phone: ${input.patient.phoneNumber}`,
-          `Reason for visit: ${input.patient.reasonForVisit}`,
-        ].filter(Boolean).join('\n'),
-        extendedProperties: {
-          private: {
-            patientName: input.patient.fullName,
-            dateOfBirth: input.patient.dateOfBirth ?? '',
-            age: input.patient.age != null ? String(input.patient.age) : '',
-            phoneNumber: input.patient.phoneNumber,
-            reasonForVisit: input.patient.reasonForVisit,
-          },
-        },
-        start: {
-          dateTime: input.slot.startIso,
-          timeZone: input.timezone,
-        },
-        end: {
-          dateTime: input.slot.endIso,
-          timeZone: input.timezone,
-        },
-      }),
+      body: JSON.stringify(
+        buildSafeGoogleCalendarAppointmentEvent({
+          tenantId: input.tenantId,
+          timezone: input.timezone,
+          appAppointmentId: input.appAppointmentId,
+          slot: input.slot,
+        }),
+      ),
       signal: AbortSignal.timeout(15_000),
     },
   );
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new IntegrationError('calendar', 'google_calendar', `Failed to create Google Calendar event: ${errorBody.slice(0, 500)}`);
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      `Failed to create Google Calendar event: ${errorBody.slice(0, 500)}`,
+    );
   }
 
   const payload = (await response.json()) as { id?: string; htmlLink?: string };
@@ -84,7 +109,9 @@ export async function createGoogleCalendarAppointment(input: CreateCalendarAppoi
   };
 }
 
-export async function findGoogleCalendarAppointment(input: FindCalendarAppointmentInput): Promise<CalendarAppointmentMatch | null> {
+export async function findGoogleCalendarAppointment(
+  input: FindCalendarAppointmentInput,
+): Promise<CalendarAppointmentMatch | null> {
   const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
   if (!integration) {
     throw new ValidationError('Google Calendar is not connected for this clinic');
@@ -113,7 +140,9 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
     rangeEnd = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
   }
 
-  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+  );
   url.searchParams.set('singleEvents', 'true');
   url.searchParams.set('orderBy', 'startTime');
   url.searchParams.set('timeMin', rangeStart.toISOString());
@@ -130,7 +159,11 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
   });
 
   if (!response.ok) {
-    throw new IntegrationError('calendar', 'google_calendar', 'Failed to search Google Calendar events');
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      'Failed to search Google Calendar events',
+    );
   }
 
   const payload = (await response.json()) as {
@@ -161,7 +194,11 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
       const startDate = new Date(startIso);
       const startParts = getFormatterParts(startDate, input.timezone);
       const score = requestedTime
-        ? Math.abs((Number(startParts.hour) * 60 + Number(startParts.minute)) - (requestedTime.hour * 60 + requestedTime.minute))
+        ? Math.abs(
+            Number(startParts.hour) * 60 +
+              Number(startParts.minute) -
+              (requestedTime.hour * 60 + requestedTime.minute),
+          )
         : 0;
 
       return {
@@ -173,14 +210,18 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
         score,
       };
     })
-    .filter((item): item is {
-      eventId: string;
-      summary: string;
-      startIso: string;
-      endIso: string;
-      label: string;
-      score: number;
-    } => Boolean(item))
+    .filter(
+      (
+        item,
+      ): item is {
+        eventId: string;
+        summary: string;
+        startIso: string;
+        endIso: string;
+        label: string;
+        score: number;
+      } => Boolean(item),
+    )
     .sort((left, right) => {
       if (requestedTime) return left.score - right.score;
       return new Date(left.startIso).getTime() - new Date(right.startIso).getTime();
@@ -197,7 +238,10 @@ export async function findGoogleCalendarAppointment(input: FindCalendarAppointme
   };
 }
 
-export async function cancelGoogleCalendarAppointment(input: { tenantId: string; eventId: string }): Promise<void> {
+export async function cancelGoogleCalendarAppointment(input: {
+  tenantId: string;
+  eventId: string;
+}): Promise<void> {
   const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
   if (!integration) {
     throw new ValidationError('Google Calendar is not connected for this clinic');
@@ -216,13 +260,18 @@ export async function cancelGoogleCalendarAppointment(input: { tenantId: string;
 
   if (!response.ok && response.status !== 404) {
     const errorBody = await response.text();
-    throw new IntegrationError('calendar', 'google_calendar', `Failed to cancel Google Calendar event: ${errorBody.slice(0, 500)}`);
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      `Failed to cancel Google Calendar event: ${errorBody.slice(0, 500)}`,
+    );
   }
 }
 
 export async function rescheduleGoogleCalendarAppointment(input: {
   tenantId: string;
   timezone: string;
+  appAppointmentId?: string;
   eventId: string;
   slot: { startIso: string; endIso: string };
 }): Promise<void> {
@@ -241,16 +290,24 @@ export async function rescheduleGoogleCalendarAppointment(input: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        start: { dateTime: input.slot.startIso, timeZone: input.timezone },
-        end: { dateTime: input.slot.endIso, timeZone: input.timezone },
-      }),
+      body: JSON.stringify(
+        buildSafeGoogleCalendarAppointmentEvent({
+          tenantId: input.tenantId,
+          timezone: input.timezone,
+          appAppointmentId: input.appAppointmentId,
+          slot: input.slot,
+        }),
+      ),
       signal: AbortSignal.timeout(15_000),
     },
   );
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new IntegrationError('calendar', 'google_calendar', `Failed to reschedule Google Calendar event: ${errorBody.slice(0, 500)}`);
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      `Failed to reschedule Google Calendar event: ${errorBody.slice(0, 500)}`,
+    );
   }
 }

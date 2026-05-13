@@ -358,6 +358,7 @@ appointmentsRouter.post(
       const calendarAppointment = await createGoogleCalendarAppointment({
         tenantId,
         timezone: clinic.timezone,
+        appAppointmentId: localAppointment.id,
         slot: req.body.slot,
         summary: `Dental appointment - ${req.body.patient.fullName}`,
         patient: req.body.patient,
@@ -456,6 +457,7 @@ appointmentsRouter.post(
         await rescheduleGoogleCalendarAppointment({
           tenantId,
           eventId: req.body.eventId,
+          appAppointmentId: appointment.id,
           slot: req.body.slot,
           timezone: clinic.timezone,
         });

@@ -252,6 +252,7 @@ describe('appointment reconciliation processor', () => {
     expect(mockRescheduleGoogleCalendarAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
       eventId: 'google-event-a',
+      appAppointmentId: 'appointment-a',
       timezone: 'America/New_York',
       slot: {
         startIso: '2026-06-01T14:00:00.000Z',

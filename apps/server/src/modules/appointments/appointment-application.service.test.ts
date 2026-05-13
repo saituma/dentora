@@ -107,7 +107,11 @@ describe('appointment application service', () => {
       expect.objectContaining({ tenantId: 'tenant-a', holdId: 'hold-a' }),
     );
     expect(mockCreateGoogleCalendarAppointment).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-a', slot }),
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        appAppointmentId: 'appointment-a',
+        slot,
+      }),
     );
     expect(mockConfirmAppointmentHold.mock.invocationCallOrder[0]).toBeLessThan(
       mockCreateGoogleCalendarAppointment.mock.invocationCallOrder[0],

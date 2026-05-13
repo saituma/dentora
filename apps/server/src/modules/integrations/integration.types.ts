@@ -49,6 +49,7 @@ export interface CalendarAvailabilityInput {
 export interface CreateCalendarAppointmentInput {
   tenantId: string;
   timezone: string;
+  appAppointmentId?: string;
   slot: {
     startIso: string;
     endIso: string;

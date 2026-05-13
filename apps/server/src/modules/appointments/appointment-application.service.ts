@@ -170,6 +170,7 @@ export async function bookLedgerBackedAppointment(
   const calendarAppointment = await createGoogleCalendarAppointment({
     tenantId: input.tenantId,
     timezone: clinic.timezone,
+    appAppointmentId: localAppointment.id,
     slot: input.slot,
     summary: input.summary ?? `Dental appointment - ${input.patient.fullName}`,
     patient: input.patient,
@@ -247,6 +248,7 @@ export async function rescheduleLedgerBackedAppointment(input: {
     await rescheduleGoogleCalendarAppointment({
       tenantId: input.tenantId,
       eventId: input.eventId,
+      appAppointmentId: appointment.id,
       timezone: input.timezone,
       slot: input.slot,
     });
