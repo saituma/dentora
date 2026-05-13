@@ -14,6 +14,12 @@ import {
   scanLegacyGoogleCalendarPhi,
   type GoogleCalendarPhiScanReport,
 } from '../integrations/google-calendar-phi-scanner.js';
+import {
+  APPOINTMENT_MAINTENANCE_COMPONENT,
+  countRecentMediaStreamHealthEvents,
+  getOperationalHealthSnapshot,
+  type OperationalHealthSnapshot,
+} from '../operational-health/operational-health.service.js';
 import { computeOnboardingReadiness } from './readiness.js';
 import type { OnboardingReadinessResult } from './types.js';
 
@@ -54,6 +60,8 @@ export interface PilotPreflightInput {
   calendarPhiScanReport?: GoogleCalendarPhiScanReport | null;
   readinessResult?: OnboardingReadinessResult;
   reconciliationHealth?: AppointmentReconciliationHealthSummary;
+  workerHealth?: OperationalHealthSnapshot;
+  mediaStreamFailuresRecent?: number;
   requirePublishedConfig?: boolean;
   now?: Date;
 }
@@ -65,6 +73,8 @@ interface PersistedCalendarPhiScanStatus {
 }
 
 const PILOT_PREFLIGHT_CALENDAR_SCAN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PILOT_PREFLIGHT_MEDIA_STREAM_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+const MEDIA_STREAM_FAILURE_HIGH_THRESHOLD = 25;
 
 function blocking(area: PilotPreflightArea, code: string, message: string): PilotPreflightIssue {
   return { area, code, message };
@@ -150,17 +160,34 @@ export async function getPilotPreflightReport(
   assertTenantAccess(input.tenantId);
   const now = input.now ?? new Date();
   const checkedAt = now.toISOString();
-  const [readiness, openReviewItems, reconciliationHealth, scannedCalendarReport] =
-    await Promise.all([
-      input.readinessResult ??
-        computeOnboardingReadiness(input.tenantId, {
-          requirePublishedConfig: input.requirePublishedConfig ?? true,
-        }),
-      listStaffReviewItems({ tenantId: input.tenantId, status: 'open', limit: 200 }),
-      input.reconciliationHealth ??
-        getAppointmentReconciliationHealthSummary({ tenantId: input.tenantId }),
-      maybeRunCalendarPhiScan({ ...input, now }),
-    ]);
+  const mediaStreamSince = new Date(now.getTime() - PILOT_PREFLIGHT_MEDIA_STREAM_LOOKBACK_MS);
+  const [
+    readiness,
+    openReviewItems,
+    reconciliationHealth,
+    scannedCalendarReport,
+    workerHealth,
+    mediaStreamFailuresRecent,
+  ] = await Promise.all([
+    input.readinessResult ??
+      computeOnboardingReadiness(input.tenantId, {
+        requirePublishedConfig: input.requirePublishedConfig ?? true,
+      }),
+    listStaffReviewItems({ tenantId: input.tenantId, status: 'open', limit: 200 }),
+    input.reconciliationHealth ??
+      getAppointmentReconciliationHealthSummary({ tenantId: input.tenantId }),
+    maybeRunCalendarPhiScan({ ...input, now }),
+    input.workerHealth ??
+      getOperationalHealthSnapshot({
+        component: APPOINTMENT_MAINTENANCE_COMPONENT,
+        now,
+      }),
+    input.mediaStreamFailuresRecent ??
+      countRecentMediaStreamHealthEvents({
+        tenantId: input.tenantId,
+        since: mediaStreamSince,
+      }),
+  ]);
 
   const persistedCalendarReport =
     scannedCalendarReport || input.calendarPhiScanReport !== undefined
@@ -252,18 +279,55 @@ export async function getPilotPreflightReport(
     );
   }
 
-  warnings.push(
-    warning(
-      'media_stream',
-      'MEDIA_STREAM_FAILURES_RECENT',
-      'Recent media-stream failure count is not available from durable tenant state.',
-    ),
-    warning(
-      'worker',
-      'WORKER_HEALTH_UNKNOWN',
-      'Appointment maintenance worker health is not tracked in durable tenant state.',
-    ),
-  );
+  if (workerHealth.status === 'unknown' || !workerHealth.fresh) {
+    warnings.push(
+      warning(
+        'worker',
+        'WORKER_HEALTH_STALE',
+        'Appointment maintenance worker health is missing or stale.',
+      ),
+    );
+  } else if (workerHealth.status === 'unhealthy') {
+    const issue = features.pilotPreflightRequired
+      ? blocking(
+          'worker',
+          'WORKER_HEALTH_UNHEALTHY',
+          'Appointment maintenance worker health is unhealthy.',
+        )
+      : warning(
+          'worker',
+          'WORKER_HEALTH_UNHEALTHY',
+          'Appointment maintenance worker health is unhealthy.',
+        );
+    if (features.pilotPreflightRequired) blockingIssues.push(issue);
+    else warnings.push(issue);
+  } else if (workerHealth.status === 'degraded') {
+    warnings.push(
+      warning(
+        'worker',
+        'WORKER_HEALTH_DEGRADED',
+        'Appointment maintenance worker is currently running or degraded.',
+      ),
+    );
+  }
+
+  if (mediaStreamFailuresRecent >= MEDIA_STREAM_FAILURE_HIGH_THRESHOLD) {
+    blockingIssues.push(
+      blocking(
+        'media_stream',
+        'MEDIA_STREAM_FAILURES_HIGH',
+        'Recent media-stream failure count is high.',
+      ),
+    );
+  } else if (mediaStreamFailuresRecent > 0) {
+    warnings.push(
+      warning(
+        'media_stream',
+        'MEDIA_STREAM_FAILURES_RECENT',
+        'Recent media-stream failures were recorded.',
+      ),
+    );
+  }
 
   const summary: PilotPreflightSummary = {
     readinessReady: readiness.ready,
@@ -271,7 +335,7 @@ export async function getPilotPreflightReport(
     openHighCriticalReviewItems,
     failedReconciliations: reconciliationHealth.failedCount,
     retryingReconciliations: reconciliationHealth.retryingCount,
-    mediaStreamFailuresRecent: null,
+    mediaStreamFailuresRecent,
     checkedAt,
   };
 

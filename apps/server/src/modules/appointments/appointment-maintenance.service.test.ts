@@ -11,6 +11,9 @@ const mockFeatures = vi.hoisted(() => ({
   appointmentReconciliationProcessor: false,
 }));
 const mockProcessAppointmentReconciliationCandidate = vi.hoisted(() => vi.fn());
+const mockRecordOperationalHealthStarted = vi.hoisted(() => vi.fn());
+const mockRecordOperationalHealthSuccess = vi.hoisted(() => vi.fn());
+const mockRecordOperationalHealthFailure = vi.hoisted(() => vi.fn());
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -53,6 +56,13 @@ vi.mock('../../lib/distributed-lock.js', () => ({
   acquireDistributedLock: mockAcquireDistributedLock,
 }));
 
+vi.mock('../operational-health/operational-health.service.js', () => ({
+  APPOINTMENT_MAINTENANCE_COMPONENT: 'appointment_maintenance',
+  recordOperationalHealthStarted: mockRecordOperationalHealthStarted,
+  recordOperationalHealthSuccess: mockRecordOperationalHealthSuccess,
+  recordOperationalHealthFailure: mockRecordOperationalHealthFailure,
+}));
+
 import {
   runAppointmentMaintenance,
   runLockedAppointmentMaintenance,
@@ -84,6 +94,9 @@ beforeEach(() => {
   mockRescheduleGoogleCalendarAppointment.mockReset();
   mockAcquireDistributedLock.mockReset();
   mockProcessAppointmentReconciliationCandidate.mockReset();
+  mockRecordOperationalHealthStarted.mockReset();
+  mockRecordOperationalHealthSuccess.mockReset();
+  mockRecordOperationalHealthFailure.mockReset();
   mockLogger.info.mockReset();
   mockLogger.warn.mockReset();
   mockLogger.error.mockReset();
@@ -101,6 +114,9 @@ beforeEach(() => {
     ownerToken: 'owner-a',
     release: vi.fn().mockResolvedValue(true),
   });
+  mockRecordOperationalHealthStarted.mockResolvedValue(undefined);
+  mockRecordOperationalHealthSuccess.mockResolvedValue(undefined);
+  mockRecordOperationalHealthFailure.mockResolvedValue(undefined);
 });
 
 describe('appointment maintenance service', () => {
@@ -200,6 +216,7 @@ describe('appointment maintenance service', () => {
       tenantCount: 0,
       expiredHoldCount: 0,
       reconciliationCandidateCount: 0,
+      reconciliationProcessedCount: 0,
       failedTenantCount: 0,
       tenants: [],
     });
@@ -295,6 +312,22 @@ describe('appointment maintenance service', () => {
       ttlMs: 1234,
     });
     expect(release).toHaveBeenCalledTimes(1);
+    expect(mockRecordOperationalHealthStarted).toHaveBeenCalledWith({
+      component: 'appointment_maintenance',
+      now: new Date('2026-05-13T12:05:00.000Z'),
+    });
+    expect(mockRecordOperationalHealthSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        component: 'appointment_maintenance',
+        metadata: expect.objectContaining({
+          tenantsProcessed: 0,
+          tenantsFailed: 0,
+          holdsExpired: 0,
+          reconciliationCandidatesFound: 0,
+          reconciliationCandidatesProcessed: 0,
+        }),
+      }),
+    );
   });
 
   it('skips maintenance when the distributed lock is already held', async () => {
@@ -331,6 +364,13 @@ describe('appointment maintenance service', () => {
 
     await expect(runLockedAppointmentMaintenance()).rejects.toThrow('tenant query failed');
     expect(release).toHaveBeenCalledTimes(1);
+    expect(mockRecordOperationalHealthFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        component: 'appointment_maintenance',
+        error: expect.any(Error),
+        metadata: { phase: 'maintenance_run' },
+      }),
+    );
   });
 
   it('skips safely when Redis lock is unavailable', async () => {

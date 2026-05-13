@@ -605,6 +605,43 @@ export const pilotPreflightStatus = pgTable(
   ],
 );
 
+export const operationalHealth = pgTable(
+  'operational_health',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    component: text('component').notNull().unique(),
+    status: text('status').notNull().default('unknown'),
+    lastStartedAt: timestamp('last_started_at', { withTimezone: true }),
+    lastCompletedAt: timestamp('last_completed_at', { withTimezone: true }),
+    lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+    lastErrorCode: text('last_error_code'),
+    lastErrorName: text('last_error_name'),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('operational_health_component_idx').on(table.component)],
+);
+
+export const mediaStreamHealthEvents = pgTable(
+  'media_stream_health_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').references(() => tenantRegistry.id),
+    eventType: text('event_type').notNull(),
+    reasonCode: text('reason_code').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    count: integer('count').notNull().default(1),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('media_stream_health_events_tenant_time_idx').on(table.tenantId, table.occurredAt),
+    index('media_stream_health_events_type_time_idx').on(table.eventType, table.occurredAt),
+  ],
+);
+
 export const users = pgTable(
   'users',
   {

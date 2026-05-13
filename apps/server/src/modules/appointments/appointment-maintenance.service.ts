@@ -8,6 +8,13 @@ import {
   findReconciliationRetryCandidates,
   processAppointmentReconciliationCandidate,
 } from './appointment-reconciliation.service.js';
+import {
+  APPOINTMENT_MAINTENANCE_COMPONENT,
+  recordOperationalHealthFailure,
+  recordOperationalHealthStarted,
+  recordOperationalHealthSuccess,
+  type AppointmentMaintenanceHealthMetadata,
+} from '../operational-health/operational-health.service.js';
 
 export interface AppointmentMaintenanceInput {
   now?: Date;
@@ -25,6 +32,7 @@ export interface AppointmentTenantMaintenanceResult {
   tenantId: string;
   expiredHoldCount: number;
   reconciliationCandidateCount: number;
+  reconciliationProcessedCount: number;
   error?: string;
 }
 
@@ -32,6 +40,7 @@ export interface AppointmentMaintenanceResult {
   tenantCount: number;
   expiredHoldCount: number;
   reconciliationCandidateCount: number;
+  reconciliationProcessedCount: number;
   failedTenantCount: number;
   tenants: AppointmentTenantMaintenanceResult[];
 }
@@ -64,6 +73,7 @@ async function runTenantAppointmentMaintenance(input: {
       limit: input.reconciliationLimit,
     });
 
+    let reconciliationProcessedCount = 0;
     for (const appointment of reconciliationCandidates) {
       logger.warn(
         {
@@ -86,6 +96,7 @@ async function runTenantAppointmentMaintenance(input: {
         appointment,
         now: input.now,
       });
+      reconciliationProcessedCount += 1;
       const logContext = {
         tenantId: input.tenantId,
         appointmentId: appointment.id,
@@ -104,6 +115,7 @@ async function runTenantAppointmentMaintenance(input: {
       tenantId: input.tenantId,
       expiredHoldCount: expiredHolds.length,
       reconciliationCandidateCount: reconciliationCandidates.length,
+      reconciliationProcessedCount,
     };
   });
 }
@@ -141,6 +153,7 @@ export async function runAppointmentMaintenance(
           tenantId,
           expiredHoldCount: 0,
           reconciliationCandidateCount: 0,
+          reconciliationProcessedCount: 0,
           error: message,
         });
       }
@@ -156,8 +169,27 @@ export async function runAppointmentMaintenance(
       (sum, tenant) => sum + tenant.reconciliationCandidateCount,
       0,
     ),
+    reconciliationProcessedCount: tenants.reduce(
+      (sum, tenant) => sum + tenant.reconciliationProcessedCount,
+      0,
+    ),
     failedTenantCount: tenants.filter((tenant) => tenant.error).length,
     tenants,
+  };
+}
+
+function buildAppointmentMaintenanceHealthMetadata(input: {
+  result: AppointmentMaintenanceResult;
+  startedAt: Date;
+  completedAt: Date;
+}): AppointmentMaintenanceHealthMetadata {
+  return {
+    tenantsProcessed: input.result.tenantCount,
+    tenantsFailed: input.result.failedTenantCount,
+    holdsExpired: input.result.expiredHoldCount,
+    reconciliationCandidatesFound: input.result.reconciliationCandidateCount,
+    reconciliationCandidatesProcessed: input.result.reconciliationProcessedCount,
+    durationMs: input.completedAt.getTime() - input.startedAt.getTime(),
   };
 }
 
@@ -188,12 +220,36 @@ export async function runLockedAppointmentMaintenance(
   }
 
   try {
+    const startedAt = input.now ?? new Date();
+    await recordOperationalHealthStarted({
+      component: APPOINTMENT_MAINTENANCE_COMPONENT,
+      now: startedAt,
+    });
     const result = await runAppointmentMaintenance(input);
+    const completedAt = new Date();
+    await recordOperationalHealthSuccess({
+      component: APPOINTMENT_MAINTENANCE_COMPONENT,
+      now: completedAt,
+      metadata: {
+        ...buildAppointmentMaintenanceHealthMetadata({
+          result,
+          startedAt,
+          completedAt,
+        }),
+      },
+    });
     return {
       ran: true,
       lockKey,
       result,
     };
+  } catch (error) {
+    await recordOperationalHealthFailure({
+      component: APPOINTMENT_MAINTENANCE_COMPONENT,
+      error,
+      metadata: { phase: 'maintenance_run' },
+    });
+    throw error;
   } finally {
     const released = await lock.release();
     if (!released) {

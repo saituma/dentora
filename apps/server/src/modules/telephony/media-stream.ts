@@ -19,6 +19,7 @@ import {
   mediaStreamPendingLimitExceededTotal,
   mediaStreamStartTimeoutTotal,
 } from '../../lib/metrics.js';
+import { recordMediaStreamHealthEvent } from '../operational-health/operational-health.service.js';
 
 interface SensitiveTopic {
   type?: string;
@@ -288,6 +289,17 @@ export function registerPendingMediaStreamConnection(input: {
 
   if (pendingMediaStreams.size >= maxGlobalPending || currentIpPending >= maxPendingPerIp) {
     mediaStreamPendingLimitExceededTotal.inc();
+    void recordMediaStreamHealthEvent({
+      tenantId: null,
+      eventType: 'pending_limit_exceeded',
+      reasonCode: 'MEDIA_STREAM_PENDING_LIMIT_EXCEEDED',
+      metadata: {
+        pendingCount: pendingMediaStreams.size,
+        pendingForIp: currentIpPending,
+        maxGlobalPending,
+        maxPendingPerIp,
+      },
+    });
     logger.warn(
       {
         callSessionId: input.callSessionId,
@@ -315,6 +327,11 @@ export function registerPendingMediaStreamConnection(input: {
     cleanedUp: false,
     timer: setTimeout(() => {
       mediaStreamStartTimeoutTotal.inc();
+      void recordMediaStreamHealthEvent({
+        tenantId: null,
+        eventType: 'start_timeout',
+        reasonCode: 'MEDIA_STREAM_START_TIMEOUT',
+      });
       logger.warn(
         { callSessionId: input.callSessionId, remoteAddress },
         'media_stream_start_timeout',
@@ -639,6 +656,11 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
         }
       } catch (err) {
         mediaStreamInvalidStartTotal.inc();
+        void recordMediaStreamHealthEvent({
+          tenantId: null,
+          eventType: 'invalid_start',
+          reasonCode: 'MEDIA_STREAM_INVALID_START',
+        });
         logger.warn({ callSessionId }, 'media_stream_invalid_start');
         pendingConnection.cleanup();
         ws.close();
@@ -827,6 +849,11 @@ export async function handleStreamStart(
     return true;
   } catch (err) {
     mediaStreamInvalidStartTotal.inc();
+    void recordMediaStreamHealthEvent({
+      tenantId: null,
+      eventType: 'invalid_start',
+      reasonCode: 'MEDIA_STREAM_INVALID_START',
+    });
     logger.warn({ callSessionId }, 'media_stream_invalid_start');
     logger.error({ err, callSessionId }, 'Failed to initialize media stream session');
     ws.close();

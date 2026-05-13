@@ -13,6 +13,7 @@ import {
 } from './media-stream.js';
 
 const mockGetClinicProfile = vi.hoisted(() => vi.fn());
+const mockRecordMediaStreamHealthEvent = vi.hoisted(() => vi.fn());
 
 vi.mock('../config/config.service.js', () => ({
   getClinicProfile: mockGetClinicProfile,
@@ -21,6 +22,10 @@ vi.mock('../config/config.service.js', () => ({
   getFaqs: vi.fn(),
   getBookingRules: vi.fn(),
   getVoiceProfile: vi.fn(),
+}));
+
+vi.mock('../operational-health/operational-health.service.js', () => ({
+  recordMediaStreamHealthEvent: mockRecordMediaStreamHealthEvent,
 }));
 
 const nowMs = 1_800_000_000_000;
@@ -67,6 +72,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(nowMs));
   vi.clearAllMocks();
+  mockRecordMediaStreamHealthEvent.mockResolvedValue(undefined);
   resetPendingMediaStreamStateForTests();
 });
 
@@ -96,6 +102,11 @@ describe('media stream pending connection guard', () => {
     expect(getPendingMediaStreamCount()).toBe(0);
     expect(getPendingMediaStreamCountForIp('203.0.113.10')).toBe(0);
     expect(loggedPayload()).toContain('media_stream_start_timeout');
+    expect(mockRecordMediaStreamHealthEvent).toHaveBeenCalledWith({
+      tenantId: null,
+      eventType: 'start_timeout',
+      reasonCode: 'MEDIA_STREAM_START_TIMEOUT',
+    });
   });
 
   it('clears timeout and pending counts when a valid start is accepted', () => {
@@ -155,6 +166,13 @@ describe('media stream pending connection guard', () => {
     expect(secondClose).toHaveBeenCalledTimes(1);
     expect(getPendingMediaStreamCount()).toBe(1);
     expect(loggedPayload()).toContain('media_stream_pending_limit_exceeded');
+    expect(mockRecordMediaStreamHealthEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: null,
+        eventType: 'pending_limit_exceeded',
+        reasonCode: 'MEDIA_STREAM_PENDING_LIMIT_EXCEEDED',
+      }),
+    );
   });
 
   it('rejects excess per-IP pending connections', () => {
@@ -192,6 +210,11 @@ describe('media stream start validation failure', () => {
     expect(getActiveTenantId()).toBeUndefined();
     expect(mockGetClinicProfile).not.toHaveBeenCalled();
     expect(loggedPayload()).toContain('media_stream_invalid_start');
+    expect(mockRecordMediaStreamHealthEvent).toHaveBeenCalledWith({
+      tenantId: null,
+      eventType: 'invalid_start',
+      reasonCode: 'MEDIA_STREAM_INVALID_START',
+    });
   });
 
   it('closes invalid-token start messages without logging raw token or PHI', async () => {

@@ -6,12 +6,15 @@ const mockListStaffReviewItems = vi.hoisted(() => vi.fn());
 const mockComputeOnboardingReadiness = vi.hoisted(() => vi.fn());
 const mockGetAppointmentReconciliationHealthSummary = vi.hoisted(() => vi.fn());
 const mockScanLegacyGoogleCalendarPhi = vi.hoisted(() => vi.fn());
+const mockGetOperationalHealthSnapshot = vi.hoisted(() => vi.fn());
+const mockCountRecentMediaStreamHealthEvents = vi.hoisted(() => vi.fn());
 const mockDb = vi.hoisted(() => ({
   select: vi.fn(),
   insert: vi.fn(),
 }));
 const mockFeatures = vi.hoisted(() => ({
   appointmentReconciliationProcessor: true,
+  pilotPreflightRequired: false,
 }));
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
@@ -32,6 +35,12 @@ vi.mock('../appointments/appointment-reconciliation.service.js', () => ({
 
 vi.mock('../integrations/google-calendar-phi-scanner.js', () => ({
   scanLegacyGoogleCalendarPhi: mockScanLegacyGoogleCalendarPhi,
+}));
+
+vi.mock('../operational-health/operational-health.service.js', () => ({
+  APPOINTMENT_MAINTENANCE_COMPONENT: 'appointment_maintenance',
+  getOperationalHealthSnapshot: mockGetOperationalHealthSnapshot,
+  countRecentMediaStreamHealthEvents: mockCountRecentMediaStreamHealthEvents,
 }));
 
 vi.mock('../../db/index.js', () => ({
@@ -89,6 +98,7 @@ function insertStatus() {
 beforeEach(() => {
   vi.clearAllMocks();
   mockFeatures.appointmentReconciliationProcessor = true;
+  mockFeatures.pilotPreflightRequired = false;
   mockComputeOnboardingReadiness.mockResolvedValue(readyReadiness);
   mockListStaffReviewItems.mockResolvedValue([]);
   mockGetAppointmentReconciliationHealthSummary.mockResolvedValue({
@@ -98,6 +108,19 @@ beforeEach(() => {
     checkedCount: 0,
   });
   mockScanLegacyGoogleCalendarPhi.mockResolvedValue(cleanCalendarReport);
+  mockGetOperationalHealthSnapshot.mockResolvedValue({
+    component: 'appointment_maintenance',
+    status: 'healthy',
+    fresh: true,
+    lastStartedAt: '2026-05-14T11:59:00.000Z',
+    lastCompletedAt: '2026-05-14T12:00:00.000Z',
+    lastSuccessAt: '2026-05-14T12:00:00.000Z',
+    lastFailureAt: null,
+    lastErrorCode: null,
+    lastErrorName: null,
+    metadata: { tenantsProcessed: 2 },
+  });
+  mockCountRecentMediaStreamHealthEvents.mockResolvedValue(0);
   mockDb.select.mockReturnValue(selectStatus([]));
   mockDb.insert.mockReturnValue(insertStatus());
 });
@@ -120,7 +143,7 @@ describe('pilot preflight report', () => {
       openHighCriticalReviewItems: 0,
       failedReconciliations: 0,
       retryingReconciliations: 0,
-      mediaStreamFailuresRecent: null,
+      mediaStreamFailuresRecent: 0,
       checkedAt: '2026-05-14T12:00:00.000Z',
     });
   });
@@ -294,6 +317,81 @@ describe('pilot preflight report', () => {
     expect(report.readyForSupervisedPilot).toBe(false);
     expect(report.blockingIssues).toContainEqual(
       expect.objectContaining({ code: 'RECONCILIATION_PROCESSOR_DISABLED', area: 'worker' }),
+    );
+  });
+
+  it('warns when measured worker health is stale', async () => {
+    mockGetOperationalHealthSnapshot.mockResolvedValueOnce({
+      component: 'appointment_maintenance',
+      status: 'healthy',
+      fresh: false,
+      lastStartedAt: '2026-05-14T10:00:00.000Z',
+      lastCompletedAt: '2026-05-14T10:01:00.000Z',
+      lastSuccessAt: '2026-05-14T10:01:00.000Z',
+      lastFailureAt: null,
+      lastErrorCode: null,
+      lastErrorName: null,
+      metadata: {},
+    });
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({ tenantId: 'tenant-a', calendarPhiScanReport: cleanCalendarReport }),
+    );
+
+    expect(report.readyForSupervisedPilot).toBe(true);
+    expect(report.warnings).toContainEqual(
+      expect.objectContaining({ code: 'WORKER_HEALTH_STALE', area: 'worker' }),
+    );
+  });
+
+  it('blocks unhealthy worker health when pilot preflight enforcement is enabled', async () => {
+    mockFeatures.pilotPreflightRequired = true;
+    mockGetOperationalHealthSnapshot.mockResolvedValueOnce({
+      component: 'appointment_maintenance',
+      status: 'unhealthy',
+      fresh: true,
+      lastStartedAt: '2026-05-14T11:59:00.000Z',
+      lastCompletedAt: '2026-05-14T12:00:00.000Z',
+      lastSuccessAt: null,
+      lastFailureAt: '2026-05-14T12:00:00.000Z',
+      lastErrorCode: 'SAFE_CODE',
+      lastErrorName: 'Error',
+      metadata: {},
+    });
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({ tenantId: 'tenant-a', calendarPhiScanReport: cleanCalendarReport }),
+    );
+
+    expect(report.readyForSupervisedPilot).toBe(false);
+    expect(report.blockingIssues).toContainEqual(
+      expect.objectContaining({ code: 'WORKER_HEALTH_UNHEALTHY', area: 'worker' }),
+    );
+  });
+
+  it('includes recent media-stream failure count and warns', async () => {
+    mockCountRecentMediaStreamHealthEvents.mockResolvedValueOnce(2);
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({ tenantId: 'tenant-a', calendarPhiScanReport: cleanCalendarReport }),
+    );
+
+    expect(report.summary.mediaStreamFailuresRecent).toBe(2);
+    expect(report.warnings).toContainEqual(
+      expect.objectContaining({ code: 'MEDIA_STREAM_FAILURES_RECENT', area: 'media_stream' }),
+    );
+  });
+
+  it('blocks when recent media-stream failure count is high', async () => {
+    mockCountRecentMediaStreamHealthEvents.mockResolvedValueOnce(25);
+
+    const report = await withTenant('tenant-a', () =>
+      getPilotPreflightReport({ tenantId: 'tenant-a', calendarPhiScanReport: cleanCalendarReport }),
+    );
+
+    expect(report.readyForSupervisedPilot).toBe(false);
+    expect(report.blockingIssues).toContainEqual(
+      expect.objectContaining({ code: 'MEDIA_STREAM_FAILURES_HIGH', area: 'media_stream' }),
     );
   });
 
