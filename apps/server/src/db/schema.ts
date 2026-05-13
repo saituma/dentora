@@ -528,6 +528,8 @@ export const staffReviewItems = pgTable(
     resolvedByUserId: uuid('resolved_by_user_id').references(() => users.id),
     resolvedAt: timestamp('resolved_at', { withTimezone: true }),
     resolutionNote: text('resolution_note'),
+    slaDueAt: timestamp('sla_due_at', { withTimezone: true }),
+    lastNotifiedAt: timestamp('last_notified_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

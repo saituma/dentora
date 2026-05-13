@@ -158,6 +158,13 @@ export const patientDeletionsTotal = new client.Counter({
   registers: [register],
 });
 
+export const staffReviewQueueWriteFailuresTotal = new client.Counter({
+  name: 'staff_review_queue_write_failures_total',
+  help: 'Total staff review queue write failures',
+  labelNames: ['tenant_id', 'type', 'source', 'reason_code'],
+  registers: [register],
+});
+
 export { register };
 
 export function getMetricsContentType(): string {
