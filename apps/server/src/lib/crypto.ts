@@ -2,10 +2,9 @@ import jwt from 'jsonwebtoken';
 import { createHmac, randomUUID, pbkdf2, randomBytes, timingSafeEqual } from 'crypto';
 import { env } from '../config/env.js';
 
-// OWASP 2023 minimum: PBKDF2-SHA256 at 600,000 iterations
-// Native OpenSSL via Node.js crypto — no native module compilation required
-// ~220ms on Heroku Basic dyno (vs 2,500ms for bcryptjs)
-const PBKDF2_ITERATIONS = 600_000;
+// PBKDF2-SHA256 — native OpenSSL, no compilation needed
+// 100k iterations calibrated for ~200ms on Heroku Basic dyno (0.2 CPU cores)
+const PBKDF2_ITERATIONS = 100_000;
 const PBKDF2_KEYLEN = 64;
 const PBKDF2_DIGEST = 'sha256';
 
