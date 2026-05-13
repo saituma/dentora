@@ -32,10 +32,16 @@ vi.mock('../../middleware/rateLimit.js', () => ({
   authRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 vi.mock('../../middleware/index.js', async () => {
-  const actual = await vi.importActual<typeof import('../../middleware/validate.js')>('../../middleware/validate.js');
+  const actual = await vi.importActual<typeof import('../../middleware/validate.js')>(
+    '../../middleware/validate.js',
+  );
   return {
     validate: actual.validate,
-    authenticateJwt: (req: { user?: { userId: string; role: string; tenantId: string } }, _res: unknown, next: () => void) => {
+    authenticateJwt: (
+      req: { user?: { userId: string; role: string; tenantId: string } },
+      _res: unknown,
+      next: () => void,
+    ) => {
       req.user = { userId: 'u1', role: 'admin', tenantId: 't1' };
       next();
     },
@@ -74,7 +80,12 @@ interface FakeResponse {
   statusCode: number;
   body: unknown;
   status(this: FakeResponse, code: number): FakeResponse;
-  cookie(this: FakeResponse, name: string, value: string, options: Record<string, unknown>): FakeResponse;
+  cookie(
+    this: FakeResponse,
+    name: string,
+    value: string,
+    options: Record<string, unknown>,
+  ): FakeResponse;
   clearCookie(this: FakeResponse, name: string, options: Record<string, unknown>): FakeResponse;
   json(this: FakeResponse, body: unknown): FakeResponse;
 }
@@ -84,9 +95,14 @@ function appendHeader(headers: Map<string, string[]>, name: string, value: strin
   headers.set(key, [...(headers.get(key) ?? []), value]);
 }
 
-function serializeCookie(name: string, value: string, options: Record<string, unknown> = {}): string {
+function serializeCookie(
+  name: string,
+  value: string,
+  options: Record<string, unknown> = {},
+): string {
   const parts = [`${name}=${value}`];
-  if (typeof options.maxAge === 'number') parts.push(`Max-Age=${Math.floor(options.maxAge / 1000)}`);
+  if (typeof options.maxAge === 'number')
+    parts.push(`Max-Age=${Math.floor(options.maxAge / 1000)}`);
   if (typeof options.path === 'string') parts.push(`Path=${options.path}`);
   if (options.expires instanceof Date) parts.push(`Expires=${options.expires.toUTCString()}`);
   if (options.httpOnly) parts.push('HttpOnly');
@@ -98,11 +114,14 @@ function serializeCookie(name: string, value: string, options: Record<string, un
   return parts.join('; ');
 }
 
-async function request(path: string, input: {
-  method: string;
-  body?: unknown;
-  cookies?: Record<string, string>;
-}): Promise<RouterResponse> {
+async function request(
+  path: string,
+  input: {
+    method: string;
+    body?: unknown;
+    cookies?: Record<string, string>;
+  },
+): Promise<RouterResponse> {
   return await new Promise((resolve) => {
     const headers = new Map<string, string[]>();
     const req = {
@@ -127,10 +146,14 @@ async function request(path: string, input: {
         return this;
       },
       clearCookie(name: string, options: Record<string, unknown>) {
-        appendHeader(headers, 'set-cookie', serializeCookie(name, '', {
-          ...options,
-          expires: new Date(0),
-        }));
+        appendHeader(
+          headers,
+          'set-cookie',
+          serializeCookie(name, '', {
+            ...options,
+            expires: new Date(0),
+          }),
+        );
         return this;
       },
       json(body: unknown) {
@@ -141,15 +164,25 @@ async function request(path: string, input: {
       body: undefined as unknown,
     };
 
-    (authRouter as unknown as { handle: (req: Request, res: Response, next: NextFunction) => void }).handle(req, res as unknown as Response, ((err?: unknown) => {
-      if (err) {
-        const statusCode = typeof err === 'object' && err !== null && 'statusCode' in err
-          ? Number((err as { statusCode?: number }).statusCode)
-          : 401;
-        resolve({ statusCode: Number.isFinite(statusCode) ? statusCode : 401, body: err, headers });
-      }
-      else resolve({ statusCode: res.statusCode, body: undefined, headers });
-    }) as NextFunction);
+    (
+      authRouter as unknown as { handle: (req: Request, res: Response, next: NextFunction) => void }
+    ).handle(
+      req,
+      res as unknown as Response,
+      ((err?: unknown) => {
+        if (err) {
+          const statusCode =
+            typeof err === 'object' && err !== null && 'statusCode' in err
+              ? Number((err as { statusCode?: number }).statusCode)
+              : 401;
+          resolve({
+            statusCode: Number.isFinite(statusCode) ? statusCode : 401,
+            body: err,
+            headers,
+          });
+        } else resolve({ statusCode: res.statusCode, body: undefined, headers });
+      }) as NextFunction,
+    );
   });
 }
 
@@ -193,34 +226,40 @@ describe('auth refresh-token cookie routes', () => {
       body: { phoneNumber: '+15555550123', code: '123456', clinicName: 'Clinic' },
       mock: mockAuthService.verifyPhoneOtpAndRegister,
     },
-  ])('sets the refresh cookie on successful $name auth issuance', async ({ path, status, body, mock }) => {
-    mock.mockResolvedValue(loginResult);
+  ])(
+    'sets the refresh cookie on successful $name auth issuance',
+    async ({ path, status, body, mock }) => {
+      mock.mockResolvedValue(loginResult);
 
-    const response = await request(path, {
-      method: 'POST',
-      body,
-    });
+      const response = await request(path, {
+        method: 'POST',
+        body,
+      });
 
-    expect(response.statusCode).toBe(status);
-    expectRefreshCookie(response.headers.get('set-cookie')?.join(', ') ?? null, loginResult.refreshToken);
-    expect(response.body).toMatchObject({
-      accessToken: loginResult.accessToken,
-    });
-    expect(response.body).not.toHaveProperty('refreshToken');
-  });
+      expect(response.statusCode).toBe(status);
+      expectRefreshCookie(
+        response.headers.get('set-cookie')?.join(', ') ?? null,
+        loginResult.refreshToken,
+      );
+      expect(response.body).toMatchObject({
+        accessToken: loginResult.accessToken,
+      });
+      expect(response.body).not.toHaveProperty('refreshToken');
+    },
+  );
 
   it('sets the refresh cookie on successful Google OAuth exchange', async () => {
     mockAuthService.exchangeOauthCode.mockResolvedValue(loginResult);
 
     const response = await request('/google/exchange', {
       method: 'POST',
-      cookies: { 'oauth-exchange-code': 'oauth-code' },
+      body: { code: 'oauth-code' },
     });
 
     expect(response.statusCode).toBe(200);
     const setCookie = response.headers.get('set-cookie')?.join(', ') ?? null;
     expectRefreshCookie(setCookie, loginResult.refreshToken);
-    expect(setCookie).toContain('oauth-exchange-code=');
+    expect(mockAuthService.exchangeOauthCode).toHaveBeenCalledWith('oauth-code');
   });
 
   it('reads refresh token only from the cookie and rotates the cookie', async () => {

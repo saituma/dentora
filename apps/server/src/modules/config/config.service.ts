@@ -22,6 +22,7 @@ const CONFIG_CACHE_TTL = 300; // 5 minutes
 import { logger } from '../../lib/logger.js';
 import { NotFoundError, ConflictError } from '../../lib/errors.js';
 import { listAvailableVoices } from '../onboarding/onboarding.service.js';
+import { assertTenantAccess } from '../../db/tenant-context.js';
 
 type ClinicProfileSelect = typeof clinicProfile.$inferSelect;
 type ClinicProfileInsert = typeof clinicProfile.$inferInsert;
@@ -165,6 +166,7 @@ function mapVoiceProfileInput(data: Record<string, unknown>) {
 }
 
 export async function upsertClinicProfile(tenantId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const address = typeof data.address === 'string' ? data.address.trim() : '';
   const phone = typeof data.phone === 'string' ? data.phone.trim() : '';
   const email = typeof data.email === 'string' ? data.email.trim() : '';
@@ -210,6 +212,7 @@ export async function upsertClinicProfile(tenantId: string, data: Record<string,
 }
 
 export async function getClinicProfile(tenantId: string) {
+  assertTenantAccess(tenantId);
   const cached = await tenantCacheGet<ReturnType<typeof normalizeClinicProfile>>(
     tenantId,
     'config',
@@ -229,6 +232,7 @@ export async function getClinicProfile(tenantId: string) {
 }
 
 export async function addService(tenantId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const [svc] = await db
     .insert(services)
     .values({ id: generateId(), tenantId, ...data } as ServicesInsert)
@@ -242,6 +246,7 @@ export async function updateService(
   serviceId: string,
   data: Record<string, unknown>,
 ) {
+  assertTenantAccess(tenantId);
   const [updated] = await db
     .update(services)
     .set({ ...data, updatedAt: new Date() } as Partial<ServicesInsert>)
@@ -253,11 +258,13 @@ export async function updateService(
 }
 
 export async function deleteService(tenantId: string, serviceId: string) {
+  assertTenantAccess(tenantId);
   await db.delete(services).where(and(eq(services.id, serviceId), eq(services.tenantId, tenantId)));
   await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
 }
 
 export async function getServices(tenantId: string): Promise<(typeof services.$inferSelect)[]> {
+  assertTenantAccess(tenantId);
   const cached = await tenantCacheGet<(typeof services.$inferSelect)[]>(
     tenantId,
     'config',
@@ -272,6 +279,7 @@ export async function getServices(tenantId: string): Promise<(typeof services.$i
 }
 
 export async function upsertBookingRules(tenantId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const [existing] = await db
     .select()
     .from(bookingRules)
@@ -297,6 +305,7 @@ export async function upsertBookingRules(tenantId: string, data: Record<string, 
 }
 
 export async function getBookingRules(tenantId: string) {
+  assertTenantAccess(tenantId);
   const cached = await tenantCacheGet<typeof bookingRules.$inferSelect | null>(
     tenantId,
     'config',
@@ -316,6 +325,7 @@ export async function getBookingRules(tenantId: string) {
 }
 
 export async function addPolicy(tenantId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const [policy] = await db
     .insert(policies)
     .values({ id: generateId(), tenantId, ...data } as PoliciesInsert)
@@ -329,6 +339,7 @@ export async function updatePolicy(
   policyId: string,
   data: Record<string, unknown>,
 ) {
+  assertTenantAccess(tenantId);
   const [updated] = await db
     .update(policies)
     .set({ ...data, updatedAt: new Date() } as Partial<PoliciesInsert>)
@@ -340,11 +351,13 @@ export async function updatePolicy(
 }
 
 export async function deletePolicy(tenantId: string, policyId: string) {
+  assertTenantAccess(tenantId);
   await db.delete(policies).where(and(eq(policies.id, policyId), eq(policies.tenantId, tenantId)));
   await tenantCacheInvalidateDomain(tenantId, 'config').catch(() => undefined);
 }
 
 export async function getPolicies(tenantId: string): Promise<(typeof policies.$inferSelect)[]> {
+  assertTenantAccess(tenantId);
   const cached = await tenantCacheGet<(typeof policies.$inferSelect)[]>(
     tenantId,
     'config',
@@ -359,6 +372,7 @@ export async function getPolicies(tenantId: string): Promise<(typeof policies.$i
 }
 
 export async function upsertVoiceProfile(tenantId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const mappedData = await replacePaidVoiceWithFreeLiveVoice(mapVoiceProfileInput(data));
   const [existing] = await db
     .select()
@@ -385,6 +399,7 @@ export async function upsertVoiceProfile(tenantId: string, data: Record<string, 
 }
 
 export async function getVoiceProfile(tenantId: string) {
+  assertTenantAccess(tenantId);
   const [profile] = await db
     .select()
     .from(voiceProfile)
@@ -406,6 +421,7 @@ export async function getVoiceProfile(tenantId: string) {
 }
 
 export async function addFaq(tenantId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const [faq] = await db
     .insert(faqLibrary)
     .values({ id: generateId(), tenantId, ...data } as FaqLibraryInsert)
@@ -415,6 +431,7 @@ export async function addFaq(tenantId: string, data: Record<string, unknown>) {
 }
 
 export async function updateFaq(tenantId: string, faqId: string, data: Record<string, unknown>) {
+  assertTenantAccess(tenantId);
   const [updated] = await db
     .update(faqLibrary)
     .set({ ...data, updatedAt: new Date() } as Partial<FaqLibraryInsert>)
@@ -426,6 +443,7 @@ export async function updateFaq(tenantId: string, faqId: string, data: Record<st
 }
 
 export async function deleteFaq(tenantId: string, faqId: string) {
+  assertTenantAccess(tenantId);
   await db
     .delete(faqLibrary)
     .where(and(eq(faqLibrary.id, faqId), eq(faqLibrary.tenantId, tenantId)));
@@ -433,6 +451,7 @@ export async function deleteFaq(tenantId: string, faqId: string) {
 }
 
 export async function getFaqs(tenantId: string): Promise<(typeof faqLibrary.$inferSelect)[]> {
+  assertTenantAccess(tenantId);
   const cached = await tenantCacheGet<(typeof faqLibrary.$inferSelect)[]>(
     tenantId,
     'config',
@@ -449,6 +468,7 @@ export async function getFaqs(tenantId: string): Promise<(typeof faqLibrary.$inf
 }
 
 export async function createConfigVersion(tenantId: string, userId: string) {
+  assertTenantAccess(tenantId);
   const [latest] = await db
     .select({ version: tenantConfigVersions.version })
     .from(tenantConfigVersions)
@@ -483,6 +503,7 @@ export async function createConfigVersion(tenantId: string, userId: string) {
 }
 
 export async function publishConfigVersion(tenantId: string, versionId: string) {
+  assertTenantAccess(tenantId);
   return await db.transaction(async (tx) => {
     const [version] = await tx
       .select()
@@ -541,6 +562,7 @@ export async function publishConfigVersion(tenantId: string, versionId: string) 
 }
 
 export async function getConfigVersions(tenantId: string) {
+  assertTenantAccess(tenantId);
   return await db
     .select()
     .from(tenantConfigVersions)

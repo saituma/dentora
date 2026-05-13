@@ -14,6 +14,7 @@ import { NotFoundError } from '../../lib/errors.js';
 import type { InferSelectModel } from 'drizzle-orm';
 import { executeLlmWithFailover } from '../ai/engine/index.js';
 import type { LlmMessage } from '../ai/providers/base.js';
+import { assertTenantAccess } from '../../db/tenant-context.js';
 
 type CallSession = InferSelectModel<typeof callSessions>;
 
@@ -32,6 +33,7 @@ export async function createCallSession(input: {
   callerNumber: string;
   configVersionId: string;
 }): Promise<CallSession> {
+  assertTenantAccess(input.tenantId);
   const id = generateId();
 
   const plainCaller = input.callerNumber.trim();
@@ -57,6 +59,7 @@ export async function createBrowserTestCallSession(input: {
   tenantId: string;
   configVersionId?: string | null;
 }): Promise<CallSession> {
+  assertTenantAccess(input.tenantId);
   const id = generateId();
 
   const [session] = await db
@@ -84,6 +87,7 @@ export async function updateCallStatus(
   status: string,
   metadata?: Record<string, unknown>,
 ): Promise<CallSession> {
+  assertTenantAccess(tenantId);
   const updates: Record<string, unknown> = { status, updatedAt: new Date() };
 
   if (status === 'completed' || status === 'failed' || status === 'escalated') {
@@ -112,6 +116,7 @@ export async function updateCallCallerNumber(
   callId: string,
   callerNumber: string,
 ): Promise<void> {
+  assertTenantAccess(tenantId);
   const normalized = callerNumber.trim();
   if (!normalized) return;
   await db
@@ -132,6 +137,7 @@ export async function logCallEvent(input: {
   payload?: Record<string, unknown>;
   latencyMs?: number;
 }): Promise<void> {
+  assertTenantAccess(input.tenantId);
   await db.insert(callEvents).values({
     id: generateId(),
     tenantId: input.tenantId,
@@ -155,6 +161,7 @@ export async function attributeCallCost(input: {
     metadata?: Record<string, unknown>;
   }>;
 }): Promise<void> {
+  assertTenantAccess(input.tenantId);
   const costId = generateId();
   const totalCost = input.lineItems
     .reduce((sum, item) => sum + parseFloat(item.totalCost), 0)
@@ -192,6 +199,7 @@ export async function attributeCallCost(input: {
 }
 
 export async function getCallSession(tenantId: string, callId: string): Promise<CallSession> {
+  assertTenantAccess(tenantId);
   const [session] = await db
     .select()
     .from(callSessions)
@@ -226,6 +234,7 @@ export async function listCallSessions(opts: {
   /** @deprecated use cursor instead */
   offset?: number;
 }) {
+  assertTenantAccess(opts.tenantId);
   const limit = Math.min(opts.limit, 100);
   const cursorData = opts.cursor ? decodeCursor(opts.cursor) : null;
 
@@ -260,6 +269,7 @@ export async function listCallSessionsByCaller(input: {
 }): Promise<
   Array<CallSession & { transcriptSummary: string | null; intentDetected: string | null }>
 > {
+  assertTenantAccess(input.tenantId);
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
   const phoneHash = hashForSearch(input.phoneNumber);
 
@@ -303,6 +313,7 @@ export async function getCallEvents(
   limit = 200,
   offset = 0,
 ) {
+  assertTenantAccess(tenantId);
   return await db
     .select()
     .from(callEvents)
@@ -313,6 +324,7 @@ export async function getCallEvents(
 }
 
 export async function getCallTranscript(tenantId: string, callSessionId: string) {
+  assertTenantAccess(tenantId);
   const [transcript] = await db
     .select()
     .from(callTranscripts)
@@ -327,6 +339,7 @@ export async function getCallTranscript(tenantId: string, callSessionId: string)
 }
 
 export async function getCallCostBreakdown(tenantId: string, callSessionId: string) {
+  assertTenantAccess(tenantId);
   const [cost] = await db
     .select()
     .from(callCosts)
@@ -353,6 +366,7 @@ export async function saveTranscript(input: {
   sentiment?: string;
   intentDetected?: string;
 }): Promise<void> {
+  assertTenantAccess(input.tenantId);
   await db.insert(callTranscripts).values({
     id: generateId(),
     tenantId: input.tenantId,
@@ -396,6 +410,7 @@ export async function generateCallSummary(input: {
   callSessionId: string;
   transcriptTurns: Array<{ role?: string; content?: string; text?: string }>;
 }): Promise<string | null> {
+  assertTenantAccess(input.tenantId);
   const formattedTranscript = formatTranscriptForSummary(input.transcriptTurns);
   if (!formattedTranscript) return null;
 

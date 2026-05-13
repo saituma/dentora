@@ -20,6 +20,7 @@ import {
   type ReceptionistSessionState,
 } from '../ai/receptionist-booking.service.js';
 import * as callService from '../calls/call.service.js';
+import { runWithTenantContext } from '../../db/tenant-context.js';
 
 interface BrowserLiveSession {
   sessionId: string;
@@ -74,7 +75,10 @@ function sendEvent(ws: WebSocket, event: string, payload: Record<string, unknown
   ws.send(JSON.stringify({ event, ...payload }));
 }
 
-function extractSpeakableSegments(buffer: string, flushRemainder = false): { segments: string[]; remainder: string } {
+function extractSpeakableSegments(
+  buffer: string,
+  flushRemainder = false,
+): { segments: string[]; remainder: string } {
   const segments: string[] = [];
   let start = 0;
   let lastCommittedIndex = 0;
@@ -83,11 +87,15 @@ function extractSpeakableSegments(buffer: string, flushRemainder = false): { seg
     const char = buffer[index];
     const currentLength = index + 1 - lastCommittedIndex;
     const isStrongBoundary = char === '.' || char === '!' || char === '?';
-    const isSoftBoundary = (char === ',' || char === ';' || char === ':')
-      && currentLength >= EARLY_TTS_CLAUSE_MIN_CHARS;
+    const isSoftBoundary =
+      (char === ',' || char === ';' || char === ':') && currentLength >= EARLY_TTS_CLAUSE_MIN_CHARS;
     const isLongBoundary = char === ' ' && currentLength >= EARLY_TTS_LONG_PHRASE_MIN_CHARS;
 
-    if ((isStrongBoundary && currentLength >= EARLY_TTS_SENTENCE_MIN_CHARS) || isSoftBoundary || isLongBoundary) {
+    if (
+      (isStrongBoundary && currentLength >= EARLY_TTS_SENTENCE_MIN_CHARS) ||
+      isSoftBoundary ||
+      isLongBoundary
+    ) {
       const segment = buffer.slice(start, index + 1).trim();
       if (segment) segments.push(segment);
       start = index + 1;
@@ -105,7 +113,11 @@ function extractSpeakableSegments(buffer: string, flushRemainder = false): { seg
 }
 
 function normalizeTranscript(transcript: string): string {
-  return transcript.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  return transcript
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalizePhoneCandidate(value: string): string {
@@ -115,7 +127,12 @@ function normalizePhoneCandidate(value: string): string {
 function detectIntentFromTranscript(transcript: string): string {
   const normalized = normalizeTranscript(transcript);
   if (!normalized) return 'general';
-  if (/\b(book|booking|appointment|schedule|availability|available|reschedule|cancel)\b/.test(normalized)) return 'booking';
+  if (
+    /\b(book|booking|appointment|schedule|availability|available|reschedule|cancel)\b/.test(
+      normalized,
+    )
+  )
+    return 'booking';
   if (/\b(cost|price|pricing|insurance|cover|payment|billing)\b/.test(normalized)) return 'billing';
   if (/\b(hours|open|close|location|address|phone|email)\b/.test(normalized)) return 'clinic_info';
   if (/\b(emergency|pain|toothache|urgent)\b/.test(normalized)) return 'emergency';
@@ -149,15 +166,12 @@ function findBestLiveVoiceFallback(
   const liveVoices = voices.filter((voice) => voice.liveSupported !== false);
   if (liveVoices.length === 0) return null;
 
-  const normalize = (value?: string | null) => String(value ?? '').trim().toLowerCase();
+  const normalize = (value?: string | null) =>
+    String(value ?? '')
+      .trim()
+      .toLowerCase();
   const isUkVoice = (voice: AvailableVoiceOption): boolean => {
-    const searchable = [
-      voice.name,
-      voice.label,
-      voice.locale,
-      voice.accent,
-      voice.category,
-    ]
+    const searchable = [voice.name, voice.label, voice.locale, voice.accent, voice.category]
       .map(normalize)
       .filter(Boolean)
       .join(' ');
@@ -178,8 +192,8 @@ function findBestLiveVoiceFallback(
   };
   const configuredVoiceIsUk = isUkVoice(configuredVoice);
 
-  return [...liveVoices]
-    .sort((left, right) => {
+  return (
+    [...liveVoices].sort((left, right) => {
       const score = (voice: AvailableVoiceOption): number => {
         let value = 0;
 
@@ -192,12 +206,11 @@ function findBestLiveVoiceFallback(
       };
 
       return score(right) - score(left);
-    })[0] ?? null;
+    })[0] ?? null
+  );
 }
 
-async function resolveLiveVoiceSelection(input: {
-  configuredVoiceId: string;
-}): Promise<{
+async function resolveLiveVoiceSelection(input: { configuredVoiceId: string }): Promise<{
   voiceId: string;
   voiceName: string | null;
   configuredVoiceName: string | null;
@@ -262,7 +275,10 @@ async function resolveLiveVoiceSelection(input: {
       voiceFallbackMessage: `Configured voice ${configuredVoice.name} requires a paid ElevenLabs plan for live API speech. Using free live-supported voice ${fallbackVoice.name} instead.`,
     };
   } catch (error) {
-    logger.warn({ err: error, configuredVoiceId }, 'Failed to resolve live-supported voice fallback');
+    logger.warn(
+      { err: error, configuredVoiceId },
+      'Failed to resolve live-supported voice fallback',
+    );
     return {
       voiceId: configuredVoiceId,
       voiceName: null,
@@ -312,10 +328,11 @@ async function retryAssistantAudioWithFreeVoice(
 
   try {
     const voices = await listAvailableVoices();
-    const configuredVoice = voices.find((voice) => voice.voiceId === session.configuredVoiceId) ?? null;
+    const configuredVoice =
+      voices.find((voice) => voice.voiceId === session.configuredVoiceId) ?? null;
     const fallbackVoice = configuredVoice
       ? findBestLiveVoiceFallback(configuredVoice, voices)
-      : voices.find((voice) => voice.liveSupported !== false) ?? null;
+      : (voices.find((voice) => voice.liveSupported !== false) ?? null);
 
     if (!fallbackVoice) {
       session.voiceId = 'professional';
@@ -336,7 +353,10 @@ async function retryAssistantAudioWithFreeVoice(
     }
     return await sendAudio();
   } catch (error) {
-    logger.warn({ err: error, sessionId: session.sessionId }, 'Retry with free live-supported voice failed');
+    logger.warn(
+      { err: error, sessionId: session.sessionId },
+      'Retry with free live-supported voice failed',
+    );
 
     try {
       session.voiceId = 'professional';
@@ -346,7 +366,10 @@ async function retryAssistantAudioWithFreeVoice(
         : 'Using the default voice instead.';
       return await sendAudio();
     } catch (fallbackError) {
-      logger.warn({ err: fallbackError, sessionId: session.sessionId }, 'Retry with default professional voice failed');
+      logger.warn(
+        { err: fallbackError, sessionId: session.sessionId },
+        'Retry with default professional voice failed',
+      );
       return false;
     }
   }
@@ -390,12 +413,19 @@ async function sendAssistantAudio(
   } catch (error) {
     const providerError = error instanceof ProviderError ? error : null;
     const errorMessage = error instanceof Error ? error.message : 'TTS unavailable';
-    const paymentRequired = errorMessage.toLowerCase().includes('paid_plan_required')
-      || errorMessage.toLowerCase().includes('payment_required')
-      || errorMessage.toLowerCase().includes('free users cannot use library voices');
+    const paymentRequired =
+      errorMessage.toLowerCase().includes('paid_plan_required') ||
+      errorMessage.toLowerCase().includes('payment_required') ||
+      errorMessage.toLowerCase().includes('free users cannot use library voices');
 
     if (paymentRequired) {
-      const retried = await retryAssistantAudioWithFreeVoice(session, text, generationId, speedOverride, voiceIdOverride);
+      const retried = await retryAssistantAudioWithFreeVoice(
+        session,
+        text,
+        generationId,
+        speedOverride,
+        voiceIdOverride,
+      );
       if (retried) return true;
     }
 
@@ -454,11 +484,13 @@ async function processBufferedAudio(session: BrowserLiveSession): Promise<void> 
     session.audioBuffer = [];
 
     sendEvent(session.ws, 'transcription_state', { state: 'processing' });
-    const transcript = (await transcribeLiveAudio(session.tenantId, {
-      audioBuffer,
-      mimeType: session.mimeType,
-      language: session.language,
-    })).trim();
+    const transcript = (
+      await transcribeLiveAudio(session.tenantId, {
+        audioBuffer,
+        mimeType: session.mimeType,
+        language: session.language,
+      })
+    ).trim();
 
     if (!transcript) {
       sendEvent(session.ws, 'transcription_state', { state: 'idle' });
@@ -468,12 +500,16 @@ async function processBufferedAudio(session: BrowserLiveSession): Promise<void> 
     await processRecognizedTranscript(session, transcript, generationId, responseAbortController);
   } catch (error) {
     const isAbort =
-      error instanceof Error
-      && (error.name === 'AbortError' || error.message.includes('barged in') || error.message.includes('disconnected'));
+      error instanceof Error &&
+      (error.name === 'AbortError' ||
+        error.message.includes('barged in') ||
+        error.message.includes('disconnected'));
 
     if (!isAbort) {
       logger.error({ err: error, sessionId: session.sessionId }, 'Live voice turn failed');
-      sendEvent(session.ws, 'error', { message: error instanceof Error ? error.message : 'Live voice failed' });
+      sendEvent(session.ws, 'error', {
+        message: error instanceof Error ? error.message : 'Live voice failed',
+      });
     }
   } finally {
     if (session.responseAbortController === responseAbortController) {
@@ -492,12 +528,15 @@ async function processRecognizedTranscript(
 ): Promise<void> {
   const normalizedTranscript = normalizeTranscript(transcript);
   const isDuplicateTranscript =
-    normalizedTranscript
-    && normalizedTranscript === session.lastTranscriptNormalized
-    && Date.now() - session.lastTranscriptAt < DUPLICATE_TRANSCRIPT_WINDOW_MS;
+    normalizedTranscript &&
+    normalizedTranscript === session.lastTranscriptNormalized &&
+    Date.now() - session.lastTranscriptAt < DUPLICATE_TRANSCRIPT_WINDOW_MS;
 
   if (isDuplicateTranscript) {
-    logger.debug({ sessionId: session.sessionId, transcript }, 'Skipping duplicate live transcript');
+    logger.debug(
+      { sessionId: session.sessionId, transcript },
+      'Skipping duplicate live transcript',
+    );
     sendEvent(session.ws, 'transcription_state', { state: 'idle' });
     return;
   }
@@ -539,34 +578,48 @@ async function processRecognizedTranscript(
   const rawPhone = bookingPhone || changePhone || '';
   const normalizedPhone = normalizePhoneCandidate(rawPhone);
   if (
-    normalizedPhone.length >= 7
-    && (session.callerNumber == null || session.callerNumber === 'browser-test' || normalizePhoneCandidate(session.callerNumber) !== normalizedPhone)
+    normalizedPhone.length >= 7 &&
+    (session.callerNumber == null ||
+      session.callerNumber === 'browser-test' ||
+      normalizePhoneCandidate(session.callerNumber) !== normalizedPhone)
   ) {
     session.callerNumber = rawPhone.trim();
-    await callService.updateCallCallerNumber(session.tenantId, session.analyticsCallSessionId, session.callerNumber);
+    await runWithTenantContext(
+      { tenantId: session.tenantId, correlationId: session.sessionId, source: 'request' },
+      () =>
+        callService.updateCallCallerNumber(
+          session.tenantId,
+          session.analyticsCallSessionId,
+          session.callerNumber!,
+        ),
+    );
   }
 
   if (generationId !== session.generationId) return;
 
   const finalResponseText = turnResult.response.trim();
-  await callService.logCallEvent({
-    tenantId: session.tenantId,
-    callSessionId: session.analyticsCallSessionId,
-    eventType: 'conversation.turn',
-    actor: 'ai',
-    payload: {
-      source: 'sidebar-test',
-      userText: transcript,
-      aiText: finalResponseText,
-    },
-    latencyMs: Date.now() - turnStartedAt,
-  });
+  await runWithTenantContext(
+    { tenantId: session.tenantId, correlationId: session.sessionId, source: 'request' },
+    () =>
+      callService.logCallEvent({
+        tenantId: session.tenantId,
+        callSessionId: session.analyticsCallSessionId,
+        eventType: 'conversation.turn',
+        actor: 'ai',
+        payload: {
+          source: 'sidebar-test',
+          userText: transcript,
+          aiText: finalResponseText,
+        },
+        latencyMs: Date.now() - turnStartedAt,
+      }),
+  );
   if (finalResponseText) {
     sendEvent(session.ws, 'assistant_delta', { delta: finalResponseText });
   }
 
   const { segments } = extractSpeakableSegments(finalResponseText, true);
-  const ttsSegments = segments.length > 0 ? segments : (finalResponseText ? [finalResponseText] : []);
+  const ttsSegments = segments.length > 0 ? segments : finalResponseText ? [finalResponseText] : [];
   for (const segment of ttsSegments) {
     await sendAssistantAudio(session, segment, generationId);
   }
@@ -589,10 +642,12 @@ async function initializeSession(ws: WebSocket, requestUrl: URL): Promise<Browse
   const payload = verifyAccessToken(token);
   const tenantId = payload.tenantId;
   const userId = payload.userId;
-  const analyticsSession = await callService.createBrowserTestCallSession({
-    tenantId,
-    configVersionId: null,
-  });
+  const analyticsSession = await runWithTenantContext({ tenantId, source: 'request' }, () =>
+    callService.createBrowserTestCallSession({
+      tenantId,
+      configVersionId: null,
+    }),
+  );
   const aiContext = await loadLiveTenantAIContext(tenantId);
   const systemPrompt = buildReceptionistSystemPrompt(aiContext, 'sidebar-test');
   const voiceSettings = aiContext.voiceProfile as Record<string, unknown>;
@@ -607,12 +662,16 @@ async function initializeSession(ws: WebSocket, requestUrl: URL): Promise<Browse
       if (overrideVoice && overrideVoice.liveSupported !== false) {
         resolvedVoice.voiceId = overrideVoice.voiceId;
         resolvedVoice.voiceName = overrideVoice.name;
-        resolvedVoice.voiceFallbackMessage = configuredVoiceId !== overrideVoice.voiceId
-          ? `Configured voice ${resolvedVoice.configuredVoiceName ?? configuredVoiceId} is being overridden for this live test call. Using live-supported voice ${overrideVoice.name}.`
-          : resolvedVoice.voiceFallbackMessage;
+        resolvedVoice.voiceFallbackMessage =
+          configuredVoiceId !== overrideVoice.voiceId
+            ? `Configured voice ${resolvedVoice.configuredVoiceName ?? configuredVoiceId} is being overridden for this live test call. Using live-supported voice ${overrideVoice.name}.`
+            : resolvedVoice.voiceFallbackMessage;
       }
     } catch (error) {
-      logger.warn({ err: error, overrideVoiceId, tenantId }, 'Failed to apply live test voice override');
+      logger.warn(
+        { err: error, overrideVoiceId, tenantId },
+        'Failed to apply live test voice override',
+      );
     }
   }
 
@@ -657,38 +716,55 @@ async function cleanupSession(ws: WebSocket): Promise<void> {
   sessions.delete(ws);
 
   try {
-    const durationSeconds = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
-    const lastCallerUtterance = [...session.conversationHistory].reverse().find((entry) => entry.role === 'user')?.content ?? '';
-    const lastAssistantUtterance = [...session.conversationHistory].reverse().find((entry) => entry.role === 'assistant')?.content ?? '';
+    await runWithTenantContext(
+      { tenantId: session.tenantId, correlationId: session.sessionId, source: 'request' },
+      async () => {
+        const durationSeconds = Math.max(1, Math.round((Date.now() - session.startedAt) / 1000));
+        const lastCallerUtterance =
+          [...session.conversationHistory].reverse().find((entry) => entry.role === 'user')
+            ?.content ?? '';
+        const lastAssistantUtterance =
+          [...session.conversationHistory].reverse().find((entry) => entry.role === 'assistant')
+            ?.content ?? '';
 
-    if (session.conversationHistory.length > 0) {
-      const summary =
-        (await callService.generateCallSummary({
-          tenantId: session.tenantId,
-          callSessionId: session.analyticsCallSessionId,
-          transcriptTurns: session.conversationHistory,
-        }))
-        || lastAssistantUtterance
-        || 'Browser test call completed';
+        if (session.conversationHistory.length > 0) {
+          const summary =
+            (await callService.generateCallSummary({
+              tenantId: session.tenantId,
+              callSessionId: session.analyticsCallSessionId,
+              transcriptTurns: session.conversationHistory,
+            })) ||
+            lastAssistantUtterance ||
+            'Browser test call completed';
 
-      await callService.saveTranscript({
-        tenantId: session.tenantId,
-        callSessionId: session.analyticsCallSessionId,
-        fullTranscript: session.conversationHistory.map((entry) => ({
-          role: entry.role,
-          content: entry.content,
-        })),
-        summary,
-        intentDetected: detectIntentFromTranscript(lastCallerUtterance),
-      });
-    }
+          await callService.saveTranscript({
+            tenantId: session.tenantId,
+            callSessionId: session.analyticsCallSessionId,
+            fullTranscript: session.conversationHistory.map((entry) => ({
+              role: entry.role,
+              content: entry.content,
+            })),
+            summary,
+            intentDetected: detectIntentFromTranscript(lastCallerUtterance),
+          });
+        }
 
-    await callService.updateCallStatus(session.tenantId, session.analyticsCallSessionId, 'completed', {
-      durationSeconds,
-      endReason: 'sidebar_test_closed',
-    });
+        await callService.updateCallStatus(
+          session.tenantId,
+          session.analyticsCallSessionId,
+          'completed',
+          {
+            durationSeconds,
+            endReason: 'sidebar_test_closed',
+          },
+        );
+      },
+    );
   } catch (error) {
-    logger.error({ err: error, sessionId: session.sessionId }, 'Failed to persist browser test call analytics');
+    logger.error(
+      { err: error, sessionId: session.sessionId },
+      'Failed to persist browser test call analytics',
+    );
   }
 }
 
@@ -715,8 +791,8 @@ export function attachReceptionistLiveWebSocket(server: HttpServer): void {
       const aiContext = await loadLiveTenantAIContext(session.tenantId);
       const voiceSettings = aiContext.voiceProfile as Record<string, unknown>;
       const greeting =
-        String(voiceSettings.greetingMessage || voiceSettings.greeting || '').trim()
-        || `Hi, welcome to ${aiContext.clinicName}, what can I help you with today?`;
+        String(voiceSettings.greetingMessage || voiceSettings.greeting || '').trim() ||
+        `Hi, welcome to ${aiContext.clinicName}, what can I help you with today?`;
       await sendGreeting(session, greeting);
 
       ws.on('message', (raw) => {
@@ -767,10 +843,20 @@ export function attachReceptionistLiveWebSocket(server: HttpServer): void {
               const responseAbortController = new AbortController();
               activeSession.responseAbortController = responseAbortController;
               sendEvent(activeSession.ws, 'transcription_state', { state: 'processing' });
-              void processRecognizedTranscript(activeSession, transcript, generationId, responseAbortController)
+              void processRecognizedTranscript(
+                activeSession,
+                transcript,
+                generationId,
+                responseAbortController,
+              )
                 .catch((error) => {
-                  logger.error({ err: error, sessionId: activeSession.sessionId }, 'Live user_text turn failed');
-                  sendEvent(activeSession.ws, 'error', { message: error instanceof Error ? error.message : 'Live voice failed' });
+                  logger.error(
+                    { err: error, sessionId: activeSession.sessionId },
+                    'Live user_text turn failed',
+                  );
+                  sendEvent(activeSession.ws, 'error', {
+                    message: error instanceof Error ? error.message : 'Live voice failed',
+                  });
                 })
                 .finally(() => {
                   if (activeSession.responseAbortController === responseAbortController) {
@@ -791,7 +877,10 @@ export function attachReceptionistLiveWebSocket(server: HttpServer): void {
               break;
 
             default:
-              logger.debug({ sessionId: activeSession.sessionId, event: message.event }, 'Unknown live session event');
+              logger.debug(
+                { sessionId: activeSession.sessionId, event: message.event },
+                'Unknown live session event',
+              );
           }
         } catch (error) {
           logger.error({ err: error }, 'Failed to process live session message');

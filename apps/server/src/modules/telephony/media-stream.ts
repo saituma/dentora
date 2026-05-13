@@ -9,6 +9,7 @@ import { resolveApiKey } from '../api-keys/api-key.service.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
+import { runWithTenantContext, setActiveTenantContext } from '../../db/tenant-context.js';
 
 interface SensitiveTopic {
   type?: string;
@@ -559,6 +560,12 @@ async function handleStreamStart(
       return;
     }
 
+    setActiveTenantContext({
+      tenantId,
+      correlationId: callSessionId,
+      source: 'webhook',
+    });
+
     const [cvRow] = await db
       .select({ version: tenantConfigVersions.version })
       .from(tenantConfigVersions)
@@ -644,6 +651,16 @@ async function handleStreamStart(
 }
 
 async function handleElevenLabsMessage(session: MediaStreamSession, raw: string): Promise<void> {
+  return runWithTenantContext(
+    { tenantId: session.tenantId, correlationId: session.callSessionId, source: 'webhook' },
+    () => handleElevenLabsMessageWithTenant(session, raw),
+  );
+}
+
+async function handleElevenLabsMessageWithTenant(
+  session: MediaStreamSession,
+  raw: string,
+): Promise<void> {
   let message: ElevenLabsMessage & Record<string, unknown>;
   try {
     message = JSON.parse(raw) as ElevenLabsMessage & Record<string, unknown>;
@@ -902,6 +919,17 @@ async function handleStreamEnd(callSessionId: string, endReason: string): Promis
   const session = activeSessions.get(callSessionId);
   if (!session) return;
 
+  return runWithTenantContext(
+    { tenantId: session.tenantId, correlationId: callSessionId, source: 'webhook' },
+    () => handleStreamEndWithTenant(session, endReason),
+  );
+}
+
+async function handleStreamEndWithTenant(
+  session: MediaStreamSession,
+  endReason: string,
+): Promise<void> {
+  const { callSessionId } = session;
   try {
     logger.info(
       { callSessionId, tenantId: session.tenantId, endReason },

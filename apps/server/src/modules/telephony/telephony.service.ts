@@ -1,4 +1,3 @@
-
 import { db } from '../../db/index.js';
 import { twilioNumbers, callSessions, tenantActiveConfig } from '../../db/schema.js';
 import { eq, and, sql, or } from 'drizzle-orm';
@@ -12,6 +11,7 @@ import { tenantConfigVersions } from '../../db/schema.js';
 import { env } from '../../config/env.js';
 import twilio from 'twilio';
 import * as configService from '../config/config.service.js';
+import { runWithTenantContext } from '../../db/tenant-context.js';
 
 type TwilioNumber = InferSelectModel<typeof twilioNumbers>;
 type TwilioIncomingNumber = {
@@ -92,7 +92,7 @@ async function fetchAllTwilioIncomingNumbers(): Promise<TwilioIncomingNumber[]> 
       throw new TelephonyError(`Failed to fetch Twilio numbers: ${detail}`);
     }
 
-    const page = await response.json() as TwilioIncomingPhoneNumberPage;
+    const page = (await response.json()) as TwilioIncomingPhoneNumberPage;
     const pageNumbers = Array.isArray(page?.incoming_phone_numbers)
       ? page.incoming_phone_numbers
       : [];
@@ -164,9 +164,7 @@ async function configureTwilioNumberWebhooks(input: {
   }
 }
 
-export async function getPublicNumberStatus(input: {
-  phoneNumber: string;
-}): Promise<{
+export async function getPublicNumberStatus(input: { phoneNumber: string }): Promise<{
   phoneNumber: string;
   assigned: boolean;
   online: boolean;
@@ -176,7 +174,9 @@ export async function getPublicNumberStatus(input: {
   const [number] = await db
     .select()
     .from(twilioNumbers)
-    .where(and(eq(twilioNumbers.phoneNumber, input.phoneNumber), eq(twilioNumbers.status, 'active')))
+    .where(
+      and(eq(twilioNumbers.phoneNumber, input.phoneNumber), eq(twilioNumbers.status, 'active')),
+    )
     .limit(1);
 
   if (!number) {
@@ -192,13 +192,12 @@ export async function getPublicNumberStatus(input: {
   const [{ count }] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
     .from(callSessions)
-    .where(and(
-      eq(callSessions.twilioNumberId, number.id),
-      or(
-        eq(callSessions.status, 'started'),
-        eq(callSessions.status, 'in_progress'),
+    .where(
+      and(
+        eq(callSessions.twilioNumberId, number.id),
+        or(eq(callSessions.status, 'started'), eq(callSessions.status, 'in_progress')),
       ),
-    ));
+    );
 
   const activeCallCount = count ?? 0;
 
@@ -323,9 +322,7 @@ export async function autoAssignPhoneNumberForTenant(tenantId: string): Promise<
 
     const assignedNumbers = await tx.select().from(twilioNumbers);
     const activeAssignedPhoneSet = new Set(
-      assignedNumbers
-        .filter((row) => row.status === 'active')
-        .map((row) => row.phoneNumber),
+      assignedNumbers.filter((row) => row.status === 'active').map((row) => row.phoneNumber),
     );
 
     const candidate = twilioNumbersFromAccount.find(
@@ -415,29 +412,28 @@ export async function releasePhoneNumber(tenantId: string, numberId: string): Pr
 }
 
 export async function listPhoneNumbers(tenantId: string): Promise<TwilioNumber[]> {
-  return await db
-    .select()
-    .from(twilioNumbers)
-    .where(eq(twilioNumbers.tenantId, tenantId));
+  return await db.select().from(twilioNumbers).where(eq(twilioNumbers.tenantId, tenantId));
 }
 
-export async function fetchTwilioIncomingNumbers(tenantId?: string): Promise<TwilioIncomingNumber[]> {
+export async function fetchTwilioIncomingNumbers(
+  tenantId?: string,
+): Promise<TwilioIncomingNumber[]> {
   const all = await fetchAllTwilioIncomingNumbers();
-  const assigned = await db.select({ phoneNumber: twilioNumbers.phoneNumber, tenantId: twilioNumbers.tenantId })
+  const assigned = await db
+    .select({ phoneNumber: twilioNumbers.phoneNumber, tenantId: twilioNumbers.tenantId })
     .from(twilioNumbers)
     .where(eq(twilioNumbers.status, 'active'));
   const assignedSet = new Set(
-    assigned
-      .filter((row) => row.tenantId !== tenantId)
-      .map((row) => row.phoneNumber),
+    assigned.filter((row) => row.tenantId !== tenantId).map((row) => row.phoneNumber),
   );
   return all.filter((n) => !assignedSet.has(n.phoneNumber));
 }
 
-export function createClientAccessToken(input: {
+export function createClientAccessToken(input: { identity: string; ttlSeconds?: number }): {
+  token: string;
   identity: string;
-  ttlSeconds?: number;
-}): { token: string; identity: string; expiresIn: number } {
+  expiresIn: number;
+} {
   if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_API_KEY_SID || !env.TWILIO_API_KEY_SECRET) {
     throw new TelephonyError('Twilio API key credentials are not configured');
   }
@@ -456,10 +452,12 @@ export function createClientAccessToken(input: {
     { identity: input.identity, ttl },
   );
 
-  token.addGrant(new VoiceGrant({
-    outgoingApplicationSid: env.TWILIO_TWIML_APP_SID,
-    incomingAllow: true,
-  }));
+  token.addGrant(
+    new VoiceGrant({
+      outgoingApplicationSid: env.TWILIO_TWIML_APP_SID,
+      incomingAllow: true,
+    }),
+  );
 
   return {
     token: token.toJwt(),
@@ -480,77 +478,79 @@ export async function handleInboundCall(input: {
   );
   const tenantId = await resolveTenantByPhone(input.to);
 
-  const [twilioNumber] = await db
-    .select()
-    .from(twilioNumbers)
-    .where(and(eq(twilioNumbers.phoneNumber, input.to), eq(twilioNumbers.tenantId, tenantId)))
-    .limit(1);
+  return runWithTenantContext(
+    { tenantId, correlationId: input.callSid, source: 'webhook' },
+    async () => {
+      const [twilioNumber] = await db
+        .select()
+        .from(twilioNumbers)
+        .where(and(eq(twilioNumbers.phoneNumber, input.to), eq(twilioNumbers.tenantId, tenantId)))
+        .limit(1);
 
-  if (!twilioNumber) {
-    throw new TelephonyError(`Twilio number not found for ${input.to}`);
-  }
-  logger.info(
-    { tenantId, twilioNumberId: twilioNumber.id, phoneNumber: input.to },
-    'Resolved Twilio number for tenant',
-  );
+      if (!twilioNumber) {
+        throw new TelephonyError(`Twilio number not found for ${input.to}`);
+      }
+      logger.info(
+        { tenantId, twilioNumberId: twilioNumber.id, phoneNumber: input.to },
+        'Resolved Twilio number for tenant',
+      );
 
-  const [activeConfig] = await db
-    .select()
-    .from(tenantActiveConfig)
-    .where(eq(tenantActiveConfig.tenantId, tenantId))
-    .limit(1);
+      const [activeConfig] = await db
+        .select()
+        .from(tenantActiveConfig)
+        .where(eq(tenantActiveConfig.tenantId, tenantId))
+        .limit(1);
 
-  if (!activeConfig) {
-    throw new TelephonyError(`No active config version for tenant ${tenantId}`);
-  }
-  logger.info(
-    { tenantId, activeVersion: activeConfig.activeVersion },
-    'Resolved active config version',
-  );
+      if (!activeConfig) {
+        throw new TelephonyError(`No active config version for tenant ${tenantId}`);
+      }
+      logger.info(
+        { tenantId, activeVersion: activeConfig.activeVersion },
+        'Resolved active config version',
+      );
 
-  const [configVersionRow] = await db
-    .select({ id: tenantConfigVersions.id })
-    .from(tenantConfigVersions)
-    .where(
-      and(
-        eq(tenantConfigVersions.tenantId, tenantId),
-        eq(tenantConfigVersions.version, activeConfig.activeVersion),
-      ),
-    )
-    .limit(1);
+      const [configVersionRow] = await db
+        .select({ id: tenantConfigVersions.id })
+        .from(tenantConfigVersions)
+        .where(
+          and(
+            eq(tenantConfigVersions.tenantId, tenantId),
+            eq(tenantConfigVersions.version, activeConfig.activeVersion),
+          ),
+        )
+        .limit(1);
 
-  if (!configVersionRow) {
-    throw new TelephonyError(`Config version not found for tenant ${tenantId}`);
-  }
-  logger.info(
-    { tenantId, configVersionId: configVersionRow.id },
-    'Resolved config version ID',
-  );
+      if (!configVersionRow) {
+        throw new TelephonyError(`Config version not found for tenant ${tenantId}`);
+      }
+      logger.info({ tenantId, configVersionId: configVersionRow.id }, 'Resolved config version ID');
 
-  const callSession = await callService.createCallSession({
-    tenantId,
-    twilioCallSid: input.callSid,
-    twilioNumberId: twilioNumber.id,
-    callerNumber: input.from,
-    configVersionId: configVersionRow.id,
-  });
+      const callSession = await callService.createCallSession({
+        tenantId,
+        twilioCallSid: input.callSid,
+        twilioNumberId: twilioNumber.id,
+        callerNumber: input.from,
+        configVersionId: configVersionRow.id,
+      });
 
-  logger.info(
-    {
-      tenantId,
-      callSid: input.callSid,
-      callSessionId: callSession.id,
-      from: input.from,
-      to: input.to,
+      logger.info(
+        {
+          tenantId,
+          callSid: input.callSid,
+          callSessionId: callSession.id,
+          from: input.from,
+          to: input.to,
+        },
+        'Inbound call received and session created',
+      );
+
+      return {
+        tenantId,
+        callSessionId: callSession.id,
+        configVersionId: configVersionRow.id,
+      };
     },
-    'Inbound call received and session created',
   );
-
-  return {
-    tenantId,
-    callSessionId: callSession.id,
-    configVersionId: configVersionRow.id,
-  };
 }
 
 const MAX_CONCURRENT_CALLS: Record<string, number> = {
@@ -563,17 +563,18 @@ export async function getActiveConcurrentCalls(tenantId: string): Promise<number
   const [{ count }] = await db
     .select({ count: sql<number>`COUNT(*)::int` })
     .from(callSessions)
-    .where(and(
-      eq(callSessions.tenantId, tenantId),
-      or(
-        eq(callSessions.status, 'started'),
-        eq(callSessions.status, 'in_progress'),
+    .where(
+      and(
+        eq(callSessions.tenantId, tenantId),
+        or(eq(callSessions.status, 'started'), eq(callSessions.status, 'in_progress')),
       ),
-    ));
+    );
   return count ?? 0;
 }
 
-export async function checkConcurrentCallLimit(tenantId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+export async function checkConcurrentCallLimit(
+  tenantId: string,
+): Promise<{ allowed: boolean; current: number; limit: number }> {
   const [tenant] = await db
     .select({ plan: sql<string>`plan` })
     .from(sql`tenant_registry`)
@@ -619,20 +620,26 @@ export async function getAfterHoursInfo(tenantId: string): Promise<{
   isAfterHours: boolean;
   message: string;
 }> {
-  const clinic = await configService.getClinicProfile(tenantId);
-  const voiceProfileData = await configService.getVoiceProfile(tenantId);
-  const timezone = clinic?.timezone ?? 'America/New_York';
-  const businessHours = clinic?.businessHours as Record<string, { start: string; end: string } | null> | null;
-  const withinHours = isWithinBusinessHours(businessHours, timezone);
+  return runWithTenantContext({ tenantId, source: 'webhook' }, async () => {
+    const clinic = await configService.getClinicProfile(tenantId);
+    const voiceProfileData = await configService.getVoiceProfile(tenantId);
+    const timezone = clinic?.timezone ?? 'America/New_York';
+    const businessHours = clinic?.businessHours as Record<
+      string,
+      { start: string; end: string } | null
+    > | null;
+    const withinHours = isWithinBusinessHours(businessHours, timezone);
 
-  const afterHoursMessage = (voiceProfileData as Record<string, unknown> | null)?.afterHoursMessage as string | undefined;
-  const clinicName = clinic?.clinicName ?? 'our clinic';
-  const defaultMessage = `Thank you for calling ${clinicName}. We are currently closed. Our office hours are Monday through Friday. Please leave a message after the tone and we will return your call on the next business day. If this is a dental emergency, please call 911 or visit your nearest emergency room.`;
+    const afterHoursMessage = (voiceProfileData as Record<string, unknown> | null)
+      ?.afterHoursMessage as string | undefined;
+    const clinicName = clinic?.clinicName ?? 'our clinic';
+    const defaultMessage = `Thank you for calling ${clinicName}. We are currently closed. Our office hours are Monday through Friday. Please leave a message after the tone and we will return your call on the next business day. If this is a dental emergency, please call 911 or visit your nearest emergency room.`;
 
-  return {
-    isAfterHours: !withinHours,
-    message: afterHoursMessage?.trim() || defaultMessage,
-  };
+    return {
+      isAfterHours: !withinHours,
+      message: afterHoursMessage?.trim() || defaultMessage,
+    };
+  });
 }
 
 export async function forwardCallToHuman(input: {
@@ -750,32 +757,37 @@ export async function handleCallStatusUpdate(input: {
     return;
   }
 
-  const statusMap: Record<string, string> = {
-    initiated: 'started',
-    ringing: 'started',
-    'in-progress': 'in_progress',
-    completed: 'completed',
-    busy: 'failed',
-    'no-answer': 'failed',
-    canceled: 'failed',
-    failed: 'failed',
-  };
+  await runWithTenantContext(
+    { tenantId: session.tenantId, correlationId: session.id, source: 'webhook' },
+    async () => {
+      const statusMap: Record<string, string> = {
+        initiated: 'started',
+        ringing: 'started',
+        'in-progress': 'in_progress',
+        completed: 'completed',
+        busy: 'failed',
+        'no-answer': 'failed',
+        canceled: 'failed',
+        failed: 'failed',
+      };
 
-  const status = statusMap[input.callStatus] || input.callStatus;
-  const metadata: Record<string, unknown> = {};
+      const status = statusMap[input.callStatus] || input.callStatus;
+      const metadata: Record<string, unknown> = {};
 
-  if (input.callDuration) {
-    metadata.durationSeconds = parseInt(input.callDuration, 10);
-  }
+      if (input.callDuration) {
+        metadata.durationSeconds = parseInt(input.callDuration, 10);
+      }
 
-  if (['completed', 'failed'].includes(status)) {
-    metadata.endReason = input.callStatus;
-  }
+      if (['completed', 'failed'].includes(status)) {
+        metadata.endReason = input.callStatus;
+      }
 
-  await callService.updateCallStatus(session.tenantId, session.id, status, metadata);
+      await callService.updateCallStatus(session.tenantId, session.id, status, metadata);
 
-  logger.info(
-    { callSid: input.callSid, status, callSessionId: session.id },
-    'Call status updated',
+      logger.info(
+        { callSid: input.callSid, status, callSessionId: session.id },
+        'Call status updated',
+      );
+    },
   );
 }

@@ -14,6 +14,7 @@ import { env } from '../../config/env.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { getRedis } from '../../lib/cache.js';
+import { runWithTenantContext } from '../../db/tenant-context.js';
 
 const WEBHOOK_IDEMPOTENCY_TTL = 86_400; // 24 h
 
@@ -484,18 +485,22 @@ telephonyRouter.post(
 
       if (callSessionId && tenantId) {
         const { logCallEvent } = await import('../calls/call.service.js');
-        await logCallEvent({
-          tenantId,
-          callSessionId,
-          eventType: 'voicemail.received',
-          actor: 'system',
-          payload: {
-            recordingUrl: RecordingUrl,
-            recordingSid: RecordingSid,
-            durationSeconds: RecordingDuration ? parseInt(RecordingDuration, 10) : null,
-            transcription: TranscriptionText || null,
-          },
-        });
+        await runWithTenantContext(
+          { tenantId, correlationId: callSessionId, source: 'webhook' },
+          () =>
+            logCallEvent({
+              tenantId,
+              callSessionId,
+              eventType: 'voicemail.received',
+              actor: 'system',
+              payload: {
+                recordingUrl: RecordingUrl,
+                recordingSid: RecordingSid,
+                durationSeconds: RecordingDuration ? parseInt(RecordingDuration, 10) : null,
+                transcription: TranscriptionText || null,
+              },
+            }),
+        );
       }
 
       res.type('text/xml').send('<Response><Hangup/></Response>');
@@ -527,22 +532,27 @@ telephonyRouter.post(
 
       if (callSessionId && tenantId) {
         const { logCallEvent, updateCallStatus } = await import('../calls/call.service.js');
-        await logCallEvent({
-          tenantId,
-          callSessionId,
-          eventType: 'call.forwarded',
-          actor: 'system',
-          payload: {
-            dialStatus: DialCallStatus,
-            dialDuration: DialCallDuration,
-          },
-        });
+        await runWithTenantContext(
+          { tenantId, correlationId: callSessionId, source: 'webhook' },
+          async () => {
+            await logCallEvent({
+              tenantId,
+              callSessionId,
+              eventType: 'call.forwarded',
+              actor: 'system',
+              payload: {
+                dialStatus: DialCallStatus,
+                dialDuration: DialCallDuration,
+              },
+            });
 
-        if (DialCallStatus === 'completed') {
-          await updateCallStatus(tenantId, callSessionId, 'completed', {
-            endReason: 'forwarded_completed',
-          });
-        }
+            if (DialCallStatus === 'completed') {
+              await updateCallStatus(tenantId, callSessionId, 'completed', {
+                endReason: 'forwarded_completed',
+              });
+            }
+          },
+        );
       }
 
       if (DialCallStatus !== 'completed') {

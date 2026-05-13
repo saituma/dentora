@@ -2,6 +2,7 @@ import { and, eq, isNull, desc } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { patientProfiles } from '../../db/schema.js';
 import { encryptField, decryptField, hashForSearch } from '../../lib/encrypted-column.js';
+import { assertTenantAccess } from '../../db/tenant-context.js';
 
 export type PatientProfileRecord = {
   id: string;
@@ -30,6 +31,7 @@ export async function findPatientProfile(input: {
   phoneNumber: string;
   dateOfBirth?: string | null;
 }): Promise<PatientProfileRecord | null> {
+  assertTenantAccess(input.tenantId);
   const phoneHash = hashForSearch(input.phoneNumber);
   const normalizedDob = input.dateOfBirth?.trim() ?? null;
   const dobFilter = normalizedDob
@@ -55,6 +57,7 @@ export async function findPatientProfileByPhone(input: {
   tenantId: string;
   phoneNumber: string;
 }): Promise<PatientProfileRecord | null> {
+  assertTenantAccess(input.tenantId);
   const phoneHash = hashForSearch(input.phoneNumber);
 
   const [row] = await db
@@ -75,6 +78,7 @@ export async function getPatientProfileById(input: {
   tenantId: string;
   patientId: string;
 }): Promise<PatientProfileRecord | null> {
+  assertTenantAccess(input.tenantId);
   const [row] = await db
     .select()
     .from(patientProfiles)
@@ -94,6 +98,7 @@ export async function upsertPatientProfile(input: {
   lastVisitAt?: Date | null;
   notes?: string | null;
 }): Promise<PatientProfileRecord> {
+  assertTenantAccess(input.tenantId);
   const now = new Date();
   const plainPhone = input.phoneNumber.trim();
   const phoneHash = hashForSearch(plainPhone);
@@ -149,6 +154,7 @@ export async function listPatientProfiles(input: {
   search?: string | null;
   limit?: number;
 }): Promise<PatientProfileRecord[]> {
+  assertTenantAccess(input.tenantId);
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
   const search = input.search?.trim();
 

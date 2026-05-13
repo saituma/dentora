@@ -55,8 +55,21 @@ vi.mock('twilio', () => ({
   default: vi.fn(),
 }));
 
-import { login, register, refreshAccessToken, logout, changePassword, exchangeOauthCode, loginOrRegisterWithGoogleCode } from './auth.service.js';
-import { hashPassword, signRefreshToken, hashRefreshToken, verifyAccessToken } from '../../lib/crypto.js';
+import {
+  login,
+  register,
+  refreshAccessToken,
+  logout,
+  changePassword,
+  exchangeOauthCode,
+  loginOrRegisterWithGoogleCode,
+} from './auth.service.js';
+import {
+  hashPassword,
+  signRefreshToken,
+  hashRefreshToken,
+  verifyAccessToken,
+} from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError } from '../../lib/errors.js';
 
 function chainable(result: any) {
@@ -122,9 +135,11 @@ describe('login', () => {
     expect(result.refreshToken).toBeDefined();
     expect(result.user.id).toBe('u1');
     expect(result.user.email).toBe('test@example.com');
-    expect(sessionInsert.values).toHaveBeenCalledWith(expect.objectContaining({
-      refreshToken: hashRefreshToken(result.refreshToken),
-    }));
+    expect(sessionInsert.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refreshToken: hashRefreshToken(result.refreshToken),
+      }),
+    );
   });
 
   it('signs tenant membership role for tenant-scoped users', async () => {
@@ -180,7 +195,9 @@ describe('login', () => {
   it('throws AuthenticationError for wrong password', async () => {
     const passwordHash = await hashPassword('correct');
     const fakeUser = { id: 'u1', email: 'a@b.com', passwordHash, displayName: 'X', role: 'admin' };
-    mockDb.select.mockReturnValueOnce(chainable(fakeUser));
+    mockDb.select
+      .mockReturnValueOnce(chainable(fakeUser))
+      .mockReturnValueOnce(chainable({ tenantId: 't1', role: 'admin' }));
 
     await expect(login('a@b.com', 'wrong')).rejects.toThrow(AuthenticationError);
   });
@@ -250,10 +267,12 @@ describe('refreshAccessToken', () => {
     expect(result.refreshToken).toBeDefined();
     // Verify the session was updated with rotation fields
     expect(mockDb.update).toHaveBeenCalled();
-    expect(sessionUpdate.set).toHaveBeenCalledWith(expect.objectContaining({
-      previousRefreshToken: hashRefreshToken(refreshToken),
-      refreshToken: hashRefreshToken(result.refreshToken),
-    }));
+    expect(sessionUpdate.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previousRefreshToken: hashRefreshToken(refreshToken),
+        refreshToken: hashRefreshToken(result.refreshToken),
+      }),
+    );
   });
 
   it('throws for expired session', async () => {
@@ -282,14 +301,16 @@ describe('refreshAccessToken', () => {
     // First select: no session found with this token as current (it was rotated away)
     mockDb.select.mockReturnValueOnce(chainable(undefined));
     // Second select: found session where this token is the previousRefreshToken (replay detected)
-    mockDb.select.mockReturnValueOnce(chainable({
-      id: 's1',
-      userId: 'u1',
-      refreshToken: hashRefreshToken('new-token-that-replaced-old'),
-      previousRefreshToken: hashRefreshToken(oldRefreshToken),
-      rotatedAt: new Date(),
-      expiresAt: new Date(Date.now() + 86400000),
-    }));
+    mockDb.select.mockReturnValueOnce(
+      chainable({
+        id: 's1',
+        userId: 'u1',
+        refreshToken: hashRefreshToken('new-token-that-replaced-old'),
+        previousRefreshToken: hashRefreshToken(oldRefreshToken),
+        rotatedAt: new Date(),
+        expiresAt: new Date(Date.now() + 86400000),
+      }),
+    );
     mockDb.delete.mockReturnValue(deleteChain());
 
     await expect(refreshAccessToken(oldRefreshToken)).rejects.toThrow(
@@ -334,11 +355,13 @@ describe('exchangeOauthCode', () => {
     };
     const sessionUpdate = updateChain();
 
-    mockRedis.getdel.mockResolvedValue(JSON.stringify({
-      userId: 'u1',
-      sessionId: 's1',
-      expiresAt: Date.now() + 60_000,
-    }));
+    mockRedis.getdel.mockResolvedValue(
+      JSON.stringify({
+        userId: 'u1',
+        sessionId: 's1',
+        expiresAt: Date.now() + 60_000,
+      }),
+    );
     mockDb.select
       .mockReturnValueOnce(chainable(fakeUser))
       .mockReturnValueOnce(chainable(fakeSession))
@@ -350,10 +373,12 @@ describe('exchangeOauthCode', () => {
     expect(mockRedis.getdel).toHaveBeenCalledWith(expect.stringMatching(/^global:oauth_exchange:/));
     expect(result.refreshToken).toBeDefined();
     expect(result.user.role).toBe('admin');
-    expect(sessionUpdate.set).toHaveBeenCalledWith(expect.objectContaining({
-      refreshToken: hashRefreshToken(result.refreshToken),
-      previousRefreshToken: null,
-    }));
+    expect(sessionUpdate.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refreshToken: hashRefreshToken(result.refreshToken),
+        previousRefreshToken: null,
+      }),
+    );
   });
 
   it('rejects a missing or already-consumed OAuth exchange code', async () => {
@@ -376,20 +401,24 @@ describe('loginOrRegisterWithGoogleCode', () => {
     mockEnv.NODE_ENV = 'production';
     mockEnv.REDIS_DISABLED = true;
 
-    vi.stubGlobal('fetch', vi.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ access_token: 'google-access-token' }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          sub: 'google-user-id',
-          email: 'oauth@example.com',
-          email_verified: true,
-          name: 'OAuth User',
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ access_token: 'google-access-token' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            sub: 'google-user-id',
+            email: 'oauth@example.com',
+            email_verified: true,
+            name: 'OAuth User',
+          }),
         }),
-      }));
+    );
 
     const fakeUser = {
       id: 'u1',
@@ -406,7 +435,9 @@ describe('loginOrRegisterWithGoogleCode', () => {
     mockDb.update.mockReturnValue(updateChain());
     mockDb.insert.mockReturnValue(insertChain({}));
 
-    await expect(loginOrRegisterWithGoogleCode({ code: 'google-auth-code', state: 'mock-state' })).rejects.toThrow(AuthenticationError);
+    await expect(
+      loginOrRegisterWithGoogleCode({ code: 'google-auth-code', state: 'mock-state' }),
+    ).rejects.toThrow(AuthenticationError);
     expect(mockRedis.setex).not.toHaveBeenCalled();
   });
 });

@@ -1,17 +1,8 @@
-
 import type { Request, Response, NextFunction } from 'express';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import {
-  tenantRegistry,
-  twilioNumbers,
-  tenantActiveConfig,
-} from '../db/schema.js';
-import {
-  TenantNotFoundError,
-  TenantSuspendedError,
-  TenantArchivedError,
-} from '../lib/errors.js';
+import { tenantRegistry, twilioNumbers, tenantActiveConfig } from '../db/schema.js';
+import { TenantNotFoundError, TenantSuspendedError, TenantArchivedError } from '../lib/errors.js';
 import { createTenantLogger, logger } from '../lib/logger.js';
 import {
   getCachedPhoneMapping,
@@ -20,7 +11,7 @@ import {
   tenantCacheSet,
 } from '../lib/cache.js';
 import { generateCorrelationId } from '../lib/crypto.js';
-import { features } from '../config/features.js';
+import { setActiveTenantContext } from '../db/tenant-context.js';
 
 const CACHE_TTL_PHONE_MAPPING = 300;
 const CACHE_TTL_TENANT_CONFIG = 300;
@@ -78,12 +69,7 @@ async function resolveFromPhoneNumber(phoneNumber: string, req: Request): Promis
   const [mapping] = await db
     .select({ tenantId: twilioNumbers.tenantId })
     .from(twilioNumbers)
-    .where(
-      and(
-        eq(twilioNumbers.phoneNumber, phoneNumber),
-        eq(twilioNumbers.status, 'active'),
-      ),
-    )
+    .where(and(eq(twilioNumbers.phoneNumber, phoneNumber), eq(twilioNumbers.status, 'active')))
     .limit(1);
 
   if (!mapping) {
@@ -112,7 +98,9 @@ async function resolveTenant(
 ): Promise<void> {
   const correlationId = generateCorrelationId();
 
-  let tenant: { tenantId: string; clinicSlug: string; status: 'active' | 'suspended' | 'archived' } | undefined;
+  let tenant:
+    | { tenantId: string; clinicSlug: string; status: 'active' | 'suspended' | 'archived' }
+    | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       [tenant] = await db
@@ -146,9 +134,7 @@ async function resolveTenant(
 
   let activeConfigVersion = 0;
 
-  const cachedVersion = await tenantCacheGet<number>(
-    tenantId, 'active_config', 'version',
-  );
+  const cachedVersion = await tenantCacheGet<number>(tenantId, 'active_config', 'version');
 
   if (cachedVersion) {
     activeConfigVersion = cachedVersion;
@@ -161,12 +147,14 @@ async function resolveTenant(
 
     if (activeConfig) {
       activeConfigVersion = activeConfig.activeVersionNumber;
-      await tenantCacheSet(tenantId, 'active_config', 'version', activeConfigVersion, CACHE_TTL_TENANT_CONFIG);
+      await tenantCacheSet(
+        tenantId,
+        'active_config',
+        'version',
+        activeConfigVersion,
+        CACHE_TTL_TENANT_CONFIG,
+      );
     }
-  }
-
-  if (features.databaseRls) {
-    await db.execute(sql`SET LOCAL app.current_tenant_id = ${tenantId}`);
   }
 
   const tenantContext: TenantContext = {
@@ -180,12 +168,14 @@ async function resolveTenant(
   };
 
   req.tenantContext = tenantContext;
+  setActiveTenantContext({
+    tenantId: tenant.tenantId,
+    correlationId,
+    source: 'request',
+  });
 
   const tenantLogger = createTenantLogger(tenantId, correlationId);
-  tenantLogger.info(
-    { method, configVersion: activeConfigVersion },
-    'Tenant resolved successfully',
-  );
+  tenantLogger.info({ method, configVersion: activeConfigVersion }, 'Tenant resolved successfully');
 }
 
 export function requireTenantContext(req: Request): TenantContext {
