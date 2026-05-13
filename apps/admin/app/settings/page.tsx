@@ -3,9 +3,7 @@
 import { Loader2, RefreshCw, Save, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { BentoCard } from "@/components/bento-card";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,13 +17,19 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   useGetConfigQuery,
   useRunDataRetentionMutation,
   useSetConfigMutation,
 } from "@/features/admin/adminApi";
 import { API_BASE_URL } from "@/lib/api";
 
-// Read & edit a single platform_config key
 function ConfigRow({
   configKey,
   label,
@@ -58,17 +62,15 @@ function ConfigRow({
   };
 
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-zinc-200 dark:border-zinc-800/60 p-4">
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {label}
-        </div>
+        <div className="text-sm font-medium">{label}</div>
         {description && (
-          <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         )}
         <div className="mt-2">
           {isLoading ? (
-            <div className="h-9 bg-zinc-100 dark:bg-zinc-800 rounded-lg animate-pulse w-full" />
+            <div className="h-9 bg-muted rounded-lg animate-pulse w-full" />
           ) : (
             <input
               type="text"
@@ -77,7 +79,7 @@ function ConfigRow({
                 setValue(e.target.value);
                 setDirty(true);
               }}
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition"
             />
           )}
         </div>
@@ -114,12 +116,10 @@ function DataRetentionCard() {
   };
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800/60 p-4">
+    <div className="flex items-center justify-between rounded-xl border border-border p-4">
       <div>
-        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          Run data retention
-        </div>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <div className="text-sm font-medium">Run data retention</div>
+        <p className="text-xs text-muted-foreground mt-0.5">
           Deletes expired sessions and reset tokens per retention policy.
         </p>
       </div>
@@ -157,34 +157,43 @@ export default function SettingsPage() {
   return (
     <DashboardShell>
       <div className="space-y-6">
-        <PageHeader
-          title="Settings"
-          description="Platform-level configuration"
-        />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Platform-level configuration
+          </p>
+        </div>
 
-        <BentoCard title="Environment" icon={<Settings size={14} />}>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-800/60 p-3">
-              <span className="text-zinc-500">API Base URL</span>
-              <code className="text-xs text-zinc-900 dark:text-zinc-100 font-mono">
-                {API_BASE_URL}
-              </code>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Settings size={14} className="text-muted-foreground" />
+              Environment
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-center justify-between rounded-xl border border-border p-3">
+              <span className="text-muted-foreground">API Base URL</span>
+              <code className="text-xs font-mono">{API_BASE_URL}</code>
             </div>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               Set{" "}
-              <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
                 NEXT_PUBLIC_API_URL
               </code>{" "}
               to point this portal at a different API environment.
             </p>
-          </div>
-        </BentoCard>
+          </CardContent>
+        </Card>
 
-        <BentoCard
-          title="Platform Config"
-          description="Live key/value settings stored in the database"
-        >
-          <div className="mt-2 space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Platform Config</CardTitle>
+            <CardDescription>
+              Live key/value settings stored in the database
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <ConfigRow
               configKey="ai.default_provider"
               label="Default AI provider"
@@ -198,21 +207,22 @@ export default function SettingsPage() {
             <ConfigRow
               configKey="platform.maintenance_mode"
               label="Maintenance mode"
-              description={
-                'Set to "true" to show a maintenance banner to all tenants.'
-              }
+              description='Set to "true" to show a maintenance banner to all tenants.'
             />
-          </div>
-        </BentoCard>
+          </CardContent>
+        </Card>
 
-        <BentoCard
-          title="Data Governance"
-          description="Compliance and retention operations"
-        >
-          <div className="mt-2 space-y-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Data Governance</CardTitle>
+            <CardDescription>
+              Compliance and retention operations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <DataRetentionCard />
-          </div>
-        </BentoCard>
+          </CardContent>
+        </Card>
       </div>
     </DashboardShell>
   );
