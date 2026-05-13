@@ -12,6 +12,7 @@ const mockBookLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockCancelLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockComputeOnboardingReadiness = vi.hoisted(() => vi.fn());
+const mockResolveVerifiedAppointmentForCaller = vi.hoisted(() => vi.fn());
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -51,12 +52,25 @@ vi.mock('../onboarding/readiness.js', () => ({
   computeOnboardingReadiness: mockComputeOnboardingReadiness,
 }));
 
+vi.mock('../appointments/appointment-lookup.service.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../appointments/appointment-lookup.service.js')>();
+  return {
+    ...actual,
+    resolveVerifiedAppointmentForCaller: mockResolveVerifiedAppointmentForCaller,
+  };
+});
+
 vi.mock('../../lib/logger.js', () => ({
   logger: mockLogger,
 }));
 
 import { handleConvaiToolCall } from './convai-tools.js';
 import { APPOINTMENT_TOOL_UNAVAILABLE_MESSAGE } from '../appointments/appointment-tool-readiness.js';
+import {
+  APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+  APPOINTMENT_VERIFICATION_NOT_FOUND_MESSAGE,
+} from '../appointments/appointment-lookup.service.js';
 
 const startIso = '2026-06-01T14:00:00.000Z';
 const endIso = '2026-06-01T14:30:00.000Z';
@@ -68,6 +82,11 @@ beforeEach(() => {
     blockingIssues: [],
     warnings: [],
     checkedAt: '2026-05-13T12:00:00.000Z',
+  });
+  mockResolveVerifiedAppointmentForCaller.mockResolvedValue({
+    success: true,
+    appointment: { id: 'appointment-a' },
+    externalCalendarEventId: 'google-event-a',
   });
   mockGetClinicProfile.mockResolvedValue({
     timezone: 'UTC',
@@ -269,6 +288,18 @@ describe('ConvAI appointment tools', () => {
     expect(mockComputeOnboardingReadiness).toHaveBeenCalledWith('tenant-a', {
       requirePublishedConfig: true,
     });
+    expect(mockResolveVerifiedAppointmentForCaller).toHaveBeenCalledWith({
+      tenantId: 'tenant-a',
+      confirmationId: null,
+      appointmentId: null,
+      appAppointmentId: null,
+      externalCalendarEventId: 'google-event-a',
+      phoneNumber: null,
+      dateOfBirth: null,
+      appointmentDate: null,
+      appointmentTime: null,
+      timezone: null,
+    });
     expect(mockCancelLedgerBackedAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
       eventId: 'google-event-a',
@@ -290,6 +321,18 @@ describe('ConvAI appointment tools', () => {
 
     expect(mockComputeOnboardingReadiness).toHaveBeenCalledWith('tenant-a', {
       requirePublishedConfig: true,
+    });
+    expect(mockResolveVerifiedAppointmentForCaller).toHaveBeenCalledWith({
+      tenantId: 'tenant-a',
+      confirmationId: null,
+      appointmentId: null,
+      appAppointmentId: null,
+      externalCalendarEventId: 'google-event-a',
+      phoneNumber: null,
+      dateOfBirth: null,
+      appointmentDate: null,
+      appointmentTime: null,
+      timezone: null,
     });
     expect(mockRescheduleLedgerBackedAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
@@ -374,6 +417,104 @@ describe('ConvAI appointment tools', () => {
     expect(loggedPayload).not.toContain('Jane Secret');
     expect(loggedPayload).not.toContain('+15551234567');
     expect(loggedPayload).not.toContain('Raw provider failure');
+  });
+
+  it('returns minimal patient verification result without raw profile fields', async () => {
+    mockFindPatientProfile.mockResolvedValueOnce({
+      id: 'patient-a',
+      fullName: 'Jane Secret',
+      phoneNumber: '+15551234567',
+      dateOfBirth: '1990-01-01',
+      notes: 'needs sedation',
+    });
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'lookup_patient',
+      params: {
+        phoneNumber: '+15551234567',
+        dateOfBirth: '1990-01-01',
+      },
+    });
+
+    expect(result).toEqual({
+      success: true,
+      verified: true,
+      message: 'Patient verification matched.',
+    });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('patient-a');
+    expect(serialized).not.toContain('Jane Secret');
+    expect(serialized).not.toContain('+15551234567');
+    expect(serialized).not.toContain('1990-01-01');
+    expect(serialized).not.toContain('needs sedation');
+  });
+
+  it('rejects cancel_appointment with phone only before ledger or Google mutation', async () => {
+    mockResolveVerifiedAppointmentForCaller.mockResolvedValueOnce({
+      success: false,
+      reason: 'missing_verification',
+      message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+    });
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'cancel_appointment',
+      params: { phoneNumber: '+15551234567' },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+    });
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
+  });
+
+  it('rejects reschedule_appointment with phone only before ledger or Google mutation', async () => {
+    mockResolveVerifiedAppointmentForCaller.mockResolvedValueOnce({
+      success: false,
+      reason: 'missing_verification',
+      message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+    });
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'reschedule_appointment',
+      params: { phoneNumber: '+15551234567', startIso, endIso },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+    });
+    expect(mockRescheduleLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
+  });
+
+  it('returns safe generic failure when appointment verification has no match', async () => {
+    mockResolveVerifiedAppointmentForCaller.mockResolvedValueOnce({
+      success: false,
+      reason: 'not_found',
+      message: APPOINTMENT_VERIFICATION_NOT_FOUND_MESSAGE,
+    });
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'cancel_appointment',
+      params: {
+        phoneNumber: '+15551234567',
+        dateOfBirth: '1990-01-01',
+        appointmentDate: '2026-06-01',
+        appointmentTime: '14:00',
+      },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      message: APPOINTMENT_VERIFICATION_NOT_FOUND_MESSAGE,
+    });
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
   });
 
   it('fails create_appointment safely when readiness has blocking issues before side effects', async () => {

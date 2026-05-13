@@ -1,13 +1,15 @@
 import { logger } from '../../lib/logger.js';
-import {
-  findAvailableCalendarSlots,
-  findGoogleCalendarAppointment,
-} from '../integrations/integration.service.js';
+import { findAvailableCalendarSlots } from '../integrations/integration.service.js';
 import {
   cancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
+import {
+  APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+  APPOINTMENT_VERIFICATION_NOT_FOUND_MESSAGE,
+  resolveVerifiedAppointmentForCaller,
+} from '../appointments/appointment-lookup.service.js';
 import { executeLlmWithFailover } from './engine/index.js';
 import type { TenantAIContext } from './ai.service.js';
 import {
@@ -36,7 +38,6 @@ import {
   normalizeJsonBlock,
   resolveRequestedDateFromMessage,
 } from './receptionist-booking.utils.js';
-import { findPatientProfileByPhone } from '../patients/patients.service.js';
 
 export function shouldHandleAppointmentChange(
   state: AppointmentChangeState,
@@ -67,7 +68,9 @@ async function extractAppointmentChangeTurn(input: {
     JSON.stringify(
       {
         mode: null,
+        confirmationId: null,
         phoneNumber: null,
+        dateOfBirth: null,
         patientName: null,
         currentDate: null,
         currentTime: null,
@@ -100,7 +103,9 @@ async function extractAppointmentChangeTurn(input: {
 
     const parsed = JSON.parse(normalizeJsonBlock(result.content)) as {
       mode?: AppointmentChangeMode | null;
+      confirmationId?: string | null;
       phoneNumber?: string | null;
+      dateOfBirth?: string | null;
       patientName?: string | null;
       currentDate?: string | null;
       currentTime?: string | null;
@@ -112,7 +117,9 @@ async function extractAppointmentChangeTurn(input: {
 
     return {
       mode: parsed.mode ?? undefined,
+      confirmationId: parsed.confirmationId ?? undefined,
       phoneNumber: parsed.phoneNumber ?? undefined,
+      dateOfBirth: parsed.dateOfBirth ?? undefined,
       patientName: parsed.patientName ?? undefined,
       currentDate: parsed.currentDate ?? undefined,
       currentTime: parsed.currentTime ?? undefined,
@@ -140,7 +147,9 @@ function mergeAppointmentChangeState(
   extraction: AppointmentChangeExtraction,
 ): void {
   if (extraction.mode) state.mode = extraction.mode;
+  if (extraction.confirmationId) state.confirmationId = extraction.confirmationId.trim();
   if (extraction.phoneNumber) state.phoneNumber = extraction.phoneNumber.trim();
+  if (extraction.dateOfBirth) state.dateOfBirth = extraction.dateOfBirth.trim();
   if (extraction.patientName) state.patientName = extraction.patientName.trim();
   if (extraction.currentDate) state.currentDate = extraction.currentDate;
   if (extraction.currentTime) state.currentTime = extraction.currentTime;
@@ -150,7 +159,14 @@ function mergeAppointmentChangeState(
 
 function getMissingAppointmentChangeField(state: AppointmentChangeState): string | null {
   if (!state.mode) return 'mode';
+  if (state.confirmationId) {
+    if (state.mode === 'reschedule' && !state.preferredNewDate) return 'new_date';
+    return null;
+  }
   if (!state.phoneNumber) return 'phone_number';
+  if (!state.dateOfBirth) return 'date_of_birth';
+  if (!state.currentDate) return 'appointment_date';
+  if (!state.currentTime) return 'appointment_time';
   if (state.mode === 'reschedule' && !state.preferredNewDate) return 'new_date';
   return null;
 }
@@ -161,12 +177,13 @@ function buildAppointmentChangeMissingFieldQuestion(
 ): string {
   if (missingField === 'mode')
     return 'Would you like to reschedule, cancel, or check the appointment?';
-  if (missingField === 'phone_number') return 'Please share the phone number on the appointment.';
+  if (missingField === 'phone_number') return APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE;
+  if (missingField === 'date_of_birth') return APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE;
+  if (missingField === 'appointment_date') return APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE;
+  if (missingField === 'appointment_time') return APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE;
   if (missingField === 'new_date') return 'Please share the new day you want instead.';
-  if (state.mode === 'check') return 'Please share the phone number on the appointment.';
-  return state.mode === 'cancel'
-    ? 'Please share the phone number on the appointment.'
-    : 'Please share the phone number on the appointment and the new day you want instead.';
+  if (state.mode === 'check') return APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE;
+  return APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE;
 }
 
 async function executeAppointmentChange(input: {
@@ -183,29 +200,30 @@ async function executeAppointmentChange(input: {
     if (readinessFailure) return readinessFailure.message;
   }
 
-  const matchedEvent = await findGoogleCalendarAppointment({
+  const verified = await resolveVerifiedAppointmentForCaller({
     tenantId: input.tenantId,
-    timezone,
-    patientName: input.state.patientName,
+    confirmationId: input.state.confirmationId,
     phoneNumber: input.state.phoneNumber,
+    dateOfBirth: input.state.dateOfBirth,
     appointmentDate: input.state.currentDate,
     appointmentTime: input.state.currentTime,
+    timezone,
   });
 
-  if (!matchedEvent) {
-    return 'I could not find an upcoming appointment for that phone number. Please double-check the number or contact the front desk.';
+  if (!verified.success) {
+    return verified.message;
   }
 
   if (input.state.mode === 'check') {
-    return `I found an appointment on ${matchedEvent.label}.`;
+    return 'I verified that appointment.';
   }
 
   if (input.state.mode === 'cancel') {
     await cancelLedgerBackedAppointment({
       tenantId: input.tenantId,
-      eventId: matchedEvent.eventId,
+      eventId: verified.externalCalendarEventId,
     });
-    return `Done — I cancelled the appointment on ${matchedEvent.label}.`;
+    return 'Done - I cancelled the appointment.';
   }
 
   const availability = await findAvailableCalendarSlots({
@@ -229,11 +247,11 @@ async function executeAppointmentChange(input: {
   await rescheduleLedgerBackedAppointment({
     tenantId: input.tenantId,
     timezone,
-    eventId: matchedEvent.eventId,
+    eventId: verified.externalCalendarEventId,
     slot: { startIso: nextSlot.startIso, endIso: nextSlot.endIso },
   });
 
-  return `Done — I moved the appointment to ${nextSlot.label}.`;
+  return `Done - I moved the appointment to ${nextSlot.label}.`;
 }
 
 export async function handleAppointmentChangeTurn(input: {
@@ -275,51 +293,6 @@ export async function handleAppointmentChangeTurn(input: {
   });
   mergeAppointmentChangeState(state, extraction);
 
-  if (state.phoneNumber && !state.currentDate) {
-    const patient = await findPatientProfileByPhone({
-      tenantId,
-      phoneNumber: state.phoneNumber,
-    });
-
-    if (!patient) {
-      Object.assign(state, resetAppointmentChangeState());
-      state.status = 'completed';
-      return 'I could not find an appointment for that phone number. If you need further help, please contact the front desk.';
-    }
-
-    state.patientName = patient.fullName;
-    state.status = 'collecting_details';
-
-    const match = await findGoogleCalendarAppointment({
-      tenantId,
-      timezone: getTimezone(context),
-      phoneNumber: state.phoneNumber,
-      appointmentDate: state.currentDate,
-      appointmentTime: state.currentTime,
-    });
-
-    if (!match) {
-      Object.assign(state, resetAppointmentChangeState());
-      state.status = 'completed';
-      return 'I could not find an upcoming appointment for that phone number. Please contact the front desk if you think this is a mistake.';
-    }
-
-    const formatterDate = new Intl.DateTimeFormat('en-CA', {
-      timeZone: getTimezone(context),
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const formatterTime = new Intl.DateTimeFormat('en-GB', {
-      timeZone: getTimezone(context),
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    state.currentDate = formatterDate.format(new Date(match.startIso));
-    state.currentTime = formatterTime.format(new Date(match.startIso));
-  }
-
   if (!state.mode) {
     return 'Would you like to reschedule, cancel, or check the appointment?';
   }
@@ -343,7 +316,7 @@ export async function handleAppointmentChangeTurn(input: {
       );
       state.confirmationRequested = false;
       state.status = 'collecting_details';
-      return 'I ran into an issue checking the live calendar. Please verify the phone number and try again.';
+      return APPOINTMENT_VERIFICATION_NOT_FOUND_MESSAGE;
     }
   }
 

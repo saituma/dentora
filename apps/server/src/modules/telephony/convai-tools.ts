@@ -10,6 +10,7 @@ import {
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
+import { resolveVerifiedAppointmentForCaller } from '../appointments/appointment-lookup.service.js';
 
 const APPOINTMENT_LIST_PRIVACY_MESSAGE =
   "For privacy reasons, I can't list patient appointments. I can help check availability, book a new appointment, cancel, or reschedule if you provide the appointment details.";
@@ -136,7 +137,13 @@ async function lookupPatient(tenantId: string, params: Record<string, unknown>) 
   }
 
   const profile = await findPatientProfile({ tenantId, phoneNumber, dateOfBirth });
-  return profile ?? null;
+  return {
+    success: true,
+    verified: Boolean(profile),
+    message: profile
+      ? 'Patient verification matched.'
+      : "I couldn't verify that patient. Please check the details or contact the front desk.",
+  };
 }
 
 async function checkAvailability(tenantId: string, params: Record<string, unknown>) {
@@ -351,13 +358,25 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
   });
   if (readinessFailure) return readinessFailure;
 
-  const eventId = String(params.eventId ?? '').trim();
-  if (!eventId) {
-    throw new ValidationError('eventId is required');
-  }
+  const verified = await resolveVerifiedAppointmentForCaller({
+    tenantId,
+    confirmationId: typeof params.confirmationId === 'string' ? params.confirmationId : null,
+    appointmentId: typeof params.appointmentId === 'string' ? params.appointmentId : null,
+    appAppointmentId: typeof params.appAppointmentId === 'string' ? params.appAppointmentId : null,
+    externalCalendarEventId: typeof params.eventId === 'string' ? params.eventId : null,
+    phoneNumber: typeof params.phoneNumber === 'string' ? params.phoneNumber : null,
+    dateOfBirth: typeof params.dateOfBirth === 'string' ? params.dateOfBirth : null,
+    appointmentDate: typeof params.appointmentDate === 'string' ? params.appointmentDate : null,
+    appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
+    timezone: typeof params.timezone === 'string' ? params.timezone : null,
+  });
+  if (!verified.success) return { success: false, message: verified.message };
 
   try {
-    const result = await cancelLedgerBackedAppointment({ tenantId, eventId });
+    const result = await cancelLedgerBackedAppointment({
+      tenantId,
+      eventId: verified.externalCalendarEventId,
+    });
     return { ...result, message: 'Appointment cancelled.' };
   } catch (error) {
     logger.warn(
@@ -378,13 +397,26 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
   });
   if (readinessFailure) return readinessFailure;
 
-  const eventId = String(params.eventId ?? '').trim();
   const rawStartIso = String(params.startIso ?? '').trim();
   const rawEndIso = String(params.endIso ?? '').trim();
 
-  if (!eventId || !rawStartIso || !rawEndIso) {
-    throw new ValidationError('eventId, startIso, and endIso are required');
+  if (!rawStartIso || !rawEndIso) {
+    throw new ValidationError('startIso and endIso are required');
   }
+
+  const verified = await resolveVerifiedAppointmentForCaller({
+    tenantId,
+    confirmationId: typeof params.confirmationId === 'string' ? params.confirmationId : null,
+    appointmentId: typeof params.appointmentId === 'string' ? params.appointmentId : null,
+    appAppointmentId: typeof params.appAppointmentId === 'string' ? params.appAppointmentId : null,
+    externalCalendarEventId: typeof params.eventId === 'string' ? params.eventId : null,
+    phoneNumber: typeof params.phoneNumber === 'string' ? params.phoneNumber : null,
+    dateOfBirth: typeof params.dateOfBirth === 'string' ? params.dateOfBirth : null,
+    appointmentDate: typeof params.appointmentDate === 'string' ? params.appointmentDate : null,
+    appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
+    timezone: typeof params.timezone === 'string' ? params.timezone : null,
+  });
+  if (!verified.success) return { success: false, message: verified.message };
 
   const clinic = await configService.getClinicProfile(tenantId);
   if (!clinic?.timezone) {
@@ -397,7 +429,7 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
   try {
     const result = await rescheduleLedgerBackedAppointment({
       tenantId,
-      eventId,
+      eventId: verified.externalCalendarEventId,
       timezone: clinic.timezone,
       slot: { startIso, endIso },
     });
