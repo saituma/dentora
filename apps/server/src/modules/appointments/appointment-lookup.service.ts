@@ -5,6 +5,7 @@ import { assertTenantAccess } from '../../db/tenant-context.js';
 import { hashForSearch } from '../../lib/encrypted-column.js';
 import type { Appointment } from './appointment-ledger.service.js';
 import { makeDateInTimeZone } from '../integrations/google-calendar.shared.js';
+import { createStaffReviewItemSafely } from '../staff-review/staff-review.service.js';
 
 export const APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE =
   'For privacy and security, I need your confirmation number or your phone number, date of birth, and appointment date/time before I can help with that.';
@@ -33,6 +34,7 @@ export interface AppointmentVerificationInput {
   appointmentDate?: string | null;
   appointmentTime?: string | null;
   timezone?: string | null;
+  operation?: 'check_appointment' | 'cancel_appointment' | 'reschedule_appointment' | null;
 }
 
 function trimmed(value: string | null | undefined): string | null {
@@ -88,6 +90,26 @@ function missingVerification(): AppointmentLookupResult {
     reason: 'missing_verification',
     message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
   };
+}
+
+async function recordVerificationBlock(input: {
+  tenantId: string;
+  operation?: string | null;
+  reasonCode: string;
+  message: string;
+}): Promise<void> {
+  await createStaffReviewItemSafely({
+    tenantId: input.tenantId,
+    type: 'ai_tool_safety_block',
+    severity: 'medium',
+    source: 'ai_tool',
+    reasonCode: input.reasonCode,
+    message: input.message,
+    metadata: {
+      operation: input.operation ?? 'appointment_change',
+    },
+    dedupeKey: `ai_tool_safety:${input.operation ?? 'appointment_change'}:${input.reasonCode}`,
+  });
 }
 
 function notFound(): AppointmentLookupResult {
@@ -173,6 +195,12 @@ export async function resolveVerifiedAppointmentForCaller(
   const appointmentDate = trimmed(input.appointmentDate);
   const appointmentTime = trimmed(input.appointmentTime);
   if (!phoneNumber || !dateOfBirth || !appointmentDate || !appointmentTime) {
+    await recordVerificationBlock({
+      tenantId: input.tenantId,
+      operation: input.operation,
+      reasonCode: 'APPOINTMENT_VERIFICATION_INCOMPLETE',
+      message: 'Appointment change blocked because caller verification was incomplete.',
+    });
     return missingVerification();
   }
 
@@ -181,7 +209,15 @@ export async function resolveVerifiedAppointmentForCaller(
     appointmentTime,
     timezone: trimmed(input.timezone),
   });
-  if (!range) return missingVerification();
+  if (!range) {
+    await recordVerificationBlock({
+      tenantId: input.tenantId,
+      operation: input.operation,
+      reasonCode: 'APPOINTMENT_VERIFICATION_INVALID_TIME',
+      message: 'Appointment change blocked because appointment date/time verification was invalid.',
+    });
+    return missingVerification();
+  }
 
   const phoneHash = hashForSearch(phoneNumber);
   const rows = await db
@@ -202,6 +238,14 @@ export async function resolveVerifiedAppointmentForCaller(
     .limit(2);
 
   if (rows.length === 0) return notFound();
-  if (rows.length > 1) return multipleMatches();
+  if (rows.length > 1) {
+    await recordVerificationBlock({
+      tenantId: input.tenantId,
+      operation: input.operation,
+      reasonCode: 'APPOINTMENT_VERIFICATION_MULTIPLE_MATCHES',
+      message: 'Appointment change blocked because verification matched multiple appointments.',
+    });
+    return multipleMatches();
+  }
   return toLookupSuccess(rows[0].appointment);
 }

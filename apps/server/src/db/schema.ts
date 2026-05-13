@@ -100,6 +100,37 @@ export const appointmentHoldStatusEnum = pgEnum('appointment_hold_status', [
   'expired',
   'released',
 ]);
+export const staffReviewItemTypeEnum = pgEnum('staff_review_item_type', [
+  'booking_failure',
+  'reconciliation_failed',
+  'reconciliation_retry_scheduled',
+  'cancellation_requested',
+  'reschedule_requested',
+  'readiness_failure',
+  'legacy_calendar_phi_detected',
+  'media_stream_failure',
+  'ai_tool_safety_block',
+]);
+export const staffReviewSeverityEnum = pgEnum('staff_review_severity', [
+  'low',
+  'medium',
+  'high',
+  'critical',
+]);
+export const staffReviewStatusEnum = pgEnum('staff_review_status', [
+  'open',
+  'in_review',
+  'resolved',
+  'ignored',
+]);
+export const staffReviewSourceEnum = pgEnum('staff_review_source', [
+  'ai_tool',
+  'appointment_reconciliation',
+  'onboarding_readiness',
+  'calendar_phi_scanner',
+  'media_stream',
+  'system',
+]);
 export const providerTypeEnum = pgEnum('provider_type', ['stt', 'tts', 'llm']);
 export const providerCostTypeEnum = pgEnum('provider_cost_type', [
   'stt',
@@ -470,6 +501,51 @@ export const appointmentHolds = pgTable(
     uniqueIndex('appointment_holds_tenant_idempotency_idx').on(
       table.tenantId,
       table.idempotencyKey,
+    ),
+  ],
+);
+
+export const staffReviewItems = pgTable(
+  'staff_review_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    type: staffReviewItemTypeEnum('type').notNull(),
+    severity: staffReviewSeverityEnum('severity').notNull().default('medium'),
+    status: staffReviewStatusEnum('status').notNull().default('open'),
+    source: staffReviewSourceEnum('source').notNull(),
+    relatedAppointmentId: uuid('related_appointment_id').references(() => appointments.id),
+    relatedCallSessionId: uuid('related_call_session_id').references(() => callSessions.id),
+    relatedPatientId: uuid('related_patient_id').references(() => patientProfiles.id),
+    relatedExternalEventRef: text('related_external_event_ref'),
+    reasonCode: text('reason_code').notNull(),
+    message: text('message').notNull(),
+    metadata: jsonb('metadata').notNull().default({}),
+    dedupeKey: text('dedupe_key'),
+    assignedToUserId: uuid('assigned_to_user_id').references(() => users.id),
+    resolvedByUserId: uuid('resolved_by_user_id').references(() => users.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionNote: text('resolution_note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('staff_review_items_tenant_status_created_idx').on(
+      table.tenantId,
+      table.status,
+      table.createdAt,
+    ),
+    index('staff_review_items_tenant_type_created_idx').on(
+      table.tenantId,
+      table.type,
+      table.createdAt,
+    ),
+    uniqueIndex('staff_review_items_tenant_dedupe_status_idx').on(
+      table.tenantId,
+      table.dedupeKey,
+      table.status,
     ),
   ],
 );

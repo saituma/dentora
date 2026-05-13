@@ -369,6 +369,7 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
     appointmentDate: typeof params.appointmentDate === 'string' ? params.appointmentDate : null,
     appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
     timezone: typeof params.timezone === 'string' ? params.timezone : null,
+    operation: 'cancel_appointment',
   });
   if (!verified.success) return { success: false, message: verified.message };
 
@@ -415,6 +416,7 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
     appointmentDate: typeof params.appointmentDate === 'string' ? params.appointmentDate : null,
     appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
     timezone: typeof params.timezone === 'string' ? params.timezone : null,
+    operation: 'reschedule_appointment',
   });
   if (!verified.success) return { success: false, message: verified.message };
 

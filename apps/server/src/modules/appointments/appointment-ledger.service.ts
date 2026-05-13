@@ -8,6 +8,7 @@ import {
 } from '../../db/tenant-context.js';
 import { generateId } from '../../lib/crypto.js';
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
+import { createStaffReviewItemSafely } from '../staff-review/staff-review.service.js';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type * as schema from '../../db/schema.js';
@@ -478,6 +479,19 @@ export async function markAppointmentReconciliationNeeded(
       .where(
         and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
       );
+  });
+  await createStaffReviewItemSafely({
+    tenantId: input.tenantId,
+    type: 'booking_failure',
+    severity: 'high',
+    source: 'system',
+    relatedAppointmentId: input.appointmentId,
+    reasonCode: 'BOOKING_EXTERNAL_CREATED_LOCAL_CONFIRM_FAILED',
+    message: 'Booking created an external calendar event but local confirmation needs review.',
+    metadata: {
+      externalCalendarEventAttached: Boolean(input.externalCalendarEventId),
+    },
+    dedupeKey: `booking_reconciliation_needed:${input.appointmentId}`,
   });
 }
 

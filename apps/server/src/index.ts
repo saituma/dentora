@@ -47,6 +47,7 @@ import { apiKeyRouter } from './modules/api-keys/index.js';
 import { elevenlabsRouter } from './modules/elevenlabs/index.js';
 import { appointmentsRouter } from './modules/appointments/index.js';
 import { patientsRouter } from './modules/patients/index.js';
+import { staffReviewRouter } from './modules/staff-review/index.js';
 
 const app = express();
 
@@ -177,6 +178,7 @@ app.use('/api/api-keys', apiKeyRouter);
 app.use('/api/elevenlabs', elevenlabsRouter);
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/patients', patientsRouter);
+app.use('/api/staff-review', staffReviewRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

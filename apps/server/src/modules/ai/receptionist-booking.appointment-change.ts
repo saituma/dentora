@@ -208,6 +208,12 @@ async function executeAppointmentChange(input: {
     appointmentDate: input.state.currentDate,
     appointmentTime: input.state.currentTime,
     timezone,
+    operation:
+      input.state.mode === 'check'
+        ? 'check_appointment'
+        : input.state.mode === 'cancel'
+          ? 'cancel_appointment'
+          : 'reschedule_appointment',
   });
 
   if (!verified.success) {

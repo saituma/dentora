@@ -3,6 +3,7 @@ import { assertTenantAccess } from '../../db/tenant-context.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { getAppointmentByExternalCalendarEventId } from '../appointments/appointment-ledger.service.js';
+import { createStaffReviewItemSafely } from '../staff-review/staff-review.service.js';
 import { buildSafeGoogleCalendarAppointmentEvent } from './google-calendar-appointments.js';
 import { resolveValidGoogleAccessToken } from './google-calendar.shared.js';
 import { getActiveGoogleCalendarIntegration } from './integration-registry.js';
@@ -274,6 +275,23 @@ export async function scanLegacyGoogleCalendarPhi(input: {
     },
     'Legacy Google Calendar PHI scan completed',
   );
+  if (riskyEvents.length > 0) {
+    await createStaffReviewItemSafely({
+      tenantId: input.tenantId,
+      type: 'legacy_calendar_phi_detected',
+      severity: 'high',
+      source: 'calendar_phi_scanner',
+      reasonCode: 'LEGACY_GOOGLE_CALENDAR_PHI_DETECTED',
+      message: 'Legacy Google Calendar events may contain PHI and need review.',
+      metadata: {
+        totalEventsScanned: events.length,
+        riskyEventsCount: riskyEvents.length,
+        riskCodes: Array.from(new Set(riskyEvents.flatMap((event) => event.riskCodes))).sort(),
+        eventRefs: riskyEvents.map((event) => event.eventRef).slice(0, 25),
+      },
+      dedupeKey: 'calendar_phi:legacy_detected',
+    });
+  }
 
   return {
     totalEventsScanned: events.length,

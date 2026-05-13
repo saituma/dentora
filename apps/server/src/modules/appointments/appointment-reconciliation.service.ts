@@ -12,6 +12,7 @@ import {
   getAppointment,
   type Appointment,
 } from './appointment-ledger.service.js';
+import { createStaffReviewItemSafely } from '../staff-review/staff-review.service.js';
 
 export const SUPPORTED_RECONCILIATION_STATUSES = [
   'external_created_local_confirm_failed',
@@ -332,6 +333,19 @@ async function failReconciliation(input: {
   reason: string;
   now: Date;
 }): Promise<AppointmentReconciliationProcessResult> {
+  await createStaffReviewItemSafely({
+    tenantId: input.tenantId,
+    type: 'reconciliation_failed',
+    severity: 'high',
+    source: 'appointment_reconciliation',
+    relatedAppointmentId: input.appointmentId,
+    reasonCode: 'APPOINTMENT_RECONCILIATION_FAILED',
+    message: 'Appointment reconciliation failed and needs staff review.',
+    metadata: {
+      failureReasonCode: input.reason,
+    },
+    dedupeKey: `reconciliation_failed:${input.appointmentId}`,
+  });
   await markAppointmentReconciliationFailed({
     tenantId: input.tenantId,
     appointmentId: input.appointmentId,
