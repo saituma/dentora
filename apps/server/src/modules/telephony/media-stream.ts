@@ -29,7 +29,7 @@ interface PolicyRecord {
   sensitiveTopics?: unknown;
 }
 
-interface TwilioStartMessage {
+export interface TwilioStartMessage {
   event: 'start';
   streamSid: string;
   start?: {
@@ -124,6 +124,20 @@ interface MediaStreamSession {
 const activeSessions = new Map<string, MediaStreamSession>();
 const MAX_PENDING_AUDIO_CHUNKS = 40;
 const MAX_SESSION_DURATION_MS = 30 * 60 * 1000;
+export const MEDIA_STREAM_START_TIMEOUT_MS = 5_000;
+export const MAX_PENDING_MEDIA_STREAMS = 100;
+export const MAX_PENDING_MEDIA_STREAMS_PER_IP = 10;
+
+interface PendingMediaStreamConnection {
+  id: string;
+  callSessionId: string;
+  remoteAddress: string;
+  timer: ReturnType<typeof setTimeout>;
+  cleanedUp: boolean;
+}
+
+const pendingMediaStreams = new Map<string, PendingMediaStreamConnection>();
+const pendingMediaStreamsByIp = new Map<string, number>();
 
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
@@ -220,6 +234,112 @@ const formatBookingRules = (
   ].filter(Boolean);
   return parts.join('; ');
 };
+
+function incrementPendingIp(remoteAddress: string): void {
+  pendingMediaStreamsByIp.set(remoteAddress, (pendingMediaStreamsByIp.get(remoteAddress) ?? 0) + 1);
+}
+
+function decrementPendingIp(remoteAddress: string): void {
+  const nextCount = (pendingMediaStreamsByIp.get(remoteAddress) ?? 0) - 1;
+  if (nextCount > 0) {
+    pendingMediaStreamsByIp.set(remoteAddress, nextCount);
+    return;
+  }
+  pendingMediaStreamsByIp.delete(remoteAddress);
+}
+
+export function getPendingMediaStreamCount(): number {
+  return pendingMediaStreams.size;
+}
+
+export function getPendingMediaStreamCountForIp(remoteAddress: string): number {
+  return pendingMediaStreamsByIp.get(remoteAddress) ?? 0;
+}
+
+export function resetPendingMediaStreamStateForTests(): void {
+  for (const pending of pendingMediaStreams.values()) {
+    clearTimeout(pending.timer);
+  }
+  pendingMediaStreams.clear();
+  pendingMediaStreamsByIp.clear();
+}
+
+export function registerPendingMediaStreamConnection(input: {
+  callSessionId: string;
+  remoteAddress?: string;
+  close: () => void;
+  startTimeoutMs?: number;
+  maxGlobalPending?: number;
+  maxPendingPerIp?: number;
+}): {
+  accepted: boolean;
+  cleanup: () => void;
+  markStartValidated: () => void;
+} {
+  const remoteAddress = input.remoteAddress ?? 'unknown';
+  const maxGlobalPending = input.maxGlobalPending ?? MAX_PENDING_MEDIA_STREAMS;
+  const maxPendingPerIp = input.maxPendingPerIp ?? MAX_PENDING_MEDIA_STREAMS_PER_IP;
+  const currentIpPending = pendingMediaStreamsByIp.get(remoteAddress) ?? 0;
+
+  if (pendingMediaStreams.size >= maxGlobalPending || currentIpPending >= maxPendingPerIp) {
+    logger.warn(
+      {
+        callSessionId: input.callSessionId,
+        remoteAddress,
+        pendingCount: pendingMediaStreams.size,
+        pendingForIp: currentIpPending,
+        maxGlobalPending,
+        maxPendingPerIp,
+      },
+      'media_stream_pending_limit_exceeded',
+    );
+    input.close();
+    return {
+      accepted: false,
+      cleanup: () => undefined,
+      markStartValidated: () => undefined,
+    };
+  }
+
+  const id = `${Date.now()}:${Math.random()}:${input.callSessionId}`;
+  const pending: PendingMediaStreamConnection = {
+    id,
+    callSessionId: input.callSessionId,
+    remoteAddress,
+    cleanedUp: false,
+    timer: setTimeout(() => {
+      logger.warn(
+        { callSessionId: input.callSessionId, remoteAddress },
+        'media_stream_start_timeout',
+      );
+      input.close();
+      cleanup();
+    }, input.startTimeoutMs ?? MEDIA_STREAM_START_TIMEOUT_MS),
+  };
+
+  function cleanup(): void {
+    if (pending.cleanedUp) return;
+    pending.cleanedUp = true;
+    clearTimeout(pending.timer);
+    pendingMediaStreams.delete(id);
+    decrementPendingIp(remoteAddress);
+  }
+
+  pendingMediaStreams.set(id, pending);
+  incrementPendingIp(remoteAddress);
+
+  return {
+    accepted: true,
+    cleanup,
+    markStartValidated: () => {
+      logger.info(
+        { callSessionId: input.callSessionId, remoteAddress },
+        'media_stream_start_validated',
+      );
+      cleanup();
+    },
+  };
+}
 
 const buildContextualUpdate = (input: {
   agentName?: string;
@@ -450,17 +570,27 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
   wss.on('connection', (ws, req) => {
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const callSessionId = url.pathname.split('/').pop() || '';
+    const remoteAddress = req.socket.remoteAddress ?? 'unknown';
 
     logger.info(
       {
         callSessionId,
-        remoteAddress: req.socket.remoteAddress,
+        remoteAddress,
         userAgent: req.headers['user-agent'],
       },
       'Media stream WebSocket connected',
     );
 
     let sessionInitialized = false;
+    const pendingConnection = registerPendingMediaStreamConnection({
+      callSessionId,
+      remoteAddress,
+      close: () => ws.close(),
+    });
+
+    if (!pendingConnection.accepted) {
+      return;
+    }
 
     ws.on('message', async (data) => {
       try {
@@ -475,8 +605,12 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
             break;
 
           case 'start':
-            await handleStreamStart(ws, callSessionId, message);
-            sessionInitialized = true;
+            sessionInitialized = await handleStreamStart(ws, callSessionId, message);
+            if (sessionInitialized) {
+              pendingConnection.markStartValidated();
+            } else {
+              pendingConnection.cleanup();
+            }
             break;
 
           case 'media':
@@ -497,11 +631,15 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
             logger.debug({ event: message.event, callSessionId }, 'Unknown media stream event');
         }
       } catch (err) {
+        logger.warn({ callSessionId }, 'media_stream_invalid_start');
+        pendingConnection.cleanup();
+        ws.close();
         logger.error({ err, callSessionId }, 'Error processing media stream message');
       }
     });
 
     ws.on('close', async (code, reason) => {
+      pendingConnection.cleanup();
       await handleStreamEnd(callSessionId, 'caller_hangup');
       logger.info(
         { callSessionId, code, reason: reason?.toString() },
@@ -510,6 +648,7 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
     });
 
     ws.on('error', (err) => {
+      pendingConnection.cleanup();
       logger.error({ err, callSessionId }, 'Media stream WebSocket error');
     });
   });
@@ -532,11 +671,11 @@ export function attachMediaStreamWebSocket(server: HttpServer): void {
   logger.info('Twilio Media Stream WebSocket server attached');
 }
 
-async function handleStreamStart(
+export async function handleStreamStart(
   ws: WebSocket,
   callSessionId: string,
   message: TwilioStartMessage,
-): Promise<void> {
+): Promise<boolean> {
   const { streamSid, start: startData } = message;
   logger.info(
     {
@@ -588,7 +727,7 @@ async function handleStreamStart(
         'Media stream rejected: token does not match persisted call session',
       );
       ws.close();
-      return;
+      return false;
     }
 
     const { tenantId, configVersionId } = tokenClaims;
@@ -647,7 +786,7 @@ async function handleStreamStart(
     if (!agentId) {
       logger.error({ tenantId, callSessionId }, 'No ElevenLabs agent ID configured for tenant');
       ws.close();
-      return;
+      return false;
     }
 
     await ensureAgentPromptDates(tenantId, agentId);
@@ -677,9 +816,12 @@ async function handleStreamStart(
     });
 
     logger.info({ tenantId, callSessionId, streamSid }, 'Media stream session initialized');
+    return true;
   } catch (err) {
+    logger.warn({ callSessionId }, 'media_stream_invalid_start');
     logger.error({ err, callSessionId }, 'Failed to initialize media stream session');
     ws.close();
+    return false;
   }
 }
 
