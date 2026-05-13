@@ -28,6 +28,7 @@ interface UpdateChain<T> {
 interface MockDb {
   select: Mock;
   update: Mock;
+  transaction: Mock;
 }
 
 const mockDb = db as unknown as MockDb;
@@ -92,6 +93,9 @@ function withTenant<T>(tenantId: string, callback: () => T): T {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockDb.transaction.mockImplementation(async (callback: (tx: MockDb) => Promise<unknown>) =>
+    callback(mockDb),
+  );
 });
 
 describe('appointment reconciliation service', () => {

@@ -165,6 +165,7 @@ describe('appointment ledger service', () => {
     );
 
     expect(appointment).toBe(baseAppointment);
+    expect(mockDb.transaction).toHaveBeenCalledTimes(1);
     expect(insert.values).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-a',
@@ -182,6 +183,19 @@ describe('appointment ledger service', () => {
       withTenant('tenant-a', () => getAppointment('tenant-b', 'appointment-b')),
     ).rejects.toThrow(AuthorizationError);
     expect(mockDb.select).not.toHaveBeenCalled();
+  });
+
+  it('rejects appointment ledger operations without tenant context before opening a transaction', async () => {
+    await expect(
+      createAppointment({
+        tenantId: 'tenant-a',
+        startAt: baseAppointment.startAt,
+        endAt: baseAppointment.endAt,
+        timezone: baseAppointment.timezone,
+        idempotencyKey: baseAppointment.idempotencyKey,
+      }),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockDb.transaction).not.toHaveBeenCalled();
   });
 
   it('returns an existing appointment for duplicate idempotency keys', async () => {

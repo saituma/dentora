@@ -1,7 +1,11 @@
 import { and, desc, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { appointmentHolds, appointments } from '../../db/schema.js';
-import { assertTenantAccess } from '../../db/tenant-context.js';
+import {
+  assertTenantAccess,
+  getTenantExecutionContext,
+  withTenantTransaction,
+} from '../../db/tenant-context.js';
 import { generateId } from '../../lib/crypto.js';
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
 import type { InferSelectModel } from 'drizzle-orm';
@@ -184,52 +188,28 @@ async function acquireBookingLock(
   );
 }
 
-export async function createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
-  assertTenantAccess(input.tenantId);
-  assertValidTimeRange(input.startAt, input.endAt);
-  assertIdempotencyKey(input.idempotencyKey);
-
-  const existing = await findAppointmentByIdempotencyKey(input.tenantId, input.idempotencyKey);
-  if (existing) return existing;
-  await assertNoConflictingAppointments({
-    tenantId: input.tenantId,
-    startAt: input.startAt,
-    endAt: input.endAt,
-    serviceId: input.serviceId,
-    staffId: input.staffId,
-  });
-
-  const [appointment] = await db
-    .insert(appointments)
-    .values({
-      id: generateId(),
-      tenantId: input.tenantId,
-      patientId: input.patientId ?? null,
-      serviceId: input.serviceId ?? null,
-      staffId: input.staffId ?? null,
-      callSessionId: input.callSessionId ?? null,
-      status: input.status ?? 'scheduled',
-      startAt: input.startAt,
-      endAt: input.endAt,
-      timezone: input.timezone,
-      calendarIntegrationId: input.calendarIntegrationId ?? null,
-      externalCalendarEventId: input.externalCalendarEventId ?? null,
-      idempotencyKey: input.idempotencyKey,
-      metadata: input.metadata ?? {},
-    })
-    .returning();
-
-  return appointment;
+async function withAppointmentLedgerTransaction<T>(
+  tenantId: string,
+  callback: (tx: AppDbTransaction) => Promise<T>,
+): Promise<T> {
+  const activeContext = getTenantExecutionContext();
+  assertTenantAccess(tenantId);
+  return await withTenantTransaction(
+    {
+      tenantId,
+      correlationId: activeContext?.correlationId,
+      source: activeContext?.source ?? 'worker',
+    },
+    callback,
+  );
 }
 
-export async function findAppointmentByIdempotencyKey(
+async function findAppointmentByIdempotencyKeyWithExecutor(
+  executor: AppointmentLedgerDb,
   tenantId: string,
   idempotencyKey: string,
 ): Promise<Appointment | null> {
-  assertTenantAccess(tenantId);
-  assertIdempotencyKey(idempotencyKey);
-
-  const [appointment] = await db
+  const [appointment] = await executor
     .select()
     .from(appointments)
     .where(
@@ -240,13 +220,12 @@ export async function findAppointmentByIdempotencyKey(
   return appointment ?? null;
 }
 
-export async function getAppointment(
+async function getAppointmentWithExecutor(
+  executor: AppointmentLedgerDb,
   tenantId: string,
   appointmentId: string,
 ): Promise<Appointment> {
-  assertTenantAccess(tenantId);
-
-  const [appointment] = await db
+  const [appointment] = await executor
     .select()
     .from(appointments)
     .where(and(eq(appointments.tenantId, tenantId), eq(appointments.id, appointmentId)))
@@ -259,16 +238,12 @@ export async function getAppointment(
   return appointment;
 }
 
-export async function getAppointmentByExternalCalendarEventId(
+async function getAppointmentByExternalCalendarEventIdWithExecutor(
+  executor: AppointmentLedgerDb,
   tenantId: string,
   externalCalendarEventId: string,
 ): Promise<Appointment> {
-  assertTenantAccess(tenantId);
-  if (!externalCalendarEventId.trim()) {
-    throw new ValidationError('External calendar event id is required');
-  }
-
-  const [appointment] = await db
+  const [appointment] = await executor
     .select()
     .from(appointments)
     .where(
@@ -284,6 +259,88 @@ export async function getAppointmentByExternalCalendarEventId(
   }
 
   return appointment;
+}
+
+export async function createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
+  assertTenantAccess(input.tenantId);
+  assertValidTimeRange(input.startAt, input.endAt);
+  assertIdempotencyKey(input.idempotencyKey);
+
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const existing = await findAppointmentByIdempotencyKeyWithExecutor(
+      tx,
+      input.tenantId,
+      input.idempotencyKey,
+    );
+    if (existing) return existing;
+    await assertNoConflictingAppointments({
+      executor: tx,
+      tenantId: input.tenantId,
+      startAt: input.startAt,
+      endAt: input.endAt,
+      serviceId: input.serviceId,
+      staffId: input.staffId,
+    });
+
+    const [appointment] = await tx
+      .insert(appointments)
+      .values({
+        id: generateId(),
+        tenantId: input.tenantId,
+        patientId: input.patientId ?? null,
+        serviceId: input.serviceId ?? null,
+        staffId: input.staffId ?? null,
+        callSessionId: input.callSessionId ?? null,
+        status: input.status ?? 'scheduled',
+        startAt: input.startAt,
+        endAt: input.endAt,
+        timezone: input.timezone,
+        calendarIntegrationId: input.calendarIntegrationId ?? null,
+        externalCalendarEventId: input.externalCalendarEventId ?? null,
+        idempotencyKey: input.idempotencyKey,
+        metadata: input.metadata ?? {},
+      })
+      .returning();
+
+    return appointment;
+  });
+}
+
+export async function findAppointmentByIdempotencyKey(
+  tenantId: string,
+  idempotencyKey: string,
+): Promise<Appointment | null> {
+  assertTenantAccess(tenantId);
+  assertIdempotencyKey(idempotencyKey);
+
+  return await withAppointmentLedgerTransaction(tenantId, (tx) =>
+    findAppointmentByIdempotencyKeyWithExecutor(tx, tenantId, idempotencyKey),
+  );
+}
+
+export async function getAppointment(
+  tenantId: string,
+  appointmentId: string,
+): Promise<Appointment> {
+  assertTenantAccess(tenantId);
+
+  return await withAppointmentLedgerTransaction(tenantId, (tx) =>
+    getAppointmentWithExecutor(tx, tenantId, appointmentId),
+  );
+}
+
+export async function getAppointmentByExternalCalendarEventId(
+  tenantId: string,
+  externalCalendarEventId: string,
+): Promise<Appointment> {
+  assertTenantAccess(tenantId);
+  if (!externalCalendarEventId.trim()) {
+    throw new ValidationError('External calendar event id is required');
+  }
+
+  return await withAppointmentLedgerTransaction(tenantId, (tx) =>
+    getAppointmentByExternalCalendarEventIdWithExecutor(tx, tenantId, externalCalendarEventId),
+  );
 }
 
 export async function listAppointments(input: {
@@ -305,12 +362,14 @@ export async function listAppointments(input: {
     predicates.push(eq(appointments.status, input.status));
   }
 
-  return await db
-    .select()
-    .from(appointments)
-    .where(and(...predicates))
-    .orderBy(desc(appointments.startAt))
-    .limit(limit);
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) =>
+    tx
+      .select()
+      .from(appointments)
+      .where(and(...predicates))
+      .orderBy(desc(appointments.startAt))
+      .limit(limit),
+  );
 }
 
 export async function updateAppointmentStatus(input: {
@@ -318,25 +377,31 @@ export async function updateAppointmentStatus(input: {
   appointmentId: string;
   status: AppointmentStatus;
 }): Promise<Appointment> {
-  const current = await getAppointment(input.tenantId, input.appointmentId);
-  const allowed = ALLOWED_APPOINTMENT_TRANSITIONS[current.status];
-  if (!allowed.includes(input.status)) {
-    throw new ValidationError(
-      `Cannot transition appointment from ${current.status} to ${input.status}`,
-    );
-  }
+  assertTenantAccess(input.tenantId);
 
-  const [updated] = await db
-    .update(appointments)
-    .set({ status: input.status, updatedAt: new Date() })
-    .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)))
-    .returning();
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const current = await getAppointmentWithExecutor(tx, input.tenantId, input.appointmentId);
+    const allowed = ALLOWED_APPOINTMENT_TRANSITIONS[current.status];
+    if (!allowed.includes(input.status)) {
+      throw new ValidationError(
+        `Cannot transition appointment from ${current.status} to ${input.status}`,
+      );
+    }
 
-  if (!updated) {
-    throw new NotFoundError('Appointment not found');
-  }
+    const [updated] = await tx
+      .update(appointments)
+      .set({ status: input.status, updatedAt: new Date() })
+      .where(
+        and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
+      )
+      .returning();
 
-  return updated;
+    if (!updated) {
+      throw new NotFoundError('Appointment not found');
+    }
+
+    return updated;
+  });
 }
 
 export async function attachExternalCalendarEvent(
@@ -347,28 +412,32 @@ export async function attachExternalCalendarEvent(
     throw new ValidationError('External calendar event id is required');
   }
 
-  const current = await getAppointment(input.tenantId, input.appointmentId);
-  if (current.status !== 'scheduled') {
-    throw new ValidationError(
-      'Only scheduled appointments can be confirmed with an external event',
-    );
-  }
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const current = await getAppointmentWithExecutor(tx, input.tenantId, input.appointmentId);
+    if (current.status !== 'scheduled') {
+      throw new ValidationError(
+        'Only scheduled appointments can be confirmed with an external event',
+      );
+    }
 
-  const [updated] = await db
-    .update(appointments)
-    .set({
-      status: 'confirmed',
-      externalCalendarEventId: input.externalCalendarEventId,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)))
-    .returning();
+    const [updated] = await tx
+      .update(appointments)
+      .set({
+        status: 'confirmed',
+        externalCalendarEventId: input.externalCalendarEventId,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
+      )
+      .returning();
 
-  if (!updated) {
-    throw new NotFoundError('Appointment not found');
-  }
+    if (!updated) {
+      throw new NotFoundError('Appointment not found');
+    }
 
-  return updated;
+    return updated;
+  });
 }
 
 export async function markAppointmentReconciliationNeeded(
@@ -379,29 +448,31 @@ export async function markAppointmentReconciliationNeeded(
     throw new ValidationError('External calendar event id is required');
   }
 
-  const current = await getAppointment(input.tenantId, input.appointmentId);
-  const metadata =
-    current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
-      ? (current.metadata as Record<string, unknown>)
-      : {};
+  await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const current = await getAppointmentWithExecutor(tx, input.tenantId, input.appointmentId);
+    const metadata =
+      current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+        ? (current.metadata as Record<string, unknown>)
+        : {};
 
-  await db
-    .update(appointments)
-    .set({
-      metadata: {
-        ...metadata,
-        reconciliation: {
-          status: 'external_created_local_confirm_failed',
-          externalCalendarEventId: input.externalCalendarEventId,
-          reason: input.reason,
-          detectedAt: new Date().toISOString(),
+    await tx
+      .update(appointments)
+      .set({
+        metadata: {
+          ...metadata,
+          reconciliation: {
+            status: 'external_created_local_confirm_failed',
+            externalCalendarEventId: input.externalCalendarEventId,
+            reason: input.reason,
+            detectedAt: new Date().toISOString(),
+          },
         },
-      },
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
-    );
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
+      );
+  });
 }
 
 function getAppointmentMetadata(appointment: Appointment): Record<string, unknown> {
@@ -416,65 +487,75 @@ export async function markAppointmentExternalSyncState(
   input: MarkAppointmentExternalSyncInput,
 ): Promise<void> {
   assertTenantAccess(input.tenantId);
-  const current = await getAppointment(input.tenantId, input.appointmentId);
-  const metadata = getAppointmentMetadata(current);
+  await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const current = await getAppointmentWithExecutor(tx, input.tenantId, input.appointmentId);
+    const metadata = getAppointmentMetadata(current);
 
-  await db
-    .update(appointments)
-    .set({
-      metadata: {
-        ...metadata,
-        reconciliation: {
-          status: input.status,
-          operation: input.operation,
-          externalCalendarEventId: current.externalCalendarEventId,
-          reason: input.reason,
-          detectedAt: new Date().toISOString(),
+    await tx
+      .update(appointments)
+      .set({
+        metadata: {
+          ...metadata,
+          reconciliation: {
+            status: input.status,
+            operation: input.operation,
+            externalCalendarEventId: current.externalCalendarEventId,
+            reason: input.reason,
+            detectedAt: new Date().toISOString(),
+          },
         },
-      },
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
-    );
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
+      );
+  });
 }
 
 export async function beginAppointmentCancellationByExternalEventId(
   input: BeginAppointmentCancellationInput,
 ): Promise<Appointment> {
-  const current = await getAppointmentByExternalCalendarEventId(
-    input.tenantId,
-    input.externalCalendarEventId,
-  );
-  if (current.status !== 'scheduled' && current.status !== 'confirmed') {
-    throw new ValidationError(`Cannot cancel appointment with status ${current.status}`);
+  assertTenantAccess(input.tenantId);
+  if (!input.externalCalendarEventId.trim()) {
+    throw new ValidationError('External calendar event id is required');
   }
 
-  const metadata = getAppointmentMetadata(current);
-  const [updated] = await db
-    .update(appointments)
-    .set({
-      status: 'cancelled',
-      metadata: {
-        ...metadata,
-        reconciliation: {
-          status: 'external_cancel_pending',
-          operation: 'cancel',
-          previousStatus: current.status,
-          externalCalendarEventId: current.externalCalendarEventId,
-          detectedAt: new Date().toISOString(),
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const current = await getAppointmentByExternalCalendarEventIdWithExecutor(
+      tx,
+      input.tenantId,
+      input.externalCalendarEventId,
+    );
+    if (current.status !== 'scheduled' && current.status !== 'confirmed') {
+      throw new ValidationError(`Cannot cancel appointment with status ${current.status}`);
+    }
+
+    const metadata = getAppointmentMetadata(current);
+    const [updated] = await tx
+      .update(appointments)
+      .set({
+        status: 'cancelled',
+        metadata: {
+          ...metadata,
+          reconciliation: {
+            status: 'external_cancel_pending',
+            operation: 'cancel',
+            previousStatus: current.status,
+            externalCalendarEventId: current.externalCalendarEventId,
+            detectedAt: new Date().toISOString(),
+          },
         },
-      },
-      updatedAt: new Date(),
-    })
-    .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, current.id)))
-    .returning();
+        updatedAt: new Date(),
+      })
+      .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, current.id)))
+      .returning();
 
-  if (!updated) {
-    throw new NotFoundError('Appointment not found');
-  }
+    if (!updated) {
+      throw new NotFoundError('Appointment not found');
+    }
 
-  return updated;
+    return updated;
+  });
 }
 
 export async function beginAppointmentRescheduleByExternalEventId(
@@ -483,21 +564,12 @@ export async function beginAppointmentRescheduleByExternalEventId(
   assertTenantAccess(input.tenantId);
   assertValidTimeRange(input.startAt, input.endAt);
 
-  return await db.transaction(async (tx) => {
-    const [current] = await tx
-      .select()
-      .from(appointments)
-      .where(
-        and(
-          eq(appointments.tenantId, input.tenantId),
-          eq(appointments.externalCalendarEventId, input.externalCalendarEventId),
-        ),
-      )
-      .limit(1);
-
-    if (!current) {
-      throw new NotFoundError('Appointment not found');
-    }
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const current = await getAppointmentByExternalCalendarEventIdWithExecutor(
+      tx,
+      input.tenantId,
+      input.externalCalendarEventId,
+    );
     if (current.status !== 'scheduled' && current.status !== 'confirmed') {
       throw new ValidationError(`Cannot reschedule appointment with status ${current.status}`);
     }
@@ -559,40 +631,44 @@ export async function createAppointmentHold(
     throw new ValidationError('Appointment hold expiry must be in the future');
   }
 
-  const existing = await findAppointmentHoldByIdempotencyKey(input.tenantId, input.idempotencyKey);
-  if (existing) return existing;
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const existing = await findAppointmentHoldByIdempotencyKeyWithExecutor(
+      tx,
+      input.tenantId,
+      input.idempotencyKey,
+    );
+    if (existing) return existing;
 
-  const [hold] = await db
-    .insert(appointmentHolds)
-    .values({
-      id: generateId(),
-      tenantId: input.tenantId,
-      patientId: input.patientId ?? null,
-      serviceId: input.serviceId ?? null,
-      staffId: input.staffId ?? null,
-      callSessionId: input.callSessionId ?? null,
-      status: 'active',
-      startAt: input.startAt,
-      endAt: input.endAt,
-      timezone: input.timezone,
-      calendarIntegrationId: input.calendarIntegrationId ?? null,
-      idempotencyKey: input.idempotencyKey,
-      expiresAt: input.expiresAt,
-      metadata: input.metadata ?? {},
-    })
-    .returning();
+    const [hold] = await tx
+      .insert(appointmentHolds)
+      .values({
+        id: generateId(),
+        tenantId: input.tenantId,
+        patientId: input.patientId ?? null,
+        serviceId: input.serviceId ?? null,
+        staffId: input.staffId ?? null,
+        callSessionId: input.callSessionId ?? null,
+        status: 'active',
+        startAt: input.startAt,
+        endAt: input.endAt,
+        timezone: input.timezone,
+        calendarIntegrationId: input.calendarIntegrationId ?? null,
+        idempotencyKey: input.idempotencyKey,
+        expiresAt: input.expiresAt,
+        metadata: input.metadata ?? {},
+      })
+      .returning();
 
-  return hold;
+    return hold;
+  });
 }
 
-export async function findAppointmentHoldByIdempotencyKey(
+async function findAppointmentHoldByIdempotencyKeyWithExecutor(
+  executor: AppointmentLedgerDb,
   tenantId: string,
   idempotencyKey: string,
 ): Promise<AppointmentHold | null> {
-  assertTenantAccess(tenantId);
-  assertIdempotencyKey(idempotencyKey);
-
-  const [hold] = await db
+  const [hold] = await executor
     .select()
     .from(appointmentHolds)
     .where(
@@ -606,13 +682,12 @@ export async function findAppointmentHoldByIdempotencyKey(
   return hold ?? null;
 }
 
-export async function getAppointmentHold(
+async function getAppointmentHoldWithExecutor(
+  executor: AppointmentLedgerDb,
   tenantId: string,
   holdId: string,
 ): Promise<AppointmentHold> {
-  assertTenantAccess(tenantId);
-
-  const [hold] = await db
+  const [hold] = await executor
     .select()
     .from(appointmentHolds)
     .where(and(eq(appointmentHolds.tenantId, tenantId), eq(appointmentHolds.id, holdId)))
@@ -625,16 +700,43 @@ export async function getAppointmentHold(
   return hold;
 }
 
+export async function findAppointmentHoldByIdempotencyKey(
+  tenantId: string,
+  idempotencyKey: string,
+): Promise<AppointmentHold | null> {
+  assertTenantAccess(tenantId);
+  assertIdempotencyKey(idempotencyKey);
+
+  return await withAppointmentLedgerTransaction(tenantId, (tx) =>
+    findAppointmentHoldByIdempotencyKeyWithExecutor(tx, tenantId, idempotencyKey),
+  );
+}
+
+export async function getAppointmentHold(
+  tenantId: string,
+  holdId: string,
+): Promise<AppointmentHold> {
+  assertTenantAccess(tenantId);
+
+  return await withAppointmentLedgerTransaction(tenantId, (tx) =>
+    getAppointmentHoldWithExecutor(tx, tenantId, holdId),
+  );
+}
+
 export async function confirmAppointmentHold(
   input: ConfirmAppointmentHoldInput,
 ): Promise<Appointment> {
   assertTenantAccess(input.tenantId);
   assertIdempotencyKey(input.idempotencyKey);
 
-  const existing = await findAppointmentByIdempotencyKey(input.tenantId, input.idempotencyKey);
-  if (existing) return existing;
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const existing = await findAppointmentByIdempotencyKeyWithExecutor(
+      tx,
+      input.tenantId,
+      input.idempotencyKey,
+    );
+    if (existing) return existing;
 
-  return await db.transaction(async (tx) => {
     const [hold] = await tx
       .select()
       .from(appointmentHolds)
@@ -725,20 +827,22 @@ export async function listActiveAppointmentHolds(input: {
   const now = input.now ?? new Date();
   const limit = Math.min(Math.max(input.limit ?? 100, 1), 500);
 
-  return await db
-    .select()
-    .from(appointmentHolds)
-    .where(
-      and(
-        eq(appointmentHolds.tenantId, input.tenantId),
-        eq(appointmentHolds.status, 'active'),
-        gt(appointmentHolds.expiresAt, now),
-        gte(appointmentHolds.startAt, input.from),
-        lt(appointmentHolds.startAt, input.to),
-      ),
-    )
-    .orderBy(desc(appointmentHolds.startAt))
-    .limit(limit);
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) =>
+    tx
+      .select()
+      .from(appointmentHolds)
+      .where(
+        and(
+          eq(appointmentHolds.tenantId, input.tenantId),
+          eq(appointmentHolds.status, 'active'),
+          gt(appointmentHolds.expiresAt, now),
+          gte(appointmentHolds.startAt, input.from),
+          lt(appointmentHolds.startAt, input.to),
+        ),
+      )
+      .orderBy(desc(appointmentHolds.startAt))
+      .limit(limit),
+  );
 }
 
 export async function listLedgerAvailabilityBlockers(input: {
@@ -750,47 +854,49 @@ export async function listLedgerAvailabilityBlockers(input: {
   assertTenantAccess(input.tenantId);
   const now = input.now ?? new Date();
 
-  const appointmentRows = await db
-    .select({
-      startAt: appointments.startAt,
-      endAt: appointments.endAt,
-    })
-    .from(appointments)
-    .where(
-      and(
-        eq(appointments.tenantId, input.tenantId),
-        inArray(appointments.status, ['scheduled', 'confirmed']),
-        lt(appointments.startAt, input.to),
-        gt(appointments.endAt, input.from),
-      ),
-    );
+  return await withAppointmentLedgerTransaction(input.tenantId, async (tx) => {
+    const appointmentRows = await tx
+      .select({
+        startAt: appointments.startAt,
+        endAt: appointments.endAt,
+      })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.tenantId, input.tenantId),
+          inArray(appointments.status, ['scheduled', 'confirmed']),
+          lt(appointments.startAt, input.to),
+          gt(appointments.endAt, input.from),
+        ),
+      );
 
-  const holdRows = await db
-    .select({
-      startAt: appointmentHolds.startAt,
-      endAt: appointmentHolds.endAt,
-    })
-    .from(appointmentHolds)
-    .where(
-      and(
-        eq(appointmentHolds.tenantId, input.tenantId),
-        eq(appointmentHolds.status, 'active'),
-        gt(appointmentHolds.expiresAt, now),
-        lt(appointmentHolds.startAt, input.to),
-        gt(appointmentHolds.endAt, input.from),
-      ),
-    );
+    const holdRows = await tx
+      .select({
+        startAt: appointmentHolds.startAt,
+        endAt: appointmentHolds.endAt,
+      })
+      .from(appointmentHolds)
+      .where(
+        and(
+          eq(appointmentHolds.tenantId, input.tenantId),
+          eq(appointmentHolds.status, 'active'),
+          gt(appointmentHolds.expiresAt, now),
+          lt(appointmentHolds.startAt, input.to),
+          gt(appointmentHolds.endAt, input.from),
+        ),
+      );
 
-  return [
-    ...appointmentRows.map((row) => ({
-      startAt: row.startAt,
-      endAt: row.endAt,
-      source: 'appointment' as const,
-    })),
-    ...holdRows.map((row) => ({
-      startAt: row.startAt,
-      endAt: row.endAt,
-      source: 'hold' as const,
-    })),
-  ];
+    return [
+      ...appointmentRows.map((row) => ({
+        startAt: row.startAt,
+        endAt: row.endAt,
+        source: 'appointment' as const,
+      })),
+      ...holdRows.map((row) => ({
+        startAt: row.startAt,
+        endAt: row.endAt,
+        source: 'hold' as const,
+      })),
+    ];
+  });
 }
