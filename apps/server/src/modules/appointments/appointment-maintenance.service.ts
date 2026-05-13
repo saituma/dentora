@@ -1,4 +1,5 @@
 import { runWithTenantContext } from '../../db/tenant-context.js';
+import { acquireDistributedLock } from '../../lib/distributed-lock.js';
 import { logger } from '../../lib/logger.js';
 import { listActiveTenantIdsForMaintenance } from '../tenants/tenant.service.js';
 import { expireAppointmentHolds } from './appointment-ledger.service.js';
@@ -9,6 +10,11 @@ export interface AppointmentMaintenanceInput {
   tenantPageSize?: number;
   holdCleanupLimit?: number;
   reconciliationLimit?: number;
+}
+
+export interface LockedAppointmentMaintenanceInput extends AppointmentMaintenanceInput {
+  lockKey?: string;
+  lockTtlMs?: number;
 }
 
 export interface AppointmentTenantMaintenanceResult {
@@ -25,6 +31,16 @@ export interface AppointmentMaintenanceResult {
   failedTenantCount: number;
   tenants: AppointmentTenantMaintenanceResult[];
 }
+
+export interface LockedAppointmentMaintenanceResult {
+  ran: boolean;
+  lockKey: string;
+  skippedReason?: 'lock_held' | 'redis_unavailable';
+  result?: AppointmentMaintenanceResult;
+}
+
+export const APPOINTMENT_MAINTENANCE_LOCK_KEY = 'lock:appointment-maintenance';
+const DEFAULT_APPOINTMENT_MAINTENANCE_LOCK_TTL_MS = 14 * 60 * 1000;
 
 async function runTenantAppointmentMaintenance(input: {
   tenantId: string;
@@ -115,4 +131,45 @@ export async function runAppointmentMaintenance(
     failedTenantCount: tenants.filter((tenant) => tenant.error).length,
     tenants,
   };
+}
+
+export async function runLockedAppointmentMaintenance(
+  input: LockedAppointmentMaintenanceInput = {},
+): Promise<LockedAppointmentMaintenanceResult> {
+  const lockKey = input.lockKey ?? APPOINTMENT_MAINTENANCE_LOCK_KEY;
+  const lock = await acquireDistributedLock({
+    key: lockKey,
+    ttlMs: input.lockTtlMs ?? DEFAULT_APPOINTMENT_MAINTENANCE_LOCK_TTL_MS,
+  });
+
+  if (!lock.acquired) {
+    if (lock.reason === 'lock_held') {
+      logger.info({ lockKey }, 'Appointment maintenance skipped because lock is held');
+    } else {
+      logger.error(
+        { lockKey, err: lock.error },
+        'Appointment maintenance skipped because Redis lock is unavailable',
+      );
+    }
+
+    return {
+      ran: false,
+      lockKey,
+      skippedReason: lock.reason,
+    };
+  }
+
+  try {
+    const result = await runAppointmentMaintenance(input);
+    return {
+      ran: true,
+      lockKey,
+      result,
+    };
+  } finally {
+    const released = await lock.release();
+    if (!released) {
+      logger.warn({ lockKey }, 'Appointment maintenance lock was not released by owner');
+    }
+  }
 }

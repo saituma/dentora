@@ -33,6 +33,21 @@ const disabledRedis = {
   ping: async () => 'PONG',
   quit: async () => undefined,
   get: async (key: string) => getInMemory(key),
+  set: async (key: string, value: string, ttlMode?: string, ttl?: number, mode?: string) => {
+    if (mode !== 'NX') {
+      setInMemory(key, value, ttlMode === 'PX' && ttl ? Math.ceil(ttl / 1000) : 60);
+      return 'OK';
+    }
+
+    if (getInMemory(key) !== null) return null;
+    setInMemory(key, value, ttlMode === 'PX' && ttl ? Math.ceil(ttl / 1000) : 60);
+    return 'OK';
+  },
+  eval: async (_script: string, _keyCount: number, key: string, ownerToken: string) => {
+    if (getInMemory(key) !== ownerToken) return 0;
+    inMemoryStore.delete(key);
+    return 1;
+  },
   getdel: async (key: string) => {
     const value = getInMemory(key);
     inMemoryStore.delete(key);

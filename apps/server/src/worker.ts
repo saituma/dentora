@@ -9,7 +9,7 @@ import { initRedis, closeRedis } from './lib/cache.js';
 import { closeAllQueues, QUEUE_NAMES } from './lib/queue.js';
 import { shutdownTelemetry } from './lib/telemetry.js';
 import { runDataRetention } from './lib/data-retention.js';
-import { runAppointmentMaintenance } from './modules/appointments/appointment-maintenance.service.js';
+import { runLockedAppointmentMaintenance } from './modules/appointments/appointment-maintenance.service.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
@@ -66,7 +66,7 @@ async function start(): Promise<void> {
   const appointmentMaintenanceWorker = createWorker<AppointmentMaintenanceJobData>(
     QUEUE_NAMES.APPOINTMENT_MAINTENANCE,
     async () => {
-      const result = await runAppointmentMaintenance();
+      const result = await runLockedAppointmentMaintenance();
       logger.info(result, 'Appointment maintenance job complete');
     },
     { concurrency: 1 },
@@ -87,7 +87,7 @@ async function start(): Promise<void> {
 
   async function scheduleAppointmentMaintenance(): Promise<void> {
     try {
-      const result = await runAppointmentMaintenance();
+      const result = await runLockedAppointmentMaintenance();
       logger.info(result, 'Scheduled appointment maintenance complete');
     } catch (err) {
       logger.error({ err }, 'Scheduled appointment maintenance failed');

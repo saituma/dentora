@@ -6,6 +6,7 @@ const mockExpireAppointmentHolds = vi.hoisted(() => vi.fn());
 const mockFindReconciliationRetryCandidates = vi.hoisted(() => vi.fn());
 const mockCancelGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
+const mockAcquireDistributedLock = vi.hoisted(() => vi.fn());
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -39,7 +40,14 @@ vi.mock('../../lib/logger.js', () => ({
   logger: mockLogger,
 }));
 
-import { runAppointmentMaintenance } from './appointment-maintenance.service.js';
+vi.mock('../../lib/distributed-lock.js', () => ({
+  acquireDistributedLock: mockAcquireDistributedLock,
+}));
+
+import {
+  runAppointmentMaintenance,
+  runLockedAppointmentMaintenance,
+} from './appointment-maintenance.service.js';
 
 const expiredHold = {
   id: 'hold-a',
@@ -60,10 +68,24 @@ const reconciliationAppointment = {
 } as Appointment;
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  mockListActiveTenantIdsForMaintenance.mockReset();
+  mockExpireAppointmentHolds.mockReset();
+  mockFindReconciliationRetryCandidates.mockReset();
+  mockCancelGoogleCalendarAppointment.mockReset();
+  mockRescheduleGoogleCalendarAppointment.mockReset();
+  mockAcquireDistributedLock.mockReset();
+  mockLogger.info.mockReset();
+  mockLogger.warn.mockReset();
+  mockLogger.error.mockReset();
   mockListActiveTenantIdsForMaintenance.mockResolvedValue([]);
   mockExpireAppointmentHolds.mockResolvedValue([]);
   mockFindReconciliationRetryCandidates.mockResolvedValue([]);
+  mockAcquireDistributedLock.mockResolvedValue({
+    acquired: true,
+    key: 'lock:appointment-maintenance',
+    ownerToken: 'owner-a',
+    release: vi.fn().mockResolvedValue(true),
+  });
 });
 
 describe('appointment maintenance service', () => {
@@ -182,5 +204,94 @@ describe('appointment maintenance service', () => {
 
     expect(mockCancelGoogleCalendarAppointment).not.toHaveBeenCalled();
     expect(mockRescheduleGoogleCalendarAppointment).not.toHaveBeenCalled();
+  });
+
+  it('runs maintenance when the distributed lock is acquired', async () => {
+    const release = vi.fn().mockResolvedValue(true);
+    mockAcquireDistributedLock.mockResolvedValueOnce({
+      acquired: true,
+      key: 'lock:appointment-maintenance',
+      ownerToken: 'owner-a',
+      release,
+    });
+    mockListActiveTenantIdsForMaintenance.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    const result = await runLockedAppointmentMaintenance({
+      now: new Date('2026-05-13T12:05:00.000Z'),
+      lockTtlMs: 1234,
+    });
+
+    expect(result).toMatchObject({
+      ran: true,
+      lockKey: 'lock:appointment-maintenance',
+      result: {
+        tenantCount: 0,
+      },
+    });
+    expect(mockAcquireDistributedLock).toHaveBeenCalledWith({
+      key: 'lock:appointment-maintenance',
+      ttlMs: 1234,
+    });
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips maintenance when the distributed lock is already held', async () => {
+    mockAcquireDistributedLock.mockResolvedValueOnce({
+      acquired: false,
+      key: 'lock:appointment-maintenance',
+      ownerToken: 'owner-b',
+      reason: 'lock_held',
+    });
+
+    const result = await runLockedAppointmentMaintenance();
+
+    expect(result).toEqual({
+      ran: false,
+      lockKey: 'lock:appointment-maintenance',
+      skippedReason: 'lock_held',
+    });
+    expect(mockListActiveTenantIdsForMaintenance).not.toHaveBeenCalled();
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { lockKey: 'lock:appointment-maintenance' },
+      'Appointment maintenance skipped because lock is held',
+    );
+  });
+
+  it('releases the distributed lock after failed maintenance', async () => {
+    const release = vi.fn().mockResolvedValue(true);
+    mockAcquireDistributedLock.mockResolvedValueOnce({
+      acquired: true,
+      key: 'lock:appointment-maintenance',
+      ownerToken: 'owner-a',
+      release,
+    });
+    mockListActiveTenantIdsForMaintenance.mockRejectedValueOnce(new Error('tenant query failed'));
+
+    await expect(runLockedAppointmentMaintenance()).rejects.toThrow('tenant query failed');
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips safely when Redis lock is unavailable', async () => {
+    const error = new Error('redis down');
+    mockAcquireDistributedLock.mockResolvedValueOnce({
+      acquired: false,
+      key: 'lock:appointment-maintenance',
+      ownerToken: 'owner-a',
+      reason: 'redis_unavailable',
+      error,
+    });
+
+    const result = await runLockedAppointmentMaintenance();
+
+    expect(result).toEqual({
+      ran: false,
+      lockKey: 'lock:appointment-maintenance',
+      skippedReason: 'redis_unavailable',
+    });
+    expect(mockListActiveTenantIdsForMaintenance).not.toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      { lockKey: 'lock:appointment-maintenance', err: error },
+      'Appointment maintenance skipped because Redis lock is unavailable',
+    );
   });
 });
