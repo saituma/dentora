@@ -26,6 +26,11 @@
     "prepare": "husky",
     "heroku-postbuild": "pnpm rebuild bcrypt && pnpm --filter @repo/server build"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "bcrypt"
+    ]
+  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
