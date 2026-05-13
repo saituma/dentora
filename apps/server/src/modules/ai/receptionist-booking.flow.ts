@@ -5,6 +5,7 @@ import {
 } from '../integrations/integration.service.js';
 import { findPatientProfileByPhone } from '../patients/patients.service.js';
 import { bookLedgerBackedAppointment } from '../appointments/appointment-application.service.js';
+import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import { processConversationTurn, type TenantAIContext } from './ai.service.js';
 import {
   buildPatientQuestion,
@@ -487,6 +488,18 @@ export async function processBookingTurn(input: {
   }
 
   const selectedSlot = bookingState.selectedSlot!;
+  const readinessFailure = await getAppointmentToolReadinessFailure({
+    tenantId: input.tenantId,
+    toolName: 'create_appointment',
+  });
+  if (readinessFailure) {
+    bookingState.confirmationRequested = false;
+    return {
+      response: readinessFailure.message,
+      sessionState: input.sessionState,
+    };
+  }
+
   const finalAvailability = await findAvailableCalendarSlots({
     tenantId: input.tenantId,
     timezone,

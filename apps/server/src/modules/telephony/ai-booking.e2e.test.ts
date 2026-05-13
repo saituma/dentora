@@ -57,6 +57,7 @@ vi.mock('../../lib/logger.js', () => ({
 
 import { runWithTenantContext, assertTenantAccess } from '../../db/tenant-context.js';
 import { computeOnboardingReadiness, assertTenantReadyForGoLive } from '../onboarding/readiness.js';
+import { APPOINTMENT_TOOL_UNAVAILABLE_MESSAGE } from '../appointments/appointment-tool-readiness.js';
 import { handleConvaiToolCall } from './convai-tools.js';
 
 interface SelectLimitChain<T> {
@@ -373,6 +374,7 @@ describe('AI receptionist booking simulation', () => {
     const result = await withTenant(tenantId, async () => {
       const readiness = await computeOnboardingReadiness(tenantId);
       expect(readiness).toMatchObject({ ready: true, blockingIssues: [] });
+      queueReadinessRows();
 
       return handleConvaiToolCall({
         tenantId,
@@ -444,8 +446,7 @@ describe('AI receptionist booking simulation', () => {
 
     expect(asBookingResult(result)).toEqual({
       success: false,
-      message:
-        'I could not book that appointment safely. Please try another time or contact the front desk.',
+      message: APPOINTMENT_TOOL_UNAVAILABLE_MESSAGE,
     });
     expect(mockCreateGoogleCalendarAppointment).not.toHaveBeenCalled();
     expect(appointments).toEqual([]);
@@ -453,6 +454,7 @@ describe('AI receptionist booking simulation', () => {
 
   it('returns safe failure and skips Google event creation when ledger-aware availability is blocked', async () => {
     availabilityBlocked = true;
+    queueReadinessRows();
 
     const result = await withTenant(tenantId, () =>
       handleConvaiToolCall({
@@ -479,6 +481,7 @@ describe('AI receptionist booking simulation', () => {
 
   it('leaves the local appointment non-confirmed when Google event creation fails', async () => {
     failGoogleCreate = true;
+    queueReadinessRows();
 
     const result = await withTenant(tenantId, () =>
       handleConvaiToolCall({
@@ -537,8 +540,7 @@ describe('AI receptionist booking simulation', () => {
 
     expect(asBookingResult(result)).toEqual({
       success: false,
-      message:
-        'I could not book that appointment safely. Please try another time or contact the front desk.',
+      message: APPOINTMENT_TOOL_UNAVAILABLE_MESSAGE,
     });
     expect(mockUpsertPatientProfile).not.toHaveBeenCalled();
     expect(mockCreateAppointmentHold).not.toHaveBeenCalled();

@@ -9,6 +9,7 @@ import {
   cancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
+import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 
 const APPOINTMENT_LIST_PRIVACY_MESSAGE =
   "For privacy reasons, I can't list patient appointments. I can help check availability, book a new appointment, cancel, or reschedule if you provide the appointment details.";
@@ -185,6 +186,12 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
 }
 
 async function createAppointmentWithSms(tenantId: string, params: Record<string, unknown>) {
+  const readinessFailure = await getAppointmentToolReadinessFailure({
+    tenantId,
+    toolName: 'create_appointment',
+  });
+  if (readinessFailure) return readinessFailure;
+
   const clinic = await configService.getClinicProfile(tenantId);
   const rules = await configService.getBookingRules(tenantId);
 
@@ -338,6 +345,12 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
 }
 
 async function cancelAppointment(tenantId: string, params: Record<string, unknown>) {
+  const readinessFailure = await getAppointmentToolReadinessFailure({
+    tenantId,
+    toolName: 'cancel_appointment',
+  });
+  if (readinessFailure) return readinessFailure;
+
   const eventId = String(params.eventId ?? '').trim();
   if (!eventId) {
     throw new ValidationError('eventId is required');
@@ -359,6 +372,12 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
 }
 
 async function rescheduleAppointment(tenantId: string, params: Record<string, unknown>) {
+  const readinessFailure = await getAppointmentToolReadinessFailure({
+    tenantId,
+    toolName: 'reschedule_appointment',
+  });
+  if (readinessFailure) return readinessFailure;
+
   const eventId = String(params.eventId ?? '').trim();
   const rawStartIso = String(params.startIso ?? '').trim();
   const rawEndIso = String(params.endIso ?? '').trim();

@@ -7,6 +7,7 @@ import {
   cancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
+import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import { executeLlmWithFailover } from './engine/index.js';
 import type { TenantAIContext } from './ai.service.js';
 import {
@@ -174,6 +175,14 @@ async function executeAppointmentChange(input: {
   state: AppointmentChangeState;
 }): Promise<string> {
   const timezone = getTimezone(input.context);
+  if (input.state.mode === 'cancel' || input.state.mode === 'reschedule') {
+    const readinessFailure = await getAppointmentToolReadinessFailure({
+      tenantId: input.tenantId,
+      toolName: input.state.mode === 'cancel' ? 'cancel_appointment' : 'reschedule_appointment',
+    });
+    if (readinessFailure) return readinessFailure.message;
+  }
+
   const matchedEvent = await findGoogleCalendarAppointment({
     tenantId: input.tenantId,
     timezone,
