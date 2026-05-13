@@ -385,7 +385,11 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
     );
   });
 
-  return { ...appointment, success: true };
+  return {
+    ...appointment,
+    success: true,
+    message: 'Appointment booked successfully.',
+  };
 }
 
 async function cancelAppointment(tenantId: string, params: Record<string, unknown>) {
