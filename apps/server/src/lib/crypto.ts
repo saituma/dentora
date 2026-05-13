@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { createHmac, randomUUID } from 'crypto';
 import { env } from '../config/env.js';
 
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = 10;
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);
