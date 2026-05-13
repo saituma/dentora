@@ -24,7 +24,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "heroku-postbuild": "pnpm --filter @repo/server build"
+    "heroku-postbuild": "pnpm rebuild bcrypt && pnpm --filter @repo/server build"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
