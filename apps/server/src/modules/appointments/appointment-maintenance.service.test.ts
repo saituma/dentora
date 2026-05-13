@@ -7,6 +7,10 @@ const mockFindReconciliationRetryCandidates = vi.hoisted(() => vi.fn());
 const mockCancelGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
 const mockAcquireDistributedLock = vi.hoisted(() => vi.fn());
+const mockFeatures = vi.hoisted(() => ({
+  appointmentReconciliationProcessor: false,
+}));
+const mockProcessAppointmentReconciliationCandidate = vi.hoisted(() => vi.fn());
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -29,6 +33,11 @@ vi.mock('./appointment-ledger.service.js', async () => {
 
 vi.mock('./appointment-reconciliation.service.js', () => ({
   findReconciliationRetryCandidates: mockFindReconciliationRetryCandidates,
+  processAppointmentReconciliationCandidate: mockProcessAppointmentReconciliationCandidate,
+}));
+
+vi.mock('../../config/features.js', () => ({
+  features: mockFeatures,
 }));
 
 vi.mock('../integrations/google-calendar-appointments.js', () => ({
@@ -74,12 +83,18 @@ beforeEach(() => {
   mockCancelGoogleCalendarAppointment.mockReset();
   mockRescheduleGoogleCalendarAppointment.mockReset();
   mockAcquireDistributedLock.mockReset();
+  mockProcessAppointmentReconciliationCandidate.mockReset();
   mockLogger.info.mockReset();
   mockLogger.warn.mockReset();
   mockLogger.error.mockReset();
   mockListActiveTenantIdsForMaintenance.mockResolvedValue([]);
   mockExpireAppointmentHolds.mockResolvedValue([]);
   mockFindReconciliationRetryCandidates.mockResolvedValue([]);
+  mockProcessAppointmentReconciliationCandidate.mockResolvedValue({
+    appointmentId: 'appointment-a',
+    status: 'resolved',
+  });
+  mockFeatures.appointmentReconciliationProcessor = false;
   mockAcquireDistributedLock.mockResolvedValue({
     acquired: true,
     key: 'lock:appointment-maintenance',
@@ -204,6 +219,53 @@ describe('appointment maintenance service', () => {
 
     expect(mockCancelGoogleCalendarAppointment).not.toHaveBeenCalled();
     expect(mockRescheduleGoogleCalendarAppointment).not.toHaveBeenCalled();
+  });
+
+  it('keeps discovery log-only when reconciliation processor feature flag is disabled', async () => {
+    mockFeatures.appointmentReconciliationProcessor = false;
+    mockListActiveTenantIdsForMaintenance
+      .mockResolvedValueOnce(['tenant-a'])
+      .mockResolvedValueOnce([]);
+    mockFindReconciliationRetryCandidates.mockResolvedValueOnce([reconciliationAppointment]);
+
+    await runAppointmentMaintenance({
+      now: new Date('2026-05-13T12:05:00.000Z'),
+    });
+
+    expect(mockProcessAppointmentReconciliationCandidate).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appointment-a' }),
+      'Appointment reconciliation candidate discovered',
+    );
+  });
+
+  it('processes candidates when reconciliation processor feature flag is enabled', async () => {
+    mockFeatures.appointmentReconciliationProcessor = true;
+    mockListActiveTenantIdsForMaintenance
+      .mockResolvedValueOnce(['tenant-a'])
+      .mockResolvedValueOnce([]);
+    mockFindReconciliationRetryCandidates.mockResolvedValueOnce([reconciliationAppointment]);
+
+    await runAppointmentMaintenance({
+      now: new Date('2026-05-13T12:05:00.000Z'),
+    });
+
+    expect(mockProcessAppointmentReconciliationCandidate).toHaveBeenCalledWith({
+      tenantId: 'tenant-a',
+      appointment: reconciliationAppointment,
+      now: new Date('2026-05-13T12:05:00.000Z'),
+    });
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentId: 'appointment-a' }),
+      'Appointment reconciliation processing started',
+    );
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appointmentId: 'appointment-a',
+        result: { appointmentId: 'appointment-a', status: 'resolved' },
+      }),
+      'Appointment reconciliation processing resolved',
+    );
   });
 
   it('runs maintenance when the distributed lock is acquired', async () => {

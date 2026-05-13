@@ -1,9 +1,13 @@
 import { runWithTenantContext } from '../../db/tenant-context.js';
+import { features } from '../../config/features.js';
 import { acquireDistributedLock } from '../../lib/distributed-lock.js';
 import { logger } from '../../lib/logger.js';
 import { listActiveTenantIdsForMaintenance } from '../tenants/tenant.service.js';
 import { expireAppointmentHolds } from './appointment-ledger.service.js';
-import { findReconciliationRetryCandidates } from './appointment-reconciliation.service.js';
+import {
+  findReconciliationRetryCandidates,
+  processAppointmentReconciliationCandidate,
+} from './appointment-reconciliation.service.js';
 
 export interface AppointmentMaintenanceInput {
   now?: Date;
@@ -70,6 +74,30 @@ async function runTenantAppointmentMaintenance(input: {
         },
         'Appointment reconciliation candidate discovered',
       );
+
+      if (!features.appointmentReconciliationProcessor) continue;
+
+      logger.info(
+        { tenantId: input.tenantId, appointmentId: appointment.id },
+        'Appointment reconciliation processing started',
+      );
+      const result = await processAppointmentReconciliationCandidate({
+        tenantId: input.tenantId,
+        appointment,
+        now: input.now,
+      });
+      const logContext = {
+        tenantId: input.tenantId,
+        appointmentId: appointment.id,
+        result,
+      };
+      if (result.status === 'resolved') {
+        logger.info(logContext, 'Appointment reconciliation processing resolved');
+      } else if (result.status === 'retry_scheduled') {
+        logger.warn(logContext, 'Appointment reconciliation retry scheduled');
+      } else {
+        logger.error(logContext, 'Appointment reconciliation processing failed');
+      }
     }
 
     return {

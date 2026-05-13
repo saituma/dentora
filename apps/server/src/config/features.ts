@@ -1,4 +1,3 @@
-
 export const features = {
   providerFailover: process.env.FF_PROVIDER_FAILOVER === 'true',
 
@@ -15,6 +14,9 @@ export const features = {
   databaseRls: process.env.FF_DATABASE_RLS === 'true',
 
   aiConfigChat: process.env.FF_AI_CONFIG_CHAT === 'true',
+
+  appointmentReconciliationProcessor:
+    process.env.FF_APPOINTMENT_RECONCILIATION_PROCESSOR === 'true',
 } as const;
 
 export type FeatureFlags = typeof features;
