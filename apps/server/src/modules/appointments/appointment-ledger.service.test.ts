@@ -3,12 +3,15 @@ import { db } from '../../db/index.js';
 import { runWithTenantContext } from '../../db/tenant-context.js';
 import { AuthorizationError, ValidationError } from '../../lib/errors.js';
 import {
+  beginAppointmentCancellationByExternalEventId,
+  beginAppointmentRescheduleByExternalEventId,
   createAppointment,
   createAppointmentHold,
   confirmAppointmentHold,
   getAppointment,
   listActiveAppointmentHolds,
   listLedgerAvailabilityBlockers,
+  markAppointmentExternalSyncState,
   markAppointmentReconciliationNeeded,
   updateAppointmentStatus,
   type Appointment,
@@ -509,5 +512,201 @@ describe('appointment ledger service', () => {
     };
     expect(updatePayload.status).toBe('confirmed');
     expect(updatePayload.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('cancels scheduled or confirmed appointments by external calendar event id', async () => {
+    const confirmedAppointment = {
+      ...baseAppointment,
+      status: 'confirmed' as const,
+      externalCalendarEventId: 'google-event-a',
+    };
+    const cancelledAppointment = {
+      ...confirmedAppointment,
+      status: 'cancelled' as const,
+    };
+    mockDb.select.mockReturnValueOnce(selectChain<Appointment>([confirmedAppointment]));
+    const update = updateChain<Appointment>([cancelledAppointment]);
+    mockDb.update.mockReturnValueOnce(update);
+
+    const appointment = await withTenant('tenant-a', () =>
+      beginAppointmentCancellationByExternalEventId({
+        tenantId: 'tenant-a',
+        externalCalendarEventId: 'google-event-a',
+      }),
+    );
+
+    expect(appointment).toEqual(cancelledAppointment);
+    const updatePayload = update.set.mock.calls[0]?.[0] as {
+      status?: string;
+      metadata?: Record<string, unknown>;
+      updatedAt?: unknown;
+    };
+    expect(updatePayload.status).toBe('cancelled');
+    expect(updatePayload.updatedAt).toBeInstanceOf(Date);
+    expect(updatePayload.metadata).toMatchObject({
+      reconciliation: {
+        status: 'external_cancel_pending',
+        operation: 'cancel',
+        previousStatus: 'confirmed',
+        externalCalendarEventId: 'google-event-a',
+      },
+    });
+  });
+
+  it('rejects cross-tenant cancellation by external calendar event id', async () => {
+    await expect(
+      withTenant('tenant-a', () =>
+        beginAppointmentCancellationByExternalEventId({
+          tenantId: 'tenant-b',
+          externalCalendarEventId: 'google-event-b',
+        }),
+      ),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockDb.select).not.toHaveBeenCalled();
+  });
+
+  it('rejects cancellation of already cancelled or completed appointments', async () => {
+    mockDb.select.mockReturnValueOnce(
+      selectChain<Appointment>([
+        {
+          ...baseAppointment,
+          status: 'completed',
+          externalCalendarEventId: 'google-event-a',
+        },
+      ]),
+    );
+
+    await expect(
+      withTenant('tenant-a', () =>
+        beginAppointmentCancellationByExternalEventId({
+          tenantId: 'tenant-a',
+          externalCalendarEventId: 'google-event-a',
+        }),
+      ),
+    ).rejects.toThrow(ValidationError);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('marks detectable reconciliation state when external cancellation fails', async () => {
+    const cancelledAppointment = {
+      ...baseAppointment,
+      status: 'cancelled' as const,
+      externalCalendarEventId: 'google-event-a',
+      metadata: {
+        reconciliation: {
+          status: 'external_cancel_pending',
+          operation: 'cancel',
+        },
+      },
+    };
+    mockDb.select.mockReturnValueOnce(selectChain<Appointment>([cancelledAppointment]));
+    const update = updateChain<Appointment>([cancelledAppointment]);
+    mockDb.update.mockReturnValueOnce(update);
+
+    await withTenant('tenant-a', () =>
+      markAppointmentExternalSyncState({
+        tenantId: 'tenant-a',
+        appointmentId: cancelledAppointment.id,
+        operation: 'cancel',
+        status: 'local_cancelled_external_cancel_failed',
+        reason: 'Google Calendar delete failed',
+      }),
+    );
+
+    const updatePayload = update.set.mock.calls[0]?.[0] as {
+      metadata?: Record<string, unknown>;
+      updatedAt?: unknown;
+    };
+    expect(updatePayload.updatedAt).toBeInstanceOf(Date);
+    expect(updatePayload.metadata).toMatchObject({
+      reconciliation: {
+        status: 'local_cancelled_external_cancel_failed',
+        operation: 'cancel',
+        externalCalendarEventId: 'google-event-a',
+        reason: 'Google Calendar delete failed',
+      },
+    });
+  });
+
+  it('rejects reschedule targets that overlap another scheduled appointment', async () => {
+    const confirmedAppointment = {
+      ...baseAppointment,
+      status: 'confirmed' as const,
+      externalCalendarEventId: 'google-event-a',
+    };
+    const conflictingAppointment = {
+      ...baseAppointment,
+      id: 'appointment-conflict',
+      externalCalendarEventId: 'google-event-b',
+    };
+    mockDb.select
+      .mockReturnValueOnce(selectChain<Appointment>([confirmedAppointment]))
+      .mockReturnValueOnce(selectChain<Appointment>([conflictingAppointment]));
+
+    await expect(
+      withTenant('tenant-a', () =>
+        beginAppointmentRescheduleByExternalEventId({
+          tenantId: 'tenant-a',
+          externalCalendarEventId: 'google-event-a',
+          startAt: new Date('2026-06-01T14:00:00.000Z'),
+          endAt: new Date('2026-06-01T14:30:00.000Z'),
+          timezone: 'America/New_York',
+        }),
+      ),
+    ).rejects.toThrow(ValidationError);
+    expect(mockDb.execute).toHaveBeenCalledTimes(1);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('reschedules local appointments while preserving idempotency and external event tracking', async () => {
+    const confirmedAppointment = {
+      ...baseAppointment,
+      status: 'confirmed' as const,
+      externalCalendarEventId: 'google-event-a',
+    };
+    const rescheduledAppointment = {
+      ...confirmedAppointment,
+      startAt: new Date('2026-06-02T14:00:00.000Z'),
+      endAt: new Date('2026-06-02T14:30:00.000Z'),
+    };
+    mockDb.select
+      .mockReturnValueOnce(selectChain<Appointment>([confirmedAppointment]))
+      .mockReturnValueOnce(selectChain<Appointment>([]));
+    const update = updateChain<Appointment>([rescheduledAppointment]);
+    mockDb.update.mockReturnValueOnce(update);
+
+    const appointment = await withTenant('tenant-a', () =>
+      beginAppointmentRescheduleByExternalEventId({
+        tenantId: 'tenant-a',
+        externalCalendarEventId: 'google-event-a',
+        startAt: rescheduledAppointment.startAt,
+        endAt: rescheduledAppointment.endAt,
+        timezone: 'America/New_York',
+      }),
+    );
+
+    expect(appointment).toEqual(rescheduledAppointment);
+    const updatePayload = update.set.mock.calls[0]?.[0] as {
+      startAt?: Date;
+      endAt?: Date;
+      timezone?: string;
+      externalCalendarEventId?: string;
+      idempotencyKey?: string;
+      metadata?: Record<string, unknown>;
+    };
+    expect(updatePayload.startAt).toEqual(rescheduledAppointment.startAt);
+    expect(updatePayload.endAt).toEqual(rescheduledAppointment.endAt);
+    expect(updatePayload.timezone).toBe('America/New_York');
+    expect(updatePayload.externalCalendarEventId).toBeUndefined();
+    expect(updatePayload.idempotencyKey).toBeUndefined();
+    expect(updatePayload.metadata).toMatchObject({
+      reconciliation: {
+        status: 'external_reschedule_pending',
+        operation: 'reschedule',
+        previousStartAt: '2026-06-01T14:00:00.000Z',
+        previousEndAt: '2026-06-01T14:30:00.000Z',
+        externalCalendarEventId: 'google-event-a',
+      },
+    });
   });
 });

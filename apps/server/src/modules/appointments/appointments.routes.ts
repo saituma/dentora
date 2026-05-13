@@ -15,8 +15,11 @@ import { ValidationError } from '../../lib/errors.js';
 import { hashForSearch } from '../../lib/encrypted-column.js';
 import {
   attachExternalCalendarEvent,
+  beginAppointmentCancellationByExternalEventId,
+  beginAppointmentRescheduleByExternalEventId,
   confirmAppointmentHold,
   createAppointmentHold,
+  markAppointmentExternalSyncState,
   markAppointmentReconciliationNeeded,
 } from './appointment-ledger.service.js';
 
@@ -394,8 +397,31 @@ appointmentsRouter.post(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
-      await cancelGoogleCalendarAppointment({ tenantId, eventId: req.body.eventId });
-      res.json({ data: { success: true } });
+      const appointment = await beginAppointmentCancellationByExternalEventId({
+        tenantId,
+        externalCalendarEventId: req.body.eventId,
+      });
+
+      try {
+        await cancelGoogleCalendarAppointment({ tenantId, eventId: req.body.eventId });
+        await markAppointmentExternalSyncState({
+          tenantId,
+          appointmentId: appointment.id,
+          operation: 'cancel',
+          status: 'external_cancel_synced',
+        });
+      } catch (error) {
+        await markAppointmentExternalSyncState({
+          tenantId,
+          appointmentId: appointment.id,
+          operation: 'cancel',
+          status: 'local_cancelled_external_cancel_failed',
+          reason: error instanceof Error ? error.message : 'Unknown external cancellation failure',
+        });
+        throw error;
+      }
+
+      res.json({ data: { success: true, appointmentId: appointment.id } });
     } catch (error) {
       next(error);
     }
@@ -416,12 +442,39 @@ appointmentsRouter.post(
         throw new ValidationError('Clinic timezone is required to reschedule appointments');
       }
 
-      const appointment = await rescheduleGoogleCalendarAppointment({
+      const startAt = new Date(req.body.slot.startIso);
+      const endAt = new Date(req.body.slot.endIso);
+      const appointment = await beginAppointmentRescheduleByExternalEventId({
         tenantId,
-        eventId: req.body.eventId,
-        slot: req.body.slot,
+        externalCalendarEventId: req.body.eventId,
+        startAt,
+        endAt,
         timezone: clinic.timezone,
       });
+
+      try {
+        await rescheduleGoogleCalendarAppointment({
+          tenantId,
+          eventId: req.body.eventId,
+          slot: req.body.slot,
+          timezone: clinic.timezone,
+        });
+        await markAppointmentExternalSyncState({
+          tenantId,
+          appointmentId: appointment.id,
+          operation: 'reschedule',
+          status: 'external_reschedule_synced',
+        });
+      } catch (error) {
+        await markAppointmentExternalSyncState({
+          tenantId,
+          appointmentId: appointment.id,
+          operation: 'reschedule',
+          status: 'local_rescheduled_external_reschedule_failed',
+          reason: error instanceof Error ? error.message : 'Unknown external reschedule failure',
+        });
+        throw error;
+      }
 
       res.json({ data: appointment });
     } catch (error) {

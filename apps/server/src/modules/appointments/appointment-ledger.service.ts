@@ -67,6 +67,31 @@ export interface MarkAppointmentReconciliationNeededInput {
   reason: string;
 }
 
+export interface BeginAppointmentCancellationInput {
+  tenantId: string;
+  externalCalendarEventId: string;
+}
+
+export interface BeginAppointmentRescheduleInput {
+  tenantId: string;
+  externalCalendarEventId: string;
+  startAt: Date;
+  endAt: Date;
+  timezone: string;
+}
+
+export interface MarkAppointmentExternalSyncInput {
+  tenantId: string;
+  appointmentId: string;
+  operation: 'cancel' | 'reschedule';
+  status:
+    | 'external_cancel_synced'
+    | 'local_cancelled_external_cancel_failed'
+    | 'external_reschedule_synced'
+    | 'local_rescheduled_external_reschedule_failed';
+  reason?: string;
+}
+
 export interface LedgerAvailabilityBlocker {
   startAt: Date;
   endAt: Date;
@@ -234,6 +259,33 @@ export async function getAppointment(
   return appointment;
 }
 
+export async function getAppointmentByExternalCalendarEventId(
+  tenantId: string,
+  externalCalendarEventId: string,
+): Promise<Appointment> {
+  assertTenantAccess(tenantId);
+  if (!externalCalendarEventId.trim()) {
+    throw new ValidationError('External calendar event id is required');
+  }
+
+  const [appointment] = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.tenantId, tenantId),
+        eq(appointments.externalCalendarEventId, externalCalendarEventId),
+      ),
+    )
+    .limit(1);
+
+  if (!appointment) {
+    throw new NotFoundError('Appointment not found');
+  }
+
+  return appointment;
+}
+
 export async function listAppointments(input: {
   tenantId: string;
   from: Date;
@@ -350,6 +402,151 @@ export async function markAppointmentReconciliationNeeded(
     .where(
       and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
     );
+}
+
+function getAppointmentMetadata(appointment: Appointment): Record<string, unknown> {
+  return appointment.metadata &&
+    typeof appointment.metadata === 'object' &&
+    !Array.isArray(appointment.metadata)
+    ? (appointment.metadata as Record<string, unknown>)
+    : {};
+}
+
+export async function markAppointmentExternalSyncState(
+  input: MarkAppointmentExternalSyncInput,
+): Promise<void> {
+  assertTenantAccess(input.tenantId);
+  const current = await getAppointment(input.tenantId, input.appointmentId);
+  const metadata = getAppointmentMetadata(current);
+
+  await db
+    .update(appointments)
+    .set({
+      metadata: {
+        ...metadata,
+        reconciliation: {
+          status: input.status,
+          operation: input.operation,
+          externalCalendarEventId: current.externalCalendarEventId,
+          reason: input.reason,
+          detectedAt: new Date().toISOString(),
+        },
+      },
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)),
+    );
+}
+
+export async function beginAppointmentCancellationByExternalEventId(
+  input: BeginAppointmentCancellationInput,
+): Promise<Appointment> {
+  const current = await getAppointmentByExternalCalendarEventId(
+    input.tenantId,
+    input.externalCalendarEventId,
+  );
+  if (current.status !== 'scheduled' && current.status !== 'confirmed') {
+    throw new ValidationError(`Cannot cancel appointment with status ${current.status}`);
+  }
+
+  const metadata = getAppointmentMetadata(current);
+  const [updated] = await db
+    .update(appointments)
+    .set({
+      status: 'cancelled',
+      metadata: {
+        ...metadata,
+        reconciliation: {
+          status: 'external_cancel_pending',
+          operation: 'cancel',
+          previousStatus: current.status,
+          externalCalendarEventId: current.externalCalendarEventId,
+          detectedAt: new Date().toISOString(),
+        },
+      },
+      updatedAt: new Date(),
+    })
+    .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, current.id)))
+    .returning();
+
+  if (!updated) {
+    throw new NotFoundError('Appointment not found');
+  }
+
+  return updated;
+}
+
+export async function beginAppointmentRescheduleByExternalEventId(
+  input: BeginAppointmentRescheduleInput,
+): Promise<Appointment> {
+  assertTenantAccess(input.tenantId);
+  assertValidTimeRange(input.startAt, input.endAt);
+
+  return await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.tenantId, input.tenantId),
+          eq(appointments.externalCalendarEventId, input.externalCalendarEventId),
+        ),
+      )
+      .limit(1);
+
+    if (!current) {
+      throw new NotFoundError('Appointment not found');
+    }
+    if (current.status !== 'scheduled' && current.status !== 'confirmed') {
+      throw new ValidationError(`Cannot reschedule appointment with status ${current.status}`);
+    }
+
+    await acquireBookingLock(tx, {
+      tenantId: input.tenantId,
+      serviceId: current.serviceId,
+      staffId: current.staffId,
+      startAt: input.startAt,
+    });
+    await assertNoConflictingAppointments({
+      executor: tx,
+      tenantId: input.tenantId,
+      startAt: input.startAt,
+      endAt: input.endAt,
+      serviceId: current.serviceId,
+      staffId: current.staffId,
+      excludeAppointmentId: current.id,
+    });
+
+    const metadata = getAppointmentMetadata(current);
+    const [updated] = await tx
+      .update(appointments)
+      .set({
+        startAt: input.startAt,
+        endAt: input.endAt,
+        timezone: input.timezone,
+        metadata: {
+          ...metadata,
+          reconciliation: {
+            status: 'external_reschedule_pending',
+            operation: 'reschedule',
+            previousStartAt: current.startAt.toISOString(),
+            previousEndAt: current.endAt.toISOString(),
+            externalCalendarEventId: current.externalCalendarEventId,
+            detectedAt: new Date().toISOString(),
+          },
+        },
+        updatedAt: new Date(),
+      })
+      .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, current.id)))
+      .returning();
+
+    if (!updated) {
+      throw new NotFoundError('Appointment not found');
+    }
+
+    return updated;
+  });
 }
 
 export async function createAppointmentHold(
