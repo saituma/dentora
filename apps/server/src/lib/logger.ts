@@ -3,6 +3,7 @@ import { Writable } from 'stream';
 import { trace } from '@opentelemetry/api';
 import { env } from '../config/env.js';
 import { pushLogEntry, type LogEntry } from '../modules/admin/admin-log-stream.js';
+import { redactLogValue } from './log-redaction.js';
 
 /**
  * A writable stream that taps each pino log line and pushes it to the
@@ -43,6 +44,11 @@ const pinoOptions: pino.LoggerOptions = {
     req: pino.stdSerializers.req,
     res: pino.stdSerializers.res,
   },
+  formatters: {
+    log(object) {
+      return redactLogValue(object) as Record<string, unknown>;
+    },
+  },
   redact: {
     paths: [
       'req.headers.authorization',
@@ -65,6 +71,19 @@ const pinoOptions: pino.LoggerOptions = {
       'firstName',
       'lastName',
       'patientName',
+      'phoneNumber',
+      'callerNumber',
+      'fullName',
+      'name',
+      'from',
+      'to',
+      'text',
+      'userText',
+      'aiText',
+      'transcription',
+      'transcript',
+      'fullTranscript',
+      'content',
       'address',
       'insuranceId',
     ],

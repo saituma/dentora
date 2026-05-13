@@ -698,7 +698,7 @@ async function handleElevenLabsMessageWithTenant(
   try {
     message = JSON.parse(raw) as ElevenLabsMessage & Record<string, unknown>;
   } catch {
-    logger.debug({ raw }, 'Ignoring non-JSON ElevenLabs message');
+    logger.debug('Ignoring non-JSON ElevenLabs message');
     return;
   }
 
@@ -769,7 +769,7 @@ async function handleElevenLabsMessageWithTenant(
       const text = message.user_transcription_event?.user_transcript as string | undefined;
       if (!text) return;
       logger.info(
-        { callSessionId: session.callSessionId, text: truncate(text, 200) },
+        { callSessionId: session.callSessionId, transcriptLength: text.length },
         'User transcript received',
       );
       session.conversationHistory.push({
@@ -791,7 +791,7 @@ async function handleElevenLabsMessageWithTenant(
       const text = message.agent_response_event?.agent_response as string | undefined;
       if (!text) return;
       logger.info(
-        { callSessionId: session.callSessionId, text: truncate(text, 200) },
+        { callSessionId: session.callSessionId, responseLength: text.length },
         'Agent response received',
       );
       session.conversationHistory.push({

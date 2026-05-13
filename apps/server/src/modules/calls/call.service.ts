@@ -15,8 +15,14 @@ import type { InferSelectModel } from 'drizzle-orm';
 import { executeLlmWithFailover } from '../ai/engine/index.js';
 import type { LlmMessage } from '../ai/providers/base.js';
 import { assertTenantAccess } from '../../db/tenant-context.js';
+import { redactLogValue } from '../../lib/log-redaction.js';
 
 type CallSession = InferSelectModel<typeof callSessions>;
+type TranscriptTurn = Record<string, unknown>;
+type EncryptedTranscriptEnvelope = {
+  encrypted: true;
+  ciphertext: string;
+};
 
 function decryptCallSession(s: CallSession): CallSession {
   return {
@@ -24,6 +30,43 @@ function decryptCallSession(s: CallSession): CallSession {
     callerNumber: decryptField(s.callerNumber),
     intentSummary: decryptField(s.intentSummary),
   };
+}
+
+function sanitizeEventPayload(
+  payload: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!payload) return {};
+  return redactLogValue(payload) as Record<string, unknown>;
+}
+
+function encryptTranscript(turns: TranscriptTurn[]): EncryptedTranscriptEnvelope {
+  const ciphertext = encryptField(JSON.stringify(turns));
+  if (!ciphertext) {
+    throw new Error('Failed to encrypt transcript');
+  }
+  return { encrypted: true, ciphertext };
+}
+
+function isEncryptedTranscriptEnvelope(value: unknown): value is EncryptedTranscriptEnvelope {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'encrypted' in value &&
+    'ciphertext' in value &&
+    (value as { encrypted?: unknown }).encrypted === true &&
+    typeof (value as { ciphertext?: unknown }).ciphertext === 'string'
+  );
+}
+
+function decryptTranscript(value: unknown): TranscriptTurn[] {
+  if (!isEncryptedTranscriptEnvelope(value)) {
+    return Array.isArray(value) ? (value as TranscriptTurn[]) : [];
+  }
+
+  const decrypted = decryptField(value.ciphertext);
+  if (!decrypted) return [];
+  const parsed = JSON.parse(decrypted) as unknown;
+  return Array.isArray(parsed) ? (parsed as TranscriptTurn[]) : [];
 }
 
 export async function createCallSession(input: {
@@ -144,7 +187,7 @@ export async function logCallEvent(input: {
     callSessionId: input.callSessionId,
     eventType: input.eventType,
     actor: input.actor,
-    payload: input.payload ?? {},
+    payload: sanitizeEventPayload(input.payload),
     latencyMs: input.latencyMs,
   });
 }
@@ -335,7 +378,11 @@ export async function getCallTranscript(tenantId: string, callSessionId: string)
     .limit(1);
 
   if (!transcript) return null;
-  return { ...transcript, summary: decryptField(transcript.summary) };
+  return {
+    ...transcript,
+    fullTranscript: decryptTranscript(transcript.fullTranscript),
+    summary: decryptField(transcript.summary),
+  };
 }
 
 export async function getCallCostBreakdown(tenantId: string, callSessionId: string) {
@@ -361,7 +408,7 @@ export async function getCallCostBreakdown(tenantId: string, callSessionId: stri
 export async function saveTranscript(input: {
   tenantId: string;
   callSessionId: string;
-  fullTranscript: Record<string, unknown>[];
+  fullTranscript: TranscriptTurn[];
   summary?: string;
   sentiment?: string;
   intentDetected?: string;
@@ -371,7 +418,7 @@ export async function saveTranscript(input: {
     id: generateId(),
     tenantId: input.tenantId,
     callSessionId: input.callSessionId,
-    fullTranscript: input.fullTranscript,
+    fullTranscript: encryptTranscript(input.fullTranscript),
     summary: encryptField(input.summary ?? null),
     sentiment: input.sentiment,
     intentDetected: input.intentDetected,
