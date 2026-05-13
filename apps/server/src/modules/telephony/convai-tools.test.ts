@@ -13,6 +13,7 @@ const mockCancelLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockComputeOnboardingReadiness = vi.hoisted(() => vi.fn());
 const mockResolveVerifiedAppointmentForCaller = vi.hoisted(() => vi.fn());
+const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -50,6 +51,10 @@ vi.mock('../appointments/appointment-application.service.js', () => ({
 
 vi.mock('../onboarding/readiness.js', () => ({
   computeOnboardingReadiness: mockComputeOnboardingReadiness,
+}));
+
+vi.mock('../staff-review/staff-review.service.js', () => ({
+  createStaffReviewItemSafely: mockCreateStaffReviewItemSafely,
 }));
 
 vi.mock('../appointments/appointment-lookup.service.js', async (importOriginal) => {
@@ -299,6 +304,7 @@ describe('ConvAI appointment tools', () => {
       appointmentDate: null,
       appointmentTime: null,
       timezone: null,
+      operation: 'cancel_appointment',
     });
     expect(mockCancelLedgerBackedAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
@@ -333,6 +339,7 @@ describe('ConvAI appointment tools', () => {
       appointmentDate: null,
       appointmentTime: null,
       timezone: null,
+      operation: 'reschedule_appointment',
     });
     expect(mockRescheduleLedgerBackedAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
@@ -553,6 +560,14 @@ describe('ConvAI appointment tools', () => {
     expect(mockGetBookingRules).not.toHaveBeenCalled();
     expect(mockBookLedgerBackedAppointment).not.toHaveBeenCalled();
     expect(mockSendAppointmentSms).not.toHaveBeenCalled();
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        type: 'readiness_failure',
+        source: 'onboarding_readiness',
+        reasonCode: 'APPOINTMENT_TOOL_READINESS_BLOCKED',
+      }),
+    );
     const loggedPayload = JSON.stringify(mockLogger.warn.mock.calls);
     expect(loggedPayload).toContain('GOOGLE_CALENDAR_INTEGRATION_MISSING');
     expect(loggedPayload).toContain('create_appointment');

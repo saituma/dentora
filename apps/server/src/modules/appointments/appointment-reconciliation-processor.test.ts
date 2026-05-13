@@ -8,6 +8,7 @@ const mockGetAppointment = vi.hoisted(() => vi.fn());
 const mockAttachExternalCalendarEvent = vi.hoisted(() => vi.fn());
 const mockCancelGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
+const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
 
 vi.mock('./appointment-ledger.service.js', async () => {
   const actual = await vi.importActual<typeof import('./appointment-ledger.service.js')>(
@@ -23,6 +24,10 @@ vi.mock('./appointment-ledger.service.js', async () => {
 vi.mock('../integrations/google-calendar-appointments.js', () => ({
   cancelGoogleCalendarAppointment: mockCancelGoogleCalendarAppointment,
   rescheduleGoogleCalendarAppointment: mockRescheduleGoogleCalendarAppointment,
+}));
+
+vi.mock('../staff-review/staff-review.service.js', () => ({
+  createStaffReviewItemSafely: mockCreateStaffReviewItemSafely,
 }));
 
 import {
@@ -317,6 +322,14 @@ describe('appointment reconciliation processor', () => {
       status: 'failed',
       reason: 'Appointment reconciliation exceeded max retries (5)',
     });
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        type: 'reconciliation_failed',
+        source: 'appointment_reconciliation',
+        relatedAppointmentId: 'appointment-a',
+      }),
+    );
     expect(mockCancelGoogleCalendarAppointment).not.toHaveBeenCalled();
   });
 

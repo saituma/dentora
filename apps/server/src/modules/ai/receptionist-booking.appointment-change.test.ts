@@ -161,6 +161,7 @@ describe('AI appointment change verification', () => {
       appointmentDate: undefined,
       appointmentTime: undefined,
       timezone: 'UTC',
+      operation: 'cancel_appointment',
     });
     expect(mockCancelLedgerBackedAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
@@ -194,6 +195,7 @@ describe('AI appointment change verification', () => {
       appointmentDate: '2026-06-01',
       appointmentTime: '14:00',
       timezone: 'UTC',
+      operation: 'reschedule_appointment',
     });
     expect(mockRescheduleLedgerBackedAppointment).toHaveBeenCalledWith({
       tenantId: 'tenant-a',

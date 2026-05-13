@@ -4,6 +4,7 @@ import { ValidationError } from '../../lib/errors.js';
 const mockGetActiveGoogleCalendarIntegration = vi.hoisted(() => vi.fn());
 const mockResolveValidGoogleAccessToken = vi.hoisted(() => vi.fn());
 const mockGetAppointmentByExternalCalendarEventId = vi.hoisted(() => vi.fn());
+const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -26,6 +27,10 @@ vi.mock('./google-calendar.shared.js', async () => {
 
 vi.mock('../appointments/appointment-ledger.service.js', () => ({
   getAppointmentByExternalCalendarEventId: mockGetAppointmentByExternalCalendarEventId,
+}));
+
+vi.mock('../staff-review/staff-review.service.js', () => ({
+  createStaffReviewItemSafely: mockCreateStaffReviewItemSafely,
 }));
 
 vi.mock('../../lib/logger.js', () => ({
@@ -148,6 +153,14 @@ describe('legacy Google Calendar PHI scanner', () => {
 
     expect(report).toMatchObject({ totalEventsScanned: 1, riskyEventsCount: 1 });
     expect(report.riskyEvents[0]?.riskCodes).toContain('SUMMARY_LEGACY_DETAIL');
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        type: 'legacy_calendar_phi_detected',
+        source: 'calendar_phi_scanner',
+        reasonCode: 'LEGACY_GOOGLE_CALENDAR_PHI_DETECTED',
+      }),
+    );
     expectNoRawPhi(report);
     expectNoRawPhi(mockLogger.info.mock.calls);
   });

@@ -4,8 +4,12 @@ import { AuthorizationError } from '../../lib/errors.js';
 const mockDb = vi.hoisted(() => ({
   select: vi.fn(),
 }));
+const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
 
 vi.mock('../../db/index.js', () => ({ db: mockDb }));
+vi.mock('../staff-review/staff-review.service.js', () => ({
+  createStaffReviewItemSafely: mockCreateStaffReviewItemSafely,
+}));
 
 import { runWithTenantContext } from '../../db/tenant-context.js';
 import type { Appointment } from './appointment-ledger.service.js';
@@ -80,6 +84,13 @@ describe('ledger-backed appointment lookup', () => {
       message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
     });
     expect(mockDb.select).not.toHaveBeenCalled();
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        type: 'ai_tool_safety_block',
+        reasonCode: 'APPOINTMENT_VERIFICATION_INCOMPLETE',
+      }),
+    );
   });
 
   it('resolves by local appointment confirmation id without Google text lookup', async () => {
