@@ -7,7 +7,7 @@
 module.exports = {
   // Server TypeScript — use server package's eslint config
   'apps/server/src/**/*.{ts,tsx}': (files) => [
-    `pnpm --filter @repo/server exec eslint --fix --max-warnings=0 ${files.join(' ')}`,
+    `pnpm --filter @repo/server exec eslint --fix --max-warnings=0 --no-warn-ignored ${files.join(' ')}`,
     `prettier --write ${files.join(' ')}`,
   ],
 
