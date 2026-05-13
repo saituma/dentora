@@ -9,18 +9,19 @@ export {
   saveStaffMembers,
 } from './mutations.js';
 export {
+  assertTenantReadyForGoLive,
+  computeOnboardingReadiness,
   computeReadinessScore,
   getOnboardingStatus,
   publishOnboardingConfig,
 } from './readiness.js';
 export { buildOnboardingAiChatServerContext } from './onboarding-ai-context.js';
 export { listAvailableVoices } from './voice-catalog.js';
-export {
-  generateVoicePreview,
-  transcribeLiveAudio,
-} from './transcription.js';
+export { generateVoicePreview, transcribeLiveAudio } from './transcription.js';
 export type {
   AvailableVoiceOption,
+  OnboardingReadinessIssue,
+  OnboardingReadinessResult,
   OnboardingStatus,
   ReadinessScorecard,
   ValidationIssue,

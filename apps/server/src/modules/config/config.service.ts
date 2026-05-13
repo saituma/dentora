@@ -22,6 +22,7 @@ const CONFIG_CACHE_TTL = 300; // 5 minutes
 import { logger } from '../../lib/logger.js';
 import { NotFoundError, ConflictError } from '../../lib/errors.js';
 import { listAvailableVoices } from '../onboarding/onboarding.service.js';
+import { assertTenantReadyForGoLive } from '../onboarding/readiness.js';
 import { assertTenantAccess } from '../../db/tenant-context.js';
 
 type ClinicProfileSelect = typeof clinicProfile.$inferSelect;
@@ -504,6 +505,7 @@ export async function createConfigVersion(tenantId: string, userId: string) {
 
 export async function publishConfigVersion(tenantId: string, versionId: string) {
   assertTenantAccess(tenantId);
+  await assertTenantReadyForGoLive(tenantId);
   return await db.transaction(async (tx) => {
     const [version] = await tx
       .select()

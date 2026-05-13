@@ -1,11 +1,15 @@
-
 import express, { Router } from 'express';
 import multer from 'multer';
 import pdfParse from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
 import * as onboardingService from './onboarding.service.js';
-import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
+import {
+  authenticateJwt,
+  resolveTenant,
+  validate,
+  apiRateLimiter,
+} from '../../middleware/index.js';
 import { z } from 'zod';
 import { ValidationError } from '../../lib/errors.js';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
@@ -112,7 +116,10 @@ async function extractContextText(file: Express.Multer.File): Promise<string> {
   const extension = getFileExtension(file.originalname);
   const mimeType = String(file.mimetype || '').toLowerCase();
 
-  if (mimeType.startsWith('text/') || ['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(extension)) {
+  if (
+    mimeType.startsWith('text/') ||
+    ['txt', 'md', 'csv', 'json', 'xml', 'html'].includes(extension)
+  ) {
     return sanitizeContextText(file.buffer.toString('utf-8'));
   }
 
@@ -152,8 +159,10 @@ onboardingRouter.get('/status', async (req, res, next) => {
 
 onboardingRouter.get('/readiness', async (req, res, next) => {
   try {
-    const scorecard = await onboardingService.computeReadinessScore(req.tenantContext!.tenantId);
-    res.json(scorecard);
+    const readiness = await onboardingService.computeOnboardingReadiness(
+      req.tenantContext!.tenantId,
+    );
+    res.json(readiness);
   } catch (err) {
     next(err);
   }
@@ -162,12 +171,21 @@ onboardingRouter.get('/readiness', async (req, res, next) => {
 onboardingRouter.get('/context-documents', async (req, res, next) => {
   try {
     const tenantId = req.tenantContext!.tenantId;
-    const [policyRow] = await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(1);
-    const topics = Array.isArray(policyRow?.sensitiveTopics) ? policyRow!.sensitiveTopics as Array<Record<string, unknown>> : [];
+    const [policyRow] = await db
+      .select()
+      .from(policies)
+      .where(eq(policies.tenantId, tenantId))
+      .limit(1);
+    const topics = Array.isArray(policyRow?.sensitiveTopics)
+      ? (policyRow!.sensitiveTopics as Array<Record<string, unknown>>)
+      : [];
     const documents = topics
       .filter((topic) => topic?.type === 'context_document')
       .map((topic, index) => {
-        const title = typeof topic.title === 'string' && topic.title.trim() ? topic.title.trim() : `Document ${index + 1}`;
+        const title =
+          typeof topic.title === 'string' && topic.title.trim()
+            ? topic.title.trim()
+            : `Document ${index + 1}`;
         const content = typeof topic.content === 'string' ? topic.content.trim() : '';
         const preview = content.length > 280 ? `${content.slice(0, 280)}…` : content;
         return {
@@ -214,7 +232,10 @@ onboardingRouter.get('/export/pdf', apiRateLimiter, async (req, res, next) => {
       : [];
     const contextDocuments = topics.filter((t) => t?.type === 'context_document');
 
-    const fileSlug = (tenantRow?.clinicSlug || tenantRow?.clinicName || tenantId).toString().replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+    const fileSlug = (tenantRow?.clinicSlug || tenantRow?.clinicName || tenantId)
+      .toString()
+      .replace(/[^a-z0-9_-]+/gi, '-')
+      .toLowerCase();
     const filename = `clinic-context-${fileSlug}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -254,15 +275,21 @@ onboardingRouter.get('/export/pdf', apiRateLimiter, async (req, res, next) => {
     } else {
       for (const service of serviceList) {
         doc.font('Helvetica-Bold').text(service.serviceName || 'Untitled service');
-        doc.font('Helvetica').text(
-          [
-            service.category ? `Category: ${service.category}` : null,
-            service.durationMinutes ? `Duration: ${service.durationMinutes} minutes` : null,
-            service.price ? `Price: ${service.price}` : null,
-            typeof service.isActive === 'boolean' ? `Active: ${service.isActive ? 'yes' : 'no'}` : null,
-          ].filter(Boolean).join(' · ') || '—',
-          { indent: 12 },
-        );
+        doc
+          .font('Helvetica')
+          .text(
+            [
+              service.category ? `Category: ${service.category}` : null,
+              service.durationMinutes ? `Duration: ${service.durationMinutes} minutes` : null,
+              service.price ? `Price: ${service.price}` : null,
+              typeof service.isActive === 'boolean'
+                ? `Active: ${service.isActive ? 'yes' : 'no'}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ') || '—',
+            { indent: 12 },
+          );
         if (service.description) {
           doc.text(`Description: ${service.description}`, { indent: 12 });
         }
@@ -274,8 +301,16 @@ onboardingRouter.get('/export/pdf', apiRateLimiter, async (req, res, next) => {
     if (!booking) {
       doc.text('—');
     } else {
-      writeKeyValue(doc, 'Default appointment duration (minutes)', booking.defaultAppointmentDurationMinutes);
-      writeKeyValue(doc, 'Buffer between appointments (minutes)', booking.bufferBetweenAppointmentsMinutes);
+      writeKeyValue(
+        doc,
+        'Default appointment duration (minutes)',
+        booking.defaultAppointmentDurationMinutes,
+      );
+      writeKeyValue(
+        doc,
+        'Buffer between appointments (minutes)',
+        booking.bufferBetweenAppointmentsMinutes,
+      );
       writeKeyValue(doc, 'Min notice (hours)', booking.minNoticePeriodHours);
       writeKeyValue(doc, 'Cancellation cutoff (hours)', booking.cancellationCutoffHours);
       writeKeyValue(doc, 'Max advance booking (days)', booking.maxAdvanceBookingDays);
@@ -316,7 +351,10 @@ onboardingRouter.get('/export/pdf', apiRateLimiter, async (req, res, next) => {
         doc.font('Helvetica-Bold').text(faq.question || 'Untitled FAQ');
         doc.font('Helvetica').text(faq.answer || '—', { indent: 12 });
         if (faq.category) {
-          doc.font('Helvetica').fillColor('#444444').text(`Category: ${faq.category}`, { indent: 12 });
+          doc
+            .font('Helvetica')
+            .fillColor('#444444')
+            .text(`Category: ${faq.category}`, { indent: 12 });
           doc.fillColor('#111111');
         }
         doc.moveDown(0.3);
@@ -329,14 +367,18 @@ onboardingRouter.get('/export/pdf', apiRateLimiter, async (req, res, next) => {
     } else {
       for (const integration of integrationList) {
         doc.font('Helvetica-Bold').text(`${integration.integrationType} (${integration.provider})`);
-        doc.font('Helvetica').text(
-          [
-            integration.status ? `Status: ${integration.status}` : null,
-            integration.healthStatus ? `Health: ${integration.healthStatus}` : null,
-            integration.lastSyncAt ? `Last sync: ${integration.lastSyncAt.toISOString()}` : null,
-          ].filter(Boolean).join(' · ') || '—',
-          { indent: 12 },
-        );
+        doc
+          .font('Helvetica')
+          .text(
+            [
+              integration.status ? `Status: ${integration.status}` : null,
+              integration.healthStatus ? `Health: ${integration.healthStatus}` : null,
+              integration.lastSyncAt ? `Last sync: ${integration.lastSyncAt.toISOString()}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ') || '—',
+            { indent: 12 },
+          );
         writeMultilineBlock(doc, 'Config', integration.config);
         writeMultilineBlock(doc, 'Capabilities', integration.capabilities);
         doc.moveDown(0.3);
@@ -348,10 +390,12 @@ onboardingRouter.get('/export/pdf', apiRateLimiter, async (req, res, next) => {
       doc.text('—');
     } else {
       for (const [index, documentTopic] of contextDocuments.entries()) {
-        const title = typeof documentTopic.title === 'string' && documentTopic.title.trim()
-          ? documentTopic.title.trim()
-          : `Document ${index + 1}`;
-        const mimeType = typeof documentTopic.mimeType === 'string' ? documentTopic.mimeType : 'text/plain';
+        const title =
+          typeof documentTopic.title === 'string' && documentTopic.title.trim()
+            ? documentTopic.title.trim()
+            : `Document ${index + 1}`;
+        const mimeType =
+          typeof documentTopic.mimeType === 'string' ? documentTopic.mimeType : 'text/plain';
         const content = typeof documentTopic.content === 'string' ? documentTopic.content : '';
         doc.font('Helvetica-Bold').text(title);
         doc.font('Helvetica').fillColor('#444444').text(`MIME: ${mimeType}`, { indent: 12 });
@@ -402,15 +446,22 @@ onboardingRouter.post(
       const incomingMessages: OnboardingAiChatMessage[] = Array.isArray(req.body.messages)
         ? (req.body.messages as OnboardingAiChatMessage[])
         : [];
-      const clinicContext = typeof req.body.clinicContext === 'string' ? req.body.clinicContext : '';
-      const screenContext = typeof req.body.screenContext === 'string' ? req.body.screenContext : '';
+      const clinicContext =
+        typeof req.body.clinicContext === 'string' ? req.body.clinicContext : '';
+      const screenContext =
+        typeof req.body.screenContext === 'string' ? req.body.screenContext : '';
       const isOnboarding = screenContext.startsWith('onboarding');
 
       let serverContext = '';
       try {
-        serverContext = await onboardingService.buildOnboardingAiChatServerContext(req.tenantContext!.tenantId);
+        serverContext = await onboardingService.buildOnboardingAiChatServerContext(
+          req.tenantContext!.tenantId,
+        );
       } catch (ctxErr) {
-        logger.warn({ err: ctxErr, tenantId: req.tenantContext!.tenantId }, 'Failed to load server context for AI chat, proceeding without it');
+        logger.warn(
+          { err: ctxErr, tenantId: req.tenantContext!.tenantId },
+          'Failed to load server context for AI chat, proceeding without it',
+        );
       }
       const mergedClinicContext = [
         serverContext.trim(),
@@ -422,7 +473,10 @@ onboardingRouter.post(
         .join('\n\n');
 
       const messages = incomingMessages
-        .filter((message: OnboardingAiChatMessage) => message && (message.role === 'assistant' || message.role === 'user'))
+        .filter(
+          (message: OnboardingAiChatMessage) =>
+            message && (message.role === 'assistant' || message.role === 'user'),
+        )
         .map((message: OnboardingAiChatMessage) => ({
           role: message.role,
           content: String(message.content ?? '').trim(),
@@ -545,7 +599,9 @@ onboardingRouter.post(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-          ...(process.env.OPENAI_ORG_ID ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID } : {}),
+          ...(process.env.OPENAI_ORG_ID
+            ? { 'OpenAI-Organization': process.env.OPENAI_ORG_ID }
+            : {}),
         },
         body: JSON.stringify({
           model: process.env.ONBOARDING_AI_CHAT_MODEL ?? 'gpt-4o',
@@ -564,8 +620,7 @@ onboardingRouter.post(
       const payload = await response.json();
       if (!response.ok) {
         const message =
-          payload?.error?.message ||
-          `OpenAI request failed with status ${response.status}.`;
+          payload?.error?.message || `OpenAI request failed with status ${response.status}.`;
         return res.status(response.status).json({ error: message });
       }
 
@@ -577,14 +632,19 @@ onboardingRouter.post(
       try {
         const parsed = JSON.parse(rawContent);
         reply = sanitizeAssistantReply(String(parsed.message ?? parsed.reply ?? ''));
-        extractedFields = parsed.extractedFields && typeof parsed.extractedFields === 'object' ? parsed.extractedFields : {};
+        extractedFields =
+          parsed.extractedFields && typeof parsed.extractedFields === 'object'
+            ? parsed.extractedFields
+            : {};
         actions = Array.isArray(parsed.actions) ? parsed.actions : [];
       } catch {
         reply = sanitizeAssistantReply(rawContent);
       }
 
       if (!reply) {
-        return res.status(502).json({ error: 'The AI returned an empty response. Please try again.' });
+        return res
+          .status(502)
+          .json({ error: 'The AI returned an empty response. Please try again.' });
       }
 
       res.json({ reply, extractedFields, actions });
@@ -626,17 +686,19 @@ onboardingRouter.post(
   '/services',
   validate({
     body: z.object({
-      services: z.array(
-        z.object({
-          id: z.string().optional(),
-          serviceName: z.string().min(1),
-          category: z.string(),
-          description: z.string().optional(),
-          durationMinutes: z.number().int().min(5).max(240),
-          price: z.string().optional(),
-          isActive: z.boolean().optional(),
-        }),
-      ).min(1),
+      services: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            serviceName: z.string().min(1),
+            category: z.string(),
+            description: z.string().optional(),
+            durationMinutes: z.number().int().min(5).max(240),
+            price: z.string().optional(),
+            isActive: z.boolean().optional(),
+          }),
+        )
+        .min(1),
     }),
   }),
   async (req, res, next) => {
@@ -690,13 +752,15 @@ onboardingRouter.post(
   '/policies',
   validate({
     body: z.object({
-      policies: z.array(
-        z.object({
-          id: z.string().optional(),
-          policyType: z.string(),
-          content: z.string().min(1),
-        }),
-      ).min(1),
+      policies: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            policyType: z.string(),
+            content: z.string().min(1),
+          }),
+        )
+        .min(1),
     }),
   }),
   async (req, res, next) => {
@@ -745,7 +809,7 @@ onboardingRouter.post(
           );
 
           if (agentResponse.ok) {
-            const agentPayload = await agentResponse.json() as {
+            const agentPayload = (await agentResponse.json()) as {
               conversation_config?: { tts?: { voice_id?: string } };
             };
             const agentVoiceId = agentPayload.conversation_config?.tts?.voice_id;
@@ -754,10 +818,16 @@ onboardingRouter.post(
             }
           } else {
             const errorBody = await agentResponse.text();
-            logger.warn({ errorBody, agentId: body.agentId }, 'Failed to resolve ElevenLabs agent voice_id');
+            logger.warn(
+              { errorBody, agentId: body.agentId },
+              'Failed to resolve ElevenLabs agent voice_id',
+            );
           }
         } catch (error) {
-          logger.warn({ err: error, agentId: body.agentId }, 'Failed to resolve ElevenLabs agent voice_id');
+          logger.warn(
+            { err: error, agentId: body.agentId },
+            'Failed to resolve ElevenLabs agent voice_id',
+          );
         }
       }
 
@@ -813,7 +883,7 @@ onboardingRouter.post(
           name: z.string().min(1),
           role: z.string().optional(),
           acceptsAppointments: z.boolean().optional(),
-        })
+        }),
       ),
     }),
   }),
@@ -865,13 +935,16 @@ onboardingRouter.post(
   '/context-documents',
   validate({
     body: z.object({
-      documents: z.array(
-        z.object({
-          name: z.string().min(1).max(200),
-          content: z.string().min(1).max(CONTEXT_DOC_MAX_CHARS),
-          mimeType: z.string().optional(),
-        }),
-      ).min(1).max(10),
+      documents: z
+        .array(
+          z.object({
+            name: z.string().min(1).max(200),
+            content: z.string().min(1).max(CONTEXT_DOC_MAX_CHARS),
+            mimeType: z.string().optional(),
+          }),
+        )
+        .min(1)
+        .max(10),
     }),
   }),
   async (req, res, next) => {
@@ -945,7 +1018,11 @@ onboardingRouter.post(
         throw new ValidationError('Missing Content-Type for live transcription audio chunk');
       }
 
-      if (mimeType.startsWith('video/') || mimeType.startsWith('application/') || mimeType === 'audio/mp4') {
+      if (
+        mimeType.startsWith('video/') ||
+        mimeType.startsWith('application/') ||
+        mimeType === 'audio/mp4'
+      ) {
         throw new ValidationError(`Unsupported live transcription mime type: ${mimeType}`);
       }
 
@@ -962,14 +1039,11 @@ onboardingRouter.post(
         throw new ValidationError('Audio chunk too large; max size is 1MB');
       }
 
-      const transcript = await onboardingService.transcribeLiveAudio(
-        req.tenantContext!.tenantId,
-        {
-          audioBuffer,
-          mimeType,
-          language,
-        },
-      );
+      const transcript = await onboardingService.transcribeLiveAudio(req.tenantContext!.tenantId, {
+        audioBuffer,
+        mimeType,
+        language,
+      });
       res.json({ transcript });
     } catch (err) {
       next(err);

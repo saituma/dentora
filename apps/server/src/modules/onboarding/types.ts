@@ -28,6 +28,35 @@ export interface ReadinessScorecard {
   isDeployable: boolean;
 }
 
+export type OnboardingReadinessArea =
+  | 'tenant'
+  | 'config'
+  | 'clinic_profile'
+  | 'services'
+  | 'booking'
+  | 'voice'
+  | 'telephony'
+  | 'calendar'
+  | 'policy'
+  | 'privacy'
+  | 'runtime';
+
+export type OnboardingReadinessSeverity = 'blocking' | 'warning';
+
+export interface OnboardingReadinessIssue {
+  code: string;
+  severity: OnboardingReadinessSeverity;
+  message: string;
+  area: OnboardingReadinessArea;
+}
+
+export interface OnboardingReadinessResult {
+  ready: boolean;
+  blockingIssues: OnboardingReadinessIssue[];
+  warnings: OnboardingReadinessIssue[];
+  checkedAt: string;
+}
+
 export interface AvailableVoiceOption {
   voiceId: string;
   name: string;
