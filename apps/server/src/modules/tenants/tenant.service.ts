@@ -1,4 +1,3 @@
-
 import { db } from '../../db/index.js';
 import {
   tenantRegistry,
@@ -121,6 +120,21 @@ export async function listTenants(opts: { limit: number; offset: number }) {
     .offset(opts.offset);
 
   return results;
+}
+
+export async function listActiveTenantIdsForMaintenance(opts: {
+  limit: number;
+  offset: number;
+}): Promise<string[]> {
+  const results = await db
+    .select({ id: tenantRegistry.id })
+    .from(tenantRegistry)
+    .where(eq(tenantRegistry.status, 'active'))
+    .orderBy(desc(tenantRegistry.createdAt))
+    .limit(opts.limit)
+    .offset(opts.offset);
+
+  return results.map((tenant) => tenant.id);
 }
 
 export async function getTenantConfig(tenantId: string) {

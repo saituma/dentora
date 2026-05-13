@@ -9,6 +9,7 @@ import { initRedis, closeRedis } from './lib/cache.js';
 import { closeAllQueues, QUEUE_NAMES } from './lib/queue.js';
 import { shutdownTelemetry } from './lib/telemetry.js';
 import { runDataRetention } from './lib/data-retention.js';
+import { runAppointmentMaintenance } from './modules/appointments/appointment-maintenance.service.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
@@ -59,6 +60,19 @@ async function start(): Promise<void> {
   );
   workers.push(dlqWorker);
 
+  type AppointmentMaintenanceJobData = {
+    tenantId: string;
+  };
+  const appointmentMaintenanceWorker = createWorker<AppointmentMaintenanceJobData>(
+    QUEUE_NAMES.APPOINTMENT_MAINTENANCE,
+    async () => {
+      const result = await runAppointmentMaintenance();
+      logger.info(result, 'Appointment maintenance job complete');
+    },
+    { concurrency: 1 },
+  );
+  workers.push(appointmentMaintenanceWorker);
+
   // Daily data retention — runs once at startup then every 24 h
   async function scheduleDataRetention(): Promise<void> {
     try {
@@ -70,6 +84,17 @@ async function start(): Promise<void> {
     setTimeout(scheduleDataRetention, 24 * 60 * 60 * 1000);
   }
   scheduleDataRetention().catch(() => undefined);
+
+  async function scheduleAppointmentMaintenance(): Promise<void> {
+    try {
+      const result = await runAppointmentMaintenance();
+      logger.info(result, 'Scheduled appointment maintenance complete');
+    } catch (err) {
+      logger.error({ err }, 'Scheduled appointment maintenance failed');
+    }
+    setTimeout(scheduleAppointmentMaintenance, 15 * 60 * 1000);
+  }
+  scheduleAppointmentMaintenance().catch(() => undefined);
 
   logger.info({ queues: Object.values(QUEUE_NAMES) }, 'Worker process ready');
 }

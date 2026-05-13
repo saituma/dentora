@@ -30,6 +30,7 @@ export const QUEUE_NAMES = {
   CONFIG_VALIDATION: 'config-validation',
   RECORDING_PROCESSING: 'recording-processing',
   DAILY_AGGREGATION: 'daily-aggregation',
+  APPOINTMENT_MAINTENANCE: 'appointment-maintenance',
   DEAD_LETTER: 'dead-letter',
 } as const;
 
