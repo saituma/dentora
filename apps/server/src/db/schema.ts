@@ -86,6 +86,20 @@ export const callSessionStatusEnum = pgEnum('call_session_status', [
   'escalated',
   'failed',
 ]);
+export const appointmentStatusEnum = pgEnum('appointment_status', [
+  'held',
+  'scheduled',
+  'confirmed',
+  'completed',
+  'cancelled',
+  'no_show',
+]);
+export const appointmentHoldStatusEnum = pgEnum('appointment_hold_status', [
+  'active',
+  'converted',
+  'expired',
+  'released',
+]);
 export const providerTypeEnum = pgEnum('provider_type', ['stt', 'tts', 'llm']);
 export const providerCostTypeEnum = pgEnum('provider_cost_type', [
   'stt',
@@ -388,6 +402,75 @@ export const integrations = pgTable(
       table.provider,
     ),
     index('integrations_tenant_health_idx').on(table.tenantId, table.healthStatus),
+  ],
+);
+
+export const appointments = pgTable(
+  'appointments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    patientId: uuid('patient_id').references(() => patientProfiles.id),
+    serviceId: uuid('service_id').references(() => services.id),
+    staffId: text('staff_id'),
+    callSessionId: uuid('call_session_id').references(() => callSessions.id),
+    status: appointmentStatusEnum('status').notNull().default('scheduled'),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    timezone: text('timezone').notNull(),
+    calendarIntegrationId: uuid('calendar_integration_id').references(() => integrations.id),
+    externalCalendarEventId: text('external_calendar_event_id'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('appointments_tenant_time_idx').on(table.tenantId, table.startAt, table.endAt),
+    index('appointments_tenant_status_time_idx').on(table.tenantId, table.status, table.startAt),
+    uniqueIndex('appointments_tenant_idempotency_idx').on(table.tenantId, table.idempotencyKey),
+    index('appointments_tenant_external_event_idx').on(
+      table.tenantId,
+      table.externalCalendarEventId,
+    ),
+  ],
+);
+
+export const appointmentHolds = pgTable(
+  'appointment_holds',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    patientId: uuid('patient_id').references(() => patientProfiles.id),
+    serviceId: uuid('service_id').references(() => services.id),
+    staffId: text('staff_id'),
+    callSessionId: uuid('call_session_id').references(() => callSessions.id),
+    status: appointmentHoldStatusEnum('status').notNull().default('active'),
+    startAt: timestamp('start_at', { withTimezone: true }).notNull(),
+    endAt: timestamp('end_at', { withTimezone: true }).notNull(),
+    timezone: text('timezone').notNull(),
+    calendarIntegrationId: uuid('calendar_integration_id').references(() => integrations.id),
+    idempotencyKey: text('idempotency_key').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('appointment_holds_tenant_time_idx').on(table.tenantId, table.startAt, table.endAt),
+    index('appointment_holds_tenant_status_expires_idx').on(
+      table.tenantId,
+      table.status,
+      table.expiresAt,
+    ),
+    uniqueIndex('appointment_holds_tenant_idempotency_idx').on(
+      table.tenantId,
+      table.idempotencyKey,
+    ),
   ],
 );
 
@@ -792,6 +875,8 @@ export const tenantRegistryRelations = relations(tenantRegistry, ({ many }) => (
   voiceProfiles: many(voiceProfile),
   faqs: many(faqLibrary),
   integrations: many(integrations),
+  appointments: many(appointments),
+  appointmentHolds: many(appointmentHolds),
   configVersions: many(tenantConfigVersions),
   tenantUsers: many(tenantUsers),
   callSessions: many(callSessions),
@@ -841,6 +926,43 @@ export const faqLibraryRelations = relations(faqLibrary, ({ one }) => ({
 
 export const integrationsRelations = relations(integrations, ({ one }) => ({
   tenant: one(tenantRegistry, { fields: [integrations.tenantId], references: [tenantRegistry.id] }),
+}));
+
+export const appointmentsRelations = relations(appointments, ({ one }) => ({
+  tenant: one(tenantRegistry, { fields: [appointments.tenantId], references: [tenantRegistry.id] }),
+  patient: one(patientProfiles, {
+    fields: [appointments.patientId],
+    references: [patientProfiles.id],
+  }),
+  service: one(services, { fields: [appointments.serviceId], references: [services.id] }),
+  callSession: one(callSessions, {
+    fields: [appointments.callSessionId],
+    references: [callSessions.id],
+  }),
+  calendarIntegration: one(integrations, {
+    fields: [appointments.calendarIntegrationId],
+    references: [integrations.id],
+  }),
+}));
+
+export const appointmentHoldsRelations = relations(appointmentHolds, ({ one }) => ({
+  tenant: one(tenantRegistry, {
+    fields: [appointmentHolds.tenantId],
+    references: [tenantRegistry.id],
+  }),
+  patient: one(patientProfiles, {
+    fields: [appointmentHolds.patientId],
+    references: [patientProfiles.id],
+  }),
+  service: one(services, { fields: [appointmentHolds.serviceId], references: [services.id] }),
+  callSession: one(callSessions, {
+    fields: [appointmentHolds.callSessionId],
+    references: [callSessions.id],
+  }),
+  calendarIntegration: one(integrations, {
+    fields: [appointmentHolds.calendarIntegrationId],
+    references: [integrations.id],
+  }),
 }));
 
 export const tenantConfigVersionsRelations = relations(tenantConfigVersions, ({ one }) => ({
