@@ -1,8 +1,23 @@
-
 import { db } from '../../db/index.js';
-import { users, sessions, tenantUsers, tenantRegistry, otpChallenges, authIdentities, passwordResetTokens } from '../../db/schema.js';
+import {
+  users,
+  sessions,
+  tenantUsers,
+  tenantRegistry,
+  otpChallenges,
+  authIdentities,
+  passwordResetTokens,
+} from '../../db/schema.js';
 import { eq, and, desc } from 'drizzle-orm';
-import { hashPassword, verifyPassword, signAccessToken, signRefreshToken, verifyRefreshToken, generateId, hashRefreshToken } from '../../lib/crypto.js';
+import {
+  hashPassword,
+  verifyPassword,
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+  generateId,
+  hashRefreshToken,
+} from '../../lib/crypto.js';
 import { AuthenticationError, ConflictError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
@@ -68,11 +83,7 @@ function maskOtpTarget(target: string): string {
 }
 
 function isGoogleAuthConfigured(): boolean {
-  return Boolean(
-    env.GOOGLE_CLIENT_ID &&
-    env.GOOGLE_CLIENT_SECRET &&
-    env.GOOGLE_AUTH_REDIRECT_URI,
-  );
+  return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_AUTH_REDIRECT_URI);
 }
 
 function encodeGoogleAuthState(payload: GoogleAuthState): string {
@@ -159,13 +170,16 @@ async function getAuthContextForUser(user: UserRow): Promise<AuthContext> {
     .limit(1);
 
   const tenantId = tenantLink?.tenantId ?? null;
-  const role = user.role === 'platform_admin' ? user.role : tenantLink?.role ?? user.role;
+  const role = user.role === 'platform_admin' ? user.role : (tenantLink?.role ?? user.role);
 
   return { tenantId, role };
 }
 
-async function issueLoginSession(user: UserRow): Promise<LoginResult> {
-  const authContext = await getAuthContextForUser(user);
+async function issueLoginSession(
+  user: UserRow,
+  preloadedAuthContext?: AuthContext,
+): Promise<LoginResult> {
+  const authContext = preloadedAuthContext ?? (await getAuthContextForUser(user));
   const sessionId = generateId();
   const accessToken = signAccessToken({
     userId: user.id,
@@ -173,7 +187,11 @@ async function issueLoginSession(user: UserRow): Promise<LoginResult> {
     tenantId: authContext.tenantId ?? '',
   });
 
-  const refreshToken = signRefreshToken({ userId: user.id, tenantId: authContext.tenantId ?? '', sessionId });
+  const refreshToken = signRefreshToken({
+    userId: user.id,
+    tenantId: authContext.tenantId ?? '',
+    sessionId,
+  });
   const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   await db.insert(sessions).values({
@@ -214,22 +232,28 @@ async function createUserWithTenant(input: {
     await tx.insert(tenantRegistry).values({
       id: tenantId,
       clinicName: input.clinicName,
-      clinicSlug: input.clinicName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '') + '-' + userId.slice(0, 6),
+      clinicSlug:
+        input.clinicName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') +
+        '-' +
+        userId.slice(0, 6),
       plan: 'starter',
       status: 'active',
     });
 
-    const [createdUser] = await tx.insert(users).values({
-      id: userId,
-      email: input.email,
-      passwordHash: input.passwordHash,
-      displayName: input.displayName ?? input.clinicName,
-      role,
-      emailVerified: true,
-    }).returning();
+    const [createdUser] = await tx
+      .insert(users)
+      .values({
+        id: userId,
+        email: input.email,
+        passwordHash: input.passwordHash,
+        displayName: input.displayName ?? input.clinicName,
+        role,
+        emailVerified: true,
+      })
+      .returning();
 
     await tx.insert(tenantUsers).values({
       id: generateId(),
@@ -244,10 +268,7 @@ async function createUserWithTenant(input: {
   return user;
 }
 
-async function sendEmailOtp_Resend(input: {
-  email: string;
-  code: string;
-}): Promise<void> {
+async function sendEmailOtp_Resend(input: { email: string; code: string }): Promise<void> {
   if (!env.RESEND_API_KEY) {
     throw new ValidationError('RESEND_API_KEY is not configured for email verification');
   }
@@ -255,7 +276,7 @@ async function sendEmailOtp_Resend(input: {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -273,10 +294,7 @@ async function sendEmailOtp_Resend(input: {
   }
 }
 
-async function sendEmailOtp_Smtp(input: {
-  email: string;
-  code: string;
-}): Promise<void> {
+async function sendEmailOtp_Smtp(input: { email: string; code: string }): Promise<void> {
   if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS || !env.SMTP_FROM) {
     throw new ValidationError('SMTP is not configured for email verification');
   }
@@ -308,18 +326,18 @@ async function sendEmailOtpViaSmtp(input: { email: string; code: string }): Prom
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
   if (!user) throw new AuthenticationError('Invalid email or password');
 
-  const valid = await verifyPassword(password, user.passwordHash);
+  // Run password verification and tenant lookup concurrently — they're independent
+  const [valid, authContext] = await Promise.all([
+    verifyPassword(password, user.passwordHash),
+    getAuthContextForUser(user),
+  ]);
   if (!valid) throw new AuthenticationError('Invalid email or password');
 
-  const result = await issueLoginSession(user);
+  const result = await issueLoginSession(user, authContext);
   logger.info({ userId: user.id, tenantId: result.tenantId }, 'User logged in');
   return result;
 }
@@ -330,11 +348,7 @@ export async function register(input: {
   clinicName: string;
   displayName?: string;
 }): Promise<LoginResult> {
-  const [existing] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, input.email))
-    .limit(1);
+  const [existing] = await db.select().from(users).where(eq(users.email, input.email)).limit(1);
 
   if (existing) throw new ConflictError('A user with this email already exists');
 
@@ -364,11 +378,16 @@ export async function register(input: {
   }
 
   const result = await issueLoginSession(user);
-  logger.info({ userId: user.id, tenantId: result.tenantId, clinicName: input.clinicName }, 'User registered');
+  logger.info(
+    { userId: user.id, tenantId: result.tenantId, clinicName: input.clinicName },
+    'User registered',
+  );
   return result;
 }
 
-export async function sendEmailOtp(input: { email: string }): Promise<{ challengeId: string; expiresInSeconds: number }> {
+export async function sendEmailOtp(input: {
+  email: string;
+}): Promise<{ challengeId: string; expiresInSeconds: number }> {
   const email = input.email.trim().toLowerCase();
   const code = generateOtpCode();
   const codeHash = hashOtpCode(code);
@@ -391,7 +410,10 @@ export async function sendEmailOtp(input: { email: string }): Promise<{ challeng
     await sendEmailOtpViaSmtp({ email, code });
     logger.info({ email: maskOtpTarget(email) }, 'Email OTP sent');
   } catch (err: unknown) {
-    logger.error({ err, message: (err as Error)?.message, smtpHost: env.SMTP_HOST, smtpPort: env.SMTP_PORT }, 'SMTP send failed');
+    logger.error(
+      { err, message: (err as Error)?.message, smtpHost: env.SMTP_HOST, smtpPort: env.SMTP_PORT },
+      'SMTP send failed',
+    );
     throw err;
   }
   return { challengeId, expiresInSeconds };
@@ -420,11 +442,17 @@ export async function verifyEmailOtpAndRegister(input: {
 
   const expected = challenge.codeHash ?? '';
   if (!expected || hashOtpCode(input.code.trim()) !== expected) {
-    await db.update(otpChallenges).set({ attempts: challenge.attempts + 1 }).where(eq(otpChallenges.id, challenge.id));
+    await db
+      .update(otpChallenges)
+      .set({ attempts: challenge.attempts + 1 })
+      .where(eq(otpChallenges.id, challenge.id));
     throw new ValidationError('Invalid OTP code');
   }
 
-  await db.update(otpChallenges).set({ consumedAt: new Date() }).where(eq(otpChallenges.id, challenge.id));
+  await db
+    .update(otpChallenges)
+    .set({ consumedAt: new Date() })
+    .where(eq(otpChallenges.id, challenge.id));
 
   const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   let user = existing;
@@ -441,19 +469,25 @@ export async function verifyEmailOtpAndRegister(input: {
       displayName: input.displayName,
     });
   } else {
-    await db.update(users).set({ emailVerified: true, updatedAt: new Date() }).where(eq(users.id, user.id));
+    await db
+      .update(users)
+      .set({ emailVerified: true, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
   }
 
-  await db.insert(authIdentities).values({
-    id: generateId(),
-    userId: user.id,
-    provider: 'email',
-    providerUserId: email,
-    verified: true,
-  }).onConflictDoUpdate({
-    target: [authIdentities.provider, authIdentities.providerUserId],
-    set: { verified: true, updatedAt: new Date() },
-  });
+  await db
+    .insert(authIdentities)
+    .values({
+      id: generateId(),
+      userId: user.id,
+      provider: 'email',
+      providerUserId: email,
+      verified: true,
+    })
+    .onConflictDoUpdate({
+      target: [authIdentities.provider, authIdentities.providerUserId],
+      set: { verified: true, updatedAt: new Date() },
+    });
 
   return await issueLoginSession(user);
 }
@@ -499,12 +533,18 @@ export async function verifyPhoneOtpAndRegister(input: {
   const [existingIdentity] = await db
     .select()
     .from(authIdentities)
-    .where(and(eq(authIdentities.provider, 'phone'), eq(authIdentities.providerUserId, phoneNumber)))
+    .where(
+      and(eq(authIdentities.provider, 'phone'), eq(authIdentities.providerUserId, phoneNumber)),
+    )
     .limit(1);
 
   let user: typeof users.$inferSelect;
   if (existingIdentity) {
-    const [existingUser] = await db.select().from(users).where(eq(users.id, existingIdentity.userId)).limit(1);
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, existingIdentity.userId))
+      .limit(1);
     if (!existingUser) throw new AuthenticationError('Linked user not found');
     user = existingUser;
   } else {
@@ -518,16 +558,19 @@ export async function verifyPhoneOtpAndRegister(input: {
     });
   }
 
-  await db.insert(authIdentities).values({
-    id: generateId(),
-    userId: user.id,
-    provider: 'phone',
-    providerUserId: phoneNumber,
-    verified: true,
-  }).onConflictDoUpdate({
-    target: [authIdentities.provider, authIdentities.providerUserId],
-    set: { userId: user.id, verified: true, updatedAt: new Date() },
-  });
+  await db
+    .insert(authIdentities)
+    .values({
+      id: generateId(),
+      userId: user.id,
+      provider: 'phone',
+      providerUserId: phoneNumber,
+      verified: true,
+    })
+    .onConflictDoUpdate({
+      target: [authIdentities.provider, authIdentities.providerUserId],
+      set: { userId: user.id, verified: true, updatedAt: new Date() },
+    });
 
   return await issueLoginSession(user);
 }
@@ -579,7 +622,7 @@ export async function loginOrRegisterWithGoogleCode(input: {
     throw new ValidationError(`Google token exchange failed: ${message.slice(0, 240)}`);
   }
 
-  const tokenPayload = await tokenResponse.json() as { access_token?: string; id_token?: string };
+  const tokenPayload = (await tokenResponse.json()) as { access_token?: string; id_token?: string };
   if (!tokenPayload.access_token) {
     throw new ValidationError('Google token response missing access_token');
   }
@@ -595,7 +638,7 @@ export async function loginOrRegisterWithGoogleCode(input: {
     throw new ValidationError(`Google userinfo failed: ${message.slice(0, 240)}`);
   }
 
-  const userInfo = await userInfoResponse.json() as {
+  const userInfo = (await userInfoResponse.json()) as {
     sub?: string;
     email?: string;
     email_verified?: boolean;
@@ -616,16 +659,26 @@ export async function loginOrRegisterWithGoogleCode(input: {
   const [existingIdentity] = await db
     .select()
     .from(authIdentities)
-    .where(and(eq(authIdentities.provider, 'google'), eq(authIdentities.providerUserId, providerUserId)))
+    .where(
+      and(eq(authIdentities.provider, 'google'), eq(authIdentities.providerUserId, providerUserId)),
+    )
     .limit(1);
 
   let user: typeof users.$inferSelect;
   if (existingIdentity) {
-    const [existingUser] = await db.select().from(users).where(eq(users.id, existingIdentity.userId)).limit(1);
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, existingIdentity.userId))
+      .limit(1);
     if (!existingUser) throw new AuthenticationError('Linked Google user not found');
     user = existingUser;
   } else {
-    const [existingUserByEmail] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const [existingUserByEmail] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
     if (existingUserByEmail) {
       user = existingUserByEmail;
     } else {
@@ -639,18 +692,24 @@ export async function loginOrRegisterWithGoogleCode(input: {
     }
   }
 
-  await db.update(users).set({ emailVerified: true, updatedAt: new Date() }).where(eq(users.id, user.id));
+  await db
+    .update(users)
+    .set({ emailVerified: true, updatedAt: new Date() })
+    .where(eq(users.id, user.id));
 
-  await db.insert(authIdentities).values({
-    id: generateId(),
-    userId: user.id,
-    provider: 'google',
-    providerUserId,
-    verified: true,
-  }).onConflictDoUpdate({
-    target: [authIdentities.provider, authIdentities.providerUserId],
-    set: { userId: user.id, verified: true, updatedAt: new Date() },
-  });
+  await db
+    .insert(authIdentities)
+    .values({
+      id: generateId(),
+      userId: user.id,
+      provider: 'google',
+      providerUserId,
+      verified: true,
+    })
+    .onConflictDoUpdate({
+      target: [authIdentities.provider, authIdentities.providerUserId],
+      set: { userId: user.id, verified: true, updatedAt: new Date() },
+    });
 
   const statePayload = decodeGoogleAuthState(input.state);
   if (!statePayload) {
@@ -699,14 +758,20 @@ export async function exchangeOauthCode(code: string): Promise<LoginResult> {
     .where(eq(sessions.id, session.id));
 
   return {
-    accessToken: signAccessToken({ userId: user.id, role: authContext.role, tenantId: authContext.tenantId ?? '' }),
+    accessToken: signAccessToken({
+      userId: user.id,
+      role: authContext.role,
+      tenantId: authContext.tenantId ?? '',
+    }),
     refreshToken,
     user: { id: user.id, email: user.email, displayName: user.displayName, role: authContext.role },
     tenantId: authContext.tenantId,
   };
 }
 
-export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
   let payload: ReturnType<typeof verifyRefreshToken>;
   try {
     payload = verifyRefreshToken(refreshToken);
@@ -733,7 +798,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     const [compromisedSession] = await db
       .select()
       .from(sessions)
-      .where(and(eq(sessions.userId, payload.userId), eq(sessions.previousRefreshToken, refreshTokenHash)))
+      .where(
+        and(
+          eq(sessions.userId, payload.userId),
+          eq(sessions.previousRefreshToken, refreshTokenHash),
+        ),
+      )
       .limit(1);
 
     if (compromisedSession) {
@@ -744,7 +814,9 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
         { userId: payload.userId, sessionId: compromisedSession.id },
         'Refresh token replay detected — all sessions invalidated',
       );
-      throw new AuthenticationError('Refresh token reuse detected. All sessions have been revoked for security.');
+      throw new AuthenticationError(
+        'Refresh token reuse detected. All sessions have been revoked for security.',
+      );
     }
 
     throw new AuthenticationError('Session expired');
@@ -761,7 +833,11 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     tenantId: authContext.tenantId ?? '',
   });
 
-  const newRefreshToken = signRefreshToken({ userId: user.id, tenantId: authContext.tenantId ?? '', sessionId: session.id });
+  const newRefreshToken = signRefreshToken({
+    userId: user.id,
+    tenantId: authContext.tenantId ?? '',
+    sessionId: session.id,
+  });
   const sessionExpiryMs = env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
   // Rotate: store old token as previous, set new token as current
@@ -781,7 +857,9 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
 export async function logout(userId: string, refreshToken: string): Promise<void> {
   await db
     .delete(sessions)
-    .where(and(eq(sessions.userId, userId), eq(sessions.refreshToken, hashRefreshToken(refreshToken))));
+    .where(
+      and(eq(sessions.userId, userId), eq(sessions.refreshToken, hashRefreshToken(refreshToken))),
+    );
 
   logger.info({ userId }, 'User logged out');
 }
@@ -791,20 +869,13 @@ export async function changePassword(input: {
   currentPassword: string;
   newPassword: string;
 }): Promise<void> {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, input.userId))
-    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.id, input.userId)).limit(1);
 
   if (!user) {
     throw new AuthenticationError('User not found');
   }
 
-  const validCurrentPassword = await verifyPassword(
-    input.currentPassword,
-    user.passwordHash,
-  );
+  const validCurrentPassword = await verifyPassword(input.currentPassword, user.passwordHash);
 
   if (!validCurrentPassword) {
     throw new AuthenticationError('Current password is incorrect');
@@ -842,8 +913,6 @@ export async function getUserAccountInfo(userId: string): Promise<{
     .where(eq(authIdentities.userId, userId));
 
   const providers = identities.map((i) => i.provider);
-  const hasPassword = !providers.includes('google') || user.passwordHash !== null;
-
   const isRandomHash = providers.includes('google') && !providers.includes('email');
 
   return {
@@ -856,10 +925,7 @@ export async function getUserAccountInfo(userId: string): Promise<{
   };
 }
 
-export async function setPassword(input: {
-  userId: string;
-  newPassword: string;
-}): Promise<void> {
+export async function setPassword(input: { userId: string; newPassword: string }): Promise<void> {
   const [user] = await db.select().from(users).where(eq(users.id, input.userId)).limit(1);
   if (!user) throw new AuthenticationError('User not found');
 
@@ -874,11 +940,7 @@ export async function setPassword(input: {
 
 export async function requestPasswordReset(input: { email: string }): Promise<void> {
   const email = input.email.trim().toLowerCase();
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
   if (!user) {
     return;
@@ -926,9 +988,7 @@ export async function resetPassword(input: { token: string; newPassword: string 
       .set({ consumedAt: new Date() })
       .where(eq(passwordResetTokens.id, resetToken.id));
 
-    await tx
-      .delete(sessions)
-      .where(eq(sessions.userId, resetToken.userId));
+    await tx.delete(sessions).where(eq(sessions.userId, resetToken.userId));
   });
 
   logger.info({ userId: resetToken.userId }, 'Password reset completed');

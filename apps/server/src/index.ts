@@ -227,6 +227,19 @@ async function start() {
     attachMediaStreamWebSocket(server);
     attachReceptionistLiveWebSocket(server);
 
+    // Prevent Neon compute autosuspend (triggers a ~1-3s cold start after 5 min idle)
+    const dbKeepAlive = setInterval(
+      async () => {
+        try {
+          await checkDbHealth();
+        } catch {
+          /* non-fatal */
+        }
+      },
+      4 * 60 * 1000,
+    );
+    dbKeepAlive.unref();
+
     let isShuttingDown = false;
 
     const shutdown = async (signal: string) => {
@@ -237,6 +250,7 @@ async function start() {
       isShuttingDown = true;
       logger.info({ signal }, 'Shutdown signal received');
 
+      clearInterval(dbKeepAlive);
       clearSessionTimeoutInterval();
       await closeAllSessions();
       server.close(async () => {
