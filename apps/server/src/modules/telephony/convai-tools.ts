@@ -1,9 +1,5 @@
 import * as configService from '../config/config.service.js';
-import {
-  findAvailableCalendarSlots,
-  getActiveGoogleCalendarIntegration,
-} from '../integrations/integration.service.js';
-import { resolveValidGoogleAccessToken } from '../integrations/google-calendar.shared.js';
+import { findAvailableCalendarSlots } from '../integrations/integration.service.js';
 import { findPatientProfile } from '../patients/patients.service.js';
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
@@ -13,6 +9,9 @@ import {
   cancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
+
+const APPOINTMENT_LIST_PRIVACY_MESSAGE =
+  "For privacy reasons, I can't list patient appointments. I can help check availability, book a new appointment, cancel, or reschedule if you provide the appointment details.";
 
 function getTodayInTimezone(timezone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -121,64 +120,10 @@ export async function handleConvaiToolCall(input: {
 }
 
 async function listAppointments(tenantId: string) {
-  const integration = await getActiveGoogleCalendarIntegration(tenantId);
-  if (!integration) {
-    throw new ValidationError('Google Calendar is not connected for this clinic');
-  }
-
-  const { accessToken } = await resolveValidGoogleAccessToken(integration);
-  const config = (integration.config ?? {}) as Record<string, unknown>;
-  const calendarId =
-    typeof config.calendarId === 'string' && config.calendarId.trim()
-      ? config.calendarId
-      : 'primary';
-
-  const lookAheadDays = 7;
-  const now = new Date();
-  const timeMin = now.toISOString();
-  const timeMax = new Date(now.getTime() + lookAheadDays * 24 * 60 * 60 * 1000).toISOString();
-
-  const url = new URL(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-  );
-  url.searchParams.set('timeMin', timeMin);
-  url.searchParams.set('timeMax', timeMax);
-  url.searchParams.set('singleEvents', 'true');
-  url.searchParams.set('orderBy', 'startTime');
-  url.searchParams.set('maxResults', '50');
-
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new ValidationError(`Failed to load calendar events: ${errorBody.slice(0, 300)}`);
-  }
-
-  const payload = (await response.json()) as {
-    items?: Array<{
-      id?: string;
-      summary?: string;
-      description?: string;
-      htmlLink?: string;
-      start?: { dateTime?: string; date?: string };
-      end?: { dateTime?: string; date?: string };
-      status?: string;
-    }>;
-  };
-
+  logger.info({ tenantId, toolName: 'list_appointments' }, 'Blocked public appointment listing');
   return {
-    calendarId,
-    events: (payload.items ?? []).map((event) => ({
-      id: event.id ?? '',
-      summary: event.summary ?? 'Appointment',
-      description: event.description ?? '',
-      htmlLink: event.htmlLink,
-      start: event.start?.dateTime ?? event.start?.date ?? '',
-      end: event.end?.dateTime ?? event.end?.date ?? '',
-      status: event.status ?? 'confirmed',
-    })),
+    success: false,
+    message: APPOINTMENT_LIST_PRIVACY_MESSAGE,
   };
 }
 

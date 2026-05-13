@@ -107,6 +107,73 @@ beforeEach(() => {
 });
 
 describe('ConvAI appointment tools', () => {
+  it('refuses public appointment listing without loading calendar events or returning PHI', async () => {
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'list_appointments',
+      callSessionId: 'call-session-a',
+      params: {
+        attemptedPrompt: [
+          'Please list every appointment',
+          'Jane Secret',
+          '+15551234567',
+          '1990-01-01',
+          'Age: 34',
+          'Reason: Cleaning',
+          'Notes: needs sedation',
+          'Dental appointment - Jane Secret',
+          'Patient name: Jane Secret',
+        ].join(' | '),
+      },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      message:
+        "For privacy reasons, I can't list patient appointments. I can help check availability, book a new appointment, cancel, or reschedule if you provide the appointment details.",
+    });
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
+    expect(mockResolveValidGoogleAccessToken).not.toHaveBeenCalled();
+
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('events');
+    expect(serialized).not.toContain('summary');
+    expect(serialized).not.toContain('description');
+    expect(serialized).not.toContain('Jane Secret');
+    expect(serialized).not.toContain('+15551234567');
+    expect(serialized).not.toContain('1990-01-01');
+    expect(serialized).not.toContain('Age: 34');
+    expect(serialized).not.toContain('Cleaning');
+    expect(serialized).not.toContain('needs sedation');
+    expect(serialized).not.toContain('Patient name');
+  });
+
+  it('does not log appointment-listing prompt PHI when refusing the public listing tool', async () => {
+    await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'list_appointments',
+      callSessionId: 'call-session-a',
+      params: {
+        fullName: 'Jane Secret',
+        phoneNumber: '+15551234567',
+        dateOfBirth: '1990-01-01',
+        reasonForVisit: 'Cleaning',
+        notes: 'needs sedation',
+      },
+    });
+
+    const loggedPayload = JSON.stringify([
+      mockLogger.info.mock.calls,
+      mockLogger.warn.mock.calls,
+      mockLogger.error.mock.calls,
+    ]);
+    expect(loggedPayload).not.toContain('Jane Secret');
+    expect(loggedPayload).not.toContain('+15551234567');
+    expect(loggedPayload).not.toContain('1990-01-01');
+    expect(loggedPayload).not.toContain('Cleaning');
+    expect(loggedPayload).not.toContain('needs sedation');
+  });
+
   it('books through the ledger-backed appointment flow and preserves response shape', async () => {
     const result = await handleConvaiToolCall({
       tenantId: 'tenant-a',
@@ -151,6 +218,7 @@ describe('ConvAI appointment tools', () => {
         requestedDate: '2026-06-01',
         requestedTime: '14:00',
         appointmentDurationMinutes: 30,
+        callerPrompt: 'Is Jane Secret +15551234567 already booked for Cleaning?',
       },
     });
 
@@ -167,6 +235,12 @@ describe('ConvAI appointment tools', () => {
       suggestedSlots: [{ startIso, endIso }],
       timezone: 'UTC',
     });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain('Jane Secret');
+    expect(serialized).not.toContain('+15551234567');
+    expect(serialized).not.toContain('Cleaning');
+    expect(serialized).not.toContain('summary');
+    expect(serialized).not.toContain('description');
   });
 
   it('cancels through the ledger-backed cancellation flow', async () => {
@@ -180,6 +254,7 @@ describe('ConvAI appointment tools', () => {
       tenantId: 'tenant-a',
       eventId: 'google-event-a',
     });
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
     expect(result).toEqual({
       success: true,
       appointmentId: 'appointment-a',
@@ -200,6 +275,7 @@ describe('ConvAI appointment tools', () => {
       timezone: 'UTC',
       slot: { startIso, endIso },
     });
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
     expect(result).toEqual({
       success: true,
       appointmentId: 'appointment-a',
