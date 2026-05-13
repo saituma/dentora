@@ -24,12 +24,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "heroku-postbuild": "cd node_modules/.pnpm/bcrypt@6.0.0/node_modules/bcrypt && npm run install && cd /app && pnpm --filter @repo/server build"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "bcrypt"
-    ]
+    "heroku-postbuild": "pnpm --filter @repo/server build"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

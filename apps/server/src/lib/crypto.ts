@@ -1,16 +1,43 @@
-import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createHmac, randomUUID } from 'crypto';
+import { createHmac, randomUUID, scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { env } from '../config/env.js';
 
-const SALT_ROUNDS = 10;
+// OWASP-recommended scrypt params (~200-400ms on constrained hardware, no native compilation needed)
+const SCRYPT_N = 16384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const SCRYPT_KEYLEN = 64;
 
-export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, SALT_ROUNDS);
+function scryptHash(
+  password: string,
+  salt: string,
+  N: number,
+  r: number,
+  p: number,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(password, salt, SCRYPT_KEYLEN, { N, r, p }, (err, hash) => {
+      if (err) reject(err);
+      else resolve(hash);
+    });
+  });
 }
 
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString('hex');
+  const hash = await scryptHash(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P);
+  return `scrypt:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt}:${hash.toString('hex')}`;
+}
+
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  // Legacy bcrypt hashes (backward compat during migration)
+  if (stored.startsWith('$2b$') || stored.startsWith('$2a$')) {
+    const { default: bcryptjs } = await import('bcryptjs');
+    return bcryptjs.compare(password, stored);
+  }
+  const [, N, r, p, salt, hashHex] = stored.split(':');
+  const hash = await scryptHash(password, salt, Number(N), Number(r), Number(p));
+  return timingSafeEqual(hash, Buffer.from(hashHex, 'hex'));
 }
 
 export interface AccessTokenPayload {
