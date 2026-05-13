@@ -52,6 +52,8 @@ export function LoginForm() {
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const otpInputId = 'login-otp-code';
+  const isOAuthCallback = searchParams.get('oauth') === 'google';
+  const [oauthLoading, setOauthLoading] = useState(isOAuthCallback);
 
   const [login, { isLoading }] = useLoginMutation();
   const [sendEmailOtp, { isLoading: sendingOtp }] = useSendEmailOtpMutation();
@@ -129,6 +131,7 @@ export function LoginForm() {
         const result = await res.json();
         await finalizeLogin(result);
       } catch (err) {
+        setOauthLoading(false);
         toast.error(err instanceof Error ? err.message : 'Google login failed');
       }
     };
@@ -174,6 +177,15 @@ export function LoginForm() {
       toast.error(getUserFriendlyApiError(err));
     }
   };
+
+  if (oauthLoading) {
+    return (
+      <div className="flex min-h-[320px] w-full flex-col items-center justify-center gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-white" />
+        <p className="text-sm text-white/50">Signing you in…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm">
