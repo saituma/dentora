@@ -467,3 +467,58 @@ export async function createStaffReviewItemSafely(
     );
   }
 }
+
+export const NOTIFICATION_COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+export async function listItemsNeedingAlerts(input: {
+  tenantId: string;
+  now?: Date;
+  cooldownMs?: number;
+  limit?: number;
+}): Promise<StaffReviewItem[]> {
+  assertTenantAccess(input.tenantId);
+  const now = input.now ?? new Date();
+  const cooldownMs = input.cooldownMs ?? NOTIFICATION_COOLDOWN_MS;
+  const cooldownCutoff = new Date(now.getTime() - cooldownMs);
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
+
+  return await db
+    .select()
+    .from(staffReviewItems)
+    .where(
+      and(
+        eq(staffReviewItems.tenantId, input.tenantId),
+        or(
+          // high/critical open items
+          and(
+            eq(staffReviewItems.status, 'open'),
+            inArray(staffReviewItems.severity, ['high', 'critical']),
+          ),
+          // overdue items of any severity (unresolved, past SLA)
+          and(
+            inArray(staffReviewItems.status, ['open', 'in_review']),
+            lte(staffReviewItems.slaDueAt, now),
+          ),
+        ),
+        // cooldown: not notified or last notified before cooldown window
+        or(
+          isNull(staffReviewItems.lastNotifiedAt),
+          lte(staffReviewItems.lastNotifiedAt, cooldownCutoff),
+        ),
+      ),
+    )
+    .orderBy(desc(staffReviewItems.createdAt))
+    .limit(limit);
+}
+
+export async function markItemNotified(input: {
+  tenantId: string;
+  id: string;
+  notifiedAt?: Date;
+}): Promise<void> {
+  assertTenantAccess(input.tenantId);
+  await db
+    .update(staffReviewItems)
+    .set({ lastNotifiedAt: input.notifiedAt ?? new Date(), updatedAt: new Date() })
+    .where(and(eq(staffReviewItems.tenantId, input.tenantId), eq(staffReviewItems.id, input.id)));
+}

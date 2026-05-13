@@ -4,12 +4,15 @@ import { runWithTenantContext } from '../../db/tenant-context.js';
 import { AuthorizationError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import {
+  NOTIFICATION_COOLDOWN_MS,
   createStaffReviewItem,
   createStaffReviewItemSafely,
   getDailyStaffReviewDigest,
   getStaffReviewItem,
   listHighCriticalOpenItemsNeedingNotification,
+  listItemsNeedingAlerts,
   listStaffReviewItems,
+  markItemNotified,
   sanitizeReviewMetadata,
   toSafeStaffReviewItemResponse,
   updateStaffReviewItemStatus,
@@ -386,5 +389,72 @@ describe('staff review service', () => {
       ),
     ).rejects.toThrow(ValidationError);
     expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('listItemsNeedingAlerts returns high/critical open and overdue items within cooldown window', async () => {
+    const highOpen = {
+      ...baseItem,
+      id: 'high-open',
+      severity: 'high' as const,
+      lastNotifiedAt: null,
+    };
+    const criticalOpen = {
+      ...baseItem,
+      id: 'critical-open',
+      severity: 'critical' as const,
+      lastNotifiedAt: null,
+    };
+    const overdueAny = {
+      ...baseItem,
+      id: 'overdue-medium',
+      severity: 'medium' as const,
+      slaDueAt: new Date('2026-05-13T08:00:00.000Z'),
+      lastNotifiedAt: null,
+    };
+    mockDb.select.mockReturnValueOnce(
+      selectChain<StaffReviewItem>([highOpen, criticalOpen, overdueAny]),
+    );
+
+    const items = await withTenant('tenant-a', () =>
+      listItemsNeedingAlerts({
+        tenantId: 'tenant-a',
+        now: new Date('2026-05-14T10:00:00.000Z'),
+      }),
+    );
+
+    expect(items.map((i) => i.id)).toEqual(['high-open', 'critical-open', 'overdue-medium']);
+  });
+
+  it('listItemsNeedingAlerts enforces tenant isolation', async () => {
+    await expect(
+      withTenant('tenant-b', () => listItemsNeedingAlerts({ tenantId: 'tenant-a' })),
+    ).rejects.toThrow(AuthorizationError);
+  });
+
+  it('markItemNotified updates lastNotifiedAt for the correct tenant and item', async () => {
+    const update = updateChain<StaffReviewItem>([
+      { ...baseItem, lastNotifiedAt: new Date('2026-05-14T10:00:00.000Z') },
+    ]);
+    mockDb.update.mockReturnValueOnce(update);
+
+    const notifiedAt = new Date('2026-05-14T10:00:00.000Z');
+    await withTenant('tenant-a', () =>
+      markItemNotified({ tenantId: 'tenant-a', id: 'review-a', notifiedAt }),
+    );
+
+    expect(update.set).toHaveBeenCalledWith(
+      expect.objectContaining({ lastNotifiedAt: notifiedAt }),
+    );
+  });
+
+  it('markItemNotified enforces tenant isolation', async () => {
+    await expect(
+      withTenant('tenant-b', () => markItemNotified({ tenantId: 'tenant-a', id: 'review-a' })),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('NOTIFICATION_COOLDOWN_MS constant is 4 hours', () => {
+    expect(NOTIFICATION_COOLDOWN_MS).toBe(4 * 60 * 60 * 1000);
   });
 });

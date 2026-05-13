@@ -10,6 +10,14 @@ import { closeAllQueues, QUEUE_NAMES } from './lib/queue.js';
 import { shutdownTelemetry } from './lib/telemetry.js';
 import { runDataRetention } from './lib/data-retention.js';
 import { runLockedAppointmentMaintenance } from './modules/appointments/appointment-maintenance.service.js';
+import { env } from './config/env.js';
+import { listActiveTenantIdsForMaintenance } from './modules/tenants/tenant.service.js';
+import { getClinicProfile } from './modules/config/config.service.js';
+import { runWithTenantContext } from './db/tenant-context.js';
+import {
+  sendStaffReviewAlerts,
+  sendStaffReviewDailyDigest,
+} from './modules/staff-review/staff-review-notification.service.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
@@ -95,6 +103,75 @@ async function start(): Promise<void> {
     setTimeout(scheduleAppointmentMaintenance, 15 * 60 * 1000);
   }
   scheduleAppointmentMaintenance().catch(() => undefined);
+
+  const dashboardUrl = `${env.CLIENT_URL}/dashboard/staff-review`;
+  const tenantPageSize = 100;
+
+  async function runStaffReviewAlerts(): Promise<void> {
+    for (let offset = 0; ; offset += tenantPageSize) {
+      const tenantIds = await listActiveTenantIdsForMaintenance({
+        limit: tenantPageSize,
+        offset,
+      });
+      if (tenantIds.length === 0) break;
+      for (const tenantId of tenantIds) {
+        try {
+          const profile = await runWithTenantContext({ tenantId, source: 'worker' }, () =>
+            getClinicProfile(tenantId),
+          );
+          const staffEmail = profile?.email ?? null;
+          if (!staffEmail) continue;
+          await sendStaffReviewAlerts({ tenantId, staffEmail, dashboardUrl });
+        } catch (err) {
+          logger.error({ tenantId, err }, 'Staff review alert run failed for tenant');
+        }
+      }
+      if (tenantIds.length < tenantPageSize) break;
+    }
+  }
+
+  async function scheduleStaffReviewAlerts(): Promise<void> {
+    try {
+      await runStaffReviewAlerts();
+    } catch (err) {
+      logger.error({ err }, 'Staff review alert schedule failed');
+    }
+    setTimeout(scheduleStaffReviewAlerts, 60 * 60 * 1000); // every hour
+  }
+  scheduleStaffReviewAlerts().catch(() => undefined);
+
+  async function runStaffReviewDailyDigest(): Promise<void> {
+    for (let offset = 0; ; offset += tenantPageSize) {
+      const tenantIds = await listActiveTenantIdsForMaintenance({
+        limit: tenantPageSize,
+        offset,
+      });
+      if (tenantIds.length === 0) break;
+      for (const tenantId of tenantIds) {
+        try {
+          const profile = await runWithTenantContext({ tenantId, source: 'worker' }, () =>
+            getClinicProfile(tenantId),
+          );
+          const staffEmail = profile?.email ?? null;
+          if (!staffEmail) continue;
+          await sendStaffReviewDailyDigest({ tenantId, staffEmail, dashboardUrl });
+        } catch (err) {
+          logger.error({ tenantId, err }, 'Staff review daily digest failed for tenant');
+        }
+      }
+      if (tenantIds.length < tenantPageSize) break;
+    }
+  }
+
+  async function scheduleStaffReviewDailyDigest(): Promise<void> {
+    try {
+      await runStaffReviewDailyDigest();
+    } catch (err) {
+      logger.error({ err }, 'Staff review daily digest schedule failed');
+    }
+    setTimeout(scheduleStaffReviewDailyDigest, 24 * 60 * 60 * 1000); // every 24 hours
+  }
+  scheduleStaffReviewDailyDigest().catch(() => undefined);
 
   logger.info({ queues: Object.values(QUEUE_NAMES) }, 'Worker process ready');
 }

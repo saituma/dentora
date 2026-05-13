@@ -165,6 +165,13 @@ export const staffReviewQueueWriteFailuresTotal = new client.Counter({
   registers: [register],
 });
 
+export const staffReviewNotificationsTotal = new client.Counter({
+  name: 'staff_review_notifications_total',
+  help: 'Total staff review notifications sent (alerts and daily digests)',
+  labelNames: ['tenant_id', 'kind', 'outcome'],
+  registers: [register],
+});
+
 export const mediaStreamStartTimeoutTotal = new client.Counter({
   name: 'media_stream_start_timeout_total',
   help: 'Total media stream connections that timed out before a valid start event',
