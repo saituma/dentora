@@ -31,7 +31,7 @@ function safeCalendarEventMetadata(input: {
   };
 }
 
-function buildSafeGoogleCalendarAppointmentEvent(input: {
+export function buildSafeGoogleCalendarAppointmentEvent(input: {
   tenantId: string;
   timezone: string;
   appAppointmentId?: string;
