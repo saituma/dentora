@@ -1,7 +1,16 @@
-
 import { Router } from 'express';
 import * as integrationService from './integration.service.js';
-import { authenticateJwt, resolveTenant, validate, apiRateLimiter } from '../../middleware/index.js';
+import {
+  startCalendarPhiRemediationDryRun,
+  getLatestCalendarPhiRemediationRun,
+  approveAndRunCalendarPhiScrub,
+} from './calendar-phi-remediation.service.js';
+import {
+  authenticateJwt,
+  resolveTenant,
+  validate,
+  apiRateLimiter,
+} from '../../middleware/index.js';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
 
@@ -28,8 +37,10 @@ function safeRedirectUrl(returnTo: string | undefined, fallback: string): string
 }
 
 integrationRouter.get('/google/calendar/oauth/callback', async (req, res) => {
-  const successRedirect = env.GOOGLE_OAUTH_SUCCESS_REDIRECT || `${env.CORS_ORIGIN}/onboarding/test-call`;
-  const errorRedirect = env.GOOGLE_OAUTH_ERROR_REDIRECT || `${env.CORS_ORIGIN}/onboarding/test-call`;
+  const successRedirect =
+    env.GOOGLE_OAUTH_SUCCESS_REDIRECT || `${env.CORS_ORIGIN}/onboarding/test-call`;
+  const errorRedirect =
+    env.GOOGLE_OAUTH_ERROR_REDIRECT || `${env.CORS_ORIGIN}/onboarding/test-call`;
 
   const code = typeof req.query.code === 'string' ? req.query.code : undefined;
   const state = typeof req.query.state === 'string' ? req.query.state : undefined;
@@ -41,19 +52,25 @@ integrationRouter.get('/google/calendar/oauth/callback', async (req, res) => {
   }
 
   if (!code || !state) {
-    res.redirect(buildRedirect(errorRedirect, { googleCalendar: 'failed', reason: 'missing_code_or_state' }));
+    res.redirect(
+      buildRedirect(errorRedirect, { googleCalendar: 'failed', reason: 'missing_code_or_state' }),
+    );
     return;
   }
 
   try {
     const result = await integrationService.completeGoogleCalendarOAuth({ code, state });
     const destination = safeRedirectUrl(result.returnTo, successRedirect);
-    res.redirect(buildRedirect(destination, {
-      googleCalendar: 'connected',
-      integrationId: result.integrationId,
-    }));
+    res.redirect(
+      buildRedirect(destination, {
+        googleCalendar: 'connected',
+        integrationId: result.integrationId,
+      }),
+    );
   } catch {
-    res.redirect(buildRedirect(errorRedirect, { googleCalendar: 'failed', reason: 'oauth_callback_failed' }));
+    res.redirect(
+      buildRedirect(errorRedirect, { googleCalendar: 'failed', reason: 'oauth_callback_failed' }),
+    );
   }
 });
 
@@ -160,3 +177,65 @@ integrationRouter.delete('/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+// ── Calendar PHI remediation workflow ────────────────────────────────────────
+
+integrationRouter.post(
+  '/google/calendar/phi-remediation/dry-run',
+  apiRateLimiter,
+  async (req, res, next) => {
+    try {
+      const run = await startCalendarPhiRemediationDryRun({
+        tenantId: req.tenantContext!.tenantId,
+      });
+      req.audit?.({
+        action: 'calendar_phi_remediation.dry_run',
+        entityType: 'calendar_phi_remediation_run',
+        entityId: run.id,
+        afterState: { status: run.status, riskyEventsCount: run.riskyEventsCount },
+      });
+      res.status(201).json(run);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+integrationRouter.get('/google/calendar/phi-remediation/latest', async (req, res, next) => {
+  try {
+    const run = await getLatestCalendarPhiRemediationRun({
+      tenantId: req.tenantContext!.tenantId,
+    });
+    res.json(run ?? null);
+  } catch (err) {
+    next(err);
+  }
+});
+
+integrationRouter.post(
+  '/google/calendar/phi-remediation/scrub',
+  apiRateLimiter,
+  validate({
+    body: z.object({
+      confirm: z.literal(true),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const run = await approveAndRunCalendarPhiScrub({
+        tenantId: req.tenantContext!.tenantId,
+        confirm: req.body.confirm,
+        approvedByUserId: req.user!.userId,
+      });
+      req.audit?.({
+        action: 'calendar_phi_remediation.scrub',
+        entityType: 'calendar_phi_remediation_run',
+        entityId: run.id,
+        afterState: { status: run.status, scrubbedEventsCount: run.scrubbedEventsCount },
+      });
+      res.json(run);
+    } catch (err) {
+      next(err);
+    }
+  },
+);

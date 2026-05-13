@@ -164,6 +164,17 @@ export const authIdentityProviderEnum = pgEnum('auth_identity_provider', [
   'google',
 ]);
 
+export const calendarPhiRemediationRunStatusEnum = pgEnum('calendar_phi_remediation_run_status', [
+  'dry_run_completed',
+  'scrub_running',
+  'scrub_completed',
+  'scrub_failed',
+]);
+export const calendarPhiRemediationRunModeEnum = pgEnum('calendar_phi_remediation_run_mode', [
+  'dry_run',
+  'confirmed_scrub',
+]);
+
 export const tenantRegistry = pgTable(
   'tenant_registry',
   {
@@ -990,6 +1001,38 @@ export const tenantApiKeys = pgTable(
       table.status,
     ),
     index('tenant_api_keys_tenant_idx').on(table.tenantId),
+  ],
+);
+
+export const calendarPhiRemediationRuns = pgTable(
+  'calendar_phi_remediation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    status: calendarPhiRemediationRunStatusEnum('status').notNull(),
+    mode: calendarPhiRemediationRunModeEnum('mode').notNull(),
+    totalEventsScanned: integer('total_events_scanned').notNull().default(0),
+    riskyEventsCount: integer('risky_events_count').notNull().default(0),
+    scrubbedEventsCount: integer('scrubbed_events_count'),
+    failedScrubCount: integer('failed_scrub_count'),
+    riskCodesSummary: jsonb('risk_codes_summary').notNull().default([]),
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    failureCode: text('failure_code'),
+    failureReasonCode: text('failure_reason_code'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('calendar_phi_remediation_runs_tenant_idx').on(table.tenantId, table.createdAt),
+    index('calendar_phi_remediation_runs_tenant_status_idx').on(
+      table.tenantId,
+      table.status,
+      table.createdAt,
+    ),
   ],
 );
 
