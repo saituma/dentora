@@ -9,17 +9,21 @@ import {
   parseTimeString,
   resolveValidGoogleAccessToken,
 } from './google-calendar.shared.js';
-import type {
-  CalendarAvailabilityInput,
-  CalendarSlot,
-  Integration,
-} from './integration.types.js';
+import type { CalendarAvailabilityInput, CalendarSlot, Integration } from './integration.types.js';
+import { listLedgerAvailabilityBlockers } from '../appointments/appointment-ledger.service.js';
 
 function normalizeClosedDates(closedDates?: string[] | null): Set<string> {
-  return new Set((closedDates ?? []).map((value) => value.trim()).filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)));
+  return new Set(
+    (closedDates ?? [])
+      .map((value) => value.trim())
+      .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
+  );
 }
 
-function normalizeScheduleEntry(schedule: Record<string, unknown> | null | undefined, dayKey: string): { start: string; end: string; breaks: Array<{ start: string; end: string }> } | null {
+function normalizeScheduleEntry(
+  schedule: Record<string, unknown> | null | undefined,
+  dayKey: string,
+): { start: string; end: string; breaks: Array<{ start: string; end: string }> } | null {
   if (!schedule || typeof schedule !== 'object') return null;
   const rawEntry = schedule[dayKey];
   if (!rawEntry || typeof rawEntry !== 'object') return null;
@@ -30,24 +34,32 @@ function normalizeScheduleEntry(schedule: Record<string, unknown> | null | undef
     breakEnd?: unknown;
     breaks?: Array<{ start?: unknown; end?: unknown }> | unknown;
   };
-  if (typeof entry.start !== 'string' || typeof entry.end !== 'string' || !entry.start.trim() || !entry.end.trim()) return null;
+  if (
+    typeof entry.start !== 'string' ||
+    typeof entry.end !== 'string' ||
+    !entry.start.trim() ||
+    !entry.end.trim()
+  )
+    return null;
 
   const normalizedBreaks = Array.isArray(entry.breaks)
     ? entry.breaks
-      .filter((item): item is { start?: unknown; end?: unknown } => Boolean(item && typeof item === 'object'))
-      .map((item) => ({
-        start: typeof item.start === 'string' ? item.start.trim() : '',
-        end: typeof item.end === 'string' ? item.end.trim() : '',
-      }))
-      .filter((item) => item.start && item.end)
+        .filter((item): item is { start?: unknown; end?: unknown } =>
+          Boolean(item && typeof item === 'object'),
+        )
+        .map((item) => ({
+          start: typeof item.start === 'string' ? item.start.trim() : '',
+          end: typeof item.end === 'string' ? item.end.trim() : '',
+        }))
+        .filter((item) => item.start && item.end)
     : [];
 
   if (
-    normalizedBreaks.length === 0
-    && typeof entry.breakStart === 'string'
-    && typeof entry.breakEnd === 'string'
-    && entry.breakStart.trim()
-    && entry.breakEnd.trim()
+    normalizedBreaks.length === 0 &&
+    typeof entry.breakStart === 'string' &&
+    typeof entry.breakEnd === 'string' &&
+    entry.breakStart.trim() &&
+    entry.breakEnd.trim()
   ) {
     normalizedBreaks.push({ start: entry.breakStart.trim(), end: entry.breakEnd.trim() });
   }
@@ -55,7 +67,11 @@ function normalizeScheduleEntry(schedule: Record<string, unknown> | null | undef
   return { start: entry.start, end: entry.end, breaks: normalizedBreaks };
 }
 
-function slotMatchesRequestedPeriod(date: Date, timezone: string, period?: 'morning' | 'afternoon' | 'evening' | null): boolean {
+function slotMatchesRequestedPeriod(
+  date: Date,
+  timezone: string,
+  period?: 'morning' | 'afternoon' | 'evening' | null,
+): boolean {
   if (!period) return true;
   const hour = Number(getFormatterParts(date, timezone).hour);
   if (period === 'morning') return hour >= 8 && hour < 12;
@@ -63,7 +79,11 @@ function slotMatchesRequestedPeriod(date: Date, timezone: string, period?: 'morn
   return hour >= 17 || hour < 8;
 }
 
-function overlapsRange(startMs: number, endMs: number, busyIntervals: Array<{ startMs: number; endMs: number }>): boolean {
+function overlapsRange(
+  startMs: number,
+  endMs: number,
+  busyIntervals: Array<{ startMs: number; endMs: number }>,
+): boolean {
   return busyIntervals.some((busy) => startMs < busy.endMs && endMs > busy.startMs);
 }
 
@@ -82,9 +102,14 @@ async function fetchGoogleCalendarBusyIntervals(
 ): Promise<Array<{ startMs: number; endMs: number }>> {
   const { accessToken } = await resolveValidGoogleAccessToken(integration);
   const config = (integration.config ?? {}) as Record<string, unknown>;
-  const calendarId = typeof config.calendarId === 'string' && config.calendarId.trim() ? config.calendarId : 'primary';
+  const calendarId =
+    typeof config.calendarId === 'string' && config.calendarId.trim()
+      ? config.calendarId
+      : 'primary';
 
-  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+  );
   url.searchParams.set('singleEvents', 'true');
   url.searchParams.set('orderBy', 'startTime');
   url.searchParams.set('timeMin', timeMinIso);
@@ -96,7 +121,11 @@ async function fetchGoogleCalendarBusyIntervals(
   });
 
   if (!response.ok) {
-    throw new IntegrationError('calendar', 'google_calendar', 'Failed to load Google Calendar events');
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      'Failed to load Google Calendar events',
+    );
   }
 
   const payload = (await response.json()) as {
@@ -143,25 +172,60 @@ export async function findAvailableCalendarSlots(input: CalendarAvailabilityInpu
   const [year, month, day] = requestedDate.split('-').map(Number);
   const rangeStart = makeDateInTimeZone(input.timezone, year, month, day, 0, 0);
   const rangeEnd = new Date(rangeStart.getTime() + lookAheadDays * 24 * 60 * 60 * 1000);
-  const busyIntervals = await fetchGoogleCalendarBusyIntervals(integration, rangeStart.toISOString(), rangeEnd.toISOString());
+  const [googleBusyIntervals, ledgerBlockers] = await Promise.all([
+    fetchGoogleCalendarBusyIntervals(integration, rangeStart.toISOString(), rangeEnd.toISOString()),
+    listLedgerAvailabilityBlockers({
+      tenantId: input.tenantId,
+      from: rangeStart,
+      to: rangeEnd,
+    }),
+  ]);
+  const busyIntervals = [
+    ...googleBusyIntervals,
+    ...ledgerBlockers.map((blocker) => ({
+      startMs: blocker.startAt.getTime(),
+      endMs: blocker.endAt.getTime(),
+    })),
+  ];
 
   const suggestedSlots: CalendarSlot[] = [];
   let exactMatch: CalendarSlot | null = null;
 
-  for (let offsetDays = 0; offsetDays < lookAheadDays && suggestedSlots.length < maxSlots; offsetDays += 1) {
+  for (
+    let offsetDays = 0;
+    offsetDays < lookAheadDays && suggestedSlots.length < maxSlots;
+    offsetDays += 1
+  ) {
     const candidateDay = new Date(rangeStart.getTime() + offsetDays * 24 * 60 * 60 * 1000);
     const candidateDate = formatLocalDate(candidateDay, input.timezone);
     if (closedDates.has(candidateDate)) continue;
 
-    const schedule = normalizeScheduleEntry(input.operatingSchedule, getDayKey(candidateDay, input.timezone));
+    const schedule = normalizeScheduleEntry(
+      input.operatingSchedule,
+      getDayKey(candidateDay, input.timezone),
+    );
     if (!schedule) continue;
 
     const startTime = parseTimeString(schedule.start);
     const endTime = parseTimeString(schedule.end);
     if (!startTime || !endTime) continue;
 
-    const openAt = makeDateInTimeZone(input.timezone, Number(candidateDate.slice(0, 4)), Number(candidateDate.slice(5, 7)), Number(candidateDate.slice(8, 10)), startTime.hour, startTime.minute);
-    const closeAt = makeDateInTimeZone(input.timezone, Number(candidateDate.slice(0, 4)), Number(candidateDate.slice(5, 7)), Number(candidateDate.slice(8, 10)), endTime.hour, endTime.minute);
+    const openAt = makeDateInTimeZone(
+      input.timezone,
+      Number(candidateDate.slice(0, 4)),
+      Number(candidateDate.slice(5, 7)),
+      Number(candidateDate.slice(8, 10)),
+      startTime.hour,
+      startTime.minute,
+    );
+    const closeAt = makeDateInTimeZone(
+      input.timezone,
+      Number(candidateDate.slice(0, 4)),
+      Number(candidateDate.slice(5, 7)),
+      Number(candidateDate.slice(8, 10)),
+      endTime.hour,
+      endTime.minute,
+    );
     const breakIntervals = schedule.breaks
       .map((period) => {
         const breakStart = parseTimeString(period.start);
@@ -169,11 +233,27 @@ export async function findAvailableCalendarSlots(input: CalendarAvailabilityInpu
         if (!breakStart || !breakEnd) return null;
 
         return {
-          startMs: makeDateInTimeZone(input.timezone, Number(candidateDate.slice(0, 4)), Number(candidateDate.slice(5, 7)), Number(candidateDate.slice(8, 10)), breakStart.hour, breakStart.minute).getTime(),
-          endMs: makeDateInTimeZone(input.timezone, Number(candidateDate.slice(0, 4)), Number(candidateDate.slice(5, 7)), Number(candidateDate.slice(8, 10)), breakEnd.hour, breakEnd.minute).getTime(),
+          startMs: makeDateInTimeZone(
+            input.timezone,
+            Number(candidateDate.slice(0, 4)),
+            Number(candidateDate.slice(5, 7)),
+            Number(candidateDate.slice(8, 10)),
+            breakStart.hour,
+            breakStart.minute,
+          ).getTime(),
+          endMs: makeDateInTimeZone(
+            input.timezone,
+            Number(candidateDate.slice(0, 4)),
+            Number(candidateDate.slice(5, 7)),
+            Number(candidateDate.slice(8, 10)),
+            breakEnd.hour,
+            breakEnd.minute,
+          ).getTime(),
         };
       })
-      .filter((interval): interval is { startMs: number; endMs: number } => Boolean(interval && interval.startMs < interval.endMs));
+      .filter((interval): interval is { startMs: number; endMs: number } =>
+        Boolean(interval && interval.startMs < interval.endMs),
+      );
 
     for (
       let slotStart = new Date(openAt);
@@ -193,10 +273,10 @@ export async function findAvailableCalendarSlots(input: CalendarAvailabilityInpu
       };
 
       if (
-        requestedTime
-        && candidateDate === requestedDate
-        && Number(getFormatterParts(slotStart, input.timezone).hour) === requestedTime.hour
-        && Number(getFormatterParts(slotStart, input.timezone).minute) === requestedTime.minute
+        requestedTime &&
+        candidateDate === requestedDate &&
+        Number(getFormatterParts(slotStart, input.timezone).hour) === requestedTime.hour &&
+        Number(getFormatterParts(slotStart, input.timezone).minute) === requestedTime.minute
       ) {
         exactMatch = slot;
         if (suggestedSlots.length === 0) suggestedSlots.push(slot);

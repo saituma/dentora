@@ -8,6 +8,7 @@ import {
   confirmAppointmentHold,
   getAppointment,
   listActiveAppointmentHolds,
+  listLedgerAvailabilityBlockers,
   markAppointmentReconciliationNeeded,
   updateAppointmentStatus,
   type Appointment,
@@ -94,6 +95,12 @@ function selectChain<T>(result: T[]): SelectChain<T> {
   chain.from.mockReturnValue(chain);
   chain.where.mockReturnValue(chain);
   chain.orderBy.mockReturnValue(chain);
+  return chain;
+}
+
+function selectWhereChain<T>(result: T[]): SelectChain<T> {
+  const chain = selectChain<T>(result);
+  chain.where.mockResolvedValue(result);
   return chain;
 }
 
@@ -393,6 +400,59 @@ describe('appointment ledger service', () => {
 
     expect(holds).toEqual([baseHold]);
     expect(list.where).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists tenant-scoped ledger availability blockers from appointments and holds', async () => {
+    const appointmentLookup = selectWhereChain<Pick<Appointment, 'startAt' | 'endAt'>>([
+      {
+        startAt: new Date('2026-06-01T14:00:00.000Z'),
+        endAt: new Date('2026-06-01T14:30:00.000Z'),
+      },
+    ]);
+    const holdLookup = selectWhereChain<Pick<AppointmentHold, 'startAt' | 'endAt'>>([
+      {
+        startAt: new Date('2026-06-01T15:00:00.000Z'),
+        endAt: new Date('2026-06-01T15:30:00.000Z'),
+      },
+    ]);
+    mockDb.select.mockReturnValueOnce(appointmentLookup).mockReturnValueOnce(holdLookup);
+
+    const blockers = await withTenant('tenant-a', () =>
+      listLedgerAvailabilityBlockers({
+        tenantId: 'tenant-a',
+        from: new Date('2026-06-01T00:00:00.000Z'),
+        to: new Date('2026-06-02T00:00:00.000Z'),
+        now: new Date('2026-05-13T12:00:00.000Z'),
+      }),
+    );
+
+    expect(blockers).toEqual([
+      {
+        startAt: new Date('2026-06-01T14:00:00.000Z'),
+        endAt: new Date('2026-06-01T14:30:00.000Z'),
+        source: 'appointment',
+      },
+      {
+        startAt: new Date('2026-06-01T15:00:00.000Z'),
+        endAt: new Date('2026-06-01T15:30:00.000Z'),
+        source: 'hold',
+      },
+    ]);
+    expect(appointmentLookup.where).toHaveBeenCalledTimes(1);
+    expect(holdLookup.where).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects cross-tenant ledger availability blocker reads', async () => {
+    await expect(
+      withTenant('tenant-a', () =>
+        listLedgerAvailabilityBlockers({
+          tenantId: 'tenant-b',
+          from: new Date('2026-06-01T00:00:00.000Z'),
+          to: new Date('2026-06-02T00:00:00.000Z'),
+        }),
+      ),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockDb.select).not.toHaveBeenCalled();
   });
 
   it('rejects expired hold creation', async () => {

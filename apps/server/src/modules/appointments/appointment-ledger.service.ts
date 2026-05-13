@@ -67,6 +67,12 @@ export interface MarkAppointmentReconciliationNeededInput {
   reason: string;
 }
 
+export interface LedgerAvailabilityBlocker {
+  startAt: Date;
+  endAt: Date;
+  source: 'appointment' | 'hold';
+}
+
 const ALLOWED_APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
   held: ['scheduled', 'cancelled'],
   scheduled: ['confirmed', 'cancelled', 'completed', 'no_show'],
@@ -536,4 +542,58 @@ export async function listActiveAppointmentHolds(input: {
     )
     .orderBy(desc(appointmentHolds.startAt))
     .limit(limit);
+}
+
+export async function listLedgerAvailabilityBlockers(input: {
+  tenantId: string;
+  from: Date;
+  to: Date;
+  now?: Date;
+}): Promise<LedgerAvailabilityBlocker[]> {
+  assertTenantAccess(input.tenantId);
+  const now = input.now ?? new Date();
+
+  const appointmentRows = await db
+    .select({
+      startAt: appointments.startAt,
+      endAt: appointments.endAt,
+    })
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.tenantId, input.tenantId),
+        inArray(appointments.status, ['scheduled', 'confirmed']),
+        lt(appointments.startAt, input.to),
+        gt(appointments.endAt, input.from),
+      ),
+    );
+
+  const holdRows = await db
+    .select({
+      startAt: appointmentHolds.startAt,
+      endAt: appointmentHolds.endAt,
+    })
+    .from(appointmentHolds)
+    .where(
+      and(
+        eq(appointmentHolds.tenantId, input.tenantId),
+        eq(appointmentHolds.status, 'active'),
+        gt(appointmentHolds.expiresAt, now),
+        lt(appointmentHolds.startAt, input.to),
+        gt(appointmentHolds.endAt, input.from),
+      ),
+    );
+
+  return [
+    ...appointmentRows.map((row) => ({
+      startAt: row.startAt,
+      endAt: row.endAt,
+      source: 'appointment' as const,
+    })),
+    ...holdRows.map((row) => ({
+      startAt: row.startAt,
+      endAt: row.endAt,
+      source: 'hold' as const,
+    })),
+  ];
 }
