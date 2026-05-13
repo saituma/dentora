@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, lt } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, lt } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { appointmentHolds, appointments } from '../../db/schema.js';
 import { assertTenantAccess } from '../../db/tenant-context.js';
@@ -42,6 +42,19 @@ export interface CreateAppointmentHoldInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface ConfirmAppointmentHoldInput {
+  tenantId: string;
+  holdId: string;
+  idempotencyKey: string;
+  now?: Date;
+}
+
+export interface AttachExternalCalendarEventInput {
+  tenantId: string;
+  appointmentId: string;
+  externalCalendarEventId: string;
+}
+
 const ALLOWED_APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
   held: ['scheduled', 'cancelled'],
   scheduled: ['confirmed', 'cancelled', 'completed', 'no_show'],
@@ -67,6 +80,40 @@ function assertIdempotencyKey(idempotencyKey: string): void {
   }
 }
 
+async function assertNoConflictingAppointments(input: {
+  tenantId: string;
+  startAt: Date;
+  endAt: Date;
+  serviceId?: string | null;
+  staffId?: string | null;
+  excludeAppointmentId?: string;
+}): Promise<void> {
+  const predicates = [
+    eq(appointments.tenantId, input.tenantId),
+    inArray(appointments.status, ['scheduled', 'confirmed']),
+    lt(appointments.startAt, input.endAt),
+    gt(appointments.endAt, input.startAt),
+  ];
+
+  if (input.serviceId) {
+    predicates.push(eq(appointments.serviceId, input.serviceId));
+  }
+
+  if (input.staffId) {
+    predicates.push(eq(appointments.staffId, input.staffId));
+  }
+
+  const conflicts = await db
+    .select()
+    .from(appointments)
+    .where(and(...predicates))
+    .limit(1);
+  const conflict = conflicts.find((appointment) => appointment.id !== input.excludeAppointmentId);
+  if (conflict) {
+    throw new ValidationError('Appointment slot conflicts with an existing appointment');
+  }
+}
+
 export async function createAppointment(input: CreateAppointmentInput): Promise<Appointment> {
   assertTenantAccess(input.tenantId);
   assertValidTimeRange(input.startAt, input.endAt);
@@ -74,6 +121,13 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
 
   const existing = await findAppointmentByIdempotencyKey(input.tenantId, input.idempotencyKey);
   if (existing) return existing;
+  await assertNoConflictingAppointments({
+    tenantId: input.tenantId,
+    startAt: input.startAt,
+    endAt: input.endAt,
+    serviceId: input.serviceId,
+    staffId: input.staffId,
+  });
 
   const [appointment] = await db
     .insert(appointments)
@@ -188,6 +242,38 @@ export async function updateAppointmentStatus(input: {
   return updated;
 }
 
+export async function attachExternalCalendarEvent(
+  input: AttachExternalCalendarEventInput,
+): Promise<Appointment> {
+  assertTenantAccess(input.tenantId);
+  if (!input.externalCalendarEventId.trim()) {
+    throw new ValidationError('External calendar event id is required');
+  }
+
+  const current = await getAppointment(input.tenantId, input.appointmentId);
+  if (current.status !== 'scheduled') {
+    throw new ValidationError(
+      'Only scheduled appointments can be confirmed with an external event',
+    );
+  }
+
+  const [updated] = await db
+    .update(appointments)
+    .set({
+      status: 'confirmed',
+      externalCalendarEventId: input.externalCalendarEventId,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(appointments.tenantId, input.tenantId), eq(appointments.id, input.appointmentId)))
+    .returning();
+
+  if (!updated) {
+    throw new NotFoundError('Appointment not found');
+  }
+
+  return updated;
+}
+
 export async function createAppointmentHold(
   input: CreateAppointmentHoldInput,
 ): Promise<AppointmentHold> {
@@ -243,6 +329,81 @@ export async function findAppointmentHoldByIdempotencyKey(
     .limit(1);
 
   return hold ?? null;
+}
+
+export async function getAppointmentHold(
+  tenantId: string,
+  holdId: string,
+): Promise<AppointmentHold> {
+  assertTenantAccess(tenantId);
+
+  const [hold] = await db
+    .select()
+    .from(appointmentHolds)
+    .where(and(eq(appointmentHolds.tenantId, tenantId), eq(appointmentHolds.id, holdId)))
+    .limit(1);
+
+  if (!hold) {
+    throw new NotFoundError('Appointment hold not found');
+  }
+
+  return hold;
+}
+
+export async function confirmAppointmentHold(
+  input: ConfirmAppointmentHoldInput,
+): Promise<Appointment> {
+  assertTenantAccess(input.tenantId);
+  assertIdempotencyKey(input.idempotencyKey);
+
+  const existing = await findAppointmentByIdempotencyKey(input.tenantId, input.idempotencyKey);
+  if (existing) return existing;
+
+  const hold = await getAppointmentHold(input.tenantId, input.holdId);
+  const now = input.now ?? new Date();
+  if (hold.status !== 'active') {
+    throw new ValidationError('Appointment hold is not active');
+  }
+  if (hold.expiresAt <= now) {
+    throw new ValidationError('Appointment hold has expired');
+  }
+
+  await assertNoConflictingAppointments({
+    tenantId: input.tenantId,
+    startAt: hold.startAt,
+    endAt: hold.endAt,
+    serviceId: hold.serviceId,
+    staffId: hold.staffId,
+  });
+
+  const [appointment] = await db
+    .insert(appointments)
+    .values({
+      id: generateId(),
+      tenantId: input.tenantId,
+      patientId: hold.patientId,
+      serviceId: hold.serviceId,
+      staffId: hold.staffId,
+      callSessionId: hold.callSessionId,
+      status: 'scheduled',
+      startAt: hold.startAt,
+      endAt: hold.endAt,
+      timezone: hold.timezone,
+      calendarIntegrationId: hold.calendarIntegrationId,
+      externalCalendarEventId: null,
+      idempotencyKey: input.idempotencyKey,
+      metadata: hold.metadata ?? {},
+    })
+    .returning();
+
+  await db
+    .update(appointmentHolds)
+    .set({ status: 'converted', updatedAt: new Date() })
+    .where(
+      and(eq(appointmentHolds.tenantId, input.tenantId), eq(appointmentHolds.id, input.holdId)),
+    );
+
+  return appointment;
 }
 
 export async function listActiveAppointmentHolds(input: {

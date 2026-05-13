@@ -12,6 +12,12 @@ import {
 import { upsertPatientProfile } from '../patients/patients.service.js';
 import { resolveValidGoogleAccessToken } from '../integrations/google-calendar.shared.js';
 import { ValidationError } from '../../lib/errors.js';
+import { hashForSearch } from '../../lib/encrypted-column.js';
+import {
+  attachExternalCalendarEvent,
+  confirmAppointmentHold,
+  createAppointmentHold,
+} from './appointment-ledger.service.js';
 
 const appointmentsRateLimiter = rateLimiter({
   maxRequests: 120,
@@ -29,6 +35,7 @@ const availabilitySchema = z.object({
 });
 
 const bookingSchema = z.object({
+  idempotencyKey: z.string().min(8).optional(),
   slot: z.object({
     startIso: z.string().min(5),
     endIso: z.string().min(5),
@@ -71,16 +78,19 @@ appointmentsRouter.get(
 
       const { accessToken } = await resolveValidGoogleAccessToken(integration);
       const config = (integration.config ?? {}) as Record<string, unknown>;
-      const calendarId = typeof config.calendarId === 'string' && config.calendarId.trim()
-        ? config.calendarId
-        : 'primary';
+      const calendarId =
+        typeof config.calendarId === 'string' && config.calendarId.trim()
+          ? config.calendarId
+          : 'primary';
 
       const lookAheadDays = Number(req.query.days ?? 7);
       const now = new Date();
       const timeMin = now.toISOString();
       const timeMax = new Date(now.getTime() + lookAheadDays * 24 * 60 * 60 * 1000).toISOString();
 
-      const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+      const url = new URL(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+      );
       url.searchParams.set('timeMin', timeMin);
       url.searchParams.set('timeMax', timeMax);
       url.searchParams.set('singleEvents', 'true');
@@ -96,7 +106,7 @@ appointmentsRouter.get(
         throw new ValidationError(`Failed to load calendar events: ${errorBody.slice(0, 300)}`);
       }
 
-      const payload = await response.json() as {
+      const payload = (await response.json()) as {
         items?: Array<{
           id?: string;
           summary?: string;
@@ -154,11 +164,13 @@ appointmentsRouter.post(
         requestedDate: req.body.requestedDate,
         requestedTime: req.body.requestedTime ?? null,
         requestedPeriod: req.body.requestedPeriod ?? null,
-        appointmentDurationMinutes: req.body.appointmentDurationMinutes
-          ?? rules?.defaultAppointmentDurationMinutes
-          ?? 30,
+        appointmentDurationMinutes:
+          req.body.appointmentDurationMinutes ?? rules?.defaultAppointmentDurationMinutes ?? 30,
         bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
-        operatingSchedule: (rules?.operatingSchedule ?? clinic.businessHours ?? null) as Record<string, unknown> | null,
+        operatingSchedule: (rules?.operatingSchedule ?? clinic.businessHours ?? null) as Record<
+          string,
+          unknown
+        > | null,
         closedDates,
         maxSlots: req.body.maxSlots ?? 5,
         lookAheadDays: req.body.lookAheadDays ?? 14,
@@ -195,7 +207,11 @@ appointmentsRouter.post(
 
       const startAt = new Date(req.body.slot.startIso);
       const endAt = new Date(req.body.slot.endIso);
-      if (!Number.isFinite(startAt.getTime()) || !Number.isFinite(endAt.getTime()) || endAt <= startAt) {
+      if (
+        !Number.isFinite(startAt.getTime()) ||
+        !Number.isFinite(endAt.getTime()) ||
+        endAt <= startAt
+      ) {
         throw new ValidationError('Appointment start/end times are invalid');
       }
 
@@ -221,17 +237,26 @@ appointmentsRouter.post(
       const isToday = startDateLocal === todayLocal;
       const isTomorrow = startDateLocal === tomorrowLocal;
 
-      const nowHour = Number(timeFormatter.formatToParts(new Date()).find((part) => part.type === 'hour')?.value ?? '0');
-      const startHour = Number(timeFormatter.formatToParts(startAt).find((part) => part.type === 'hour')?.value ?? '0');
+      const nowHour = Number(
+        timeFormatter.formatToParts(new Date()).find((part) => part.type === 'hour')?.value ?? '0',
+      );
+      const startHour = Number(
+        timeFormatter.formatToParts(startAt).find((part) => part.type === 'hour')?.value ?? '0',
+      );
 
       const reason = String(req.body.patient?.reasonForVisit ?? '').toLowerCase();
-      const isEmergency = /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(reason);
+      const isEmergency =
+        /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(
+          reason,
+        );
 
       if (isEmergency) {
         // Emergency bookings bypass same-day and min-notice restrictions.
       } else if (isToday) {
         if (nowHour >= 12) {
-          throw new ValidationError('Same-day appointments are only available when booked in the morning');
+          throw new ValidationError(
+            'Same-day appointments are only available when booked in the morning',
+          );
         }
         if (startHour < 12) {
           throw new ValidationError('Same-day appointments must be scheduled in the afternoon');
@@ -243,7 +268,90 @@ appointmentsRouter.post(
         throw new ValidationError('Appointment time is too far in advance based on booking rules');
       }
 
-      const appointment = await createGoogleCalendarAppointment({
+      const closedDates = Array.isArray(rules?.closedDates)
+        ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
+        : null;
+      const integration = await getActiveGoogleCalendarIntegration(tenantId);
+      if (!integration) {
+        throw new ValidationError('Google Calendar is not connected for this clinic');
+      }
+
+      const recheckedAvailability = await findAvailableCalendarSlots({
+        tenantId,
+        timezone: clinic.timezone,
+        requestedDate: startDateLocal,
+        requestedTime: timeFormatter.format(startAt),
+        requestedPeriod: null,
+        appointmentDurationMinutes: Math.max(
+          5,
+          Math.round((endAt.getTime() - startAt.getTime()) / 60_000),
+        ),
+        bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
+        operatingSchedule: (rules?.operatingSchedule ?? clinic.businessHours ?? null) as Record<
+          string,
+          unknown
+        > | null,
+        closedDates,
+        maxSlots: 1,
+        lookAheadDays: 1,
+      });
+
+      const exactSlot = recheckedAvailability.exactMatch;
+      if (
+        !exactSlot ||
+        exactSlot.startIso !== req.body.slot.startIso ||
+        exactSlot.endIso !== req.body.slot.endIso
+      ) {
+        throw new ValidationError('Appointment slot is no longer available');
+      }
+
+      const patient = await upsertPatientProfile({
+        tenantId,
+        fullName: req.body.patient.fullName,
+        phoneNumber: req.body.patient.phoneNumber,
+        dateOfBirth: req.body.patient.dateOfBirth ?? null,
+        lastVisitAt: startAt,
+        notes: req.body.patient.reasonForVisit,
+      });
+
+      const baseIdempotencyKey =
+        req.body.idempotencyKey ??
+        `book:${hashForSearch(
+          [
+            tenantId,
+            req.body.slot.startIso,
+            req.body.slot.endIso,
+            req.body.patient.phoneNumber,
+          ].join('|'),
+        )}`;
+      const hold = await createAppointmentHold({
+        tenantId,
+        patientId: patient.id,
+        startAt,
+        endAt,
+        timezone: clinic.timezone,
+        calendarIntegrationId: integration.id,
+        idempotencyKey: `${baseIdempotencyKey}:hold`,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        metadata: { source: 'appointments.book' },
+      });
+      const localAppointment = await confirmAppointmentHold({
+        tenantId,
+        holdId: hold.id,
+        idempotencyKey: `${baseIdempotencyKey}:confirm`,
+      });
+
+      if (localAppointment.externalCalendarEventId) {
+        res.json({
+          data: {
+            eventId: localAppointment.externalCalendarEventId,
+            slot: req.body.slot,
+          },
+        });
+        return;
+      }
+
+      const calendarAppointment = await createGoogleCalendarAppointment({
         tenantId,
         timezone: clinic.timezone,
         slot: req.body.slot,
@@ -251,17 +359,14 @@ appointmentsRouter.post(
         patient: req.body.patient,
       });
 
-      await upsertPatientProfile({
+      await attachExternalCalendarEvent({
         tenantId,
-        fullName: req.body.patient.fullName,
-        phoneNumber: req.body.patient.phoneNumber,
-        dateOfBirth: req.body.patient.dateOfBirth ?? null,
-        lastVisitAt: new Date(req.body.slot.startIso),
-        notes: req.body.patient.reasonForVisit,
+        appointmentId: localAppointment.id,
+        externalCalendarEventId: calendarAppointment.eventId,
       });
 
       res.json({
-        data: appointment,
+        data: calendarAppointment,
       });
     } catch (error) {
       next(error);

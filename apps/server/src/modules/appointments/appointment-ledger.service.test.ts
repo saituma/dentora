@@ -5,6 +5,7 @@ import { AuthorizationError, ValidationError } from '../../lib/errors.js';
 import {
   createAppointment,
   createAppointmentHold,
+  confirmAppointmentHold,
   getAppointment,
   listActiveAppointmentHolds,
   updateAppointmentStatus,
@@ -126,8 +127,9 @@ beforeEach(() => {
 describe('appointment ledger service', () => {
   it('creates tenant-scoped appointments', async () => {
     const existingLookup = selectChain<Appointment>([]);
+    const conflictLookup = selectChain<Appointment>([]);
     const insert = insertChain<Appointment>([baseAppointment]);
-    mockDb.select.mockReturnValueOnce(existingLookup);
+    mockDb.select.mockReturnValueOnce(existingLookup).mockReturnValueOnce(conflictLookup);
     mockDb.insert.mockReturnValueOnce(insert);
 
     const appointment = await withTenant('tenant-a', () =>
@@ -180,6 +182,148 @@ describe('appointment ledger service', () => {
 
     expect(appointment).toBe(baseAppointment);
     expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects expired holds during confirmation', async () => {
+    mockDb.select
+      .mockReturnValueOnce(selectChain<Appointment>([]))
+      .mockReturnValueOnce(
+        selectChain<AppointmentHold>([
+          { ...baseHold, expiresAt: new Date('2000-01-01T00:00:00.000Z') },
+        ]),
+      );
+
+    await expect(
+      withTenant('tenant-a', () =>
+        confirmAppointmentHold({
+          tenantId: 'tenant-a',
+          holdId: baseHold.id,
+          idempotencyKey: `${baseAppointment.idempotencyKey}:confirm`,
+          now: new Date('2026-05-13T00:00:00.000Z'),
+        }),
+      ),
+    ).rejects.toThrow(ValidationError);
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects cross-tenant hold confirmation', async () => {
+    await expect(
+      withTenant('tenant-a', () =>
+        confirmAppointmentHold({
+          tenantId: 'tenant-b',
+          holdId: baseHold.id,
+          idempotencyKey: `${baseAppointment.idempotencyKey}:confirm`,
+        }),
+      ),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockDb.select).not.toHaveBeenCalled();
+  });
+
+  it('rejects double-booking against existing scheduled or confirmed appointments', async () => {
+    mockDb.select
+      .mockReturnValueOnce(selectChain<Appointment>([]))
+      .mockReturnValueOnce(selectChain<AppointmentHold>([baseHold]))
+      .mockReturnValueOnce(
+        selectChain<Appointment>([
+          { ...baseAppointment, id: 'appointment-conflict', status: 'confirmed' },
+        ]),
+      );
+
+    await expect(
+      withTenant('tenant-a', () =>
+        confirmAppointmentHold({
+          tenantId: 'tenant-a',
+          holdId: baseHold.id,
+          idempotencyKey: `${baseAppointment.idempotencyKey}:confirm`,
+          now: new Date('2026-05-13T00:00:00.000Z'),
+        }),
+      ),
+    ).rejects.toThrow(ValidationError);
+    expect(mockDb.insert).not.toHaveBeenCalled();
+  });
+
+  it('converts a valid hold to a scheduled local appointment', async () => {
+    const confirmationKey = `${baseAppointment.idempotencyKey}:confirm`;
+    const scheduledAppointment = {
+      ...baseAppointment,
+      status: 'scheduled' as const,
+      externalCalendarEventId: null,
+      idempotencyKey: confirmationKey,
+    };
+    const insert = insertChain<Appointment>([scheduledAppointment]);
+    const holdUpdate = updateChain<AppointmentHold>([{ ...baseHold, status: 'converted' }]);
+    mockDb.select
+      .mockReturnValueOnce(selectChain<Appointment>([]))
+      .mockReturnValueOnce(selectChain<AppointmentHold>([baseHold]))
+      .mockReturnValueOnce(selectChain<Appointment>([]));
+    mockDb.insert.mockReturnValueOnce(insert);
+    mockDb.update.mockReturnValueOnce(holdUpdate);
+
+    const appointment = await withTenant('tenant-a', () =>
+      confirmAppointmentHold({
+        tenantId: 'tenant-a',
+        holdId: baseHold.id,
+        idempotencyKey: confirmationKey,
+        now: new Date('2026-05-13T00:00:00.000Z'),
+      }),
+    );
+
+    expect(appointment).toEqual(scheduledAppointment);
+    expect(insert.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        status: 'scheduled',
+        externalCalendarEventId: null,
+        idempotencyKey: confirmationKey,
+      }),
+    );
+    expect(holdUpdate.set).toHaveBeenCalledWith(expect.objectContaining({ status: 'converted' }));
+  });
+
+  it('returns existing appointment for idempotent hold confirmation', async () => {
+    mockDb.select.mockReturnValueOnce(selectChain<Appointment>([baseAppointment]));
+
+    const appointment = await withTenant('tenant-a', () =>
+      confirmAppointmentHold({
+        tenantId: 'tenant-a',
+        holdId: baseHold.id,
+        idempotencyKey: baseAppointment.idempotencyKey,
+      }),
+    );
+
+    expect(appointment).toBe(baseAppointment);
+    expect(mockDb.insert).not.toHaveBeenCalled();
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+
+  it('does not mark a local appointment confirmed before external calendar attachment', async () => {
+    const confirmationKey = `${baseAppointment.idempotencyKey}:confirm`;
+    const scheduledAppointment = {
+      ...baseAppointment,
+      status: 'scheduled' as const,
+      externalCalendarEventId: null,
+      idempotencyKey: confirmationKey,
+    };
+    mockDb.select
+      .mockReturnValueOnce(selectChain<Appointment>([]))
+      .mockReturnValueOnce(selectChain<AppointmentHold>([baseHold]))
+      .mockReturnValueOnce(selectChain<Appointment>([]));
+    mockDb.insert.mockReturnValueOnce(insertChain<Appointment>([scheduledAppointment]));
+    mockDb.update.mockReturnValueOnce(
+      updateChain<AppointmentHold>([{ ...baseHold, status: 'converted' }]),
+    );
+
+    const appointment = await withTenant('tenant-a', () =>
+      confirmAppointmentHold({
+        tenantId: 'tenant-a',
+        holdId: baseHold.id,
+        idempotencyKey: confirmationKey,
+        now: new Date('2026-05-13T00:00:00.000Z'),
+      }),
+    );
+
+    expect(appointment.status).toBe('scheduled');
+    expect(appointment.externalCalendarEventId).toBeNull();
   });
 
   it('filters active holds by expiry through the repository query', async () => {
