@@ -1,0 +1,47 @@
+/* ─── Emerald theme ─────────────────────────────────────────────────────────── */
+[data-theme="emerald"] {
+  --primary: oklch(0.6 0.17 162);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.6 0.17 162);
+  --sidebar-primary: oklch(0.6 0.17 162);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+[data-theme="emerald"].dark {
+  --primary: oklch(0.72 0.17 162);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.72 0.17 162);
+  --sidebar-primary: oklch(0.72 0.17 162);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+}
+
+/* ─── Rose theme ─────────────────────────────────────────────────────────────── */
+[data-theme="rose"] {
+  --primary: oklch(0.6 0.22 12);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.6 0.22 12);
+  --sidebar-primary: oklch(0.6 0.22 12);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+[data-theme="rose"].dark {
+  --primary: oklch(0.72 0.22 12);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.72 0.22 12);
+  --sidebar-primary: oklch(0.72 0.22 12);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+}
+
+/* ─── Ocean theme ────────────────────────────────────────────────────────────── */
+[data-theme="ocean"] {
+  --primary: oklch(0.55 0.22 248);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.55 0.22 248);
+  --sidebar-primary: oklch(0.55 0.22 248);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+}
+[data-theme="ocean"].dark {
+  --primary: oklch(0.68 0.22 248);
+  --primary-foreground: oklch(0.145 0 0);
+  --ring: oklch(0.68 0.22 248);
+  --sidebar-primary: oklch(0.68 0.22 248);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+}

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
@@ -24,6 +26,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
+      {/* Restore color theme before first paint to avoid flash */}
+      <script
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: inline script for theme persistence, no user input
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{var t=localStorage.getItem('dentora-admin-color-theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);}catch(e){}})()`,
+        }}
+      />
       <body className="min-h-[100dvh] flex flex-col font-sans selection:bg-emerald-500/20">
         <div className="grain-overlay" />
         <Providers>

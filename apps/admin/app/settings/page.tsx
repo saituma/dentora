@@ -124,13 +124,11 @@ function DataRetentionCard() {
         </p>
       </div>
       <AlertDialog>
-        <AlertDialogTrigger
-          render={
-            <Button variant="outline" size="sm" className="gap-1.5 shrink-0" />
-          }
-        >
-          <RefreshCw size={12} />
-          Run now
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1.5 shrink-0">
+            <RefreshCw size={12} />
+            Run now
+          </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>

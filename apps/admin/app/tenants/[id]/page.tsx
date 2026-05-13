@@ -65,16 +65,14 @@ function StatusActionDialog({
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn("w-full justify-start gap-2", triggerClassName)}
-          />
-        }
-      >
-        {triggerLabel}
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("w-full justify-start gap-2", triggerClassName)}
+        >
+          {triggerLabel}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
