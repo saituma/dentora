@@ -99,6 +99,13 @@
       "when": 1778774400000,
       "tag": "0014_appointments_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1778774400001,
+      "tag": "0015_appointment_rls_policies",
+      "breakpoints": true
     }
   ]
 }
