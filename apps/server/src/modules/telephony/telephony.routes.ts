@@ -15,6 +15,7 @@ import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { getRedis } from '../../lib/cache.js';
 import { runWithTenantContext } from '../../db/tenant-context.js';
+import { createMediaStreamToken } from './stream-token.js';
 
 const WEBHOOK_IDEMPOTENCY_TTL = 86_400; // 24 h
 
@@ -271,11 +272,18 @@ telephonyRouter.post(
       const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
       const wsBase = baseUrl.replace(/^http/i, 'ws');
       const streamUrl = `${wsBase}/api/telephony/media-stream/${result.callSessionId}`;
+      const streamToken = createMediaStreamToken({
+        tenantId: result.tenantId,
+        callSessionId: result.callSessionId,
+        callSid: CallSid,
+        configVersionId: result.configVersionId,
+      });
 
       const twiml = twimlXml([
         '<Response>',
         '<Connect>',
         `<Stream url="${streamUrl}">`,
+        `<Parameter name="streamToken" value="${twimlEscape(streamToken)}" />`,
         `<Parameter name="tenantId" value="${result.tenantId}" />`,
         `<Parameter name="configVersionId" value="${result.configVersionId}" />`,
         `<Parameter name="callSessionId" value="${result.callSessionId}" />`,
@@ -397,6 +405,12 @@ telephonyRouter.post(
       const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
       const wsBase = baseUrl.replace(/^http/i, 'ws');
       const streamUrl = `${wsBase}/api/telephony/media-stream/${result.callSessionId}`;
+      const streamToken = createMediaStreamToken({
+        tenantId: result.tenantId,
+        callSessionId: result.callSessionId,
+        callSid: CallSid,
+        configVersionId: result.configVersionId,
+      });
 
       logger.info(
         {
@@ -413,6 +427,7 @@ telephonyRouter.post(
         '<Response>',
         '<Connect>',
         `<Stream url="${streamUrl}">`,
+        `<Parameter name="streamToken" value="${twimlEscape(streamToken)}" />`,
         `<Parameter name="tenantId" value="${result.tenantId}" />`,
         `<Parameter name="configVersionId" value="${result.configVersionId}" />`,
         `<Parameter name="callSessionId" value="${result.callSessionId}" />`,

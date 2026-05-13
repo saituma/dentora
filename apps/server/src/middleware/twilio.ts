@@ -7,6 +7,11 @@ import { logger } from '../lib/logger.js';
 export function validateTwilioSignature(req: Request, _res: Response, next: NextFunction): void {
   try {
     if (!env.TWILIO_AUTH_TOKEN) {
+      if (env.NODE_ENV === 'production') {
+        logger.error('TWILIO_AUTH_TOKEN not set; rejecting Twilio webhook in production');
+        throw new ValidationError('Twilio signature validation is not configured');
+      }
+
       logger.warn('TWILIO_AUTH_TOKEN not set; skipping Twilio signature validation');
       next();
       return;
@@ -23,14 +28,10 @@ export function validateTwilioSignature(req: Request, _res: Response, next: Next
 
     const baseUrl = env.TWILIO_WEBHOOK_BASE_URL?.replace(/\/$/, '') ?? '';
     const fullUrl = `${baseUrl}${req.originalUrl}`;
-    const params = (req.body && typeof req.body === 'object') ? req.body as Record<string, unknown> : {};
+    const params =
+      req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {};
 
-    const isValid = validateRequest(
-      env.TWILIO_AUTH_TOKEN,
-      signature,
-      fullUrl,
-      params,
-    );
+    const isValid = validateRequest(env.TWILIO_AUTH_TOKEN, signature, fullUrl, params);
 
     if (!isValid) {
       logger.warn(
@@ -45,10 +46,7 @@ export function validateTwilioSignature(req: Request, _res: Response, next: Next
       throw new ValidationError('Invalid Twilio signature');
     }
 
-    logger.info(
-      { path: req.originalUrl, method: req.method },
-      'Twilio signature validated',
-    );
+    logger.info({ path: req.originalUrl, method: req.method }, 'Twilio signature validated');
 
     next();
   } catch (error) {

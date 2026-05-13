@@ -3,13 +3,17 @@ import type { Server as HttpServer } from 'http';
 import { logger } from '../../lib/logger.js';
 import * as callService from '../calls/call.service.js';
 import { db } from '../../db/index.js';
-import { tenantConfigVersions } from '../../db/schema.js';
+import { callSessions, tenantConfigVersions } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
 import { runWithTenantContext, setActiveTenantContext } from '../../db/tenant-context.js';
+import {
+  assertMediaStreamCallSessionMatchesToken,
+  verifyMediaStreamBinding,
+} from './stream-token.js';
 
 interface SensitiveTopic {
   type?: string;
@@ -548,17 +552,46 @@ async function handleStreamStart(
 
   try {
     const customParameters = startData?.customParameters || {};
-    const tenantId = customParameters.tenantId;
-    const configVersionId = customParameters.configVersionId;
+    const tokenClaims = verifyMediaStreamBinding({
+      token: customParameters.streamToken,
+      pathCallSessionId: callSessionId,
+      startCallSid: startData?.callSid,
+      customTenantId: customParameters.tenantId,
+      customConfigVersionId: customParameters.configVersionId,
+      customCallSessionId: customParameters.callSessionId,
+    });
 
-    if (!tenantId || !configVersionId) {
-      logger.error(
-        { callSessionId, customParameters },
-        'Missing tenantId or configVersionId in stream start',
+    const [callSession] = await db
+      .select({
+        tenantId: callSessions.tenantId,
+        configVersionId: callSessions.configVersionId,
+        twilioCallSid: callSessions.twilioCallSid,
+      })
+      .from(callSessions)
+      .where(eq(callSessions.id, callSessionId))
+      .limit(1);
+
+    try {
+      assertMediaStreamCallSessionMatchesToken(tokenClaims, callSession);
+    } catch {
+      logger.warn(
+        {
+          callSessionId,
+          streamSid,
+          tokenTenantId: tokenClaims.tenantId,
+          sessionTenantId: callSession?.tenantId,
+          tokenCallSid: tokenClaims.callSid,
+          sessionCallSid: callSession?.twilioCallSid,
+          tokenConfigVersionId: tokenClaims.configVersionId,
+          sessionConfigVersionId: callSession?.configVersionId,
+        },
+        'Media stream rejected: token does not match persisted call session',
       );
       ws.close();
       return;
     }
+
+    const { tenantId, configVersionId } = tokenClaims;
 
     setActiveTenantContext({
       tenantId,
