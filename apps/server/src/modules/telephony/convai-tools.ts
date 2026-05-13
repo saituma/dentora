@@ -1,16 +1,18 @@
 import * as configService from '../config/config.service.js';
 import {
   findAvailableCalendarSlots,
-  createGoogleCalendarAppointment,
   getActiveGoogleCalendarIntegration,
-  cancelGoogleCalendarAppointment,
-  rescheduleGoogleCalendarAppointment,
 } from '../integrations/integration.service.js';
 import { resolveValidGoogleAccessToken } from '../integrations/google-calendar.shared.js';
-import { findPatientProfile, upsertPatientProfile } from '../patients/patients.service.js';
+import { findPatientProfile } from '../patients/patients.service.js';
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import {
+  bookLedgerBackedAppointment,
+  cancelLedgerBackedAppointment,
+  rescheduleLedgerBackedAppointment,
+} from '../appointments/appointment-application.service.js';
 
 function getTodayInTimezone(timezone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -30,11 +32,17 @@ function normalizeAgentDate(dateStr: string, timezone: string): string {
   if (agentYear < currentYear) {
     const corrected = `${currentYear}${dateStr.slice(4)}`;
     if (corrected >= today) {
-      logger.warn({ original: dateStr, corrected }, 'Corrected agent-supplied date to current year');
+      logger.warn(
+        { original: dateStr, corrected },
+        'Corrected agent-supplied date to current year',
+      );
       return corrected;
     }
     const nextYear = `${currentYear + 1}${dateStr.slice(4)}`;
-    logger.warn({ original: dateStr, corrected: nextYear }, 'Corrected agent-supplied date to next year');
+    logger.warn(
+      { original: dateStr, corrected: nextYear },
+      'Corrected agent-supplied date to next year',
+    );
     return nextYear;
   }
   return dateStr;
@@ -66,7 +74,10 @@ function normalizeAgentIso(isoStr: string, timezone: string): string {
     if (correctedLocal < today) {
       corrected.setUTCFullYear(corrected.getUTCFullYear() + 1);
     }
-    logger.warn({ original: isoStr, corrected: corrected.toISOString() }, 'Corrected agent-supplied ISO date to current year');
+    logger.warn(
+      { original: isoStr, corrected: corrected.toISOString() },
+      'Corrected agent-supplied ISO date to current year',
+    );
     return corrected.toISOString();
   }
   return isoStr;
@@ -80,7 +91,10 @@ export async function handleConvaiToolCall(input: {
   callSessionId?: string;
 }): Promise<unknown> {
   const { tenantId, toolName, params } = input;
-  logger.info({ tenantId, toolName, params, callSessionId: input.callSessionId }, 'ConvAI tool call received');
+  logger.info(
+    { tenantId, toolName, callSessionId: input.callSessionId },
+    'ConvAI tool call received',
+  );
 
   switch (toolName) {
     case 'list_appointments':
@@ -114,16 +128,19 @@ async function listAppointments(tenantId: string) {
 
   const { accessToken } = await resolveValidGoogleAccessToken(integration);
   const config = (integration.config ?? {}) as Record<string, unknown>;
-  const calendarId = typeof config.calendarId === 'string' && config.calendarId.trim()
-    ? config.calendarId
-    : 'primary';
+  const calendarId =
+    typeof config.calendarId === 'string' && config.calendarId.trim()
+      ? config.calendarId
+      : 'primary';
 
   const lookAheadDays = 7;
   const now = new Date();
   const timeMin = now.toISOString();
   const timeMax = new Date(now.getTime() + lookAheadDays * 24 * 60 * 60 * 1000).toISOString();
 
-  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+  );
   url.searchParams.set('timeMin', timeMin);
   url.searchParams.set('timeMax', timeMax);
   url.searchParams.set('singleEvents', 'true');
@@ -139,7 +156,7 @@ async function listAppointments(tenantId: string) {
     throw new ValidationError(`Failed to load calendar events: ${errorBody.slice(0, 300)}`);
   }
 
-  const payload = await response.json() as {
+  const payload = (await response.json()) as {
     items?: Array<{
       id?: string;
       summary?: string;
@@ -199,12 +216,17 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
     timezone: clinic.timezone,
     requestedDate,
     requestedTime: params.requestedTime ? String(params.requestedTime) : null,
-    requestedPeriod: params.requestedPeriod ? String(params.requestedPeriod) as 'morning' | 'afternoon' | 'evening' : null,
+    requestedPeriod: params.requestedPeriod
+      ? (String(params.requestedPeriod) as 'morning' | 'afternoon' | 'evening')
+      : null,
     appointmentDurationMinutes: params.appointmentDurationMinutes
       ? Number(params.appointmentDurationMinutes)
-      : rules?.defaultAppointmentDurationMinutes ?? 30,
+      : (rules?.defaultAppointmentDurationMinutes ?? 30),
     bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
-    operatingSchedule: (rules?.operatingSchedule as Record<string, unknown> | null) ?? (clinic.businessHours as Record<string, unknown> | null) ?? null,
+    operatingSchedule:
+      (rules?.operatingSchedule as Record<string, unknown> | null) ??
+      (clinic.businessHours as Record<string, unknown> | null) ??
+      null,
     closedDates,
     maxSlots: params.maxSlots ? Number(params.maxSlots) : 5,
     lookAheadDays: params.lookAheadDays ? Number(params.lookAheadDays) : 14,
@@ -234,7 +256,9 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
   const age = params.age ? Number(params.age) : undefined;
 
   if (!rawStartIso || !rawEndIso || !fullName || !phoneNumber || !reasonForVisit) {
-    throw new ValidationError('startIso, endIso, fullName, phoneNumber, and reasonForVisit are required');
+    throw new ValidationError(
+      'startIso, endIso, fullName, phoneNumber, and reasonForVisit are required',
+    );
   }
 
   const startIso = normalizeAgentIso(rawStartIso, clinic.timezone);
@@ -242,7 +266,11 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
 
   const startAt = new Date(startIso);
   const endAt = new Date(endIso);
-  if (!Number.isFinite(startAt.getTime()) || !Number.isFinite(endAt.getTime()) || endAt <= startAt) {
+  if (
+    !Number.isFinite(startAt.getTime()) ||
+    !Number.isFinite(endAt.getTime()) ||
+    endAt <= startAt
+  ) {
     throw new ValidationError('Appointment start/end times are invalid');
   }
 
@@ -270,23 +298,36 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
   const isToday = startDateLocal === todayLocal;
   const isTomorrow = startDateLocal === tomorrowLocal;
 
-  const nowHour = Number(timeFormatter.formatToParts(new Date()).find((part) => part.type === 'hour')?.value ?? '0');
-  const startHour = Number(timeFormatter.formatToParts(startAt).find((part) => part.type === 'hour')?.value ?? '0');
+  const nowHour = Number(
+    timeFormatter.formatToParts(new Date()).find((part) => part.type === 'hour')?.value ?? '0',
+  );
+  const startHour = Number(
+    timeFormatter.formatToParts(startAt).find((part) => part.type === 'hour')?.value ?? '0',
+  );
 
   const reason = reasonForVisit.toLowerCase();
-  const isEmergency = /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(reason);
+  const isEmergency =
+    /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(
+      reason,
+    );
 
   if (!isEmergency) {
     if (startAt.getTime() < minStart) {
-      throw new ValidationError(`Appointments must be scheduled at least ${minNoticeHours} hours in advance`);
+      throw new ValidationError(
+        `Appointments must be scheduled at least ${minNoticeHours} hours in advance`,
+      );
     }
     if (startAt.getTime() > maxStart) {
-      throw new ValidationError(`Appointments cannot be scheduled more than ${maxAdvanceDays} days in advance`);
+      throw new ValidationError(
+        `Appointments cannot be scheduled more than ${maxAdvanceDays} days in advance`,
+      );
     }
 
     if (isToday) {
       if (nowHour >= 12) {
-        throw new ValidationError('Same-day appointments are only available when booked in the morning');
+        throw new ValidationError(
+          'Same-day appointments are only available when booked in the morning',
+        );
       }
       if (startHour < 12) {
         throw new ValidationError('Same-day appointments must be scheduled in the afternoon');
@@ -296,28 +337,31 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
     }
   }
 
-  const appointment = await createGoogleCalendarAppointment({
-    tenantId,
-    timezone: clinic.timezone,
-    slot: { startIso, endIso },
-    summary: `Dental appointment - ${fullName}`,
-    patient: {
-      fullName,
-      age,
-      phoneNumber,
-      dateOfBirth,
-      reasonForVisit,
-    },
-  });
-
-  await upsertPatientProfile({
-    tenantId,
-    fullName,
-    phoneNumber,
-    dateOfBirth,
-    lastVisitAt: new Date(startIso),
-    notes: reasonForVisit,
-  });
+  let appointment: Awaited<ReturnType<typeof bookLedgerBackedAppointment>>;
+  try {
+    appointment = await bookLedgerBackedAppointment({
+      tenantId,
+      slot: { startIso, endIso },
+      summary: `Dental appointment - ${fullName}`,
+      patient: {
+        fullName,
+        age,
+        phoneNumber,
+        dateOfBirth,
+        reasonForVisit,
+      },
+    });
+  } catch (error) {
+    logger.warn(
+      { tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'Ledger-backed appointment booking failed',
+    );
+    return {
+      success: false,
+      message:
+        'I could not book that appointment safely. Please try another time or contact the front desk.',
+    };
+  }
 
   const startDate = new Intl.DateTimeFormat('en-US', {
     timeZone: clinic.timezone,
@@ -334,11 +378,14 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
     clinicName: clinic.clinicName ?? 'Dental Clinic',
     appointmentDate: startDate,
     patientName: fullName,
-  }).catch((err) => {
-    logger.warn({ err, tenantId }, 'SMS confirmation failed (non-blocking)');
+  }).catch((error) => {
+    logger.warn(
+      { tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'SMS confirmation failed (non-blocking)',
+    );
   });
 
-  return appointment;
+  return { ...appointment, success: true };
 }
 
 async function cancelAppointment(tenantId: string, params: Record<string, unknown>) {
@@ -347,8 +394,19 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
     throw new ValidationError('eventId is required');
   }
 
-  await cancelGoogleCalendarAppointment({ tenantId, eventId });
-  return { success: true };
+  try {
+    const result = await cancelLedgerBackedAppointment({ tenantId, eventId });
+    return { ...result, message: 'Appointment cancelled.' };
+  } catch (error) {
+    logger.warn(
+      { tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'Ledger-backed appointment cancellation failed',
+    );
+    return {
+      success: false,
+      message: 'I could not cancel that appointment safely. Please contact the front desk.',
+    };
+  }
 }
 
 async function rescheduleAppointment(tenantId: string, params: Record<string, unknown>) {
@@ -368,12 +426,24 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
   const startIso = normalizeAgentIso(rawStartIso, clinic.timezone);
   const endIso = normalizeAgentIso(rawEndIso, clinic.timezone);
 
-  return await rescheduleGoogleCalendarAppointment({
-    tenantId,
-    eventId,
-    timezone: clinic.timezone,
-    slot: { startIso, endIso },
-  });
+  try {
+    const result = await rescheduleLedgerBackedAppointment({
+      tenantId,
+      eventId,
+      timezone: clinic.timezone,
+      slot: { startIso, endIso },
+    });
+    return { ...result, message: 'Appointment rescheduled.' };
+  } catch (error) {
+    logger.warn(
+      { tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'Ledger-backed appointment reschedule failed',
+    );
+    return {
+      success: false,
+      message: 'I could not reschedule that appointment safely. Please contact the front desk.',
+    };
+  }
 }
 
 async function forwardCall(
@@ -383,28 +453,36 @@ async function forwardCall(
   callSessionId?: string,
 ) {
   if (!callSid || !callSessionId) {
-    return { success: false, message: 'Call forwarding is only available during live phone calls.' };
+    return {
+      success: false,
+      message: 'Call forwarding is only available during live phone calls.',
+    };
   }
 
   let targetNumber = String(params.targetNumber ?? '').trim();
 
   if (!targetNumber) {
     const clinic = await configService.getClinicProfile(tenantId);
-    const staffMembers = clinic?.staffMembers as Array<{ name?: string; phone?: string; role?: string }> | undefined;
+    const staffMembers = clinic?.staffMembers as
+      | Array<{ name?: string; phone?: string; role?: string }>
+      | undefined;
 
-    const staffName = String(params.staffName ?? '').trim().toLowerCase();
-    const staffMatch = staffMembers?.find((s) =>
-      s.phone && (
-        !staffName ||
-        s.name?.toLowerCase().includes(staffName) ||
-        s.role?.toLowerCase().includes(staffName)
-      ),
+    const staffName = String(params.staffName ?? '')
+      .trim()
+      .toLowerCase();
+    const staffMatch = staffMembers?.find(
+      (s) =>
+        s.phone &&
+        (!staffName ||
+          s.name?.toLowerCase().includes(staffName) ||
+          s.role?.toLowerCase().includes(staffName)),
     );
 
     if (staffMatch?.phone) {
       targetNumber = staffMatch.phone;
     } else {
-      const clinicPhone = clinic?.phone ?? (clinic as Record<string, unknown>)?.primaryPhone as string | undefined;
+      const clinicPhone =
+        clinic?.phone ?? ((clinic as Record<string, unknown>)?.primaryPhone as string | undefined);
       if (clinicPhone) {
         targetNumber = clinicPhone;
       }
@@ -412,7 +490,10 @@ async function forwardCall(
   }
 
   if (!targetNumber) {
-    return { success: false, message: 'No phone number available to forward the call to. Please take a message instead.' };
+    return {
+      success: false,
+      message: 'No phone number available to forward the call to. Please take a message instead.',
+    };
   }
 
   const result = await forwardCallToHuman({
@@ -423,10 +504,17 @@ async function forwardCall(
   });
 
   if (result.success) {
-    return { success: true, message: `Transferring the call to ${targetNumber}. The caller will hear hold music.` };
+    return {
+      success: true,
+      message: `Transferring the call to ${targetNumber}. The caller will hear hold music.`,
+    };
   }
 
-  return { success: false, message: 'Unable to transfer the call right now. Please take a message and let the caller know someone will call them back.' };
+  return {
+    success: false,
+    message:
+      'Unable to transfer the call right now. Please take a message and let the caller know someone will call them back.',
+  };
 }
 
 async function getClinicInfo(tenantId: string) {
@@ -441,17 +529,20 @@ async function getClinicInfo(tenantId: string) {
     address: clinic?.address ?? null,
     website: clinic?.website ?? null,
     specialties: clinic?.specialties ?? [],
-    staffMembers: (clinic?.staffMembers as Array<{ name?: string; role?: string; phone?: string }> | undefined)?.map(
-      (s) => ({ name: s.name, role: s.role, phone: s.phone ?? null }),
-    ) ?? [],
-    policies: policyList?.map((p) => ({
-      type: (p as Record<string, unknown>).policyType,
-      content: (p as Record<string, unknown>).content,
-    })) ?? [],
-    faqs: faqList?.map((f) => ({
-      question: (f as Record<string, unknown>).question,
-      answer: (f as Record<string, unknown>).answer,
-    })) ?? [],
+    staffMembers:
+      (
+        clinic?.staffMembers as Array<{ name?: string; role?: string; phone?: string }> | undefined
+      )?.map((s) => ({ name: s.name, role: s.role, phone: s.phone ?? null })) ?? [],
+    policies:
+      policyList?.map((p) => ({
+        type: (p as Record<string, unknown>).policyType,
+        content: (p as Record<string, unknown>).content,
+      })) ?? [],
+    faqs:
+      faqList?.map((f) => ({
+        question: (f as Record<string, unknown>).question,
+        answer: (f as Record<string, unknown>).answer,
+      })) ?? [],
   };
 }
 
@@ -460,9 +551,8 @@ async function getBusinessHours(tenantId: string) {
   const rules = await configService.getBookingRules(tenantId);
   const timezone = clinic?.timezone ?? 'America/New_York';
 
-  const schedule = (rules as Record<string, unknown> | null)?.operatingSchedule
-    ?? clinic?.businessHours
-    ?? null;
+  const schedule =
+    (rules as Record<string, unknown> | null)?.operatingSchedule ?? clinic?.businessHours ?? null;
 
   return {
     timezone,

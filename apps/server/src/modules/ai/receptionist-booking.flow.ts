@@ -1,10 +1,10 @@
 import {
-  createGoogleCalendarAppointment,
   findAvailableCalendarSlots,
   getActiveGoogleCalendarIntegration,
   type CalendarSlot,
 } from '../integrations/integration.service.js';
-import { findPatientProfileByPhone, upsertPatientProfile } from '../patients/patients.service.js';
+import { findPatientProfileByPhone } from '../patients/patients.service.js';
+import { bookLedgerBackedAppointment } from '../appointments/appointment-application.service.js';
 import { processConversationTurn, type TenantAIContext } from './ai.service.js';
 import {
   buildPatientQuestion,
@@ -19,7 +19,6 @@ import {
   getOperatingSchedule,
   getTimezone,
   isClinicOpenOnDate,
-  buildPatientNotes,
   mergePatientDetails,
 } from './receptionist-booking.context.js';
 import { resetBookingState } from './receptionist-booking.state.js';
@@ -42,9 +41,14 @@ import { executeLlmWithFailover } from './engine/index.js';
 import { logger } from '../../lib/logger.js';
 import { buildDirectReceptionistResponse } from './receptionist-booking.direct-response.js';
 
-function resolveSelectedSlot(bookingState: BookingConversationState, extraction: BookingTurnExtraction): CalendarSlot | undefined {
+function resolveSelectedSlot(
+  bookingState: BookingConversationState,
+  extraction: BookingTurnExtraction,
+): CalendarSlot | undefined {
   if (extraction.selectedSlotStartIso) {
-    return bookingState.offeredSlots.find((slot) => slot.startIso === extraction.selectedSlotStartIso);
+    return bookingState.offeredSlots.find(
+      (slot) => slot.startIso === extraction.selectedSlotStartIso,
+    );
   }
   if (typeof extraction.selectedSlotIndex === 'number' && extraction.selectedSlotIndex > 0) {
     return bookingState.offeredSlots[extraction.selectedSlotIndex - 1];
@@ -59,10 +63,16 @@ async function extractBookingTurn(input: {
   bookingState: BookingConversationState;
   conversationHistory: Array<{ role: string; content: string }>;
 }): Promise<BookingTurnExtraction> {
-  const offeredSlotsSummary = input.bookingState.offeredSlots.length > 0
-    ? input.bookingState.offeredSlots.map((slot, index) => `${index + 1}. ${slot.label} (${slot.startIso})`).join('\n')
-    : 'None';
-  const recentHistory = input.conversationHistory.slice(-6).map((turn) => `${turn.role}: ${turn.content}`).join('\n');
+  const offeredSlotsSummary =
+    input.bookingState.offeredSlots.length > 0
+      ? input.bookingState.offeredSlots
+          .map((slot, index) => `${index + 1}. ${slot.label} (${slot.startIso})`)
+          .join('\n')
+      : 'None';
+  const recentHistory = input.conversationHistory
+    .slice(-6)
+    .map((turn) => `${turn.role}: ${turn.content}`)
+    .join('\n');
 
   const prompt = [
     'You extract dental appointment booking details from a receptionist call.',
@@ -85,26 +95,30 @@ async function extractBookingTurn(input: {
     `Latest caller message: ${input.userMessage}`,
     '',
     'Return JSON only with this exact shape:',
-    JSON.stringify({
-      bookingIntent: true,
-      availabilityIntent: true,
-      serviceName: null,
-      requestedDate: null,
-      requestedTime: null,
-      requestedPeriod: null,
-      selectedSlotIndex: null,
-      selectedSlotStartIso: null,
-      confirmed: false,
-      declined: false,
-      nameConfirmed: null,
-      namePronunciation: null,
-      patient: {
-        fullName: null,
-        age: null,
-        phoneNumber: null,
-        reasonForVisit: null,
+    JSON.stringify(
+      {
+        bookingIntent: true,
+        availabilityIntent: true,
+        serviceName: null,
+        requestedDate: null,
+        requestedTime: null,
+        requestedPeriod: null,
+        selectedSlotIndex: null,
+        selectedSlotStartIso: null,
+        confirmed: false,
+        declined: false,
+        nameConfirmed: null,
+        namePronunciation: null,
+        patient: {
+          fullName: null,
+          age: null,
+          phoneNumber: null,
+          reasonForVisit: null,
+        },
       },
-    }, null, 2),
+      null,
+      2,
+    ),
   ].join('\n');
 
   const result = await executeLlmWithFailover({
@@ -135,7 +149,12 @@ async function extractBookingTurn(input: {
       declined?: boolean;
       nameConfirmed?: boolean | null;
       namePronunciation?: string | null;
-      patient?: { fullName?: string | null; age?: number | null; phoneNumber?: string | null; reasonForVisit?: string | null };
+      patient?: {
+        fullName?: string | null;
+        age?: number | null;
+        phoneNumber?: string | null;
+        reasonForVisit?: string | null;
+      };
     };
 
     return {
@@ -145,7 +164,8 @@ async function extractBookingTurn(input: {
       requestedDate: parsed.requestedDate ?? undefined,
       requestedTime: parsed.requestedTime ?? undefined,
       requestedPeriod: parsed.requestedPeriod ?? undefined,
-      selectedSlotIndex: typeof parsed.selectedSlotIndex === 'number' ? parsed.selectedSlotIndex : undefined,
+      selectedSlotIndex:
+        typeof parsed.selectedSlotIndex === 'number' ? parsed.selectedSlotIndex : undefined,
       selectedSlotStartIso: parsed.selectedSlotStartIso ?? undefined,
       confirmed: Boolean(parsed.confirmed),
       declined: Boolean(parsed.declined),
@@ -159,13 +179,18 @@ async function extractBookingTurn(input: {
       },
     };
   } catch (error) {
-    logger.warn({ err: error, tenantId: input.tenantId }, 'Failed to parse booking extraction JSON');
+    logger.warn(
+      { tenantId: input.tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'Failed to parse booking extraction JSON',
+    );
     return {
       bookingIntent: isRawBookingIntent(input.userMessage),
       availabilityIntent: /available|availability|opening|slot/i.test(input.userMessage),
       confirmed: /\b(yes|confirm|that works|book it|sounds good)\b/i.test(input.userMessage),
       declined: /\b(no|different time|another time|not that one)\b/i.test(input.userMessage),
-      nameConfirmed: /\b(yes|correct|that's right|that is right|yep|yeah)\b/i.test(input.userMessage)
+      nameConfirmed: /\b(yes|correct|that's right|that is right|yep|yeah)\b/i.test(
+        input.userMessage,
+      )
         ? true
         : /\b(no|incorrect|not quite|not right)\b/i.test(input.userMessage)
           ? false
@@ -284,7 +309,8 @@ export async function processBookingTurn(input: {
     bookingState.confirmationRequested = false;
   }
 
-  const shouldHandleBooking = bookingState.active || extraction.bookingIntent || extraction.availabilityIntent;
+  const shouldHandleBooking =
+    bookingState.active || extraction.bookingIntent || extraction.availabilityIntent;
   if (!shouldHandleBooking) {
     return {
       response: await generateGeneralReceptionistResponse(input),
@@ -299,7 +325,8 @@ export async function processBookingTurn(input: {
     bookingState.selectedSlot = undefined;
     bookingState.status = 'offering_slots';
     return {
-      response: 'No problem. I can offer another time. Would you prefer a morning, afternoon, or evening appointment?',
+      response:
+        'No problem. I can offer another time. Would you prefer a morning, afternoon, or evening appointment?',
       sessionState: input.sessionState,
     };
   }
@@ -323,7 +350,8 @@ export async function processBookingTurn(input: {
     if (!bookingState.requestedDate) {
       bookingState.status = 'collecting_preference';
       return {
-        response: 'I can help with that. What day would you like to come in, and do you prefer a specific time?',
+        response:
+          'I can help with that. What day would you like to come in, and do you prefer a specific time?',
         sessionState: input.sessionState,
       };
     }
@@ -351,16 +379,24 @@ export async function processBookingTurn(input: {
       bookingState.status = 'offering_slots';
       const requestedDate = bookingState.requestedDate;
       const hasSameDaySuggestion = requestedDate
-        ? availability.suggestedSlots.some((slot) => formatDateInTimezone(new Date(slot.startIso), timezone) === requestedDate)
+        ? availability.suggestedSlots.some(
+            (slot) => formatDateInTimezone(new Date(slot.startIso), timezone) === requestedDate,
+          )
         : false;
       const clinicOpenThatDay = requestedDate
-        ? isClinicOpenOnDate(getOperatingSchedule(input.aiContext), getClosedDates(input.aiContext), requestedDate, timezone)
+        ? isClinicOpenOnDate(
+            getOperatingSchedule(input.aiContext),
+            getClosedDates(input.aiContext),
+            requestedDate,
+            timezone,
+          )
         : true;
-      const intro = requestedDate && !hasSameDaySuggestion
-        ? clinicOpenThatDay
-          ? 'I do not have any more openings today.'
-          : 'Sorry, we are closed today, but I can book you for another day.'
-        : 'I have a few openings.';
+      const intro =
+        requestedDate && !hasSameDaySuggestion
+          ? clinicOpenThatDay
+            ? 'I do not have any more openings today.'
+            : 'Sorry, we are closed today, but I can book you for another day.'
+          : 'I have a few openings.';
       return {
         response: `${intro} ${buildSlotOptionsText(availability.suggestedSlots, timezone)} Which time would you like?`,
         sessionState: input.sessionState,
@@ -368,7 +404,8 @@ export async function processBookingTurn(input: {
     } else {
       bookingState.status = 'collecting_preference';
       return {
-        response: 'I do not have an opening at that time. Would you like me to look at another day or a different part of the day?',
+        response:
+          'I do not have an opening at that time. Would you like me to look at another day or a different part of the day?',
         sessionState: input.sessionState,
       };
     }
@@ -393,7 +430,8 @@ export async function processBookingTurn(input: {
         bookingState.namePronunciationRequested = false;
       } else {
         return {
-          response: 'Sorry about that. Could you please pronounce the name so we can say it correctly?',
+          response:
+            'Sorry about that. Could you please pronounce the name so we can say it correctly?',
           sessionState: input.sessionState,
         };
       }
@@ -452,8 +490,18 @@ export async function processBookingTurn(input: {
   const finalAvailability = await findAvailableCalendarSlots({
     tenantId: input.tenantId,
     timezone,
-    requestedDate: new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(selectedSlot.startIso)),
-    requestedTime: new Intl.DateTimeFormat('en-GB', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(selectedSlot.startIso)),
+    requestedDate: new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(selectedSlot.startIso)),
+    requestedTime: new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(selectedSlot.startIso)),
     appointmentDurationMinutes: getAppointmentDuration(input.aiContext),
     bufferBetweenAppointmentsMinutes: getBufferMinutes(input.aiContext),
     operatingSchedule: getOperatingSchedule(input.aiContext),
@@ -462,23 +510,25 @@ export async function processBookingTurn(input: {
     lookAheadDays: 1,
   });
 
-  const slotStillAvailable = finalAvailability.suggestedSlots.some((slot) => slot.startIso === selectedSlot.startIso && slot.endIso === selectedSlot.endIso);
+  const slotStillAvailable = finalAvailability.suggestedSlots.some(
+    (slot) => slot.startIso === selectedSlot.startIso && slot.endIso === selectedSlot.endIso,
+  );
   if (!slotStillAvailable) {
     bookingState.confirmationRequested = false;
     bookingState.selectedSlot = undefined;
     bookingState.offeredSlots = finalAvailability.suggestedSlots;
     bookingState.status = 'offering_slots';
     return {
-      response: finalAvailability.suggestedSlots.length > 0
-        ? `That slot was just taken. ${buildSlotOptionsText(finalAvailability.suggestedSlots, timezone)} Which time would you like instead?`
-        : 'That slot was just taken, and I do not have another immediate opening. Would you like a different day?',
+      response:
+        finalAvailability.suggestedSlots.length > 0
+          ? `That slot was just taken. ${buildSlotOptionsText(finalAvailability.suggestedSlots, timezone)} Which time would you like instead?`
+          : 'That slot was just taken, and I do not have another immediate opening. Would you like a different day?',
       sessionState: input.sessionState,
     };
   }
 
-  const appointment = await createGoogleCalendarAppointment({
+  const appointment = await bookLedgerBackedAppointment({
     tenantId: input.tenantId,
-    timezone,
     slot: selectedSlot,
     summary: bookingState.serviceName
       ? `${bookingState.serviceName} - ${bookingState.patient.fullName}`
@@ -491,16 +541,11 @@ export async function processBookingTurn(input: {
     },
   });
 
-  await upsertPatientProfile({
-    tenantId: input.tenantId,
-    fullName: bookingState.patient.fullName!,
-    phoneNumber: bookingState.patient.phoneNumber!,
-    dateOfBirth: null,
-    lastVisitAt: new Date(selectedSlot.startIso),
-    notes: buildPatientNotes(bookingState.patient.reasonForVisit, bookingState.patient.namePronunciation),
-  });
-
-  input.sessionState.booking = { ...resetBookingState(), status: 'confirmed', eventId: appointment.eventId };
+  input.sessionState.booking = {
+    ...resetBookingState(),
+    status: 'confirmed',
+    eventId: appointment.eventId,
+  };
   return {
     response: `You’re all set. I’ve booked ${appointment.slot.label} for ${bookingState.patient.fullName}. We’ll see you then, and if anything changes, please call the clinic.`,
     sessionState: input.sessionState,

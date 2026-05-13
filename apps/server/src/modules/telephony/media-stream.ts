@@ -816,7 +816,7 @@ async function handleElevenLabsMessageWithTenant(
       if (!toolName || !toolCallId || !session.elevenSocket) return;
 
       logger.info(
-        { callSessionId: session.callSessionId, toolName, toolCallId, params },
+        { callSessionId: session.callSessionId, toolName, toolCallId },
         'Tool call received from agent',
       );
 
@@ -832,7 +832,7 @@ async function handleElevenLabsMessageWithTenant(
           {
             callSessionId: session.callSessionId,
             toolName,
-            resultPreview: truncate(JSON.stringify(result), 300),
+            resultType: typeof result,
           },
           'Tool call handled successfully',
         );
@@ -845,8 +845,15 @@ async function handleElevenLabsMessageWithTenant(
           }),
         );
       } catch (error) {
-        logger.error({ callSessionId: session.callSessionId, toolName, error }, 'Tool call failed');
-        const messageText = error instanceof Error ? error.message : String(error);
+        logger.error(
+          {
+            callSessionId: session.callSessionId,
+            toolName,
+            errorName: error instanceof Error ? error.name : 'UnknownError',
+          },
+          'Tool call failed',
+        );
+        const messageText = 'Tool call failed safely. Please try again or contact the front desk.';
         session.elevenSocket.send(
           JSON.stringify({
             type: 'client_tool_result',

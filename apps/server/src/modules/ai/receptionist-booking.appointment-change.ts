@@ -1,10 +1,12 @@
 import { logger } from '../../lib/logger.js';
 import {
-  cancelGoogleCalendarAppointment,
   findAvailableCalendarSlots,
   findGoogleCalendarAppointment,
-  rescheduleGoogleCalendarAppointment,
 } from '../integrations/integration.service.js';
+import {
+  cancelLedgerBackedAppointment,
+  rescheduleLedgerBackedAppointment,
+} from '../appointments/appointment-application.service.js';
 import { executeLlmWithFailover } from './engine/index.js';
 import type { TenantAIContext } from './ai.service.js';
 import {
@@ -15,7 +17,10 @@ import {
   getOperatingSchedule,
   getTimezone,
 } from './receptionist-booking.context.js';
-import { createEmptyAppointmentChangeState, resetAppointmentChangeState } from './receptionist-booking.state.js';
+import {
+  createEmptyAppointmentChangeState,
+  resetAppointmentChangeState,
+} from './receptionist-booking.state.js';
 import type {
   AppointmentChangeExtraction,
   AppointmentChangeMode,
@@ -32,8 +37,16 @@ import {
 } from './receptionist-booking.utils.js';
 import { findPatientProfileByPhone } from '../patients/patients.service.js';
 
-export function shouldHandleAppointmentChange(state: AppointmentChangeState, detectedMode: AppointmentChangeMode | null, message: string): boolean {
-  return state.active || Boolean(detectedMode) || (Boolean(state.mode) && hasUsefulAppointmentDetails(message));
+export function shouldHandleAppointmentChange(
+  state: AppointmentChangeState,
+  detectedMode: AppointmentChangeMode | null,
+  message: string,
+): boolean {
+  return (
+    state.active ||
+    Boolean(detectedMode) ||
+    (Boolean(state.mode) && hasUsefulAppointmentDetails(message))
+  );
 }
 
 async function extractAppointmentChangeTurn(input: {
@@ -50,17 +63,21 @@ async function extractAppointmentChangeTurn(input: {
     'Mode can be: cancel, reschedule, or check (for appointment status).',
     `Current mode hint: ${input.modeHint ?? 'none'}`,
     'Return JSON only with this exact shape:',
-    JSON.stringify({
-      mode: null,
-      phoneNumber: null,
-      patientName: null,
-      currentDate: null,
-      currentTime: null,
-      preferredNewDate: null,
-      preferredNewTime: null,
-      confirmed: false,
-      declined: false,
-    }, null, 2),
+    JSON.stringify(
+      {
+        mode: null,
+        phoneNumber: null,
+        patientName: null,
+        currentDate: null,
+        currentTime: null,
+        preferredNewDate: null,
+        preferredNewTime: null,
+        confirmed: false,
+        declined: false,
+      },
+      null,
+      2,
+    ),
     '',
     `Caller message: ${input.userMessage}`,
   ].join('\n');
@@ -93,18 +110,21 @@ async function extractAppointmentChangeTurn(input: {
     };
 
     return {
-        mode: parsed.mode ?? undefined,
-        phoneNumber: parsed.phoneNumber ?? undefined,
-        patientName: parsed.patientName ?? undefined,
-        currentDate: parsed.currentDate ?? undefined,
-        currentTime: parsed.currentTime ?? undefined,
-        preferredNewDate: parsed.preferredNewDate ?? undefined,
-        preferredNewTime: parsed.preferredNewTime ?? undefined,
-        confirmed: Boolean(parsed.confirmed),
-        declined: Boolean(parsed.declined),
+      mode: parsed.mode ?? undefined,
+      phoneNumber: parsed.phoneNumber ?? undefined,
+      patientName: parsed.patientName ?? undefined,
+      currentDate: parsed.currentDate ?? undefined,
+      currentTime: parsed.currentTime ?? undefined,
+      preferredNewDate: parsed.preferredNewDate ?? undefined,
+      preferredNewTime: parsed.preferredNewTime ?? undefined,
+      confirmed: Boolean(parsed.confirmed),
+      declined: Boolean(parsed.declined),
     };
   } catch (error) {
-    logger.warn({ err: error, tenantId: input.tenantId }, 'Failed to parse appointment change extraction JSON');
+    logger.warn(
+      { tenantId: input.tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'Failed to parse appointment change extraction JSON',
+    );
     return {
       mode: detectAppointmentChangeMode(input.userMessage) ?? input.modeHint ?? undefined,
       currentDate: resolveRequestedDateFromMessage(input.userMessage, input.timezone),
@@ -114,7 +134,10 @@ async function extractAppointmentChangeTurn(input: {
   }
 }
 
-function mergeAppointmentChangeState(state: AppointmentChangeState, extraction: AppointmentChangeExtraction): void {
+function mergeAppointmentChangeState(
+  state: AppointmentChangeState,
+  extraction: AppointmentChangeExtraction,
+): void {
   if (extraction.mode) state.mode = extraction.mode;
   if (extraction.phoneNumber) state.phoneNumber = extraction.phoneNumber.trim();
   if (extraction.patientName) state.patientName = extraction.patientName.trim();
@@ -131,8 +154,12 @@ function getMissingAppointmentChangeField(state: AppointmentChangeState): string
   return null;
 }
 
-function buildAppointmentChangeMissingFieldQuestion(state: AppointmentChangeState, missingField: string): string {
-  if (missingField === 'mode') return 'Would you like to reschedule, cancel, or check the appointment?';
+function buildAppointmentChangeMissingFieldQuestion(
+  state: AppointmentChangeState,
+  missingField: string,
+): string {
+  if (missingField === 'mode')
+    return 'Would you like to reschedule, cancel, or check the appointment?';
   if (missingField === 'phone_number') return 'Please share the phone number on the appointment.';
   if (missingField === 'new_date') return 'Please share the new day you want instead.';
   if (state.mode === 'check') return 'Please share the phone number on the appointment.';
@@ -165,7 +192,10 @@ async function executeAppointmentChange(input: {
   }
 
   if (input.state.mode === 'cancel') {
-    await cancelGoogleCalendarAppointment({ tenantId: input.tenantId, eventId: matchedEvent.eventId });
+    await cancelLedgerBackedAppointment({
+      tenantId: input.tenantId,
+      eventId: matchedEvent.eventId,
+    });
     return `Done — I cancelled the appointment on ${matchedEvent.label}.`;
   }
 
@@ -187,7 +217,7 @@ async function executeAppointmentChange(input: {
     return 'I could not find an available slot for that new day/time. Please share an alternative day or time and I can try again.';
   }
 
-  await rescheduleGoogleCalendarAppointment({
+  await rescheduleLedgerBackedAppointment({
     tenantId: input.tenantId,
     timezone,
     eventId: matchedEvent.eventId,
@@ -225,7 +255,7 @@ export async function handleAppointmentChangeTurn(input: {
       ? 'Sure, switching to cancellation. Please share the phone number on the appointment.'
       : detectedMode === 'check'
         ? 'Sure, I can check the appointment. Please share the phone number on the appointment.'
-      : 'Sure, switching to rescheduling. Please share the phone number on the appointment.';
+        : 'Sure, switching to rescheduling. Please share the phone number on the appointment.';
   }
 
   const extraction = await extractAppointmentChangeTurn({
@@ -298,7 +328,10 @@ export async function handleAppointmentChangeTurn(input: {
       state.status = 'completed';
       return `${outcome} Anything else I can help with?`;
     } catch (error) {
-      logger.error({ err: error, tenantId }, 'Failed to check appointment');
+      logger.error(
+        { tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+        'Failed to check appointment',
+      );
       state.confirmationRequested = false;
       state.status = 'collecting_details';
       return 'I ran into an issue checking the live calendar. Please verify the phone number and try again.';
@@ -317,7 +350,9 @@ export async function handleAppointmentChangeTurn(input: {
   if (extraction.declined || isNegativeMessage(userMessage)) {
     state.confirmationRequested = false;
     state.status = 'collecting_details';
-    return state.mode === 'cancel' ? 'No problem. Please share the corrected cancellation details.' : 'No problem. Please share the corrected reschedule details.';
+    return state.mode === 'cancel'
+      ? 'No problem. Please share the corrected cancellation details.'
+      : 'No problem. Please share the corrected reschedule details.';
   }
 
   if (!(extraction.confirmed || isAffirmativeMessage(userMessage))) {
@@ -332,7 +367,10 @@ export async function handleAppointmentChangeTurn(input: {
     state.status = 'completed';
     return `${outcome} Anything else I can help with?`;
   } catch (error) {
-    logger.error({ err: error, tenantId }, 'Failed to execute appointment change');
+    logger.error(
+      { tenantId, errorName: error instanceof Error ? error.name : 'UnknownError' },
+      'Failed to execute appointment change',
+    );
     state.confirmationRequested = false;
     state.status = 'collecting_details';
     return 'I ran into an issue updating the live calendar. Please verify the details and try again.';
