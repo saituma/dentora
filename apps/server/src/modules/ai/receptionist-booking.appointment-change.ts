@@ -4,12 +4,19 @@ import {
   cancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
+import { features } from '../../config/features.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import {
   APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
   APPOINTMENT_VERIFICATION_NOT_FOUND_MESSAGE,
   resolveVerifiedAppointmentForCaller,
 } from '../appointments/appointment-lookup.service.js';
+import {
+  CANCEL_REVIEW_MESSAGE,
+  RESCHEDULE_REVIEW_MESSAGE,
+  createAppointmentChangeReviewItem,
+  inferAppointmentChangeVerificationMethod,
+} from '../appointments/appointment-change-review.service.js';
 import { executeLlmWithFailover } from './engine/index.js';
 import type { TenantAIContext } from './ai.service.js';
 import {
@@ -200,7 +207,7 @@ async function executeAppointmentChange(input: {
     if (readinessFailure) return readinessFailure.message;
   }
 
-  const verified = await resolveVerifiedAppointmentForCaller({
+  const verificationInput = {
     tenantId: input.tenantId,
     confirmationId: input.state.confirmationId,
     phoneNumber: input.state.phoneNumber,
@@ -214,7 +221,8 @@ async function executeAppointmentChange(input: {
         : input.state.mode === 'cancel'
           ? 'cancel_appointment'
           : 'reschedule_appointment',
-  });
+  } as const;
+  const verified = await resolveVerifiedAppointmentForCaller(verificationInput);
 
   if (!verified.success) {
     return verified.message;
@@ -225,6 +233,16 @@ async function executeAppointmentChange(input: {
   }
 
   if (input.state.mode === 'cancel') {
+    if (features.aiAppointmentChangesRequireReview) {
+      await createAppointmentChangeReviewItem({
+        tenantId: input.tenantId,
+        action: 'cancel',
+        appointment: verified.appointment,
+        verificationMethod: inferAppointmentChangeVerificationMethod(verificationInput),
+      });
+      return CANCEL_REVIEW_MESSAGE;
+    }
+
     await cancelLedgerBackedAppointment({
       tenantId: input.tenantId,
       eventId: verified.externalCalendarEventId,
@@ -248,6 +266,18 @@ async function executeAppointmentChange(input: {
   const nextSlot = availability.exactMatch ?? availability.suggestedSlots[0];
   if (!nextSlot) {
     return 'I could not find an available slot for that new day/time. Please share an alternative day or time and I can try again.';
+  }
+
+  if (features.aiAppointmentChangesRequireReview) {
+    await createAppointmentChangeReviewItem({
+      tenantId: input.tenantId,
+      action: 'reschedule',
+      appointment: verified.appointment,
+      requestedStartAt: nextSlot.startIso,
+      requestedEndAt: nextSlot.endIso,
+      verificationMethod: inferAppointmentChangeVerificationMethod(verificationInput),
+    });
+    return RESCHEDULE_REVIEW_MESSAGE;
   }
 
   await rescheduleLedgerBackedAppointment({
@@ -351,8 +381,12 @@ export async function handleAppointmentChangeTurn(input: {
 
   try {
     const outcome = await executeAppointmentChange({ tenantId, context, state });
+    const wasReviewModeChange =
+      features.aiAppointmentChangesRequireReview &&
+      (state.mode === 'cancel' || state.mode === 'reschedule');
     Object.assign(state, resetAppointmentChangeState());
     state.status = 'completed';
+    if (wasReviewModeChange) return outcome;
     return `${outcome} Anything else I can help with?`;
   } catch (error) {
     logger.error(

@@ -4,6 +4,7 @@ import { findPatientProfile } from '../patients/patients.service.js';
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { features } from '../../config/features.js';
 import {
   bookLedgerBackedAppointment,
   cancelLedgerBackedAppointment,
@@ -11,6 +12,12 @@ import {
 } from '../appointments/appointment-application.service.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import { resolveVerifiedAppointmentForCaller } from '../appointments/appointment-lookup.service.js';
+import {
+  CANCEL_REVIEW_MESSAGE,
+  RESCHEDULE_REVIEW_MESSAGE,
+  createAppointmentChangeReviewItem,
+  inferAppointmentChangeVerificationMethod,
+} from '../appointments/appointment-change-review.service.js';
 
 const APPOINTMENT_LIST_PRIVACY_MESSAGE =
   "For privacy reasons, I can't list patient appointments. I can help check availability, book a new appointment, cancel, or reschedule if you provide the appointment details.";
@@ -107,9 +114,9 @@ export async function handleConvaiToolCall(input: {
     case 'create_appointment':
       return createAppointmentWithSms(tenantId, params);
     case 'cancel_appointment':
-      return cancelAppointment(tenantId, params);
+      return cancelAppointment(tenantId, params, input.callSessionId);
     case 'reschedule_appointment':
-      return rescheduleAppointment(tenantId, params);
+      return rescheduleAppointment(tenantId, params, input.callSessionId);
     case 'forward_call':
       return forwardCall(tenantId, params, input.callSid, input.callSessionId);
     case 'get_clinic_info':
@@ -351,14 +358,18 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
   };
 }
 
-async function cancelAppointment(tenantId: string, params: Record<string, unknown>) {
+async function cancelAppointment(
+  tenantId: string,
+  params: Record<string, unknown>,
+  callSessionId?: string,
+) {
   const readinessFailure = await getAppointmentToolReadinessFailure({
     tenantId,
     toolName: 'cancel_appointment',
   });
   if (readinessFailure) return readinessFailure;
 
-  const verified = await resolveVerifiedAppointmentForCaller({
+  const verificationInput = {
     tenantId,
     confirmationId: typeof params.confirmationId === 'string' ? params.confirmationId : null,
     appointmentId: typeof params.appointmentId === 'string' ? params.appointmentId : null,
@@ -370,8 +381,23 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
     appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
     timezone: typeof params.timezone === 'string' ? params.timezone : null,
     operation: 'cancel_appointment',
-  });
+  } as const;
+  const verified = await resolveVerifiedAppointmentForCaller(verificationInput);
   if (!verified.success) return { success: false, message: verified.message };
+
+  if (features.aiAppointmentChangesRequireReview) {
+    await createAppointmentChangeReviewItem({
+      tenantId,
+      action: 'cancel',
+      appointment: verified.appointment,
+      relatedCallSessionId: callSessionId ?? null,
+      verificationMethod: inferAppointmentChangeVerificationMethod(verificationInput),
+    });
+    return {
+      success: true,
+      message: CANCEL_REVIEW_MESSAGE,
+    };
+  }
 
   try {
     const result = await cancelLedgerBackedAppointment({
@@ -391,7 +417,11 @@ async function cancelAppointment(tenantId: string, params: Record<string, unknow
   }
 }
 
-async function rescheduleAppointment(tenantId: string, params: Record<string, unknown>) {
+async function rescheduleAppointment(
+  tenantId: string,
+  params: Record<string, unknown>,
+  callSessionId?: string,
+) {
   const readinessFailure = await getAppointmentToolReadinessFailure({
     tenantId,
     toolName: 'reschedule_appointment',
@@ -405,7 +435,7 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
     throw new ValidationError('startIso and endIso are required');
   }
 
-  const verified = await resolveVerifiedAppointmentForCaller({
+  const verificationInput = {
     tenantId,
     confirmationId: typeof params.confirmationId === 'string' ? params.confirmationId : null,
     appointmentId: typeof params.appointmentId === 'string' ? params.appointmentId : null,
@@ -417,7 +447,8 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
     appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
     timezone: typeof params.timezone === 'string' ? params.timezone : null,
     operation: 'reschedule_appointment',
-  });
+  } as const;
+  const verified = await resolveVerifiedAppointmentForCaller(verificationInput);
   if (!verified.success) return { success: false, message: verified.message };
 
   const clinic = await configService.getClinicProfile(tenantId);
@@ -427,6 +458,22 @@ async function rescheduleAppointment(tenantId: string, params: Record<string, un
 
   const startIso = normalizeAgentIso(rawStartIso, clinic.timezone);
   const endIso = normalizeAgentIso(rawEndIso, clinic.timezone);
+
+  if (features.aiAppointmentChangesRequireReview) {
+    await createAppointmentChangeReviewItem({
+      tenantId,
+      action: 'reschedule',
+      appointment: verified.appointment,
+      relatedCallSessionId: callSessionId ?? null,
+      requestedStartAt: startIso,
+      requestedEndAt: endIso,
+      verificationMethod: inferAppointmentChangeVerificationMethod(verificationInput),
+    });
+    return {
+      success: true,
+      message: RESCHEDULE_REVIEW_MESSAGE,
+    };
+  }
 
   try {
     const result = await rescheduleLedgerBackedAppointment({

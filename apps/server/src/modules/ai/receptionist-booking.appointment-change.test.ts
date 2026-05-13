@@ -8,6 +8,10 @@ const mockGetAppointmentToolReadinessFailure = vi.hoisted(() => vi.fn());
 const mockCancelLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockFindAvailableCalendarSlots = vi.hoisted(() => vi.fn());
+const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
+const mockFeatures = vi.hoisted(() => ({
+  aiAppointmentChangesRequireReview: false,
+}));
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -34,6 +38,14 @@ vi.mock('../appointments/appointment-tool-readiness.js', () => ({
 vi.mock('../appointments/appointment-application.service.js', () => ({
   cancelLedgerBackedAppointment: mockCancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment: mockRescheduleLedgerBackedAppointment,
+}));
+
+vi.mock('../staff-review/staff-review.service.js', () => ({
+  createStaffReviewItemSafely: mockCreateStaffReviewItemSafely,
+}));
+
+vi.mock('../../config/features.js', () => ({
+  features: mockFeatures,
 }));
 
 vi.mock('../integrations/integration.service.js', () => ({
@@ -82,6 +94,7 @@ function changeState(overrides: Partial<AppointmentChangeState>): AppointmentCha
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFeatures.aiAppointmentChangesRequireReview = false;
   mockGetAppointmentToolReadinessFailure.mockResolvedValue(null);
   mockExecuteLlmWithFailover.mockResolvedValue({
     content: JSON.stringify({
@@ -170,6 +183,42 @@ describe('AI appointment change verification', () => {
     expect(response).toContain('Done - I cancelled the appointment.');
   });
 
+  it('routes verified cancellation to staff review when review mode is enabled', async () => {
+    mockFeatures.aiAppointmentChangesRequireReview = true;
+
+    const response = await handleAppointmentChangeTurn({
+      tenantId: 'tenant-a',
+      context,
+      userMessage: 'yes',
+      detectedMode: null,
+      state: changeState({
+        mode: 'cancel',
+        confirmationId: 'appointment-a',
+      }),
+    });
+
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockRescheduleLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        type: 'cancellation_requested',
+        source: 'ai_tool',
+        relatedAppointmentId: 'appointment-a',
+        relatedCallSessionId: null,
+        reasonCode: 'AI_CANCEL_REQUEST_REQUIRES_STAFF_APPROVAL',
+        metadata: {
+          requestedAction: 'cancel',
+          verificationMethod: 'confirmation_id',
+          pilotApprovalRequired: true,
+        },
+      }),
+    );
+    expect(response).toBe(
+      "I've sent your cancellation request to the clinic team for review. They'll follow up if needed.",
+    );
+  });
+
   it('reschedules with phone, DOB, and appointment date/time verification', async () => {
     const response = await handleAppointmentChangeTurn({
       tenantId: 'tenant-a',
@@ -207,6 +256,53 @@ describe('AI appointment change verification', () => {
       },
     });
     expect(response).toContain('Done - I moved the appointment to June 2 at 3:00 PM.');
+  });
+
+  it('routes verified reschedule to staff review when review mode is enabled', async () => {
+    mockFeatures.aiAppointmentChangesRequireReview = true;
+
+    const response = await handleAppointmentChangeTurn({
+      tenantId: 'tenant-a',
+      context,
+      userMessage: 'yes',
+      detectedMode: null,
+      state: changeState({
+        mode: 'reschedule',
+        phoneNumber: '+15551234567',
+        dateOfBirth: '1990-01-01',
+        currentDate: '2026-06-01',
+        currentTime: '14:00',
+        preferredNewDate: '2026-06-02',
+        preferredNewTime: '15:00',
+      }),
+    });
+
+    expect(mockRescheduleLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockFindAvailableCalendarSlots).toHaveBeenCalled();
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-a',
+        type: 'reschedule_requested',
+        source: 'ai_tool',
+        relatedAppointmentId: 'appointment-a',
+        relatedCallSessionId: null,
+        reasonCode: 'AI_RESCHEDULE_REQUEST_REQUIRES_STAFF_APPROVAL',
+        metadata: {
+          requestedAction: 'reschedule',
+          requestedStartAt: '2026-06-02T15:00:00.000Z',
+          requestedEndAt: '2026-06-02T15:30:00.000Z',
+          verificationMethod: 'phone_dob_datetime',
+          pilotApprovalRequired: true,
+        },
+      }),
+    );
+    const storedPayload = JSON.stringify(mockCreateStaffReviewItemSafely.mock.calls);
+    expect(storedPayload).not.toContain('+15551234567');
+    expect(storedPayload).not.toContain('1990-01-01');
+    expect(response).toBe(
+      "I've sent your reschedule request to the clinic team for review. They'll follow up if needed.",
+    );
   });
 
   it('returns safe generic not-found without appointment details', async () => {

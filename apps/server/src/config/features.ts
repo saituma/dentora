@@ -17,6 +17,9 @@ export const features = {
 
   appointmentReconciliationProcessor:
     process.env.FF_APPOINTMENT_RECONCILIATION_PROCESSOR === 'true',
+
+  aiAppointmentChangesRequireReview:
+    process.env.FF_AI_APPOINTMENT_CHANGES_REQUIRE_REVIEW === 'true',
 } as const;
 
 export type FeatureFlags = typeof features;

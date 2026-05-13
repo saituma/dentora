@@ -14,6 +14,9 @@ const mockRescheduleLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockComputeOnboardingReadiness = vi.hoisted(() => vi.fn());
 const mockResolveVerifiedAppointmentForCaller = vi.hoisted(() => vi.fn());
 const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
+const mockFeatures = vi.hoisted(() => ({
+  aiAppointmentChangesRequireReview: false,
+}));
 const mockLogger = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -57,6 +60,10 @@ vi.mock('../staff-review/staff-review.service.js', () => ({
   createStaffReviewItemSafely: mockCreateStaffReviewItemSafely,
 }));
 
+vi.mock('../../config/features.js', () => ({
+  features: mockFeatures,
+}));
+
 vi.mock('../appointments/appointment-lookup.service.js', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../appointments/appointment-lookup.service.js')>();
@@ -71,6 +78,7 @@ vi.mock('../../lib/logger.js', () => ({
 }));
 
 import { handleConvaiToolCall } from './convai-tools.js';
+import { AuthorizationError } from '../../lib/errors.js';
 import { APPOINTMENT_TOOL_UNAVAILABLE_MESSAGE } from '../appointments/appointment-tool-readiness.js';
 import {
   APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
@@ -82,6 +90,7 @@ const endIso = '2026-06-01T14:30:00.000Z';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockFeatures.aiAppointmentChangesRequireReview = false;
   mockComputeOnboardingReadiness.mockResolvedValue({
     ready: true,
     blockingIssues: [],
@@ -318,6 +327,52 @@ describe('ConvAI appointment tools', () => {
     });
   });
 
+  it('creates a staff review cancellation request when review mode is enabled', async () => {
+    mockFeatures.aiAppointmentChangesRequireReview = true;
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'cancel_appointment',
+      callSessionId: 'call-session-a',
+      params: {
+        phoneNumber: '+15551234567',
+        dateOfBirth: '1990-01-01',
+        appointmentDate: '2026-06-01',
+        appointmentTime: '14:00',
+      },
+    });
+
+    expect(mockResolveVerifiedAppointmentForCaller).toHaveBeenCalled();
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockRescheduleLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith({
+      tenantId: 'tenant-a',
+      type: 'cancellation_requested',
+      severity: 'medium',
+      source: 'ai_tool',
+      relatedAppointmentId: 'appointment-a',
+      relatedCallSessionId: 'call-session-a',
+      reasonCode: 'AI_CANCEL_REQUEST_REQUIRES_STAFF_APPROVAL',
+      message: 'AI cancellation request requires staff approval.',
+      metadata: {
+        requestedAction: 'cancel',
+        verificationMethod: 'phone_dob_datetime',
+        pilotApprovalRequired: true,
+      },
+      dedupeKey: 'ai_appointment_change_review:cancel:appointment-a',
+    });
+    expect(result).toEqual({
+      success: true,
+      message:
+        "I've sent your cancellation request to the clinic team for review. They'll follow up if needed.",
+    });
+    const storedPayload = JSON.stringify(mockCreateStaffReviewItemSafely.mock.calls);
+    expect(storedPayload).not.toContain('+15551234567');
+    expect(storedPayload).not.toContain('1990-01-01');
+    expect(storedPayload).not.toContain('Jane Secret');
+  });
+
   it('reschedules through the ledger-backed reschedule flow', async () => {
     const result = await handleConvaiToolCall({
       tenantId: 'tenant-a',
@@ -354,6 +409,91 @@ describe('ConvAI appointment tools', () => {
       slot: { startIso, endIso },
       message: 'Appointment rescheduled.',
     });
+  });
+
+  it('creates a staff review reschedule request when review mode is enabled', async () => {
+    mockFeatures.aiAppointmentChangesRequireReview = true;
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'reschedule_appointment',
+      callSessionId: 'call-session-a',
+      params: {
+        confirmationId: 'appointment-a',
+        startIso,
+        endIso,
+        rawToolParams: { phoneNumber: '+15551234567' },
+      },
+    });
+
+    expect(mockRescheduleLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(mockGetActiveGoogleCalendarIntegration).not.toHaveBeenCalled();
+    expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith({
+      tenantId: 'tenant-a',
+      type: 'reschedule_requested',
+      severity: 'medium',
+      source: 'ai_tool',
+      relatedAppointmentId: 'appointment-a',
+      relatedCallSessionId: 'call-session-a',
+      reasonCode: 'AI_RESCHEDULE_REQUEST_REQUIRES_STAFF_APPROVAL',
+      message: 'AI reschedule request requires staff approval.',
+      metadata: {
+        requestedAction: 'reschedule',
+        requestedStartAt: startIso,
+        requestedEndAt: endIso,
+        verificationMethod: 'confirmation_id',
+        pilotApprovalRequired: true,
+      },
+      dedupeKey: 'ai_appointment_change_review:reschedule:appointment-a',
+    });
+    expect(result).toEqual({
+      success: true,
+      message:
+        "I've sent your reschedule request to the clinic team for review. They'll follow up if needed.",
+    });
+    const storedPayload = JSON.stringify(mockCreateStaffReviewItemSafely.mock.calls);
+    expect(storedPayload).not.toContain('+15551234567');
+    expect(storedPayload).not.toContain('rawToolParams');
+  });
+
+  it('blocks weak verification before creating a cancellation review item', async () => {
+    mockFeatures.aiAppointmentChangesRequireReview = true;
+    mockResolveVerifiedAppointmentForCaller.mockResolvedValueOnce({
+      success: false,
+      reason: 'missing_verification',
+      message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+    });
+
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'cancel_appointment',
+      params: { phoneNumber: '+15551234567' },
+    });
+
+    expect(mockCreateStaffReviewItemSafely).not.toHaveBeenCalled();
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      message: APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE,
+    });
+  });
+
+  it('rejects cross-tenant lookup failures before creating a review item', async () => {
+    mockFeatures.aiAppointmentChangesRequireReview = true;
+    mockResolveVerifiedAppointmentForCaller.mockRejectedValueOnce(
+      new AuthorizationError('Tenant context mismatch'),
+    );
+
+    await expect(
+      handleConvaiToolCall({
+        tenantId: 'tenant-a',
+        toolName: 'cancel_appointment',
+        params: { confirmationId: 'appointment-from-tenant-b' },
+      }),
+    ).rejects.toThrow(AuthorizationError);
+    expect(mockCreateStaffReviewItemSafely).not.toHaveBeenCalled();
+    expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
   });
 
   it('returns safe failure text when ledger-backed booking rejects', async () => {
