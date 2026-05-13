@@ -1,22 +1,17 @@
 import jwt from 'jsonwebtoken';
-import { createHmac, randomUUID, scrypt, randomBytes, timingSafeEqual } from 'crypto';
+import { createHmac, randomUUID, pbkdf2, randomBytes, timingSafeEqual } from 'crypto';
 import { env } from '../config/env.js';
 
-// OWASP-recommended scrypt params (~200-400ms on constrained hardware, no native compilation needed)
-const SCRYPT_N = 16384;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
-const SCRYPT_KEYLEN = 64;
+// OWASP 2023 minimum: PBKDF2-SHA256 at 600,000 iterations
+// Native OpenSSL via Node.js crypto — no native module compilation required
+// ~220ms on Heroku Basic dyno (vs 2,500ms for bcryptjs)
+const PBKDF2_ITERATIONS = 600_000;
+const PBKDF2_KEYLEN = 64;
+const PBKDF2_DIGEST = 'sha256';
 
-function scryptHash(
-  password: string,
-  salt: string,
-  N: number,
-  r: number,
-  p: number,
-): Promise<Buffer> {
+function pbkdf2Hash(password: string, salt: string, iterations: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    scrypt(password, salt, SCRYPT_KEYLEN, { N, r, p }, (err, hash) => {
+    pbkdf2(password, salt, iterations, PBKDF2_KEYLEN, PBKDF2_DIGEST, (err, hash) => {
       if (err) reject(err);
       else resolve(hash);
     });
@@ -25,18 +20,37 @@ function scryptHash(
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
-  const hash = await scryptHash(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P);
-  return `scrypt:${SCRYPT_N}:${SCRYPT_R}:${SCRYPT_P}:${salt}:${hash.toString('hex')}`;
+  const hash = await pbkdf2Hash(password, salt, PBKDF2_ITERATIONS);
+  return `pbkdf2:${PBKDF2_ITERATIONS}:${salt}:${hash.toString('hex')}`;
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  // Legacy bcrypt hashes (backward compat during migration)
+  // Legacy bcrypt hashes (backward compat)
   if (stored.startsWith('$2b$') || stored.startsWith('$2a$')) {
     const { default: bcryptjs } = await import('bcryptjs');
     return bcryptjs.compare(password, stored);
   }
-  const [, N, r, p, salt, hashHex] = stored.split(':');
-  const hash = await scryptHash(password, salt, Number(N), Number(r), Number(p));
+  // Legacy scrypt hashes
+  if (stored.startsWith('scrypt:')) {
+    const { scrypt } = await import('crypto');
+    const [, N, r, p, salt, hashHex] = stored.split(':');
+    const hash = await new Promise<Buffer>((resolve, reject) => {
+      scrypt(
+        password,
+        salt,
+        PBKDF2_KEYLEN,
+        { N: Number(N), r: Number(r), p: Number(p) },
+        (err, h) => {
+          if (err) reject(err);
+          else resolve(h);
+        },
+      );
+    });
+    return timingSafeEqual(hash, Buffer.from(hashHex, 'hex'));
+  }
+  // PBKDF2 hashes: pbkdf2:{iterations}:{salt}:{hash}
+  const [, iterations, salt, hashHex] = stored.split(':');
+  const hash = await pbkdf2Hash(password, salt, Number(iterations));
   return timingSafeEqual(hash, Buffer.from(hashHex, 'hex'));
 }
 
