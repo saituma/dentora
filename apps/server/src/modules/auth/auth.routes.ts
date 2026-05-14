@@ -13,8 +13,8 @@ const REFRESH_TOKEN_COOKIE = 'refresh-token';
 
 const refreshTokenCookieOptions = {
   httpOnly: true,
-  sameSite: env.NODE_ENV === 'production' ? ('none' as const) : ('lax' as const),
-  secure: env.NODE_ENV === 'production',
+  sameSite: env.COOKIE_SAMESITE,
+  secure: env.COOKIE_SECURE,
   path: '/api/auth',
   maxAge: env.REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
 };

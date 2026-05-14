@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import { logger } from '../lib/logger.js';
+import { env } from '../config/env.js';
 
 const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
@@ -53,7 +54,8 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  const requiresAuthCookieCsrf = req.method === 'POST' && CSRF_REQUIRED_AUTH_POST_PATHS.has(req.path);
+  const requiresAuthCookieCsrf =
+    req.method === 'POST' && CSRF_REQUIRED_AUTH_POST_PATHS.has(req.path);
 
   // Skip when the request carries a Bearer token — JWT auth is not vulnerable to CSRF
   // because the token is stored in localStorage, not auto-sent by the browser.
@@ -67,10 +69,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
   const headerToken = req.headers[CSRF_HEADER] as string | undefined;
 
   if (!cookieToken || !headerToken || cookieToken !== headerToken) {
-    logger.warn(
-      { method: req.method, path: req.path },
-      'CSRF token validation failed',
-    );
+    logger.warn({ method: req.method, path: req.path }, 'CSRF token validation failed');
     res.status(403).json({ error: 'CSRF token validation failed' });
     return;
   }
@@ -89,8 +88,8 @@ csrfTokenRouter.get('/api/csrf-token', (_req: Request, res: Response) => {
 
   res.cookie(CSRF_COOKIE, token, {
     httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: env.COOKIE_SAMESITE,
+    secure: env.COOKIE_SECURE,
     path: '/',
   });
 

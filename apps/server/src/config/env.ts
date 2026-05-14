@@ -33,6 +33,10 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
   /** When true, allow browser requests from any https://*.onrender.com origin (API still requires JWT). */
   CORS_ALLOW_ONRENDER: z.coerce.boolean().default(false),
+  /** Cookie SameSite attribute. Use 'none' when frontend and API are on different domains (requires COOKIE_SECURE=true). */
+  COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+  /** Cookie Secure flag. Must be true when COOKIE_SAMESITE=none (browsers reject SameSite=None without Secure). */
+  COOKIE_SECURE: z.coerce.boolean().default(false),
 
   PLATFORM_ENV: z.enum(['local', 'ci', 'staging', 'production']).default('local'),
   PLATFORM_VERSION: z.string().default('0.1.0'),
@@ -179,6 +183,13 @@ function loadEnv() {
   if (!result.success) {
     console.error('❌ Invalid environment variables:');
     console.error(result.error.flatten().fieldErrors);
+    process.exit(1);
+  }
+
+  if (result.data.COOKIE_SAMESITE === 'none' && !result.data.COOKIE_SECURE) {
+    console.error(
+      '❌ COOKIE_SAMESITE=none requires COOKIE_SECURE=true (browsers reject SameSite=None without Secure)',
+    );
     process.exit(1);
   }
 

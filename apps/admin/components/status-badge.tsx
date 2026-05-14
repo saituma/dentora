@@ -43,7 +43,7 @@ const variantClasses: Record<string, string> = {
 };
 
 interface StatusBadgeProps {
-  value: Variant;
+  value: Variant | null | undefined;
   label?: string;
   dot?: boolean;
   className?: string;
@@ -55,8 +55,9 @@ export function StatusBadge({
   dot = false,
   className,
 }: StatusBadgeProps) {
-  const cls = variantClasses[value] ?? "bg-zinc-500/10 text-zinc-400";
-  const text = label ?? value.replace(/_/g, " ");
+  const safeValue = value ?? "";
+  const cls = variantClasses[safeValue] ?? "bg-zinc-500/10 text-zinc-400";
+  const text = label ?? safeValue.replace(/_/g, " ");
   return (
     <span
       className={cn(
@@ -69,7 +70,7 @@ export function StatusBadge({
         <span
           className={cn(
             "w-1.5 h-1.5 rounded-full",
-            value === "in_progress" || value === "started"
+            safeValue === "in_progress" || safeValue === "started"
               ? "animate-pulse"
               : "",
             cls
