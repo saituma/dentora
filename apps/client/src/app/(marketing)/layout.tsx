@@ -9,10 +9,10 @@ import { useState } from 'react';
 import { ChevronDown, Menu, X } from 'lucide-react';
 
 const navLinks = [
-  { label: 'Home', href: '/' },
-  { label: 'Features', href: '#features' },
-  { label: 'How It Works', href: '#how-it-works' },
-  { label: 'Testimonials', href: '#testimonials' },
+  { label: 'Features', href: '/features' },
+  { label: 'How It Works', href: '/how-it-works' },
+  { label: 'Pricing', href: '/pricing' },
+  { label: 'Testimonials', href: '/testimonials' },
 ];
 
 const resourceLinks = [
@@ -48,9 +48,6 @@ function Header() {
               className="relative px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white"
             >
               {link.label}
-              {link.label === 'Home' && (
-                <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-blue-500" />
-              )}
             </Link>
           ))}
           <div className="relative">
@@ -93,10 +90,7 @@ function Header() {
           </Link>
         </div>
 
-        <button
-          className="lg:hidden text-gray-300"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
+        <button className="lg:hidden text-gray-300" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </div>
@@ -114,10 +108,16 @@ function Header() {
             </Link>
           ))}
           <div className="mt-4 flex flex-col gap-2">
-            <Link href="/login" className="rounded-lg border border-white/10 px-5 py-2 text-center text-sm text-gray-300">
+            <Link
+              href="/login"
+              className="rounded-lg border border-white/10 px-5 py-2 text-center text-sm text-gray-300"
+            >
               Login
             </Link>
-            <Link href="/contact" className="rounded-lg bg-blue-600 px-5 py-2 text-center text-sm font-medium text-white">
+            <Link
+              href="/contact"
+              className="rounded-lg bg-blue-600 px-5 py-2 text-center text-sm font-medium text-white"
+            >
               Book a Demo
             </Link>
           </div>
@@ -172,7 +172,8 @@ function Footer() {
               />
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-gray-400">
-              The #1 AI receptionist for dental clinics. Answer every call. Book more appointments. Delight every patient.
+              The #1 AI receptionist for dental clinics. Answer every call. Book more appointments.
+              Delight every patient.
             </p>
             <div className="mt-6 flex gap-4">
               {['f', 'in'].map((icon) => (
@@ -192,7 +193,10 @@ function Footer() {
               <ul className="space-y-3">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link href={link.href} className="text-sm text-gray-500 transition hover:text-blue-400">
+                    <Link
+                      href={link.href}
+                      className="text-sm text-gray-500 transition hover:text-blue-400"
+                    >
                       {link.label}
                     </Link>
                   </li>
@@ -218,24 +222,24 @@ function Footer() {
 
       <div className="border-t border-white/[0.06]">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-8">
-          <p className="text-xs text-gray-500">© {new Date().getFullYear()} Dentora AI Receptionist. All rights reserved.</p>
+          <p className="text-xs text-gray-500">
+            © {new Date().getFullYear()} Dentora AI Receptionist. All rights reserved.
+          </p>
           <a
             href="https://clientreach.ai"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-3 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-md no-underline transition-colors hover:border-[#0EA5E9]/40"
           >
-            <img
+            <Image
               src="/clientreach-logo.png"
               alt="Client Reach AI"
-              className="h-5 w-5 rounded object-contain"
+              width={20}
+              height={20}
+              className="rounded object-contain"
             />
-            <span className="text-xs font-medium tracking-wider text-gray-500">
-              Made by
-            </span>
-            <span className="text-sm font-bold tracking-wide text-[#0EA5E9]">
-              Client Reach AI
-            </span>
+            <span className="text-xs font-medium tracking-wider text-gray-500">Made by</span>
+            <span className="text-sm font-bold tracking-wide text-[#0EA5E9]">Client Reach AI</span>
           </a>
           <div className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs text-gray-400">
             <span className="font-semibold">HIPAA</span>
@@ -247,18 +251,16 @@ function Footer() {
   );
 }
 
-export default function MarketingLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <MarketingGuard>
       <div className="relative flex min-h-svh flex-col bg-[#0a0e1a] text-white">
         <ShatteredToothBg />
         <div className="relative z-10 flex flex-1 flex-col">
           <Header />
-          <main className="flex-1"><ErrorBoundary>{children}</ErrorBoundary></main>
+          <main className="flex-1">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </main>
         </div>
         <Footer />
       </div>
