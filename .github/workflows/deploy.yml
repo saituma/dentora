@@ -3,7 +3,7 @@ name: Deploy
 on:
   workflow_run:
     workflows: [CI]
-    branches: [main]
+    branches: [master]
     types: [completed]
 
 concurrency:
@@ -43,7 +43,7 @@ jobs:
             cd /opt/dental-flow
 
             # Pull latest compose & config
-            git pull origin main
+            git pull origin master
 
             # Set image tags
             export SERVER_IMAGE=${{ env.SERVER_IMAGE }}:${{ steps.sha.outputs.short }}
