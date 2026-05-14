@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Dentora — Client Report 2026</title>
+<style>
+/* ─── Reset & base ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --blue:#2563eb;
+  --blue-d:#1d4ed8;
+  --blue-l:#3b82f6;
+  --blue-xl:#93c5fd;
+  --dark:#0f172a;
+  --mid:#1e293b;
+  --text:#1e293b;
+  --muted:#64748b;
+  --border:#e2e8f0;
+  --bg:#f8fafc;
+  --accent:#dbeafe;
+  --accent-b:#bfdbfe;
+  --green:#16a34a;
+  --green-l:#dcfce7;
+  --amber:#d97706;
+  --amber-l:#fef3c7;
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+  font-size:10pt;
+  line-height:1.7;
+  color:var(--text);
+  background:#fff;
+  max-width:820px;
+  margin:0 auto;
+  padding:0 0 60px;
+}
+
+/* ─── Cover ─────────────────────────────────────────────── */
+.cover{
+  background:linear-gradient(150deg,#0b1629 0%,#0f2257 55%,#0f172a 100%);
+  color:#fff;
+  padding:70px 72px 60px;
+  min-height:1050px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  position:relative;
+  overflow:hidden;
+  page-break-inside:avoid;
+}
+.cover::before{
+  content:'';position:absolute;top:-80px;right:-80px;
+  width:420px;height:420px;border-radius:50%;
+  background:radial-gradient(circle,rgba(37,99,235,.28) 0%,transparent 68%);
+}
+.cover::after{
+  content:'';position:absolute;bottom:-60px;left:-60px;
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(37,99,235,.12) 0%,transparent 68%);
+}
+.cover-logo{font-size:20pt;font-weight:900;letter-spacing:-0.5px}
+.cover-logo span{color:var(--blue-l)}
+.cover-badge{
+  display:inline-block;margin-bottom:24px;
+  background:rgba(59,130,246,.18);border:1px solid rgba(59,130,246,.4);
+  color:#93c5fd;font-size:7.5pt;font-weight:700;
+  letter-spacing:1.8px;text-transform:uppercase;
+  padding:5px 14px;border-radius:20px;
+}
+.cover h1{
+  font-size:36pt;font-weight:900;line-height:1.08;
+  letter-spacing:-1.2px;margin-bottom:22px;max-width:560px;
+}
+.cover h1 em{font-style:normal;color:var(--blue-xl)}
+.cover-sub{
+  font-size:12pt;color:rgba(255,255,255,.6);
+  max-width:500px;line-height:1.65;margin-bottom:44px;
+}
+.cover-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:580px}
+.cover-stat{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:16px 18px;
+}
+.cover-stat-val{font-size:19pt;font-weight:900;color:var(--blue-xl);line-height:1}
+.cover-stat-label{font-size:7.5pt;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.8px;margin-top:4px}
+.cover-footer{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  color:rgba(255,255,255,.3);font-size:7.5pt;border-top:1px solid rgba(255,255,255,.08);
+  padding-top:20px;margin-top:40px;
+}
+
+/* ─── Section wrapper ───────────────────────────────────── */
+.section{padding:52px 72px;border-bottom:1px solid var(--border)}
+.section:last-child{border-bottom:none}
+
+/* ─── Typography ────────────────────────────────────────── */
+.eyebrow{
+  font-size:7pt;font-weight:800;color:var(--blue);
+  text-transform:uppercase;letter-spacing:2.4px;margin-bottom:6px;
+}
+h2{
+  font-size:21pt;font-weight:800;letter-spacing:-.6px;
+  line-height:1.12;color:var(--dark);margin-bottom:10px;
+}
+.lead{
+  font-size:11pt;color:var(--muted);
+  margin-bottom:32px;max-width:620px;line-height:1.7;
+}
+h3{font-size:13pt;font-weight:700;color:var(--dark);margin-bottom:8px;margin-top:28px}
+h4{font-size:10.5pt;font-weight:700;color:var(--dark);margin-bottom:5px}
+p{margin-bottom:13px;color:var(--text)}
+strong{font-weight:700}
+
+/* ─── Divider ───────────────────────────────────────────── */
+hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+
+/* ─── Callout ───────────────────────────────────────────── */
+.callout{
+  background:var(--accent);border-left:4px solid var(--blue);
+  border-radius:0 10px 10px 0;padding:18px 22px;margin:24px 0;
+  page-break-inside:avoid;
+}
+.callout p{font-size:10pt;margin:0;color:#1e40af;line-height:1.65}
+.callout-warning{background:var(--amber-l);border-color:var(--amber)}
+.callout-warning p{color:#78350f}
+.callout-green{background:var(--green-l);border-color:var(--green)}
+.callout-green p{color:#14532d}
+
+/* ─── Stats row ─────────────────────────────────────────── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:24px 0}
+.stat-box{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:10px;padding:18px;text-align:center;
+  page-break-inside:avoid;
+}
+.stat-box .val{font-size:18pt;font-weight:900;color:var(--blue);line-height:1}
+.stat-box .lbl{font-size:7.5pt;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.6px}
+
+.stats-3{grid-template-columns:repeat(3,1fr)}
+.stats-2{grid-template-columns:repeat(2,1fr)}
+
+/* ─── Feature grid ──────────────────────────────────────── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:20px 0}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:20px 0}
+
+.card{
+  border:1px solid var(--border);border-radius:12px;padding:22px 24px;
+  page-break-inside:avoid;
+}
+.card.blue-bg{background:var(--accent);border-color:var(--accent-b)}
+.card.dark-bg{background:var(--dark);color:#fff;border-color:var(--dark)}
+.card.dark-bg h4{color:#fff}
+.card.dark-bg p{color:rgba(255,255,255,.65)}
+.card.green-bg{background:var(--green-l);border-color:#86efac}
+.card.amber-bg{background:var(--amber-l);border-color:#fcd34d}
+
+.card-icon{
+  width:38px;height:38px;background:var(--blue);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:13px;font-size:18px;color:#fff;font-weight:700;
+  flex-shrink:0;
+}
+.card-icon.green{background:var(--green)}
+.card-icon.amber{background:var(--amber)}
+.card p{font-size:9.5pt;color:var(--muted);margin:0;line-height:1.6}
+.card.dark-bg .card-icon{background:rgba(255,255,255,.12)}
+
+/* ─── Timeline ──────────────────────────────────────────── */
+.timeline{margin:16px 0 24px}
+.tl-item{display:flex;gap:18px;page-break-inside:avoid}
+.tl-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.tl-dot{
+  width:16px;height:16px;border-radius:50%;background:var(--blue);
+  flex-shrink:0;margin-top:2px;border:3px solid #e0ecff;
+}
+.tl-line{width:2px;flex:1;background:var(--border);min-height:20px;margin-top:3px}
+.tl-item:last-child .tl-line{display:none}
+.tl-body{flex:1;padding-bottom:24px}
+.tl-label{font-size:7pt;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:3px}
+
+/* ─── Plan cards ────────────────────────────────────────── */
+.plans{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:24px 0}
+.plan{border:1px solid var(--border);border-radius:14px;padding:26px 24px;position:relative;page-break-inside:avoid}
+.plan.pop{border-color:var(--blue);background:#f0f6ff}
+.pop-badge{
+  position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  background:var(--blue);color:#fff;font-size:7pt;font-weight:800;
+  letter-spacing:1px;text-transform:uppercase;padding:3px 14px;border-radius:20px;white-space:nowrap;
+}
+.plan-name{font-size:11pt;font-weight:800;color:var(--dark);margin-bottom:2px}
+.plan-price{font-size:26pt;font-weight:900;color:var(--blue);line-height:1;margin-bottom:2px}
+.plan-per{font-size:9pt;color:var(--muted);margin-bottom:10px}
+.plan-desc{font-size:8.5pt;color:var(--muted);margin-bottom:14px;min-height:32px;line-height:1.5}
+.plan-features{list-style:none}
+.plan-features li{
+  font-size:8.5pt;color:var(--text);padding:5px 0;
+  border-top:1px solid var(--border);display:flex;align-items:flex-start;gap:8px;
+}
+.plan-features li::before{content:'✓';color:var(--blue);font-weight:800;flex-shrink:0;margin-top:1px}
+
+/* ─── Table ─────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:9.5pt;margin:18px 0}
+thead tr th{
+  background:var(--dark);color:#fff;padding:10px 14px;
+  text-align:left;font-weight:700;font-size:8.5pt;
+}
+thead tr th:first-child{border-radius:8px 0 0 0}
+thead tr th:last-child{border-radius:0 8px 0 0}
+td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--bg)}
+.check-col{color:var(--blue);font-weight:700;text-align:center}
+.cross-col{color:#dc2626;text-align:center}
+
+/* ─── Checklist ─────────────────────────────────────────── */
+.checklist{list-style:none;margin:8px 0 20px}
+.checklist li{
+  padding:6px 0;display:flex;gap:11px;align-items:flex-start;
+  font-size:10pt;border-bottom:1px solid #f1f5f9;
+}
+.checklist li::before{content:'✔';color:var(--blue);font-weight:800;flex-shrink:0;margin-top:1px}
+
+/* ─── Quote block ───────────────────────────────────────── */
+.quote{
+  background:var(--bg);border-radius:12px;padding:22px 26px;
+  border-left:4px solid var(--blue-l);margin:16px 0;
+  page-break-inside:avoid;
+}
+.quote p{font-size:10.5pt;color:var(--mid);font-style:italic;margin-bottom:8px}
+.quote cite{font-size:8.5pt;color:var(--muted);font-style:normal;font-weight:600}
+
+/* ─── Big number callout ────────────────────────────────── */
+.big-numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+.big-num{
+  border-radius:12px;padding:24px;text-align:center;
+  border:1px solid var(--border);page-break-inside:avoid;
+}
+.big-num .n{font-size:28pt;font-weight:900;line-height:1;color:var(--blue)}
+.big-num .u{font-size:11pt;font-weight:700;color:var(--blue)}
+.big-num .d{font-size:8.5pt;color:var(--muted);margin-top:6px}
+.big-num.dark{background:var(--dark);border-color:var(--dark)}
+.big-num.dark .n,.big-num.dark .u{color:var(--blue-xl)}
+.big-num.dark .d{color:rgba(255,255,255,.45)}
+
+/* ─── ROI table ─────────────────────────────────────────── */
+.roi-row td:first-child{font-weight:600}
+.roi-total td{background:#1e293b!important;color:#fff;font-weight:700}
+
+/* ─── Section-title bar ─────────────────────────────────── */
+.section-bar{
+  display:flex;align-items:center;gap:14px;margin-bottom:28px;
+}
+.section-bar-line{flex:1;height:1px;background:var(--border)}
+.section-bar-num{
+  width:32px;height:32px;background:var(--blue);border-radius:50%;
+  color:#fff;font-size:9pt;font-weight:800;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+
+/* ─── Two-col text ──────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:20px 0}
+.two-col p{font-size:9.5pt}
+
+/* ─── Tag chips ─────────────────────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.chip{
+  display:inline-block;background:var(--accent);color:var(--blue);
+  font-size:7.5pt;font-weight:700;border-radius:20px;
+  padding:3px 12px;border:1px solid var(--accent-b);
+}
+.chip.green{background:var(--green-l);color:var(--green);border-color:#86efac}
+.chip.dark{background:var(--mid);color:#e2e8f0;border-color:var(--mid)}
+
+/* ─── Print safety ──────────────────────────────────────── */
+@media print{
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cover{page-break-after:always}
+  h2,h3{page-break-after:avoid}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ COVER ══════════════════════════════════════ -->
+<div class="cover">
+  <div>
+    <div class="cover-logo">Dentor<span>a</span></div>
+  </div>
+
+  <div>
+    <div class="cover-badge">// Client Overview · May 2026</div>
+    <h1>Your Dental Practice,<br/><em>Always Answering.</em></h1>
+    <p class="cover-sub">
+      Dentora is an AI-powered phone receptionist built exclusively for UK dental
+      practices. It handles every patient call — 24 hours a day, 7 days a week —
+      so your team can focus entirely on delivering exceptional care.
+    </p>
+
+    <div class="cover-stats">
+      <div class="cover-stat">
+        <div class="cover-stat-val">24/7</div>
+        <div class="cover-stat-label">Always live</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">&lt;1s</div>
+        <div class="cover-stat-label">Answer time</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">100%</div>
+        <div class="cover-stat-label">Calls caught</div>
+      </div>
+      <div class="cover-stat">
+        <div class="cover-stat-val">UK</div>
+        <div class="cover-stat-label">GDPR ready</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <span>Dentora · Confidential Client Report · May 2026</span>
+    <span>dentora.ai</span>
+  </div>
+</div>
+
+
+<!-- ══════════ 1. EXECUTIVE SUMMARY ═════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 01 · Executive Summary</div>
+  <h2>The big picture — in two minutes.</h2>
+  <p class="lead">
+    This document is written for practice owners and practice managers who want to
+    understand what Dentora does, how it protects patient data, and why it is the
+    right choice for a modern UK dental practice — without any technical jargon.
+  </p>
+
+  <div class="callout">
+    <p>
+      <strong>Dentora is not software you learn to use.</strong> It is a phone
+      receptionist that you switch on. From the moment you go live, it answers every
+      inbound call, books appointments into your existing calendar, and gives your staff
+      a clear summary of every conversation — all automatically, all day, all night.
+    </p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box"><div class="val">40%</div><div class="lbl">of calls missed at busy practices</div></div>
+    <div class="stat-box"><div class="val">£28k</div><div class="lbl">avg. annual receptionist cost (UK)</div></div>
+    <div class="stat-box"><div class="val">60%</div><div class="lbl">of reception time on routine tasks</div></div>
+    <div class="stat-box"><div class="val">15 min</div><div class="lbl">to go fully live with Dentora</div></div>
+  </div>
+
+  <h3>What this report covers</h3>
+  <div class="two-col">
+    <ul class="checklist">
+      <li>What Dentora is and the problem it solves</li>
+      <li>How a call is handled, step by step</li>
+      <li>The full list of features and capabilities</li>
+      <li>The patient experience on a live call</li>
+      <li>What your staff see on the dashboard</li>
+      <li>Analytics and reporting available to you</li>
+    </ul>
+    <ul class="checklist">
+      <li>How the AI voice technology works</li>
+      <li>Multi-location and group practice support</li>
+      <li>Security, encryption, and UK GDPR compliance</li>
+      <li>Pricing plans and what each includes</li>
+      <li>Return on investment for your practice</li>
+      <li>Getting started and ongoing support</li>
+    </ul>
+  </div>
+</div>
+
+
+<!-- ══════════ 2. THE PROBLEM ════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 02 · The Problem</div>
+  <h2>What is happening to UK dental practices right now.</h2>
+  <p class="lead">
+    The front desk is under more pressure than ever. Understanding why this matters
+    is the first step to seeing why Dentora exists.
+  </p>
+
+  <div class="big-numbers">
+    <div class="big-num">
+      <div class="n">40<span class="u">%</span></div>
+      <div class="d">of inbound calls are missed during peak hours at a typical UK dental practice</div>
+    </div>
+    <div class="big-num dark">
+      <div class="n">£180</div>
+      <div class="d">average lifetime revenue lost per missed new-patient call</div>
+    </div>
+    <div class="big-num">
+      <div class="n">3<span class="u">in 5</span></div>
+      <div class="d">patients who reach voicemail do not call back — they book elsewhere</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon">📞</div>
+      <h4>Missed calls mean missed patients</h4>
+      <p>
+        When your reception team is with a patient at the desk, on another call, or on
+        a lunch break, the phone rings — and nobody answers. That caller found you, wanted
+        to book, and was ready. They simply moved on to the next practice on Google.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⏰</div>
+      <h4>Routine calls eat hours every day</h4>
+      <p>
+        Research from UK dental bodies shows receptionists spend up to 60% of their day
+        on tasks that follow the exact same script: booking appointments, answering FAQs
+        about pricing and insurance, and confirming or rescheduling visits.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌙</div>
+      <h4>Patients don't only call during office hours</h4>
+      <p>
+        Modern patients are busy. They search for a dentist in the evening, on their
+        lunch break, or at the weekend. Without out-of-hours cover, every one of those
+        calls either goes unanswered or lands in a voicemail that most patients ignore.
+      </p>
+    </div>
+    <div class="card amber-bg">
+      <div class="card-icon amber">💷</div>
+      <h4>Staffing costs are climbing</h4>
+      <p>
+        A full-time receptionist in the UK now costs £24,000–£32,000 per year in salary
+        alone — not including National Insurance, holiday cover, sick pay, and ongoing
+        training. For multi-location groups, this multiplies across every site.
+      </p>
+    </div>
+  </div>
+
+  <div class="callout callout-warning">
+    <p>
+      <strong>The result:</strong> practices are losing new patients they never knew they
+      had, spending their best staff on phone administration, and paying a growing wage
+      bill — all while patient expectations for instant service have never been higher.
+    </p>
+  </div>
+</div>
+
+
+<!-- ══════════ 3. WHAT IS DENTORA ════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 03 · What is Dentora?</div>
+  <h2>A phone receptionist powered by artificial intelligence.</h2>
+  <p class="lead">
+    Dentora is a purpose-built AI system that answers your practice phone, holds a
+    natural conversation with every patient, and handles their request — exactly as a
+    trained human receptionist would, but without limits on time or availability.
+  </p>
+
+  <p>
+    When a patient calls your practice number, Dentora answers in under one second. It
+    greets the caller using your practice name, in a warm natural voice that you choose.
+    It listens, understands what the patient needs, and responds intelligently — booking
+    appointments, answering questions, or escalating to your team when human judgement
+    is needed.
+  </p>
+  <p>
+    Dentora is not a phone menu ("press 1 for…"). It is not a voicemail system. It is
+    not a chatbot. It is a real conversational AI that understands natural speech,
+    handles unexpected questions, and completes the task — in the same way your best
+    receptionist would, but available every hour of every day.
+  </p>
+
+  <div class="callout callout-green">
+    <p>
+      <strong>Think of Dentora as your most reliable team member:</strong> never absent,
+      never stressed, never puts a patient on hold, and always represents your practice
+      professionally — whether it is 9am on a Tuesday or 11pm on a bank holiday Sunday.
+    </p>
+  </div>
+
+  <h3>Who is it for?</h3>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon" style="font-size:20px">🏥</div>
+      <h4>Independent practices</h4>
+      <p>Solo or small practices where reception cover is limited and every missed call matters.</p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">🏢</div>
+      <h4>Group practices</h4>
+      <p>Multi-site practices that want consistent quality across all locations without hiring more staff at each.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="font-size:20px">🌱</div>
+      <h4>Growing practices</h4>
+      <p>Practices expanding their patient list who need more capacity without proportionally growing their payroll.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ 4. HOW A CALL WORKS ════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 04 · How It Works</div>
+  <h2>A patient calls. Here is exactly what happens.</h2>
+  <p class="lead">
+    The entire process — from first ring to confirmed appointment — typically takes
+    under two minutes. No staff involvement is required.
+  </p>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 1 — Instant answer</div>
+        <h4>Dentora picks up in under one second</h4>
+        <p>
+          The patient hears your practice name spoken by a clear, friendly AI voice —
+          no hold music, no ringing out, no robot menus. Dentora says something like:
+          <em>"Good morning, Pearl Dental. How can I help you today?"</em> and the
+          conversation begins immediately.
+        </p>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 2 — Listen and understand</div>
+        <h4>The AI identifies exactly what the patient needs</h4>
+        <p>
+          The patient speaks naturally. They might say "I need to book a filling" or
+          "I'm in pain and need to come in today" or "Can you tell me how much a hygiene
+          appointment costs?" Dentora understands the intent behind what they say —
+          not just the keywords — and responds accordingly.
+        </p>
+        <p>
+          It handles accents, incomplete sentences, background noise, and topic changes
+          mid-conversation — just as a human receptionist would.
+        </p>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 3 — Check real-time availability</div>
+        <h4>Live calendar access — no double-bookings, ever</h4>
+        <p>
+          For booking requests, Dentora connects to your Google Calendar in real time.
+          It sees exactly which slots are free, offers suitable options to the patient,
+          and confirms the chosen time. It will never offer a slot that is already taken.
+        </p>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 4 — Confirm and record</div>
+        <h4>Booking appears in your calendar immediately</h4>
+        <p>
+          Once the patient agrees a time, the appointment is created in your calendar
+          on the spot. The patient receives a confirmation. An AI-written summary of
+          the call — what was discussed, what was booked, any notes — is emailed to
+          your team and stored in your dashboard.
+        </p>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 5 — Escalate when needed</div>
+        <h4>Dentora knows its limits</h4>
+        <p>
+          If a call involves something sensitive — a complaint, a complex clinical
+          question, or an emergency requiring immediate human response — Dentora
+          flags it instantly for your team. No patient is left without a resolution path.
+          Your staff receive the full context of the conversation so they can follow up
+          with complete information.
+        </p>
+      </div>
+    </div>
+
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 6 — Staff review</div>
+        <h4>You stay in complete control</h4>
+        <p>
+          Every call — whether it ended in a booking, an escalation, or an FAQ answer —
+          is available in your dashboard. Staff can read the transcript, listen to the
+          recording, amend any booking, or mark calls for follow-up. Nothing is hidden
+          and nothing is final until your team is satisfied.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Example conversations Dentora handles</h3>
+  <table>
+    <thead><tr><th>Patient says</th><th>Dentora does</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>"I'd like to book a check-up"</td>
+        <td>Checks calendar, offers 3 available slots, confirms choice</td>
+        <td>Appointment booked instantly</td>
+      </tr>
+      <tr>
+        <td>"I need to move my appointment on Thursday"</td>
+        <td>Identifies existing booking, offers alternatives, reschedules</td>
+        <td>Rescheduled in under 90 seconds</td>
+      </tr>
+      <tr>
+        <td>"Do you accept NHS patients?"</td>
+        <td>Answers from your practice FAQ knowledge base</td>
+        <td>Patient informed correctly, every time</td>
+      </tr>
+      <tr>
+        <td>"I've been in agony since yesterday"</td>
+        <td>Identifies emergency, offers same-day slot, escalates to staff if no slot available</td>
+        <td>Patient seen urgently; practice reputation protected</td>
+      </tr>
+      <tr>
+        <td>"How much does a crown cost?"</td>
+        <td>Quotes from your pricing list, offers to book a consultation</td>
+        <td>Patient gets accurate info; opportunity to convert</td>
+      </tr>
+      <tr>
+        <td>"I want to complain about my last visit"</td>
+        <td>Acknowledges the concern warmly, immediately escalates to a named staff member</td>
+        <td>Staff informed with full context to resolve sensitively</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ══════════ 5. FULL FEATURE LIST ═════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 05 · Features</div>
+  <h2>Everything your front desk does — and then some.</h2>
+  <p class="lead">
+    Dentora covers the entire range of receptionist responsibilities. Below is a
+    comprehensive list of every capability included in the platform.
+  </p>
+
+  <h3>Core call handling</h3>
+  <table>
+    <thead><tr><th>Feature</th><th>What it does</th><th>Benefit</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Instant call answering</strong></td>
+        <td>Picks up every call in under one second, 24/7/365</td>
+        <td>Zero missed calls regardless of team availability</td>
+      </tr>
+      <tr>
+        <td><strong>Natural conversation</strong></td>
+        <td>Holds a genuine back-and-forth conversation, not a menu</td>
+        <td>Patients feel heard and valued from the first word</td>
+      </tr>
+      <tr>
+        <td><strong>Appointment booking</strong></td>
+        <td>Books new appointments directly into your live calendar</td>
+        <td>Immediate confirmation; no diary gaps</td>
+      </tr>
+      <tr>
+        <td><strong>Rescheduling & cancellations</strong></td>
+        <td>Moves or cancels existing appointments and offers alternatives</td>
+        <td>Slot filled faster; patient kept engaged</td>
+      </tr>
+      <tr>
+        <td><strong>Emergency triage</strong></td>
+        <td>Identifies urgent pain situations and prioritises same-day slots</td>
+        <td>Patients in pain seen quickly; safeguards practice duty of care</td>
+      </tr>
+      <tr>
+        <td><strong>Patient Q&A</strong></td>
+        <td>Answers FAQs using your own uploaded information</td>
+        <td>Consistent, accurate answers; frees receptionist time</td>
+      </tr>
+      <tr>
+        <td><strong>Out-of-hours cover</strong></td>
+        <td>Operates evenings, weekends, and bank holidays without any extra cost</td>
+        <td>Captures calls competitors miss; no overtime costs</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Scheduling & calendar</h3>
+  <table>
+    <thead><tr><th>Feature</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Google Calendar sync</strong></td><td>Two-way real-time sync — Dentora reads your availability and writes confirmed bookings instantly</td></tr>
+      <tr><td><strong>Double-booking prevention</strong></td><td>Dentora only offers slots that are genuinely free; conflicts are architecturally impossible</td></tr>
+      <tr><td><strong>Custom booking rules</strong></td><td>Set rules per dentist: appointment types allowed, minimum gaps, lunch blocks, preferred days</td></tr>
+      <tr><td><strong>New vs returning patient handling</strong></td><td>Identifies whether a caller is a new patient and adjusts the booking flow accordingly</td></tr>
+      <tr><td><strong>No-show reminders</strong></td><td>Automated reminder messages sent before each appointment to reduce DNA (Did Not Attend) rates</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Staff tools & oversight</h3>
+  <table>
+    <thead><tr><th>Feature</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Call summaries by email</strong></td><td>Every call produces an AI-written summary sent immediately to the practice inbox</td></tr>
+      <tr><td><strong>Staff review dashboard</strong></td><td>Web-based interface where staff can read every transcript, approve or amend bookings</td></tr>
+      <tr><td><strong>Escalation notifications</strong></td><td>Instant alerts when a call requires human follow-up, with full context included</td></tr>
+      <tr><td><strong>Manual override</strong></td><td>Staff can edit, move, or cancel any booking Dentora created at any time</td></tr>
+      <tr><td><strong>Call recording access</strong></td><td>Audio recordings stored securely and accessible to authorised staff for quality checks</td></tr>
+      <tr><td><strong>Multi-staff accounts</strong></td><td>Each team member has their own login; actions are attributed individually in the audit log</td></tr>
+    </tbody>
+  </table>
+
+  <div class="stats-row">
+    <div class="stat-box"><div class="val">100%</div><div class="lbl">Calls answered</div></div>
+    <div class="stat-box"><div class="val">&lt;1 s</div><div class="lbl">Answer speed</div></div>
+    <div class="stat-box"><div class="val">24/7</div><div class="lbl">Availability</div></div>
+    <div class="stat-box"><div class="val">15 min</div><div class="lbl">To go live</div></div>
+  </div>
+</div>
+
+
+<!-- ══════════ 6. PATIENT EXPERIENCE ════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 06 · The Patient Experience</div>
+  <h2>What your patients actually hear and feel.</h2>
+  <p class="lead">
+    The best AI receptionist is one that patients do not know is AI. Dentora is
+    designed first and foremost around the patient's experience of the call.
+  </p>
+
+  <div class="grid-2">
+    <div class="card blue-bg">
+      <div class="card-icon">🎙️</div>
+      <h4>Human-quality voice</h4>
+      <p>
+        Dentora uses state-of-the-art neural voice synthesis — the same technology
+        used in premium customer service platforms globally. The voice is warm, clear,
+        and natural. Patients consistently describe it as indistinguishable from a
+        human receptionist on the first call.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">💬</div>
+      <h4>Real conversation, not a script</h4>
+      <p>
+        Unlike phone menus or basic bots, Dentora responds dynamically to what the
+        patient says. If they change topic mid-call, ask an unexpected question, or
+        give vague information, Dentora adapts — asking a clarifying question, just
+        as a receptionist would.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <h4>Zero wait time</h4>
+      <p>
+        Patients never sit on hold. Never hear "your call is important to us." Never
+        wait in a queue. Dentora answers instantly, every time — which is what modern
+        patients expect and what converts callers into booked patients.
+      </p>
+    </div>
+    <div class="card green-bg">
+      <div class="card-icon green">✓</div>
+      <h4>Immediate confirmation</h4>
+      <p>
+        The moment a booking is made, the patient receives confirmation. They end
+        the call knowing their appointment is in the diary — no uncertainty, no need
+        to call back to check.
+      </p>
+    </div>
+  </div>
+
+  <h3>A sample patient call — booking a filling</h3>
+  <div class="callout">
+    <p><strong>Dentora:</strong> "Good afternoon, Oakfield Dental. How can I help you today?"</p>
+  </div>
+  <div class="callout" style="background:#f1f5f9;border-color:#94a3b8">
+    <p><strong>Patient:</strong> "Hi, I've got a broken tooth — I need to get it sorted, probably need a filling."</p>
+  </div>
+  <div class="callout">
+    <p><strong>Dentora:</strong> "Of course, I can help with that. Are you an existing patient with us?"</p>
+  </div>
+  <div class="callout" style="background:#f1f5f9;border-color:#94a3b8">
+    <p><strong>Patient:</strong> "Yes, I've been coming for a few years. Sarah Jenkins."</p>
+  </div>
+  <div class="callout">
+    <p><strong>Dentora:</strong> "Perfect, thank you Sarah. I have slots available on Wednesday at 11am or Thursday at 2:30pm — which would suit you better?"</p>
+  </div>
+  <div class="callout" style="background:#f1f5f9;border-color:#94a3b8">
+    <p><strong>Patient:</strong> "Thursday works."</p>
+  </div>
+  <div class="callout">
+    <p><strong>Dentora:</strong> "Brilliant — I've booked you in for Thursday at 2:30pm with Dr. Patel. You'll receive a confirmation shortly. Is there anything else I can help you with?"</p>
+  </div>
+
+  <p style="color:var(--muted);font-size:9pt;margin-top:16px">
+    Total call duration: approximately 55 seconds. No staff involved.
+    Appointment confirmed in the calendar before the patient hangs up.
+  </p>
+</div>
+
+
+<!-- ══════════ 7. STAFF DASHBOARD ════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 07 · The Staff Dashboard</div>
+  <h2>Your team stays fully informed and in control.</h2>
+  <p class="lead">
+    Dentora does the work, but your staff are never left in the dark.
+    The dashboard gives your team complete visibility over everything Dentora handles.
+  </p>
+
+  <div class="grid-2">
+    <div>
+      <h3>What your team sees each morning</h3>
+      <ul class="checklist">
+        <li>A list of every call handled since they last logged in, with time, duration, and outcome</li>
+        <li>AI-written summaries for each call — readable in seconds, no need to listen to recordings</li>
+        <li>All bookings Dentora made, already confirmed in the calendar</li>
+        <li>Any calls flagged for human follow-up, with the full conversation context attached</li>
+        <li>Calls that ended in escalation, with the reason and recommended action</li>
+        <li>A daily overview of call volume, peak times, and booking conversion rate</li>
+      </ul>
+    </div>
+    <div>
+      <h3>What staff can do from the dashboard</h3>
+      <ul class="checklist">
+        <li>Read the full transcript of any call in plain English</li>
+        <li>Listen to the original call recording</li>
+        <li>Edit, reschedule, or cancel any Dentora-created booking</li>
+        <li>Mark a call as reviewed and resolved</li>
+        <li>Add internal notes to any call record</li>
+        <li>Update the practice FAQ and pricing information that Dentora uses</li>
+        <li>View and configure booking rules per dentist or appointment type</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p>
+      <strong>The dashboard is designed for non-technical users.</strong> No training is
+      needed. If your team can use email, they can use the Dentora dashboard. Most
+      practices find that a five-minute walkthrough is all their reception team needs.
+    </p>
+  </div>
+
+  <h3>Managing your practice knowledge</h3>
+  <p>
+    Everything Dentora says on a call comes from information <em>you</em> provide. During
+    setup, you upload your FAQs, pricing lists, dentist bios, insurance information, and
+    any other documents. Dentora reads and learns from these automatically.
+  </p>
+  <p>
+    When something changes — a new fee structure, a new dentist joining, a change in
+    NHS availability — you update the document in the dashboard and Dentora uses the new
+    information on the very next call. No developer needed. No delay.
+  </p>
+</div>
+
+
+<!-- ══════════ 8. ANALYTICS ══════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 08 · Analytics &amp; Reporting</div>
+  <h2>See exactly what is happening at your practice.</h2>
+  <p class="lead">
+    Most practices have no idea how many calls they miss, when their busiest periods
+    are, or what patients most frequently ask. Dentora makes all of this visible.
+  </p>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon">📊</div>
+      <h4>Call volume by hour and day</h4>
+      <p>Understand exactly when patients call. Plan your human staffing around real data, not guesswork.</p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">📅</div>
+      <h4>Booking conversion rate</h4>
+      <p>Of every call that wanted an appointment, how many were booked? Track this weekly and monthly.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">❓</div>
+      <h4>Top patient questions</h4>
+      <p>See which FAQs patients ask most often. Use this to improve your website, your pricing page, or your scripts.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🚨</div>
+      <h4>Escalation patterns</h4>
+      <p>Understand which types of calls require human intervention and why. Refine Dentora's knowledge to reduce escalations over time.</p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">💰</div>
+      <h4>Cost per call</h4>
+      <p>See the real cost of Dentora versus the equivalent staff time. The ROI becomes immediately visible.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏥</div>
+      <h4>No-show &amp; DNA tracking</h4>
+      <p>Track whether automated reminders are reducing your DNA rate. Most practices see a measurable improvement within the first month.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p>
+      <strong>Data you never had before.</strong> For the first time, you will know
+      precisely how many patients called outside office hours, how many questions
+      your team answered that an AI could handle, and exactly how many appointments
+      were booked without any staff involvement at all.
+    </p>
+  </div>
+</div>
+
+
+<!-- ══════════ 9. AI VOICE TECHNOLOGY ════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 09 · AI Voice Technology</div>
+  <h2>The technology behind the voice — explained simply.</h2>
+  <p class="lead">
+    You do not need to understand how Dentora works to use it. But for those who
+    want to know, here is a plain-English explanation.
+  </p>
+
+  <div class="two-col">
+    <div>
+      <h3>Listening — speech recognition</h3>
+      <p>
+        When a patient speaks, Dentora converts their voice into text using advanced
+        speech recognition — the same technology used by smartphone voice assistants,
+        but trained specifically on UK accents and dental terminology.
+      </p>
+      <p>
+        It handles background noise, regional accents, hesitations ("um", "erm"), and
+        incomplete sentences. The recognition happens in real time, so the response
+        is immediate — there is no obvious "processing" pause.
+      </p>
+
+      <h3>Understanding — the AI brain</h3>
+      <p>
+        Once the speech is converted to text, a large language model (the same
+        category of technology as widely-publicised AI assistants) works out what
+        the patient means — not just the words they said, but the intent behind them.
+      </p>
+      <p>
+        This is why Dentora can handle "I need to come in — my tooth is killing me"
+        as an emergency, even though the word "emergency" was never said.
+      </p>
+    </div>
+    <div>
+      <h3>Responding — natural voice synthesis</h3>
+      <p>
+        Dentora's response is converted back into speech using neural voice technology.
+        The voice is configured during your setup — you choose the name, accent, and
+        tone that best represents your practice. It sounds natural, warm, and human.
+      </p>
+
+      <h3>Multiple providers, always available</h3>
+      <p>
+        Dentora does not rely on a single AI provider. If one system has an outage,
+        Dentora automatically switches to a backup provider in milliseconds — meaning
+        your phone is never down due to a third-party issue.
+      </p>
+
+      <h3>Custom voice &amp; persona</h3>
+      <p>
+        On the Growth and Enterprise plans, you can configure a custom AI persona —
+        a name, a personality, a specific greeting style. Your AI receptionist can
+        be "Sophie at Oakfield Dental" rather than a generic assistant.
+      </p>
+    </div>
+  </div>
+
+  <div class="chips">
+    <span class="chip">Neural voice synthesis</span>
+    <span class="chip">UK accent trained</span>
+    <span class="chip">Real-time speech recognition</span>
+    <span class="chip">Automatic provider failover</span>
+    <span class="chip">Custom voice configuration</span>
+    <span class="chip">Dental terminology aware</span>
+  </div>
+</div>
+
+
+<!-- ══════════ 10. MULTI-LOCATION ════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 10 · Multi-Location &amp; Group Practices</div>
+  <h2>One platform, every location.</h2>
+  <p class="lead">
+    Dentora is built for dental groups and DSOs from the ground up. Each location
+    operates independently, with its own calendar, FAQ set, voice profile, and
+    analytics — all managed from a single login.
+  </p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon">🗺️</div>
+      <h4>Separate identity per location</h4>
+      <p>
+        Each practice location has its own Dentora persona — its own name, voice,
+        FAQs, pricing, and booking rules. Patients at each site experience a
+        consistent, location-specific receptionist.
+      </p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">🔒</div>
+      <h4>Strict data isolation</h4>
+      <p>
+        Patient data from Location A is completely invisible to Location B, even
+        within the same group. This is enforced at the database level — it is not
+        just a permission setting that could be accidentally changed.
+      </p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">📈</div>
+      <h4>Group-level analytics</h4>
+      <p>
+        See total call volumes, booking rates, and performance metrics across the
+        whole group, or drill down into any individual location for detailed insight.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">👥</div>
+      <h4>Centralised team management</h4>
+      <p>
+        Add staff members to one or multiple locations. Control who can see and
+        amend data for which sites. Full audit trail across all locations.
+      </p>
+    </div>
+  </div>
+
+  <div class="callout callout-green">
+    <p>
+      <strong>Enterprise plan customers</strong> receive a dedicated account manager,
+      custom SLA guarantees, on-site onboarding support, and bespoke integration
+      with practice management systems (PMS). Contact us to discuss your group's
+      specific requirements.
+    </p>
+  </div>
+</div>
+
+
+<!-- ══════════ 11. SECURITY ══════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 11 · Security &amp; Data Protection</div>
+  <h2>Patient data protected to the highest standard.</h2>
+  <p class="lead">
+    Patient data is among the most sensitive information that exists. Dentora is
+    engineered — not just configured — to protect it. Every architectural decision
+    puts data security first.
+  </p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon">🔒</div>
+      <h4>AES-256 encryption at rest</h4>
+      <p>
+        Every patient name, phone number, date of birth, and clinical note stored by
+        Dentora is encrypted using AES-256-GCM — the same standard used by UK high
+        street banks. Even if someone obtained a copy of the database, the data would
+        be completely unreadable without the encryption keys.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <h4>Encrypted in transit</h4>
+      <p>
+        All data moving between your browser, the Dentora servers, and any integrated
+        systems is encrypted using TLS 1.3 — the strongest current standard. No data
+        travels over the internet in a readable form.
+      </p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">🇬🇧</div>
+      <h4>Data stays in the UK</h4>
+      <p>
+        All Dentora infrastructure is hosted in the United Kingdom. Patient data is
+        never transferred to servers in other countries. You remain the data controller
+        at all times, in full compliance with UK GDPR and ICO requirements.
+      </p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon">👤</div>
+      <h4>Multi-factor authentication</h4>
+      <p>
+        All staff accounts require two-factor authentication — a password plus a
+        time-based one-time code from an authenticator app (the same method used by
+        most banking apps). A stolen password alone cannot access patient data.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">📋</div>
+      <h4>Tamper-proof audit log</h4>
+      <p>
+        Every access to patient data, every booking, every staff action, and every
+        configuration change is recorded in a write-once audit log with a precise
+        timestamp and the identity of the user responsible. This log cannot be
+        edited or deleted.
+      </p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🏢</div>
+      <h4>Complete tenant isolation</h4>
+      <p>
+        It is architecturally impossible for one practice's data to be seen by
+        another. Each practice exists in a completely separate data partition.
+        This is enforced in the code — not just in access permissions.
+      </p>
+    </div>
+  </div>
+
+  <h3>Automatic data retention enforcement</h3>
+  <div class="grid-2">
+    <div class="card amber-bg">
+      <div class="card-icon amber" style="font-size:16px">📼</div>
+      <h4>Call transcripts: 2 years</h4>
+      <p>Retained for the standard clinical records period, then permanently deleted automatically. No manual housekeeping required.</p>
+    </div>
+    <div class="card amber-bg">
+      <div class="card-icon amber" style="font-size:16px">📁</div>
+      <h4>Audit logs: 7 years</h4>
+      <p>Retained for 7 years in line with NHS data governance guidance for healthcare records, then automatically removed.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ 12. UK GDPR ════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 12 · UK GDPR Compliance</div>
+  <h2>Built around patient rights, not bolted on afterwards.</h2>
+  <p class="lead">
+    UK GDPR gives patients specific legal rights over their personal data. Dentora
+    is designed so that your practice can fulfil every one of these rights without
+    any manual work.
+  </p>
+
+  <table>
+    <thead><tr><th>Patient Right (UK GDPR)</th><th>How Dentora supports it</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Article 15 — Right to access</strong><br/><span style="font-size:8.5pt;color:var(--muted)">Patient can request a copy of all their data</span></td>
+        <td>One-click data export from the dashboard produces a complete, readable record of all information held about that patient</td>
+      </tr>
+      <tr>
+        <td><strong>Article 17 — Right to erasure</strong><br/><span style="font-size:8.5pt;color:var(--muted)">"Right to be forgotten"</span></td>
+        <td>A single erasure request triggers an automatic cascade deletion of all patient data — bookings, call records, transcripts — across every system. Nothing is missed.</td>
+      </tr>
+      <tr>
+        <td><strong>Article 20 — Right to portability</strong><br/><span style="font-size:8.5pt;color:var(--muted)">Patient can take their data elsewhere</span></td>
+        <td>Patient data export is provided in a standard machine-readable format, ready for transfer to any other system</td>
+      </tr>
+      <tr>
+        <td><strong>Article 25 — Privacy by design</strong><br/><span style="font-size:8.5pt;color:var(--muted)">Data protection built in from the start</span></td>
+        <td>Dentora's entire architecture was designed with privacy as a core requirement — encryption, minimal data collection, and access controls are not added features; they are the foundation</td>
+      </tr>
+      <tr>
+        <td><strong>Article 30 — Records of processing</strong><br/><span style="font-size:8.5pt;color:var(--muted)">Maintain records of how data is processed</span></td>
+        <td>The audit log provides a complete, timestamped record of every processing activity — ready for ICO inspection at any time</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-green">
+    <p>
+      <strong>ICO notification made simple.</strong> Dentora provides a data processing
+      addendum and a technical security summary that your practice can use directly in
+      your ICO registration documentation. Our compliance team is available to advise
+      practice managers on their specific obligations.
+    </p>
+  </div>
+
+  <p>
+    Dentora processes patient data only for the specific purpose of handling calls and
+    bookings on behalf of your practice. It does not sell, share, or use patient data
+    for any other purpose — ever. Your practice remains the data controller; Dentora
+    acts as a data processor under a formal Data Processing Agreement (DPA) provided
+    at sign-up.
+  </p>
+</div>
+
+
+<!-- ══════════ 13. SETUP & INTEGRATION ════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 13 · Setup &amp; Integration</div>
+  <h2>Live in 15 minutes. No IT team required.</h2>
+  <p class="lead">
+    Getting started with Dentora is genuinely simple. There is no hardware to install,
+    no software to configure beyond a web browser, and no IT knowledge required.
+  </p>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 1 — 2 minutes</div>
+        <h4>Create your account</h4>
+        <p>
+          Sign up at dentora.ai. Enter your practice name, address, phone number,
+          and the email addresses of the staff members who will use the dashboard.
+        </p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 2 — 1 minute</div>
+        <h4>Connect Google Calendar</h4>
+        <p>
+          Click "Connect Google Calendar" and sign in with your practice Google
+          account. Dentora immediately sees your live schedule and can start
+          booking into it. If you use multiple calendars for different dentists,
+          all are connected in the same step.
+        </p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 3 — 5 minutes</div>
+        <h4>Upload your practice information</h4>
+        <p>
+          Drag and drop your FAQ document, pricing list, and any other materials
+          you want Dentora to reference on calls. This can be a Word document, a
+          PDF, or even a simple email you forward to a setup address. Dentora reads
+          and learns from whatever you provide.
+        </p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 4 — 5 minutes</div>
+        <h4>Configure your voice and greeting</h4>
+        <p>
+          Choose a voice style (warm, professional, friendly), enter your greeting
+          script (or use our template), and set your out-of-hours message. You can
+          listen to a preview before going live.
+        </p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-col"><div class="tl-dot"></div></div>
+      <div class="tl-body">
+        <div class="tl-label">Step 5 — 2 minutes</div>
+        <h4>Forward your calls and go live</h4>
+        <p>
+          Set up call forwarding on your existing practice phone number — this is a
+          standard feature on all UK phone systems and takes about two minutes with
+          your phone provider. From that moment, Dentora is answering your calls.
+          You can test it by calling your own number.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <h3>What Dentora integrates with today</h3>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon" style="font-size:20px">📆</div>
+      <h4>Google Calendar</h4>
+      <p>Full two-way sync, multiple dentist calendars, real-time availability</p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon" style="font-size:20px">📧</div>
+      <h4>Email (all providers)</h4>
+      <p>Call summaries, escalation alerts, and booking confirmations to any inbox</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="font-size:20px">📁</div>
+      <h4>Document upload</h4>
+      <p>Any PDF, Word doc, or text file used to train Dentora on your practice</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <p>
+      <strong>Practice management system (PMS) integration</strong> — direct two-way
+      integration with Exact, Dentally, SOE Dental, and other UK PMS platforms is
+      available on the Enterprise plan. Contact our team to discuss your system.
+    </p>
+  </div>
+</div>
+
+
+<!-- ══════════ 14. PRICING ═════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 14 · Pricing &amp; Plans</div>
+  <h2>Simple, transparent pricing. No surprises.</h2>
+  <p class="lead">
+    No setup fees. No long-term contracts. Cancel anytime from your dashboard.
+    Every plan includes UK GDPR compliance, AES-256 encryption, and UK-based
+    data hosting.
+  </p>
+
+  <div class="plans">
+    <div class="plan">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">£149</div>
+      <div class="plan-per">per month, billed monthly</div>
+      <p class="plan-desc">Perfect for single-location practices getting started with AI telephony.</p>
+      <ul class="plan-features">
+        <li>300 AI-handled calls per month</li>
+        <li>Appointment booking &amp; scheduling</li>
+        <li>Basic patient Q&amp;A (FAQ)</li>
+        <li>Google Calendar sync</li>
+        <li>Email call summaries</li>
+        <li>UK GDPR compliant</li>
+        <li>Standard voice &amp; greeting</li>
+        <li>Email support (24h response)</li>
+      </ul>
+    </div>
+
+    <div class="plan pop">
+      <div class="pop-badge">Most Popular</div>
+      <div class="plan-name">Growth</div>
+      <div class="plan-price">£299</div>
+      <div class="plan-per">per month, billed monthly</div>
+      <p class="plan-desc">For practices ready to fully automate their front desk operations.</p>
+      <ul class="plan-features">
+        <li>Unlimited AI-handled calls</li>
+        <li>Everything in Starter</li>
+        <li>Real-time analytics dashboard</li>
+        <li>Staff review &amp; approval workflow</li>
+        <li>No-show reminders &amp; follow-ups</li>
+        <li>Emergency call triage</li>
+        <li>Custom voice persona &amp; greeting</li>
+        <li>Priority support (4h response)</li>
+        <li>Call recording access</li>
+      </ul>
+    </div>
+
+    <div class="plan">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price" style="font-size:20pt;padding-top:5px">Custom</div>
+      <div class="plan-per">bespoke annual pricing</div>
+      <p class="plan-desc">Multi-location groups and DSOs with bespoke requirements and volume.</p>
+      <ul class="plan-features">
+        <li>Unlimited locations</li>
+        <li>Everything in Growth</li>
+        <li>PMS direct integration</li>
+        <li>Dedicated account manager</li>
+        <li>Written SLA guarantee</li>
+        <li>Group-level analytics</li>
+        <li>On-site onboarding &amp; training</li>
+        <li>1-hour priority support SLA</li>
+        <li>Custom contract &amp; DPA</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>What is included in every plan</h3>
+  <div class="grid-3">
+    <div class="card green-bg">
+      <div class="card-icon green" style="font-size:16px">🔒</div>
+      <h4>AES-256 encryption</h4>
+      <p>Bank-grade data security on every plan, always.</p>
+    </div>
+    <div class="card green-bg">
+      <div class="card-icon green" style="font-size:16px">🇬🇧</div>
+      <h4>UK GDPR compliance</h4>
+      <p>Full compliance, Data Processing Agreement, and ICO-ready documentation.</p>
+    </div>
+    <div class="card green-bg">
+      <div class="card-icon green" style="font-size:16px">🛡️</div>
+      <h4>99.9% uptime guarantee</h4>
+      <p>Your phone is always answered. Dentora has redundant infrastructure across multiple providers.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ 15. RETURN ON INVESTMENT ═══════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 15 · Return on Investment</div>
+  <h2>What Dentora saves — and earns — your practice.</h2>
+  <p class="lead">
+    For most practices, Dentora pays for itself within the first month.
+    Here is a realistic breakdown of where the value comes from.
+  </p>
+
+  <h3>Cost comparison: Dentora vs. additional receptionist</h3>
+  <table>
+    <thead><tr><th>Cost item</th><th>Additional receptionist (FTE)</th><th>Dentora Growth plan</th></tr></thead>
+    <tbody class="roi-row">
+      <tr><td>Monthly cost</td><td>£2,100–£2,700 (salary + NI + holiday)</td><td><strong>£299/month</strong></td></tr>
+      <tr><td>Hours of availability</td><td>160 hours/month (Mon–Fri, 9–5)</td><td><strong>720+ hours/month (24/7)</strong></td></tr>
+      <tr><td>Sick days / absences</td><td>Average 6 days/year in UK</td><td><strong>Zero</strong></td></tr>
+      <tr><td>Training required</td><td>2–4 weeks onboarding</td><td><strong>15 minutes setup</strong></td></tr>
+      <tr><td>Holiday cover</td><td>Additional cost required</td><td><strong>Included, always on</strong></td></tr>
+      <tr><td>Calls answered out of hours</td><td>None</td><td><strong>All of them</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Revenue recovered from missed calls</h3>
+  <p>
+    If your practice currently misses 15 calls per week (a conservative estimate for a
+    busy practice), and 8 of those callers wanted to book a new appointment with an
+    average first-visit value of £95:
+  </p>
+  <div class="stats-row stats-3">
+    <div class="stat-box"><div class="val">32</div><div class="lbl">Missed appointments per month (est.)</div></div>
+    <div class="stat-box"><div class="val">£3,040</div><div class="lbl">Revenue recovered per month</div></div>
+    <div class="stat-box"><div class="val">10x</div><div class="lbl">Return on Dentora Growth plan cost</div></div>
+  </div>
+
+  <div class="callout callout-green">
+    <p>
+      <strong>The break-even point for most practices is fewer than 4 recovered
+      appointments per month.</strong> At £299/month for Growth, recovering just 4
+      appointments at £95 each covers the entire cost of Dentora — before accounting
+      for staff time saved, out-of-hours coverage, or reduced no-shows.
+    </p>
+  </div>
+
+  <h3>Staff time reclaimed</h3>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-icon" style="font-size:20px">⏱️</div>
+      <h4>Average time saved per day</h4>
+      <p>
+        Based on practices using Dentora, reception teams report saving between 2 and 4
+        hours per day on routine call handling. That is time redirected to patient-facing
+        care, treatment coordination, and tasks that genuinely need a human.
+      </p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon" style="font-size:20px">😊</div>
+      <h4>Staff satisfaction</h4>
+      <p>
+        Repetitive, high-volume phone calls are a leading cause of receptionist burnout.
+        Practices using Dentora consistently report higher team satisfaction scores and
+        reduced turnover — which has its own significant cost benefit.
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ 16. FAQ ════════════════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 16 · Frequently Asked Questions</div>
+  <h2>Questions practices ask before signing up.</h2>
+  <p class="lead">
+    Below are the most common questions from practice owners and managers
+    considering Dentora, answered plainly and honestly.
+  </p>
+
+  <h3>About Dentora itself</h3>
+  <table>
+    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Will patients know they are speaking to an AI?</strong></td>
+        <td>Dentora is transparent about being an AI if asked directly. In practice, most patients focus on whether their call is handled quickly and professionally — and Dentora delivers that on every call.</td>
+      </tr>
+      <tr>
+        <td><strong>What happens when Dentora cannot answer a question?</strong></td>
+        <td>Dentora escalates unknown questions to your team immediately. It never makes up an answer or says something incorrect. It apologises, takes the patient's number, and ensures a staff member calls back.</td>
+      </tr>
+      <tr>
+        <td><strong>Can it handle different accents and languages?</strong></td>
+        <td>Yes — Dentora is trained on a wide range of UK accents and handles them reliably. For non-English speaking patients, escalation to a bilingual team member is configured during setup.</td>
+      </tr>
+      <tr>
+        <td><strong>What if I want to listen to a call after it happened?</strong></td>
+        <td>Every call is recorded and available in your dashboard. You can listen to any call at any time, alongside the transcript and AI summary.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>About setup and contracts</h3>
+  <table>
+    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Is there a setup fee or any hidden costs?</strong></td>
+        <td>No. The monthly subscription is the only cost. There are no setup fees, training fees, or per-call charges on Growth and Enterprise plans.</td>
+      </tr>
+      <tr>
+        <td><strong>Can I cancel at any time?</strong></td>
+        <td>Yes — you can cancel from your dashboard at any time. There are no minimum contract periods on monthly billing, and no cancellation penalties.</td>
+      </tr>
+      <tr>
+        <td><strong>Do I need to change my phone number?</strong></td>
+        <td>No. Dentora works with your existing practice number via call forwarding — a standard, reversible change that takes about two minutes with any UK phone provider.</td>
+      </tr>
+      <tr>
+        <td><strong>What if I want Dentora to only handle calls outside office hours?</strong></td>
+        <td>Dentora can be configured to answer only when your team is unavailable — evenings, weekends, and bank holidays. You choose exactly when it operates.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>About data and security</h3>
+  <table>
+    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Who owns the patient data?</strong></td>
+        <td>You do, always. Dentora processes data on your behalf as a data processor under a formal Data Processing Agreement. The data belongs to your practice.</td>
+      </tr>
+      <tr>
+        <td><strong>Where is patient data stored?</strong></td>
+        <td>All data is stored on servers in the United Kingdom. No patient data is sent to servers in the USA, Europe, or anywhere outside the UK.</td>
+      </tr>
+      <tr>
+        <td><strong>Can Dentora engineers see patient data?</strong></td>
+        <td>No. Patient data is encrypted with keys that Dentora engineers do not have access to. The system is designed so that even internal staff cannot read patient records.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ══════════ 17. SUPPORT & ONBOARDING ══════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 17 · Support &amp; Ongoing Help</div>
+  <h2>We are with you from day one.</h2>
+  <p class="lead">
+    Getting set up with Dentora is just the beginning. Our team is available to help
+    your practice get the most from the platform at every stage.
+  </p>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon" style="font-size:18px">💬</div>
+      <h4>Email support</h4>
+      <p>All plans include email support with a guaranteed response time. Starter: 24 hours. Growth: 4 hours. Enterprise: 1 hour.</p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon" style="font-size:18px">📞</div>
+      <h4>Phone &amp; live chat</h4>
+      <p>Growth and Enterprise customers can reach us by phone or live chat during UK business hours, Monday to Friday.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="font-size:18px">🎓</div>
+      <h4>Onboarding walkthrough</h4>
+      <p>Every new customer receives a live onboarding call with our team — we walk through setup together and answer any questions.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="font-size:18px">📖</div>
+      <h4>Help centre</h4>
+      <p>A comprehensive, plain-English help centre covers every feature with step-by-step guides, videos, and troubleshooting answers.</p>
+    </div>
+    <div class="card blue-bg">
+      <div class="card-icon" style="font-size:18px">🔄</div>
+      <h4>Regular platform updates</h4>
+      <p>Dentora is actively developed. New features, improved AI models, and expanded integrations are released regularly — automatically available to all customers.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="font-size:18px">👔</div>
+      <h4>Dedicated account manager</h4>
+      <p>Enterprise customers receive a dedicated account manager who proactively monitors usage, shares optimisation tips, and is your single point of contact.</p>
+    </div>
+  </div>
+
+  <div class="callout callout-green">
+    <p>
+      <strong>99.9% platform uptime guarantee.</strong> Dentora is built on redundant
+      infrastructure across multiple providers. In the event of any issue, our on-call
+      engineering team is paged automatically — and your calls continue to be answered
+      by our backup systems while any issue is resolved.
+    </p>
+  </div>
+</div>
+
+
+<!-- ══════════ 18. GETTING STARTED ════════════════════════ -->
+<div class="section">
+  <div class="eyebrow">// 18 · Getting Started</div>
+  <h2>Ready when you are.</h2>
+  <p class="lead">
+    There is no long sales process, no IT project, and no risk.
+    You can have Dentora answering your calls today.
+  </p>
+
+  <div class="grid-2">
+    <div>
+      <h3>Option 1 — Self-serve sign-up</h3>
+      <p>
+        Visit <strong>dentora.ai</strong> and create your account in under two minutes.
+        Follow the setup guide, connect your Google Calendar, upload your practice
+        information, and go live. Most practices complete the whole process in under
+        15 minutes.
+      </p>
+      <p>
+        You will have access to the Growth plan features free for your first 14 days.
+        No credit card required to start.
+      </p>
+    </div>
+    <div>
+      <h3>Option 2 — Guided demonstration</h3>
+      <p>
+        If you would like to see Dentora in action before committing, we offer a
+        personalised 30-minute demonstration via video call. A member of our team
+        will walk you through a live call, the dashboard, and answer your specific
+        questions.
+      </p>
+      <p>
+        To book a demonstration, email <strong>hello@dentora.ai</strong> or call us
+        Monday–Friday, 9am–5:30pm.
+      </p>
+    </div>
+  </div>
+
+  <hr/>
+
+  <h3>What to prepare before your first call</h3>
+  <ul class="checklist">
+    <li>Your practice's Google account login details (for calendar connection)</li>
+    <li>A current list of FAQs your reception team answer most frequently</li>
+    <li>Your current fee guide or pricing list (PDF or Word document)</li>
+    <li>The names and working days of each dentist at your practice</li>
+    <li>Your preferred greeting style and the name you want Dentora to use</li>
+  </ul>
+
+  <div class="callout">
+    <p>
+      <strong>Not sure what to prepare?</strong> Don't worry — our onboarding team
+      can work with whatever you have. Even a simple email with your practice's basic
+      information is enough to get started. Dentora's knowledge can be expanded and
+      refined at any time after going live.
+    </p>
+  </div>
+
+  <hr/>
+
+  <div style="text-align:center;padding:32px 0 8px">
+    <div style="font-size:22pt;font-weight:900;color:var(--dark);letter-spacing:-.5px;margin-bottom:8px">dentora.ai</div>
+    <div style="color:var(--muted);font-size:10pt;margin-bottom:6px">hello@dentora.ai</div>
+    <div style="color:var(--muted);font-size:9pt">Monday–Friday · 9am–5:30pm · UK-based team</div>
+    <div style="margin-top:24px">
+      <span class="chip">14-day free trial</span>&nbsp;
+      <span class="chip">No credit card required</span>&nbsp;
+      <span class="chip">Cancel anytime</span>&nbsp;
+      <span class="chip green">Live in 15 minutes</span>
+    </div>
+  </div>
+
+  <div style="margin-top:48px;padding-top:18px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:8pt;color:var(--muted)">
+    <span>Dentora — Confidential Client Report · May 2026</span>
+    <span>dentora.ai · All content subject to change without notice</span>
+  </div>
+</div>
+
+</body>
+</html>

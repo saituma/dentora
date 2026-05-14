@@ -80,7 +80,7 @@ export const adminApi = createApi({
       query: (params) => ({ url: "/admin/users", params }),
       providesTags: ["Users"],
     }),
-    getUser: builder.query<AdminUser, string>({
+    getUser: builder.query<AdminUserDetail, string>({
       query: (id) => `/admin/users/${id}`,
       providesTags: (_r, _e, id) => [{ type: "Users", id }],
     }),
@@ -246,6 +246,71 @@ export interface AdminUser {
   tenantId?: string;
   clinicName?: string;
   createdAt: string;
+}
+
+export interface ClinicProfileSnapshot {
+  id: string;
+  clinicName: string;
+  legalEntityName?: string;
+  timezone?: string;
+  primaryPhone?: string;
+  supportEmail?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  businessHours?: Record<string, unknown>;
+  specialties?: unknown[];
+  staffMembers?: unknown[];
+  description?: string;
+  status: string;
+  configVersion?: number;
+  updatedAt: string;
+}
+
+export interface ConfigVersion {
+  version: number;
+  status: string;
+  completenessScore: string;
+  publishedAt?: string;
+  createdAt: string;
+}
+
+export interface PreflightStatus {
+  lastPreflightReady?: boolean;
+  lastPreflightCheckedAt?: string;
+  lastBlockingIssueCodes: string[];
+  lastWarningCodes: string[];
+  latestCalendarPhiScanAt?: string;
+  latestCalendarPhiTotalEvents?: number;
+  latestCalendarPhiRiskyEvents?: number;
+}
+
+export interface TenantSummary {
+  id: string;
+  tenantRole: string;
+  clinicName: string;
+  clinicSlug: string;
+  plan: string;
+  status: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  createdAt: string;
+  clinicProfile?: ClinicProfileSnapshot;
+  latestConfigVersion?: ConfigVersion;
+  preflight?: PreflightStatus;
+}
+
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  displayName?: string;
+  role: string;
+  emailVerified: boolean;
+  mfaEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  tenant?: TenantSummary;
 }
 
 export interface AuditEntry {

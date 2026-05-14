@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import * as adminService from './admin.service.js';
 import { authenticateJwt, requirePlatformAdmin, validate } from '../../middleware/index.js';
@@ -14,10 +13,11 @@ import {
   callSessions,
   callEvents,
   callTranscripts,
-  twilioNumbers,
   clinicProfile,
   integrations,
   auditLog,
+  tenantConfigVersions,
+  pilotPreflightStatus,
 } from '../../db/schema.js';
 import { sql, eq, and, ilike, desc } from 'drizzle-orm';
 import { logEmitter, getRecentLogs, type LogEntry } from './admin-log-stream.js';
@@ -122,7 +122,11 @@ adminRouter.put(
   }),
   async (req, res, next) => {
     try {
-      await adminService.setPlatformConfig(req.params.key as string, req.body.value, req.body.description);
+      await adminService.setPlatformConfig(
+        req.params.key as string,
+        req.body.value,
+        req.body.description,
+      );
       req.audit?.({
         action: 'admin.config_changed',
         entityType: 'platform_config',
@@ -169,9 +173,7 @@ adminRouter.get(
         search?: string;
       };
 
-      const conditions = search
-        ? ilike(tenantRegistry.clinicName, `%${search}%`)
-        : undefined;
+      const conditions = search ? ilike(tenantRegistry.clinicName, `%${search}%`) : undefined;
 
       const rows = await db
         .select({
@@ -281,11 +283,20 @@ adminRouter.get(
 
       const conditions = [];
       if (tenantId) conditions.push(eq(callSessions.tenantId, tenantId));
-      if (status) conditions.push(eq(callSessions.status, status as 'started' | 'in_progress' | 'completed' | 'escalated' | 'failed'));
+      if (status)
+        conditions.push(
+          eq(
+            callSessions.status,
+            status as 'started' | 'in_progress' | 'completed' | 'escalated' | 'failed',
+          ),
+        );
 
-      const whereClause = conditions.length > 0
-        ? conditions.length === 1 ? conditions[0] : and(...conditions)
-        : undefined;
+      const whereClause =
+        conditions.length > 0
+          ? conditions.length === 1
+            ? conditions[0]
+            : and(...conditions)
+          : undefined;
 
       const rows = await db
         .select({
@@ -410,9 +421,12 @@ adminRouter.get(
       if (tenantId) conditions.push(eq(auditLog.tenantId, tenantId));
       if (action) conditions.push(eq(auditLog.action, action));
 
-      const whereClause = conditions.length > 0
-        ? conditions.length === 1 ? conditions[0] : and(...conditions)
-        : undefined;
+      const whereClause =
+        conditions.length > 0
+          ? conditions.length === 1
+            ? conditions[0]
+            : and(...conditions)
+          : undefined;
 
       const rows = await db
         .select()
@@ -453,9 +467,7 @@ adminRouter.get(
         search?: string;
       };
 
-      const conditions = search
-        ? ilike(users.email, `%${search}%`)
-        : undefined;
+      const conditions = search ? ilike(users.email, `%${search}%`) : undefined;
 
       const rows = await db
         .select({
@@ -486,6 +498,132 @@ adminRouter.get(
     }
   },
 );
+
+// ─── GET /api/admin/users/:id ────────────────────────────────────────
+
+adminRouter.get('/users/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+        role: users.role,
+        emailVerified: users.emailVerified,
+        mfaEnabled: users.mfaEnabled,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Fetch tenant membership
+    const [membership] = await db
+      .select({
+        tenantId: tenantUsers.tenantId,
+        tenantRole: tenantUsers.role,
+        clinicName: tenantRegistry.clinicName,
+        clinicSlug: tenantRegistry.clinicSlug,
+        plan: tenantRegistry.plan,
+        status: tenantRegistry.status,
+        stripeCustomerId: tenantRegistry.stripeCustomerId,
+        stripeSubscriptionId: tenantRegistry.stripeSubscriptionId,
+        tenantCreatedAt: tenantRegistry.createdAt,
+      })
+      .from(tenantUsers)
+      .innerJoin(tenantRegistry, eq(tenantUsers.tenantId, tenantRegistry.id))
+      .where(eq(tenantUsers.userId, id))
+      .limit(1);
+
+    let tenant = null;
+
+    if (membership) {
+      const { tenantId } = membership;
+
+      // Clinic profile (latest by config version desc)
+      const [profile] = await db
+        .select({
+          id: clinicProfile.id,
+          clinicName: clinicProfile.clinicName,
+          legalEntityName: clinicProfile.legalEntityName,
+          timezone: clinicProfile.timezone,
+          primaryPhone: clinicProfile.primaryPhone,
+          supportEmail: clinicProfile.supportEmail,
+          address: clinicProfile.address,
+          phone: clinicProfile.phone,
+          email: clinicProfile.email,
+          website: clinicProfile.website,
+          businessHours: clinicProfile.businessHours,
+          specialties: clinicProfile.specialties,
+          staffMembers: clinicProfile.staffMembers,
+          description: clinicProfile.description,
+          status: clinicProfile.status,
+          configVersion: clinicProfile.configVersion,
+          updatedAt: clinicProfile.updatedAt,
+        })
+        .from(clinicProfile)
+        .where(eq(clinicProfile.tenantId, tenantId))
+        .orderBy(desc(clinicProfile.configVersion))
+        .limit(1);
+
+      // Latest config version
+      const [latestConfig] = await db
+        .select({
+          version: tenantConfigVersions.version,
+          status: tenantConfigVersions.status,
+          completenessScore: tenantConfigVersions.completenessScore,
+          publishedAt: tenantConfigVersions.publishedAt,
+          createdAt: tenantConfigVersions.createdAt,
+        })
+        .from(tenantConfigVersions)
+        .where(eq(tenantConfigVersions.tenantId, tenantId))
+        .orderBy(desc(tenantConfigVersions.version))
+        .limit(1);
+
+      // Preflight status
+      const [preflight] = await db
+        .select({
+          lastPreflightReady: pilotPreflightStatus.lastPreflightReady,
+          lastPreflightCheckedAt: pilotPreflightStatus.lastPreflightCheckedAt,
+          lastBlockingIssueCodes: pilotPreflightStatus.lastBlockingIssueCodes,
+          lastWarningCodes: pilotPreflightStatus.lastWarningCodes,
+          latestCalendarPhiScanAt: pilotPreflightStatus.latestCalendarPhiScanAt,
+          latestCalendarPhiTotalEvents: pilotPreflightStatus.latestCalendarPhiTotalEvents,
+          latestCalendarPhiRiskyEvents: pilotPreflightStatus.latestCalendarPhiRiskyEvents,
+        })
+        .from(pilotPreflightStatus)
+        .where(eq(pilotPreflightStatus.tenantId, tenantId))
+        .limit(1);
+
+      tenant = {
+        id: tenantId,
+        tenantRole: membership.tenantRole,
+        clinicName: membership.clinicName,
+        clinicSlug: membership.clinicSlug,
+        plan: membership.plan,
+        status: membership.status,
+        stripeCustomerId: membership.stripeCustomerId,
+        stripeSubscriptionId: membership.stripeSubscriptionId,
+        createdAt: membership.tenantCreatedAt,
+        clinicProfile: profile ?? null,
+        latestConfigVersion: latestConfig ?? null,
+        preflight: preflight ?? null,
+      };
+    }
+
+    res.json({ ...user, tenant });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ─── GET /api/admin/live-logs (SSE) ──────────────────────────────────
 

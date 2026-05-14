@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Dentora — Technical Architecture Report</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --blue:#2563eb;
+  --blue-d:#1d4ed8;
+  --blue-l:#3b82f6;
+  --dark:#0f172a;
+  --mid:#1e293b;
+  --text:#1e293b;
+  --muted:#64748b;
+  --border:#e2e8f0;
+  --bg:#f8fafc;
+  --accent:#dbeafe;
+  --green:#16a34a;
+  --green-l:#dcfce7;
+  --amber:#d97706;
+  --amber-l:#fef3c7;
+  --red:#dc2626;
+  --red-l:#fee2e2;
+  --purple:#7c3aed;
+  --purple-l:#ede9fe;
+  --code-bg:#0f172a;
+  --code-text:#e2e8f0;
+}
+
+@page{size:A4;margin:0}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+  font-size:9pt;
+  line-height:1.6;
+  color:var(--text);
+  background:#fff;
+}
+
+/* ── PAGE SHELL ─────────────────────────────── */
+.page{
+  width:210mm;
+  height:297mm;
+  padding:14mm 16mm 12mm;
+  page-break-after:always;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+}
+.page:last-child{page-break-after:auto}
+
+/* ── COVER ──────────────────────────────────── */
+.cover{
+  background:var(--dark);
+  color:#fff;
+  padding:14mm 16mm 12mm;
+  justify-content:space-between;
+}
+.cover-top{display:flex;justify-content:space-between;align-items:flex-start}
+.cover-logo{font-size:16pt;font-weight:900;letter-spacing:-.4px}
+.cover-logo span{color:var(--blue-l)}
+.cover-tag{
+  font-size:6.5pt;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);
+  color:#93c5fd;padding:4px 11px;border-radius:20px;
+}
+.cover-body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:10mm 0}
+.cover h1{
+  font-size:28pt;font-weight:900;line-height:1.05;letter-spacing:-1px;
+  margin-bottom:14px;max-width:140mm;
+}
+.cover h1 em{font-style:normal;color:var(--blue-l)}
+.cover-sub{font-size:10.5pt;color:rgba(255,255,255,.55);max-width:130mm;line-height:1.65;margin-bottom:28px}
+.cover-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.pill{
+  font-size:7pt;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.6);background:rgba(255,255,255,.05);
+}
+.cover-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;max-width:160mm}
+.cstat{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px 14px}
+.cstat-v{font-size:13pt;font-weight:900;color:var(--blue-l);line-height:1}
+.cstat-l{font-size:6.5pt;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.7px;margin-top:3px}
+.cover-footer{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid rgba(255,255,255,.08);padding-top:10px;
+  font-size:7pt;color:rgba(255,255,255,.3);
+}
+
+/* ── HEADER BAR (content pages) ─────────────── */
+.phead{
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:2px solid var(--dark);padding-bottom:7px;margin-bottom:16px;
+  flex-shrink:0;
+}
+.phead-logo{font-size:9pt;font-weight:900;color:var(--dark)}
+.phead-logo span{color:var(--blue)}
+.phead-right{font-size:7pt;color:var(--muted);text-align:right;line-height:1.4}
+
+/* ── FOOTER BAR ─────────────────────────────── */
+.pfoot{
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid var(--border);padding-top:7px;margin-top:auto;
+  font-size:7pt;color:var(--muted);flex-shrink:0;
+}
+.pfoot .pgnum{
+  width:22px;height:22px;background:var(--dark);border-radius:50%;
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:7pt;font-weight:700;flex-shrink:0;
+}
+
+/* ── TYPOGRAPHY ─────────────────────────────── */
+.eyebrow{font-size:6.5pt;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+h2{font-size:15pt;font-weight:900;letter-spacing:-.4px;color:var(--dark);margin-bottom:8px;line-height:1.1}
+h3{font-size:9.5pt;font-weight:800;color:var(--dark);margin-bottom:5px;margin-top:14px}
+h4{font-size:8.5pt;font-weight:700;color:var(--dark);margin-bottom:3px}
+p{margin-bottom:8px;font-size:8.5pt;color:var(--text);line-height:1.6}
+strong{font-weight:700}
+
+hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+
+/* ── LAYOUT ─────────────────────────────────── */
+.cols-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cols-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.cols-65{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+
+/* ── CARDS ──────────────────────────────────── */
+.card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:#fff}
+.card-blue{background:var(--accent);border-color:#bfdbfe}
+.card-dark{background:var(--dark);border-color:var(--dark);color:#fff}
+.card-dark h4{color:#e2e8f0}
+.card-dark p{color:rgba(255,255,255,.6)}
+.card-green{background:var(--green-l);border-color:#86efac}
+.card-purple{background:var(--purple-l);border-color:#c4b5fd}
+.card-amber{background:var(--amber-l);border-color:#fcd34d}
+.card-red{background:var(--red-l);border-color:#fca5a5}
+.card p{font-size:8pt;color:var(--muted);margin:0}
+.card h4{margin-bottom:4px}
+
+/* ── ARCH DIAGRAM ───────────────────────────── */
+.arch{
+  font-family:'Courier New',Courier,monospace;
+  font-size:7pt;
+  background:var(--code-bg);
+  color:var(--code-text);
+  border-radius:8px;
+  padding:12px 14px;
+  line-height:1.55;
+  white-space:pre;
+}
+.arch .c-blue{color:#93c5fd}
+.arch .c-green{color:#86efac}
+.arch .c-amber{color:#fcd34d}
+.arch .c-red{color:#fca5a5}
+.arch .c-purple{color:#c4b5fd}
+.arch .c-muted{color:#64748b}
+
+/* ── CODE SNIPPETS ──────────────────────────── */
+.code{
+  font-family:'Courier New',Courier,monospace;
+  font-size:7pt;
+  background:var(--code-bg);
+  color:#86efac;
+  border-radius:6px;
+  padding:8px 12px;
+  line-height:1.5;
+  margin:6px 0;
+  overflow:hidden;
+}
+.code .k{color:#93c5fd}    /* keyword */
+.code .s{color:#fcd34d}    /* string */
+.code .c{color:#475569}    /* comment */
+.code .t{color:#c4b5fd}    /* type */
+.code .n{color:#e2e8f0}    /* normal */
+.code .f{color:#fb923c}    /* function */
+
+/* ── TABLE ──────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:7.5pt;margin:8px 0}
+th{background:var(--dark);color:#fff;padding:6px 10px;text-align:left;font-weight:700;font-size:7pt;letter-spacing:.2px}
+th:first-child{border-radius:6px 0 0 0}
+th:last-child{border-radius:0 6px 0 0}
+td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:nth-child(even) td{background:var(--bg)}
+
+/* ── BADGE / CHIP ───────────────────────────── */
+.badge{
+  display:inline-block;font-size:6.5pt;font-weight:700;letter-spacing:.5px;
+  padding:2px 8px;border-radius:20px;margin:1px;
+}
+.badge-blue{background:var(--accent);color:var(--blue-d);border:1px solid #bfdbfe}
+.badge-green{background:var(--green-l);color:var(--green);border:1px solid #86efac}
+.badge-purple{background:var(--purple-l);color:var(--purple);border:1px solid #c4b5fd}
+.badge-amber{background:var(--amber-l);color:var(--amber);border:1px solid #fcd34d}
+.badge-dark{background:var(--mid);color:#e2e8f0;border:1px solid #334155}
+.badge-red{background:var(--red-l);color:var(--red);border:1px solid #fca5a5}
+
+/* ── CALLOUT ────────────────────────────────── */
+.callout{
+  background:var(--accent);border-left:3px solid var(--blue);
+  border-radius:0 7px 7px 0;padding:9px 13px;margin:8px 0;
+}
+.callout p{font-size:8pt;margin:0;color:#1e40af;line-height:1.55}
+.callout-green{background:var(--green-l);border-color:var(--green)}
+.callout-green p{color:#14532d}
+.callout-amber{background:var(--amber-l);border-color:var(--amber)}
+.callout-amber p{color:#78350f}
+
+/* ── STAT ROW ───────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+.sbox{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px;text-align:center}
+.sbox .v{font-size:13pt;font-weight:900;color:var(--blue);line-height:1}
+.sbox .l{font-size:6.5pt;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+
+/* ── FLOW BOXES ─────────────────────────────── */
+.flow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap}
+.fbox{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;font-size:7.5pt;font-weight:600;color:var(--dark);
+  text-align:center;min-width:48px;
+}
+.fbox.blue{background:var(--accent);border-color:#bfdbfe;color:var(--blue-d)}
+.fbox.dark{background:var(--dark);border-color:var(--dark);color:#e2e8f0}
+.fbox.green{background:var(--green-l);border-color:#86efac;color:#14532d}
+.fbox.purple{background:var(--purple-l);border-color:#c4b5fd;color:var(--purple)}
+.fbox.amber{background:var(--amber-l);border-color:#fcd34d;color:var(--amber)}
+.fbox.red{background:var(--red-l);border-color:#fca5a5;color:var(--red)}
+.farrow{color:var(--muted);font-size:9pt;font-weight:700;flex-shrink:0}
+.fstack{display:flex;flex-direction:column;gap:4px}
+.fbrace{color:var(--muted);font-size:14pt;line-height:1;align-self:center}
+
+/* ── SECTION MARKER ─────────────────────────── */
+.sec-mark{
+  display:inline-flex;align-items:center;gap:8px;margin-bottom:10px;
+}
+.sec-mark-num{
+  width:20px;height:20px;background:var(--blue);border-radius:50%;
+  color:#fff;font-size:7.5pt;font-weight:900;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sec-mark-line{height:2px;background:var(--blue);width:30px;border-radius:1px}
+
+/* ── PRINT ──────────────────────────────────── */
+@media print{
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     PAGE 1 — COVER
+════════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-top">
+    <div class="cover-logo">Dentor<span>a</span></div>
+    <div class="cover-tag">Technical Architecture Report</div>
+  </div>
+
+  <div class="cover-body">
+    <h1>System Architecture<br/>& <em>Technical Reference</em></h1>
+    <p class="cover-sub">
+      A complete technical overview of the Dentora platform — monorepo structure,
+      backend API, AI/telephony pipeline, data layer, security model,
+      infrastructure, and observability stack.
+    </p>
+    <div class="cover-pills">
+      <span class="pill">Next.js 16 · App Router</span>
+      <span class="pill">Express 5 · Drizzle ORM</span>
+      <span class="pill">PostgreSQL · Redis · BullMQ</span>
+      <span class="pill">Twilio · OpenAI · Anthropic</span>
+      <span class="pill">Cloudflare R2 · Docker</span>
+      <span class="pill">OpenTelemetry · Datadog</span>
+      <span class="pill">AES-256-GCM · UK GDPR</span>
+    </div>
+    <div class="cover-grid">
+      <div class="cstat"><div class="cstat-v">3</div><div class="cstat-l">App workspaces</div></div>
+      <div class="cstat"><div class="cstat-v">11</div><div class="cstat-l">Server modules</div></div>
+      <div class="cstat"><div class="cstat-v">7</div><div class="cstat-l">BullMQ queues</div></div>
+      <div class="cstat"><div class="cstat-v">256-bit</div><div class="cstat-l">AES-GCM at rest</div></div>
+      <div class="cstat"><div class="cstat-v">LON1</div><div class="cstat-l">DigitalOcean</div></div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <span>Dentora · Technical Architecture Report · May 2026 · CONFIDENTIAL</span>
+    <span>dentora.ai · For authorised technical reviewers only</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     PAGE 2 — SYSTEM OVERVIEW & MONOREPO
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="phead">
+    <div class="phead-logo">Dentor<span>a</span> Technical Report</div>
+    <div class="phead-right">Section 1–2 · System Overview &amp; Monorepo<br/>May 2026 · CONFIDENTIAL</div>
+  </div>
+
+  <!-- 1. High-level architecture -->
+  <div class="sec-mark">
+    <div class="sec-mark-num">1</div>
+    <div class="eyebrow" style="margin:0">High-Level System Architecture</div>
+    <div class="sec-mark-line"></div>
+  </div>
+
+  <div class="arch"><span class="c-muted">┌──────────────── INBOUND CALL ─────────────────────────────────────────────────────────────┐</span>
+<span class="c-muted">│</span>                                                                                           <span class="c-muted">│</span>
+<span class="c-muted">│</span>  <span class="c-blue">Patient Phone</span>  ──→  <span class="c-green">Twilio Voice</span>  ──→  <span class="c-amber">POST /telephony/voice</span>  ──→  <span class="c-blue">Express API</span>         <span class="c-muted">│</span>
+<span class="c-muted">│</span>         ↑                    ↕ WebSocket                       ↓                           <span class="c-muted">│</span>
+<span class="c-muted">│</span>   TwiML response        <span class="c-green">Media Stream</span>              <span class="c-purple">AI Orchestrator</span>                        <span class="c-muted">│</span>
+<span class="c-muted">│</span>                          (raw audio)             <span class="c-muted">├─ OpenAI  (primary)</span>                   <span class="c-muted">│</span>
+<span class="c-muted">│</span>                              ↓                   <span class="c-muted">└─ Anthropic (failover)</span>                 <span class="c-muted">│</span>
+<span class="c-muted">│</span>                    <span class="c-amber">STT → LLM → TTS</span>                        ↓                           <span class="c-muted">│</span>
+<span class="c-muted">│</span>                    (real-time pipeline)          <span class="c-green">Google Calendar API</span>                    <span class="c-muted">│</span>
+<span class="c-muted">└───────────────────────────────────────────────────────────────────────────────────────────┘</span>
+
+<span class="c-muted">┌─── DATA LAYER ────────────────┐  ┌─── ASYNC WORKERS ────────────────┐  ┌─── CLIENTS ──────────┐</span>
+<span class="c-muted">│</span> <span class="c-blue">PostgreSQL</span>  (Drizzle ORM)    <span class="c-muted">│  │</span> <span class="c-amber">BullMQ</span> → 7 queues               <span class="c-muted">│  │</span> <span class="c-blue">Next.js 16</span> (client)  <span class="c-muted">│</span>
+<span class="c-muted">│</span> AES-256-GCM encrypted cols    <span class="c-muted">│  │</span> costAttribution · analytics     <span class="c-muted">│  │</span> <span class="c-blue">Next.js 16</span> (admin)   <span class="c-muted">│</span>
+<span class="c-muted">│</span> HMAC-SHA256 search hashes     <span class="c-muted">│  │</span> notifications · gdprErasure     <span class="c-muted">│  │</span> JWT + refresh tokens <span class="c-muted">│</span>
+<span class="c-muted">│</span> <span class="c-green">Redis</span>  (tenant-scoped cache)  <span class="c-muted">│  │</span> auditLog · summary · retention  <span class="c-muted">│  │</span> Google OAuth / TOTP  <span class="c-muted">│</span>
+<span class="c-muted">│</span> key: tenant:{id}:{domain}:{k} <span class="c-muted">│  │</span> DLQ on exhausted retries        <span class="c-muted">│  │</span> Role-based access    <span class="c-muted">│</span>
+<span class="c-muted">└───────────────────────────────┘  └──────────────────────────────────┘  └──────────────────────┘</span>
+
+<span class="c-muted">┌─── INFRASTRUCTURE ────────────────────────────────────────────────────────────────────────┐</span>
+<span class="c-muted">│</span>  <span class="c-green">DigitalOcean LON1</span>  ·  Docker Compose (prod)  ·  nginx + certbot  ·  Cloudflare R2       <span class="c-muted">│</span>
+<span class="c-muted">│</span>  <span class="c-purple">OpenTelemetry</span> (OTLP → Datadog Agent :4318)  ·  Prometheus metrics  ·  Pino logs       <span class="c-muted">│</span>
+<span class="c-muted">└───────────────────────────────────────────────────────────────────────────────────────────┘</span></div>
+
+  <hr/>
+
+  <!-- 2. Monorepo -->
+  <div class="sec-mark" style="margin-top:10px">
+    <div class="sec-mark-num">2</div>
+    <div class="eyebrow" style="margin:0">Monorepo Structure (pnpm workspaces)</div>
+    <div class="sec-mark-line"></div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <div class="code"><span class="c">// pnpm workspace layout</span>
+<span class="n">apps/</span>
+  <span class="k">client/</span>    <span class="c">← Next.js 16 App Router (patient dashboard)</span>
+  <span class="k">server/</span>    <span class="c">← Express 5 API + BullMQ worker</span>
+  <span class="k">admin/</span>     <span class="c">← Next.js 16 internal portal (Biome lint)</span>
+<span class="n">packages/</span>
+  <span class="k">shared/</span>    <span class="c">← Shared types + constants</span>
+<span class="c">// Target specific workspaces:</span>
+<span class="n">pnpm --filter @repo/server dev</span>
+<span class="n">pnpm --filter @repo/client build</span>
+<span class="n">pnpm --filter @repo/shared typecheck</span></div>
+
+      <table>
+        <thead><tr><th>App</th><th>Framework</th><th>Linter</th><th>Output</th></tr></thead>
+        <tbody>
+          <tr><td>client</td><td>Next.js 16 (App Router)</td><td>ESLint + Prettier</td><td>Vercel/Docker</td></tr>
+          <tr><td>server</td><td>Express 5 + tsc→CJS</td><td>ESLint</td><td>Node Docker</td></tr>
+          <tr><td>admin</td><td>Next.js 16 (App Router)</td><td>Biome</td><td>Vercel/Docker</td></tr>
+          <tr><td>shared</td><td>TypeScript lib</td><td>tsc only</td><td>workspace dep</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout" style="margin-top:8px">
+        <p><strong>Note:</strong> The server compiles to CommonJS (<code>tsc --module commonjs</code>).
+        <code>__dirname</code> is safe; <code>import.meta.url</code> is not available.</p>
+      </div>
+    </div>
+    <div>
+      <h4>Server module map</h4>
+      <table>
+        <thead><tr><th>Module</th><th>Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td><strong>auth/</strong></td><td>JWT, refresh tokens, Google OAuth, TOTP MFA, password reset</td></tr>
+          <tr><td><strong>telephony/</strong></td><td>Twilio webhooks, WS media stream, call lifecycle</td></tr>
+          <tr><td><strong>ai/</strong></td><td>LLM orchestration, provider failover, circuit breakers</td></tr>
+          <tr><td><strong>patients/</strong></td><td>PHI profiles (AES-encrypted), GDPR erasure, DSAR export</td></tr>
+          <tr><td><strong>calls/</strong></td><td>Call sessions, transcripts, events, cost attribution</td></tr>
+          <tr><td><strong>config/</strong></td><td>Clinic profile, services, booking rules, FAQs (Redis-cached)</td></tr>
+          <tr><td><strong>integrations/</strong></td><td>Google Calendar OAuth + live availability</td></tr>
+          <tr><td><strong>appointments/</strong></td><td>Booking logic, slot availability, conflict detection</td></tr>
+          <tr><td><strong>analytics/</strong></td><td>Call analytics, usage metrics, Datadog business events</td></tr>
+          <tr><td><strong>tenants/</strong></td><td>Tenant registry, plan management, isolation enforcement</td></tr>
+          <tr><td><strong>staff-review/</strong></td><td>Call review workflow, approval/rejection, notifications</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="pfoot">
+    <span>Dentora Technical Architecture Report · May 2026 · CONFIDENTIAL</span>
+    <div class="pgnum">2</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     PAGE 3 — AI / TELEPHONY PIPELINE & DATA
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="phead">
+    <div class="phead-logo">Dentor<span>a</span> Technical Report</div>
+    <div class="phead-right">Section 3–4 · AI Pipeline · Data Layer<br/>May 2026 · CONFIDENTIAL</div>
+  </div>
+
+  <!-- 3. AI / Telephony -->
+  <div class="sec-mark">
+    <div class="sec-mark-num">3</div>
+    <div class="eyebrow" style="margin:0">AI &amp; Telephony Pipeline</div>
+    <div class="sec-mark-line"></div>
+  </div>
+
+  <div class="cols-65">
+    <div>
+      <h3 style="margin-top:0">Call flow — media-stream.ts</h3>
+      <div class="flow">
+        <div class="fbox dark">Twilio<br/>WS</div><div class="farrow">→</div>
+        <div class="fbox blue">STT<br/>(OpenAI)</div><div class="farrow">→</div>
+        <div class="fbox purple">LLM<br/>Orchestrator</div><div class="farrow">→</div>
+        <div class="fbox green">TTS<br/>(ElevenLabs)</div><div class="farrow">→</div>
+        <div class="fbox dark">Twilio<br/>Audio</div>
+      </div>
+      <div class="flow" style="margin-top:4px">
+        <div class="fbox amber" style="font-size:6.5pt">Circuit<br/>Breaker</div><div class="farrow">wraps</div>
+        <div class="fbox amber" style="font-size:6.5pt">Retry +<br/>Jitter</div><div class="farrow">wraps</div>
+        <div class="fbox amber" style="font-size:6.5pt">Provider<br/>Failover</div>
+      </div>
+
+      <h3>LLM provider failover</h3>
+      <div class="code"><span class="c">// apps/server/src/lib/circuit-breaker.ts</span>
+<span class="c">// 5-failure threshold → open → 30s reset</span>
+<span class="k">const</span> <span class="n">cb</span> = <span class="k">new</span> <span class="f">CircuitBreaker</span>({
+  <span class="n">threshold</span>: <span class="s">5</span>,
+  <span class="n">resetTimeout</span>: <span class="s">30_000</span>
+})
+<span class="c">// Primary: OpenAI gpt-4o</span>
+<span class="c">// Failover: Anthropic claude-sonnet-4-x</span>
+<span class="c">// Wraps: all AI + Twilio external calls</span></div>
+
+      <h3>Key lib files</h3>
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>circuit-breaker.ts</code></td><td>5-failure threshold, 30s reset, wraps all external calls</td></tr>
+          <tr><td><code>retry.ts</code></td><td>Exponential backoff with jitter for transient failures</td></tr>
+          <tr><td><code>queue.ts</code></td><td>BullMQ — 7 queues, DLQ, OTel spans on all jobs</td></tr>
+          <tr><td><code>cache.ts</code></td><td><code>tenantCacheGet/Set/Del</code>, domain invalidation</td></tr>
+          <tr><td><code>metrics.ts</code></td><td>Prometheus metrics + Datadog business metrics</td></tr>
+          <tr><td><code>telemetry.ts</code></td><td>OTel SDK → OTLP → Datadog Agent :4318</td></tr>
+          <tr><td><code>logger.ts</code></td><td>Pino + dd.trace_id injection + PII redaction</td></tr>
+          <tr><td><code>storage.ts</code></td><td>Cloudflare R2 via aws4fetch (no AWS SDK)</td></tr>
+          <tr><td><code>encrypted-column.ts</code></td><td>AES-256-GCM encrypt/decrypt + HMAC-SHA256 hash</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <!-- 4. Data layer -->
+      <div class="sec-mark" style="margin-top:0">
+        <div class="sec-mark-num">4</div>
+        <div class="eyebrow" style="margin:0">Data Layer</div>
+        <div class="sec-mark-line"></div>
+      </div>
+
+      <h3 style="margin-top:4px">Schema highlights (schema.ts)</h3>
+      <table>
+        <thead><tr><th>Table</th><th>Encrypted cols</th><th>Hash cols</th></tr></thead>
+        <tbody>
+          <tr><td><code>patientProfiles</code></td><td>fullName, phoneNumber, notes</td><td>phoneNumberHash</td></tr>
+          <tr><td><code>callSessions</code></td><td>callerNumber, intentSummary</td><td>callerNumberHash</td></tr>
+          <tr><td><code>callTranscripts</code></td><td>summary</td><td>—</td></tr>
+          <tr><td><code>auditLog</code></td><td>—</td><td>—</td></tr>
+          <tr><td><code>passwordResetTokens</code></td><td>—</td><td>tokenHash</td></tr>
+        </tbody>
+      </table>
+
+      <h3>BullMQ queue definitions</h3>
+      <div style="margin:6px 0">
+        <span class="badge badge-blue">COST_ATTRIBUTION</span>
+        <span class="badge badge-purple">ANALYTICS_EVENTS</span>
+        <span class="badge badge-green">NOTIFICATION_DELIVERY</span>
+        <span class="badge badge-amber">GDPR_ERASURE</span>
+        <span class="badge badge-dark">AUDIT_LOG_WRITE</span>
+        <span class="badge badge-dark">CALL_SUMMARY_GEN</span>
+        <span class="badge badge-red">DATA_RETENTION_SWEEP</span>
+      </div>
+
+      <h3>Cache key convention</h3>
+      <div class="code"><span class="c">// Tenant-scoped Redis keys</span>
+<span class="n">tenant:{tenantId}:{domain}:{id}</span>
+<span class="c">// Config domain — 5 min TTL</span>
+<span class="n">tenant:abc123:config:clinic</span>
+<span class="c">// Invalidate after config write:</span>
+<span class="f">tenantCacheInvalidateDomain</span>(<span class="n">tenantId</span>, <span class="s">'config'</span>)</div>
+
+      <h3>Tenant isolation rule</h3>
+      <div class="callout callout-amber">
+        <p>
+          <strong>Every</strong> DB query must include <code>eq(table.tenantId, tenantId)</code>.
+          <code>tenantId</code> is always sourced from JWT (<code>req.tenantContext.tenantId</code>)
+          — never from request body. Enforced by <code>resolveTenant</code> middleware.
+        </p>
+      </div>
+
+      <h3>Migration workflow</h3>
+      <div class="code"><span class="n">1.</span> <span class="k">Edit</span> <span class="s">src/db/schema.ts</span>
+<span class="n">2.</span> <span class="k">pnpm</span> db:generate   <span class="c">← drizzle-kit</span>
+<span class="n">3.</span> <span class="k">Review</span> <span class="s">drizzle/*.sql</span>
+<span class="n">4.</span> <span class="k">pnpm</span> db:migrate    <span class="c">← local apply</span>
+<span class="c">// NEVER use drizzle-kit push in prod</span>
+<span class="c">// Migrations run at deploy via migrate cmd</span></div>
+    </div>
+  </div>
+
+  <div class="pfoot">
+    <span>Dentora Technical Architecture Report · May 2026 · CONFIDENTIAL</span>
+    <div class="pgnum">3</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     PAGE 4 — SECURITY MODEL & AUTH
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="phead">
+    <div class="phead-logo">Dentor<span>a</span> Technical Report</div>
+    <div class="phead-right">Section 5–6 · Security Model · Auth &amp; Middleware<br/>May 2026 · CONFIDENTIAL</div>
+  </div>
+
+  <!-- 5. Security -->
+  <div class="sec-mark">
+    <div class="sec-mark-num">5</div>
+    <div class="eyebrow" style="margin:0">Security Architecture</div>
+    <div class="sec-mark-line"></div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h3 style="margin-top:0">Encryption at rest — AES-256-GCM</h3>
+      <div class="code"><span class="c">// src/lib/encrypted-column.ts</span>
+<span class="k">export</span> <span class="f">encryptField</span>(<span class="t">plaintext</span>: <span class="t">string</span>): <span class="t">string</span>
+<span class="c">// AES-256-GCM: 96-bit IV per encrypt</span>
+<span class="c">// Format: base64(iv || ciphertext || authTag)</span>
+
+<span class="k">export</span> <span class="f">decryptField</span>(<span class="t">ciphertext</span>: <span class="t">string</span>): <span class="t">string</span>
+
+<span class="k">export</span> <span class="f">hashForSearch</span>(<span class="t">plaintext</span>: <span class="t">string</span>): <span class="t">string</span>
+<span class="c">// HMAC-SHA256 — deterministic, non-reversible</span>
+<span class="c">// Used for phone number lookup without decrypt</span></div>
+
+      <table style="margin-top:6px">
+        <thead><tr><th>Protected field</th><th>Method</th><th>Searchable?</th></tr></thead>
+        <tbody>
+          <tr><td>Patient full name</td><td>AES-256-GCM</td><td>No</td></tr>
+          <tr><td>Patient phone number</td><td>AES-256-GCM + HMAC hash</td><td>Yes (hash lookup)</td></tr>
+          <tr><td>Patient notes</td><td>AES-256-GCM</td><td>No</td></tr>
+          <tr><td>Caller number (call)</td><td>AES-256-GCM + HMAC hash</td><td>Yes (hash lookup)</td></tr>
+          <tr><td>Intent summary</td><td>AES-256-GCM</td><td>No</td></tr>
+          <tr><td>Transcript summary</td><td>AES-256-GCM</td><td>No</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Transport security</h3>
+      <ul style="margin-left:14px;font-size:8pt;line-height:1.8">
+        <li>TLS 1.3 enforced on all endpoints via nginx</li>
+        <li>Let's Encrypt certificates (auto-renewed via certbot container)</li>
+        <li>WebSocket connections (Twilio media stream) over WSS</li>
+        <li>Strict CORS — origin whitelist only, no wildcard</li>
+        <li>HSTS, X-Frame-Options, X-Content-Type-Options headers set</li>
+      </ul>
+
+      <h3>UK GDPR technical controls</h3>
+      <table>
+        <thead><tr><th>Article</th><th>Implementation</th></tr></thead>
+        <tbody>
+          <tr><td>Art. 15 (Access)</td><td><code>GET /api/patients/:id/export</code> → full structured export</td></tr>
+          <tr><td>Art. 17 (Erasure)</td><td><code>DELETE /api/patients/:id</code> → cascade deletion via <code>patient.deletion.ts</code></td></tr>
+          <tr><td>Art. 20 (Portability)</td><td>JSON export via same endpoint, machine-readable format</td></tr>
+          <tr><td>Art. 25 (Privacy by design)</td><td>Encryption, minimal collection, per-tenant isolation in schema</td></tr>
+          <tr><td>Art. 30 (Processing records)</td><td>Audit log: every <code>req.audit?.()</code> call, 7-year retention</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <!-- 6. Auth -->
+      <div class="sec-mark" style="margin-top:0">
+        <div class="sec-mark-num">6</div>
+        <div class="eyebrow" style="margin:0">Authentication &amp; Middleware Stack</div>
+        <div class="sec-mark-line"></div>
+      </div>
+
+      <h3 style="margin-top:4px">Auth flow</h3>
+      <div class="flow" style="flex-direction:column;align-items:flex-start;gap:5px">
+        <div class="fbox blue" style="width:100%;text-align:left;font-size:7.5pt">1. Login: email+password → bcrypt verify</div>
+        <div class="fbox blue" style="width:100%;text-align:left;font-size:7.5pt">2. TOTP MFA check (authenticator app)</div>
+        <div class="fbox green" style="width:100%;text-align:left;font-size:7.5pt">3. Issue: JWT (access, 15 min) + refresh token (httpOnly cookie)</div>
+        <div class="fbox dark" style="width:100%;text-align:left;font-size:7.5pt">4. Every API request: authenticateJwt → resolveTenant</div>
+        <div class="fbox purple" style="width:100%;text-align:left;font-size:7.5pt">5. req.user: { userId, tenantId, role } — no email in token</div>
+      </div>
+
+      <h3>JWT payload</h3>
+      <div class="code"><span class="c">// req.user injected by authenticateJwt middleware</span>
+{
+  <span class="k">userId</span>:   <span class="s">"uuid"</span>,
+  <span class="k">tenantId</span>: <span class="s">"uuid"</span>,      <span class="c">// NOT from body</span>
+  <span class="k">role</span>:     <span class="s">"admin"</span> | <span class="s">"staff"</span>
+}
+<span class="c">// email is NOT in the token</span>
+<span class="c">// fetch via authService.getUserAccountInfo()</span></div>
+
+      <h3>Middleware chain (all protected routes)</h3>
+      <div class="code"><span class="f">authenticateJwt</span>    <span class="c">// verify + decode JWT</span>
+<span class="f">resolveTenant</span>      <span class="c">// pin tenantId from token</span>
+<span class="f">rateLimiter</span>        <span class="c">// per-IP + per-tenant limits</span>
+<span class="f">validate</span>({body})   <span class="c">// Zod schema validation</span>
+<span class="f">routeHandler</span>       <span class="c">// business logic</span>
+<span class="f">req.audit?.()</span>      <span class="c">// append to audit log</span></div>
+
+      <h3>Rate limiting</h3>
+      <table>
+        <thead><tr><th>Module</th><th>Limit</th><th>Window</th></tr></thead>
+        <tbody>
+          <tr><td>patients</td><td>120 req</td><td>60 s</td></tr>
+          <tr><td>auth (login)</td><td>10 req</td><td>60 s</td></tr>
+          <tr><td>general API</td><td>300 req</td><td>60 s</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-green" style="margin-top:8px">
+        <p>
+          <strong>Audit log is append-only.</strong> Every call to <code>req.audit?.()</code>
+          writes a timestamped record with action, entityType, userId, and tenantId.
+          Retained 7 years; no UPDATE or DELETE is ever issued against this table.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pfoot">
+    <span>Dentora Technical Architecture Report · May 2026 · CONFIDENTIAL</span>
+    <div class="pgnum">4</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════
+     PAGE 5 — INFRASTRUCTURE, OBS & API REF
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="phead">
+    <div class="phead-logo">Dentor<span>a</span> Technical Report</div>
+    <div class="phead-right">Section 7–9 · Infrastructure · Observability · API Reference<br/>May 2026 · CONFIDENTIAL</div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <!-- 7. Infrastructure -->
+      <div class="sec-mark">
+        <div class="sec-mark-num">7</div>
+        <div class="eyebrow" style="margin:0">Infrastructure &amp; Deployment</div>
+        <div class="sec-mark-line"></div>
+      </div>
+
+      <h3 style="margin-top:4px">Production Docker Compose services</h3>
+      <table>
+        <thead><tr><th>Service</th><th>Image / Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>postgres</code></td><td>PostgreSQL 16 — primary database</td></tr>
+          <tr><td><code>redis</code></td><td>Redis 7 — cache + BullMQ broker</td></tr>
+          <tr><td><code>server</code></td><td>Express 5 API (Node 22-alpine)</td></tr>
+          <tr><td><code>worker</code></td><td>BullMQ worker process (separate container)</td></tr>
+          <tr><td><code>client</code></td><td>Next.js 16 patient dashboard</td></tr>
+          <tr><td><code>nginx</code></td><td>Reverse proxy + TLS termination</td></tr>
+          <tr><td><code>certbot</code></td><td>Let's Encrypt certificate auto-renewal</td></tr>
+          <tr><td><code>datadog-agent</code></td><td>OTel collector + APM agent</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-amber" style="margin-top:6px">
+        <p>
+          <strong>Worker isolation:</strong> the <code>worker</code> container runs
+          <code>apps/server/src/worker.ts</code> as a separate process. Worker code
+          must never be imported into the API server container — the boundary is
+          enforced at the Docker service level.
+        </p>
+      </div>
+
+      <h3>Deploy pipeline</h3>
+      <div class="code"><span class="c"># CI: TypeScript + tests + lint must pass</span>
+<span class="c"># On master push → deploy.yml GitHub Action</span>
+<span class="n">git pull origin master</span>
+<span class="n">docker compose -f docker-compose.prod.yaml pull</span>
+<span class="n">docker compose -f docker-compose.prod.yaml \</span>
+<span class="n">  up -d --remove-orphans</span>
+<span class="c"># Migrations run automatically at server start</span></div>
+
+      <h3>File storage — Cloudflare R2</h3>
+      <div class="code"><span class="c">// src/lib/storage.ts (aws4fetch, no AWS SDK)</span>
+<span class="f">uploadFile</span>    <span class="c">// context docs, call recordings</span>
+<span class="f">downloadFile</span>  <span class="c">// retrieve stored objects</span>
+<span class="f">getSignedUrl</span>  <span class="c">// time-limited presigned URLs</span>
+<span class="f">deleteFile</span>    <span class="c">// called on GDPR erasure</span>
+<span class="c">// Env: R2_BUCKET, R2_ACCOUNT_ID,</span>
+<span class="c">//      R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY</span></div>
+    </div>
+
+    <div>
+      <!-- 8. Observability -->
+      <div class="sec-mark">
+        <div class="sec-mark-num">8</div>
+        <div class="eyebrow" style="margin:0">Observability Stack</div>
+        <div class="sec-mark-line"></div>
+      </div>
+
+      <div class="cols-2" style="gap:6px;margin:6px 0 8px">
+        <div class="card card-blue">
+          <h4>Tracing</h4>
+          <p>OpenTelemetry SDK → OTLP → Datadog Agent (:4318). All BullMQ jobs carry OTel spans. Twilio + AI calls traced end-to-end.</p>
+        </div>
+        <div class="card">
+          <h4>Logging</h4>
+          <p>Pino JSON logger. <code>dd.trace_id</code> / <code>dd.span_id</code> injected into every log line. PII fields redacted before emission.</p>
+        </div>
+        <div class="card">
+          <h4>Metrics</h4>
+          <p>Prometheus endpoint + Datadog custom metrics. Business events (bookings, escalations, costs) tracked as distribution metrics.</p>
+        </div>
+        <div class="card card-blue">
+          <h4>Health checks</h4>
+          <p><code>GET /health</code> reports DB, Redis, worker, and media-stream status. Used by Docker Compose <code>healthcheck</code> and nginx upstream probe.</p>
+        </div>
+      </div>
+
+      <hr/>
+
+      <!-- 9. API ref -->
+      <div class="sec-mark">
+        <div class="sec-mark-num">9</div>
+        <div class="eyebrow" style="margin:0">Core API Reference</div>
+        <div class="sec-mark-line"></div>
+      </div>
+
+      <table>
+        <thead><tr><th>Endpoint</th><th>Auth</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>POST /auth/login</code></td><td>—</td><td>Email+password → JWT + refresh cookie</td></tr>
+          <tr><td><code>POST /auth/forgot-password</code></td><td>—</td><td>Send 1-hour reset token via email</td></tr>
+          <tr><td><code>POST /auth/reset-password</code></td><td>—</td><td>Consume reset token, set new password</td></tr>
+          <tr><td><code>GET  /api/patients</code></td><td>JWT</td><td>List patients (tenantId scoped)</td></tr>
+          <tr><td><code>POST /api/patients/lookup</code></td><td>JWT</td><td>Find by phone+DOB (HMAC hash lookup)</td></tr>
+          <tr><td><code>GET  /api/patients/:id/export</code></td><td>JWT</td><td>GDPR Art. 15/20 data export</td></tr>
+          <tr><td><code>DELETE /api/patients/:id</code></td><td>JWT</td><td>GDPR Art. 17 cascade erasure</td></tr>
+          <tr><td><code>GET  /api/calls</code></td><td>JWT</td><td>List call sessions (cursor pagination)</td></tr>
+          <tr><td><code>POST /telephony/voice</code></td><td>Twilio sig</td><td>Incoming call webhook → TwiML response</td></tr>
+          <tr><td><code>WS   /telephony/stream</code></td><td>Twilio sig</td><td>Real-time audio media stream</td></tr>
+          <tr><td><code>GET  /api/config</code></td><td>JWT</td><td>Clinic config (Redis-cached, 5 min)</td></tr>
+          <tr><td><code>PUT  /api/config</code></td><td>JWT</td><td>Update config → invalidate cache</td></tr>
+          <tr><td><code>GET  /api/analytics</code></td><td>JWT</td><td>Call analytics + usage metrics</td></tr>
+          <tr><td><code>GET  /health</code></td><td>—</td><td>Service health (DB, Redis, worker)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout" style="margin-top:6px">
+        <p>
+          <code>listCallSessions</code> returns <code>{"{ items, nextCursor, hasMore }"}</code> —
+          cursor-based pagination, not offset. <code>req.user</code> contains
+          <code>userId</code>, <code>tenantId</code>, <code>role</code> only;
+          fetch email via <code>authService.getUserAccountInfo()</code>.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pfoot">
+    <span>Dentora Technical Architecture Report · May 2026 · CONFIDENTIAL — dentora.ai</span>
+    <div class="pgnum">5</div>
+  </div>
+</div>
+
+</body>
+</html>

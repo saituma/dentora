@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Dentora — Feature List</title>
+<style>
+@page { size: A4; margin: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  background: #fff;
+  color: #0f172a;
+}
+
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 16mm 14mm;
+}
+
+/* Header */
+.header {
+  background: #0f172a;
+  margin: -14mm -16mm 0;
+  padding: 14mm 16mm 12mm;
+  margin-bottom: 12mm;
+}
+.logo { font-size: 18pt; font-weight: 900; color: #fff; margin-bottom: 6px; }
+.logo span { color: #60a5fa; }
+.tagline { font-size: 12pt; color: rgba(255,255,255,0.55); font-weight: 400; }
+
+/* Section */
+.section { margin-bottom: 10mm; }
+.section-title {
+  font-size: 11pt;
+  font-weight: 800;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 5mm;
+  padding-bottom: 3mm;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+/* Bullet list */
+ul { list-style: none; padding: 0; }
+ul li {
+  font-size: 11.5pt;
+  color: #1e293b;
+  padding: 4.5mm 0 4.5mm 8mm;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+  line-height: 1.45;
+}
+ul li::before {
+  content: '●';
+  color: #2563eb;
+  position: absolute;
+  left: 0;
+  font-size: 8pt;
+  top: 5.5mm;
+}
+ul li strong {
+  display: block;
+  font-size: 11.5pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1mm;
+}
+ul li span {
+  font-size: 10pt;
+  color: #64748b;
+  display: block;
+}
+ul li:last-child { border-bottom: none; }
+
+/* Footer */
+.footer {
+  margin-top: 10mm;
+  padding-top: 4mm;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  color: #94a3b8;
+}
+
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="logo">Dentor<span>a</span></div>
+    <div class="tagline">AI Phone Receptionist for UK Dental Practices — Feature List</div>
+  </div>
+
+  <!-- CALLS -->
+  <div class="section">
+    <div class="section-title">📞 Call Handling</div>
+    <ul>
+      <li>
+        <strong>Answers every call in under 1 second</strong>
+        <span>No hold music, no missed calls — 24 hours a day, 7 days a week, including bank holidays</span>
+      </li>
+      <li>
+        <strong>Holds a real conversation</strong>
+        <span>Speaks naturally with patients — not a robot menu, not "press 1 for…"</span>
+      </li>
+      <li>
+        <strong>Handles emergencies</strong>
+        <span>Spots urgent situations and offers same-day slots or immediately alerts your team</span>
+      </li>
+      <li>
+        <strong>Out-of-hours cover — included</strong>
+        <span>Evenings, weekends, and bank holidays covered at no extra cost</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- BOOKING -->
+  <div class="section">
+    <div class="section-title">📅 Appointments & Scheduling</div>
+    <ul>
+      <li>
+        <strong>Books appointments directly into your calendar</strong>
+        <span>Connects to Google Calendar — bookings appear instantly, no double-booking possible</span>
+      </li>
+      <li>
+        <strong>Reschedules and cancels too</strong>
+        <span>Patients can move or cancel an existing appointment in the same call</span>
+      </li>
+      <li>
+        <strong>Sends no-show reminders</strong>
+        <span>Automated reminders before each appointment to reduce empty slots</span>
+      </li>
+      <li>
+        <strong>Handles new and returning patients differently</strong>
+        <span>Recognises first-time callers and adjusts the booking flow accordingly</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- PATIENT INFO -->
+  <div class="section">
+    <div class="section-title">💬 Patient Questions</div>
+    <ul>
+      <li>
+        <strong>Answers FAQs using your own information</strong>
+        <span>Pricing, insurance, treatments, directions, parking — whatever you upload, it knows</span>
+      </li>
+      <li>
+        <strong>Always accurate — never makes things up</strong>
+        <span>If it doesn't know, it takes the patient's number and flags it for your team to call back</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- STAFF -->
+  <div class="section">
+    <div class="section-title">👥 Staff Tools</div>
+    <ul>
+      <li>
+        <strong>Email summary after every call</strong>
+        <span>Your team gets a plain-English summary of what was discussed and what was booked</span>
+      </li>
+      <li>
+        <strong>Dashboard to review every call</strong>
+        <span>Read transcripts, listen to recordings, edit bookings, or mark calls as resolved</span>
+      </li>
+      <li>
+        <strong>Staff approval workflow</strong>
+        <span>Review and approve any booking Dentora made before it's finalised — you're always in control</span>
+      </li>
+      <li>
+        <strong>Instant alerts for urgent calls</strong>
+        <span>If a call needs a human, your team is notified immediately with the full conversation attached</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="section">
+    <div class="section-title">📊 Analytics</div>
+    <ul>
+      <li>
+        <strong>See exactly when patients call</strong>
+        <span>Call volume by hour and day — plan your staffing around real data</span>
+      </li>
+      <li>
+        <strong>Track booking conversion rate</strong>
+        <span>Of every call that wanted an appointment, how many were successfully booked?</span>
+      </li>
+      <li>
+        <strong>Top patient questions report</strong>
+        <span>Know what your patients ask most — use it to improve your website and FAQs</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="section">
+    <div class="section-title">🔒 Security & Compliance</div>
+    <ul>
+      <li>
+        <strong>UK GDPR compliant — built in, not bolted on</strong>
+        <span>Patient data rights (access, erasure, portability) are handled automatically</span>
+      </li>
+      <li>
+        <strong>All patient data encrypted</strong>
+        <span>Names, phone numbers, and notes protected with bank-grade encryption (AES-256)</span>
+      </li>
+      <li>
+        <strong>Data never leaves the UK</strong>
+        <span>All servers are UK-based — no data transferred overseas</span>
+      </li>
+      <li>
+        <strong>Two-factor login for all staff</strong>
+        <span>A stolen password alone cannot access patient data</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- SETUP -->
+  <div class="section">
+    <div class="section-title">⚡ Setup & Pricing</div>
+    <ul>
+      <li>
+        <strong>Live in 15 minutes — no IT needed</strong>
+        <span>Connect your calendar, upload your FAQs, forward your calls — that's it</span>
+      </li>
+      <li>
+        <strong>Works with your existing phone number</strong>
+        <span>Simple call forwarding — no number change, no hardware</span>
+      </li>
+      <li>
+        <strong>No setup fees, no long contracts</strong>
+        <span>Cancel anytime from your dashboard — Starter from £149/mo, Growth from £299/mo</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <span>dentora.ai · hello@dentora.ai</span>
+    <span>May 2026</span>
+  </div>
+
+</div>
+</body>
+</html>
