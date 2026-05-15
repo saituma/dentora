@@ -22,52 +22,49 @@ function mockReqResNext(overrides: Partial<Request> = {}) {
 }
 
 describe('csrfProtection', () => {
-  it.each([
-    '/api/auth/refresh',
-    '/api/auth/logout',
-    '/api/auth/google/exchange',
-  ])('rejects missing CSRF for cookie-backed auth endpoint %s', (path) => {
-    const { req, res, next } = mockReqResNext({ path });
+  it.each(['/api/auth/refresh', '/api/auth/logout'])(
+    'rejects missing CSRF for cookie-backed auth endpoint %s',
+    (path) => {
+      const { req, res, next } = mockReqResNext({ path });
 
-    csrfProtection(req, res, next);
+      csrfProtection(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ error: 'CSRF token validation failed' });
-  });
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'CSRF token validation failed' });
+    },
+  );
 
-  it.each([
-    '/api/auth/refresh',
-    '/api/auth/logout',
-    '/api/auth/google/exchange',
-  ])('does not allow Bearer auth to bypass CSRF for cookie-backed auth endpoint %s', (path) => {
-    const { req, res, next } = mockReqResNext({
-      path,
-      headers: { authorization: 'Bearer access-token' },
-    });
+  it.each(['/api/auth/refresh', '/api/auth/logout'])(
+    'does not allow Bearer auth to bypass CSRF for cookie-backed auth endpoint %s',
+    (path) => {
+      const { req, res, next } = mockReqResNext({
+        path,
+        headers: { authorization: 'Bearer access-token' },
+      });
 
-    csrfProtection(req, res, next);
+      csrfProtection(req, res, next);
 
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(403);
-  });
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+    },
+  );
 
-  it.each([
-    '/api/auth/refresh',
-    '/api/auth/logout',
-    '/api/auth/google/exchange',
-  ])('allows valid double-submit CSRF for cookie-backed auth endpoint %s', (path) => {
-    const { req, res, next } = mockReqResNext({
-      path,
-      headers: { 'x-csrf-token': 'csrf-token' },
-      cookies: { 'csrf-token': 'csrf-token' },
-    });
+  it.each(['/api/auth/refresh', '/api/auth/logout'])(
+    'allows valid double-submit CSRF for cookie-backed auth endpoint %s',
+    (path) => {
+      const { req, res, next } = mockReqResNext({
+        path,
+        headers: { 'x-csrf-token': 'csrf-token' },
+        cookies: { 'csrf-token': 'csrf-token' },
+      });
 
-    csrfProtection(req, res, next);
+      csrfProtection(req, res, next);
 
-    expect(next).toHaveBeenCalledWith();
-    expect(res.status).not.toHaveBeenCalled();
-  });
+      expect(next).toHaveBeenCalledWith();
+      expect(res.status).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     '/api/auth/login',
@@ -78,6 +75,7 @@ describe('csrfProtection', () => {
     '/api/auth/phone/verify-otp',
     '/api/auth/forgot-password',
     '/api/auth/reset-password',
+    '/api/auth/google/exchange',
   ])('keeps public auth POST route working without CSRF: %s', (path) => {
     const { req, res, next } = mockReqResNext({ path });
 

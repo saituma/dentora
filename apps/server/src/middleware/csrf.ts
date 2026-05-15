@@ -17,14 +17,14 @@ const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
   '/api/auth/login',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  // OAuth exchange: CSRF is already prevented by the one-time-use Google code
+  // and the state JWT signed by the server. Cross-origin cookie restrictions
+  // (Chrome third-party cookie blocking) make double-submit unfeasible here.
+  '/api/auth/google/exchange',
 ]);
 // Cookie-backed endpoints: token/session is set via httpOnly cookie so the
 // browser auto-sends it on cross-origin requests → CSRF protection required.
-const CSRF_REQUIRED_AUTH_POST_PATHS = new Set([
-  '/api/auth/logout',
-  '/api/auth/refresh',
-  '/api/auth/google/exchange',
-]);
+const CSRF_REQUIRED_AUTH_POST_PATHS = new Set(['/api/auth/logout', '/api/auth/refresh']);
 
 function generateToken(): string {
   return randomBytes(32).toString('hex');
