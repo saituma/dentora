@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { ensureAgentPromptDates } from './ensure-agent-prompt.js';
+import { getAfterHoursInfo } from '../telephony/telephony.service.js';
 import { ProviderError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 
@@ -41,14 +42,29 @@ elevenlabsRouter.post(
       // Fire-and-forget — don't block token issuance on the prompt patch
       void ensureAgentPromptDates(tenantId, agentId);
 
-      const response = await fetch(
-        `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
-        {
-          headers: {
-            'xi-api-key': apiKey,
+      // Compute after-hours status to inject as dynamic variable
+      const afterHoursInfo = await getAfterHoursInfo(tenantId).catch(() => ({
+        isAfterHours: false,
+        message: '',
+      }));
+      const isAfterHoursText = afterHoursInfo.isAfterHours
+        ? 'NOTE: The clinic is currently CLOSED (outside working hours). Follow the after-hours rules below.'
+        : 'NOTE: The clinic is currently OPEN during normal business hours.';
+
+      const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/token`, {
+        method: 'POST',
+        headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: agentId,
+          conversation_config_override: {
+            agent: {
+              prompt: {
+                dynamic_variables: { is_after_hours: isAfterHoursText },
+              },
+            },
           },
-        },
-      );
+        }),
+      });
 
       if (!response.ok) {
         const errorBody = await response.text();
@@ -126,12 +142,29 @@ elevenlabsRouter.post(
 
       void ensureAgentPromptDates(tenantId, agentId);
 
+      const afterHoursInfo = await getAfterHoursInfo(tenantId).catch(() => ({
+        isAfterHours: false,
+        message: '',
+      }));
+      const isAfterHoursText = afterHoursInfo.isAfterHours
+        ? 'NOTE: The clinic is currently CLOSED (outside working hours). Follow the after-hours rules below.'
+        : 'NOTE: The clinic is currently OPEN during normal business hours.';
+
+      // POST to ElevenLabs with conversation_config_override to inject dynamic variables
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
         {
-          headers: {
-            'xi-api-key': apiKey,
-          },
+          method: 'POST',
+          headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversation_config_override: {
+              agent: {
+                prompt: {
+                  dynamic_variables: { is_after_hours: isAfterHoursText },
+                },
+              },
+            },
+          }),
         },
       );
 
