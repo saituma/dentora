@@ -398,6 +398,20 @@ authRouter.get('/me', authenticateJwt, async (req, res, next) => {
   }
 });
 
+authRouter.patch(
+  '/me',
+  authenticateJwt,
+  validate({ body: z.object({ displayName: z.string().min(1).max(200) }) }),
+  async (req: Request, res: Response, next) => {
+    try {
+      await authService.updateDisplayName(req.user!.userId, req.body.displayName as string);
+      res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // ── MFA endpoints ────────────────────────────────────────────────────────────
 
 authRouter.post('/mfa/setup', authenticateJwt, async (req, res, next) => {

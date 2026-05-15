@@ -199,6 +199,13 @@ export const authApi = createApi({
     getMe: builder.query<AccountInfo, void>({
       query: () => '/auth/me',
     }),
+    updateDisplayName: builder.mutation<{ success: boolean }, { displayName: string }>({
+      query: (body) => ({
+        url: '/auth/me',
+        method: 'PATCH',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -217,4 +224,5 @@ export const {
   useResetPasswordMutation,
   useSetPasswordMutation,
   useGetMeQuery,
+  useUpdateDisplayNameMutation,
 } = authApi;

@@ -21,6 +21,7 @@ import {
 import { AuthenticationError, ConflictError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
+import { purchaseAndProvisionPhoneNumber } from '../telephony/telephony.service.js';
 import twilio from 'twilio';
 import { createHash, randomInt, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
@@ -263,6 +264,16 @@ async function createUserWithTenant(input: {
     });
 
     return [createdUser];
+  });
+
+  // Provision a phone number in the background — non-blocking so signup completes instantly.
+  // If Twilio is not configured or provisioning fails the clinic still exists; number can
+  // be assigned manually from the admin panel.
+  void purchaseAndProvisionPhoneNumber(tenantId).catch((err) => {
+    logger.error(
+      { err, tenantId },
+      'Phone number auto-provisioning failed for new clinic — assign manually via admin panel',
+    );
   });
 
   return user;
@@ -894,6 +905,10 @@ export async function changePassword(input: {
   await db.delete(sessions).where(eq(sessions.userId, input.userId));
 
   logger.info({ userId: input.userId }, 'User password changed — all sessions invalidated');
+}
+
+export async function updateDisplayName(userId: string, displayName: string): Promise<void> {
+  await db.update(users).set({ displayName, updatedAt: new Date() }).where(eq(users.id, userId));
 }
 
 export async function getUserAccountInfo(userId: string): Promise<{

@@ -23,6 +23,7 @@ import {
   useChangePasswordMutation,
   useSetPasswordMutation,
   useGetMeQuery,
+  useUpdateDisplayNameMutation,
 } from '@/features/auth/authApi';
 import { getUserFriendlyApiError } from '@/lib/api-error';
 
@@ -40,6 +41,7 @@ export default function SettingsPage() {
   const [updateClinic] = useUpdateClinicMutation();
   const [changePassword, { isLoading: updatingPassword }] = useChangePasswordMutation();
   const [setPassword, { isLoading: settingPassword }] = useSetPasswordMutation();
+  const [updateDisplayName, { isLoading: updatingDisplayName }] = useUpdateDisplayNameMutation();
   const { data: accountInfo } = useGetMeQuery();
 
   const [clinicName, setClinicName] = useState('');
@@ -53,6 +55,12 @@ export default function SettingsPage() {
   const [smsAlerts, setSmsAlerts] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (accountInfo?.displayName) setDisplayName(accountInfo.displayName);
+  }, [accountInfo?.displayName]);
 
   useEffect(() => {
     if (clinic) {
@@ -315,7 +323,43 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="security">
+        <TabsContent value="security" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account</CardTitle>
+              <CardDescription>Your name shown in the sidebar</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel>Display name</FieldLabel>
+                  <Input
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your name"
+                  />
+                </Field>
+                <Button
+                  variant="outline"
+                  disabled={updatingDisplayName}
+                  onClick={async () => {
+                    if (!displayName.trim()) {
+                      toast.error('Name cannot be empty');
+                      return;
+                    }
+                    try {
+                      await updateDisplayName({ displayName: displayName.trim() }).unwrap();
+                      toast.success('Display name updated');
+                    } catch (err) {
+                      toast.error(getUserFriendlyApiError(err));
+                    }
+                  }}
+                >
+                  {updatingDisplayName ? 'Saving…' : 'Save name'}
+                </Button>
+              </FieldGroup>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Security</CardTitle>
