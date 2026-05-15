@@ -38,8 +38,8 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      // Ensure the agent's stored prompt uses {{today_date}} so dynamic variables work
-      await ensureAgentPromptDates(tenantId, agentId);
+      // Fire-and-forget — don't block token issuance on the prompt patch
+      void ensureAgentPromptDates(tenantId, agentId);
 
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
@@ -124,7 +124,7 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      await ensureAgentPromptDates(tenantId, agentId);
+      void ensureAgentPromptDates(tenantId, agentId);
 
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
