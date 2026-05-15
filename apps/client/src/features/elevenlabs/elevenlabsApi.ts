@@ -9,6 +9,7 @@ export interface CreateConversationTokenResponse {
   data: {
     token: string;
     expiresAt: number | string | null;
+    dynamicVariables?: Record<string, string>;
   };
   meta: {
     agentId: string;
@@ -20,6 +21,7 @@ export interface CreateConversationTokenResponse {
 export interface CreateSignedUrlResponse {
   data: {
     signedUrl: string;
+    dynamicVariables?: Record<string, string>;
   };
   meta: {
     agentId: string;
@@ -41,7 +43,10 @@ export const elevenlabsApi = createApi({
   reducerPath: 'elevenlabsApi',
   baseQuery: baseQueryWithReauth,
   endpoints: (builder) => ({
-    createConversationToken: builder.mutation<CreateConversationTokenResponse, CreateConversationTokenRequest>({
+    createConversationToken: builder.mutation<
+      CreateConversationTokenResponse,
+      CreateConversationTokenRequest
+    >({
       query: (body) => ({
         url: '/elevenlabs/convai/token',
         method: 'POST',

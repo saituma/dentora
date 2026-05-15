@@ -537,61 +537,62 @@ function ElevenLabsAgentPageInner() {
       }
     }
 
+    const clinicTimezone = clinic?.timezone || 'UTC';
+    const todayDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: clinicTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+    const currentYear = todayDate.slice(0, 4);
+
+    const dynamicVariables = {
+      agent_name: agentNameVar.trim() || DEFAULT_AGENT_NAME,
+      clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'Your Clinic',
+      clinic_phone: clinic?.phone ?? 'Unknown',
+      clinic_email: clinic?.email ?? 'Unknown',
+      clinic_address: clinic?.address ?? 'Unknown',
+      clinic_website: clinic?.website ?? 'Unknown',
+      clinic_timezone: clinicTimezone,
+      today_date: todayDate,
+      current_year: currentYear,
+      clinic_description: clinic?.description ?? '',
+      clinic_specialties: clinic?.specialties?.join(', ') ?? '',
+      business_hours: formatBusinessHours(clinic?.businessHours),
+      services_list: formatServices(services),
+      policies_list: formatPolicies(policies),
+      faqs_list: formatFaqs(faqs),
+      booking_rules: formatBookingRules(bookingRules),
+      voice_tone: voiceProfile?.tone ?? '',
+      voice_language: voiceProfile?.language ?? '',
+      voice_id: voiceProfile?.voiceId ?? '',
+      greeting_message: voiceProfile?.greetingMessage ?? '',
+      after_hours_message: voiceProfile?.afterHoursMessage ?? '',
+      hold_music: voiceProfile?.holdMusic ?? '',
+      emergency_disclaimer: formatEmergencyInfo(policies),
+      escalation_conditions: formatEscalationInfo(policies),
+      staff_directory: clinic?.staffMembers?.length
+        ? clinic.staffMembers
+            .map((s) => {
+              const base = `${s.name} (${s.role || 'Staff'})`;
+              return s.phone ? `${base} [${s.phone}]` : base;
+            })
+            .join(' | ')
+        : String(staffDirectoryDoc?.content ?? ''),
+      clinic_notes: String(clinicNotesDoc?.content ?? ''),
+    };
+
     try {
-      const clinicTimezone = clinic?.timezone || 'UTC';
-      const todayDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: clinicTimezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date());
-      const currentYear = todayDate.slice(0, 4);
-
-      const dynamicVariables = {
-        agent_name: agentNameVar.trim() || DEFAULT_AGENT_NAME,
-        clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'Your Clinic',
-        clinic_phone: clinic?.phone ?? 'Unknown',
-        clinic_email: clinic?.email ?? 'Unknown',
-        clinic_address: clinic?.address ?? 'Unknown',
-        clinic_website: clinic?.website ?? 'Unknown',
-        clinic_timezone: clinicTimezone,
-        today_date: todayDate,
-        current_year: currentYear,
-        clinic_description: clinic?.description ?? '',
-        clinic_specialties: clinic?.specialties?.join(', ') ?? '',
-        business_hours: formatBusinessHours(clinic?.businessHours),
-        services_list: formatServices(services),
-        policies_list: formatPolicies(policies),
-        faqs_list: formatFaqs(faqs),
-        booking_rules: formatBookingRules(bookingRules),
-        voice_tone: voiceProfile?.tone ?? '',
-        voice_language: voiceProfile?.language ?? '',
-        voice_id: voiceProfile?.voiceId ?? '',
-        greeting_message: voiceProfile?.greetingMessage ?? '',
-        after_hours_message: voiceProfile?.afterHoursMessage ?? '',
-        hold_music: voiceProfile?.holdMusic ?? '',
-        emergency_disclaimer: formatEmergencyInfo(policies),
-        escalation_conditions: formatEscalationInfo(policies),
-        staff_directory: clinic?.staffMembers?.length
-          ? clinic.staffMembers
-              .map((s) => {
-                const base = `${s.name} (${s.role || 'Staff'})`;
-                return s.phone ? `${base} [${s.phone}]` : base;
-              })
-              .join(' | ')
-          : String(staffDirectoryDoc?.content ?? ''),
-        clinic_notes: String(clinicNotesDoc?.content ?? ''),
-      };
-
       if (connectionType === 'websocket') {
         const response = await createSignedUrl({ agentId }).unwrap();
         if (!response?.data?.signedUrl) {
           throw new Error('Signed URL missing from server response.');
         }
+        const mergedVars = { ...dynamicVariables, ...(response.data.dynamicVariables ?? {}) };
         const conversationIdResult = await (conversation.startSession({
           signedUrl: response.data.signedUrl,
           connectionType: 'websocket',
-          dynamicVariables,
+          dynamicVariables: mergedVars,
         }) as unknown as Promise<unknown>);
         const conversationId =
           typeof conversationIdResult === 'string' ? conversationIdResult : null;
@@ -614,10 +615,11 @@ function ElevenLabsAgentPageInner() {
         if (!response?.data?.token) {
           throw new Error('Conversation token missing from server response.');
         }
+        const mergedVars = { ...dynamicVariables, ...(response.data.dynamicVariables ?? {}) };
         const conversationIdResult = await (conversation.startSession({
           conversationToken: response.data.token,
           connectionType: 'webrtc',
-          dynamicVariables,
+          dynamicVariables: mergedVars,
         }) as unknown as Promise<unknown>);
         const conversationId =
           typeof conversationIdResult === 'string' ? conversationIdResult : null;
@@ -651,6 +653,7 @@ function ElevenLabsAgentPageInner() {
           await conversation.startSession({
             signedUrl: response.data.signedUrl,
             connectionType: 'websocket',
+            dynamicVariables: { ...dynamicVariables, ...(response.data.dynamicVariables ?? {}) },
           });
           setConnectionType('websocket');
           appendLog({

@@ -51,20 +51,10 @@ elevenlabsRouter.post(
         ? 'NOTE: The clinic is currently CLOSED (outside working hours). Follow the after-hours rules below.'
         : 'NOTE: The clinic is currently OPEN during normal business hours.';
 
-      const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation/token`, {
-        method: 'POST',
-        headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_id: agentId,
-          conversation_config_override: {
-            agent: {
-              prompt: {
-                dynamic_variables: { is_after_hours: isAfterHoursText },
-              },
-            },
-          },
-        }),
-      });
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
+        { headers: { 'xi-api-key': apiKey } },
+      );
 
       if (!response.ok) {
         const errorBody = await response.text();
@@ -98,6 +88,9 @@ elevenlabsRouter.post(
         data: {
           token: payload.token,
           expiresAt: payload.expires_at ?? payload.expiresAt ?? null,
+          // Client passes this as a dynamic variable in startSession so the agent
+          // knows whether the clinic is currently open or closed.
+          dynamicVariables: { is_after_hours: isAfterHoursText },
         },
         meta: {
           agentId,
@@ -150,22 +143,9 @@ elevenlabsRouter.post(
         ? 'NOTE: The clinic is currently CLOSED (outside working hours). Follow the after-hours rules below.'
         : 'NOTE: The clinic is currently OPEN during normal business hours.';
 
-      // POST to ElevenLabs with conversation_config_override to inject dynamic variables
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
-        {
-          method: 'POST',
-          headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversation_config_override: {
-              agent: {
-                prompt: {
-                  dynamic_variables: { is_after_hours: isAfterHoursText },
-                },
-              },
-            },
-          }),
-        },
+        { headers: { 'xi-api-key': apiKey } },
       );
 
       if (!response.ok) {
@@ -194,6 +174,8 @@ elevenlabsRouter.post(
       res.json({
         data: {
           signedUrl: payload.signed_url,
+          // Client passes this as dynamicVariables in startSession
+          dynamicVariables: { is_after_hours: isAfterHoursText },
         },
         meta: {
           agentId,
