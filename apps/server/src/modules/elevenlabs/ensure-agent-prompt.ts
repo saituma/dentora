@@ -21,7 +21,7 @@ const NAME_CONFIRMATION_RULE =
 const NAME_CONFIRMATION_MARKER = 'NAME CONFIRMATION RULE';
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v2', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -50,7 +50,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     const prompt = agent.conversation_config?.agent?.prompt?.prompt;
     if (!prompt) {
-      await globalCacheSet('elevenlabs-patched', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v2', agentId, true, 3600);
       return;
     }
 
@@ -104,7 +104,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       }
     }
 
-    await globalCacheSet('elevenlabs-patched', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v2', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }
