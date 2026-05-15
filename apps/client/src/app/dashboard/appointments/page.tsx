@@ -61,6 +61,7 @@ export default function AppointmentsPage() {
   const { data, isLoading, error, refetch } = useGetUpcomingAppointmentsQuery(
     hasActiveCalendar ? { days: 60 } : skipToken,
   );
+  const events = data?.data?.events ?? [];
   const errorMessage = getErrorMessage(error);
   const [selectedEvent, setSelectedEvent] = useState<{
     title: string;
@@ -74,7 +75,7 @@ export default function AppointmentsPage() {
 
   const calendarEvents = useMemo(
     () =>
-      (data?.data?.events ?? []).map((event) => ({
+      events.map((event) => ({
         id: event.id,
         title: event.summary,
         start: event.start,
@@ -85,6 +86,7 @@ export default function AppointmentsPage() {
           status: event.status,
         },
       })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [data?.data?.events],
   );
 
