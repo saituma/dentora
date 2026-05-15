@@ -4,13 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -54,7 +48,9 @@ const truncate = (value: string, max = 800): string => {
   return `${value.slice(0, max - 3)}...`;
 };
 
-const formatBusinessHours = (hours?: Record<string, { start: string; end: string } | null>): string => {
+const formatBusinessHours = (
+  hours?: Record<string, { start: string; end: string } | null>,
+): string => {
   if (!hours) return '';
   const lines = WEEKDAYS.map((day) => {
     const slot = hours[day];
@@ -64,7 +60,9 @@ const formatBusinessHours = (hours?: Record<string, { start: string; end: string
   return lines.join('; ');
 };
 
-const formatServices = (services: Array<{ serviceName?: string; durationMinutes?: number; price?: string }>): string => {
+const formatServices = (
+  services: Array<{ serviceName?: string; durationMinutes?: number; price?: string }>,
+): string => {
   if (!services.length) return '';
   const lines = services.slice(0, 12).map((service) => {
     const parts = [service.serviceName];
@@ -88,21 +86,24 @@ const formatPolicies = (
 
 const formatFaqs = (faqs: Array<{ question?: string; answer?: string }>): string => {
   if (!faqs.length) return '';
-  const lines = faqs.slice(0, 8).map((faq) => {
-    if (!faq.question && !faq.answer) return '';
-    return `Q: ${faq.question ?? ''} A: ${faq.answer ?? ''}`.trim();
-  }).filter(Boolean);
+  const lines = faqs
+    .slice(0, 8)
+    .map((faq) => {
+      if (!faq.question && !faq.answer) return '';
+      return `Q: ${faq.question ?? ''} A: ${faq.answer ?? ''}`.trim();
+    })
+    .filter(Boolean);
   return truncate(lines.join(' | '), 1200);
 };
 
 const formatEmergencyInfo = (policies: Array<{ emergencyDisclaimer?: string | null }>): string => {
-  const disclaimers = policies
-    .map((policy) => policy.emergencyDisclaimer?.trim())
-    .filter(Boolean);
+  const disclaimers = policies.map((policy) => policy.emergencyDisclaimer?.trim()).filter(Boolean);
   return truncate(disclaimers.join(' | '), 800);
 };
 
-const formatEscalationInfo = (policies: Array<{ escalationConditions?: { type?: string; content?: string } | null }>): string => {
+const formatEscalationInfo = (
+  policies: Array<{ escalationConditions?: { type?: string; content?: string } | null }>,
+): string => {
   const lines = policies
     .map((policy) => policy.escalationConditions)
     .filter((entry): entry is { type?: string; content?: string } => Boolean(entry))
@@ -116,7 +117,9 @@ const formatEscalationInfo = (policies: Array<{ escalationConditions?: { type?: 
 
 const playToolCallSound = () => {
   try {
-    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const context = new AudioContextClass();
     const now = context.currentTime;
@@ -144,17 +147,23 @@ const playToolCallSound = () => {
   }
 };
 
-const formatBookingRules = (rules?: {
-  defaultAppointmentDurationMinutes?: number | null;
-  bufferBetweenAppointmentsMinutes?: number | null;
-  minNoticePeriodHours?: number | null;
-  maxAdvanceBookingDays?: number | null;
-  closedDates?: string[] | null;
-} | null): string => {
+const formatBookingRules = (
+  rules?: {
+    defaultAppointmentDurationMinutes?: number | null;
+    bufferBetweenAppointmentsMinutes?: number | null;
+    minNoticePeriodHours?: number | null;
+    maxAdvanceBookingDays?: number | null;
+    closedDates?: string[] | null;
+  } | null,
+): string => {
   if (!rules) return '';
   const parts = [
-    rules.defaultAppointmentDurationMinutes ? `default ${rules.defaultAppointmentDurationMinutes} min` : null,
-    rules.bufferBetweenAppointmentsMinutes ? `buffer ${rules.bufferBetweenAppointmentsMinutes} min` : null,
+    rules.defaultAppointmentDurationMinutes
+      ? `default ${rules.defaultAppointmentDurationMinutes} min`
+      : null,
+    rules.bufferBetweenAppointmentsMinutes
+      ? `buffer ${rules.bufferBetweenAppointmentsMinutes} min`
+      : null,
     rules.minNoticePeriodHours ? `min notice ${rules.minNoticePeriodHours} hrs` : null,
     rules.maxAdvanceBookingDays ? `max advance ${rules.maxAdvanceBookingDays} days` : null,
     rules.closedDates?.length ? `closed dates: ${rules.closedDates.length}` : null,
@@ -173,9 +182,9 @@ const buildContextualUpdate = (input: {
 }) => {
   const maxContextLength = 4000;
   const safeContext = input.uploadedContext
-    ? (input.uploadedContext.length > maxContextLength
+    ? input.uploadedContext.length > maxContextLength
       ? `${input.uploadedContext.slice(0, maxContextLength)}…`
-      : input.uploadedContext)
+      : input.uploadedContext
     : '';
   const lines = [
     'Context update for the receptionist:',
@@ -254,9 +263,9 @@ function ElevenLabsAgentPageInner() {
   const services = servicesData?.data ?? [];
   const faqs = faqsData?.data ?? [];
   const policies = policiesData?.data ?? [];
-  const contextDocs = policies.flatMap((policy) => (
-    (policy.sensitiveTopics ?? []).filter((topic) => topic?.type === 'context_document')
-  ));
+  const contextDocs = policies.flatMap((policy) =>
+    (policy.sensitiveTopics ?? []).filter((topic) => topic?.type === 'context_document'),
+  );
   const staffDirectoryDoc = contextDocs.find((doc) => doc?.title === 'Staff Directory');
   const clinicNotesDoc = contextDocs.find((doc) => doc?.title === 'Clinic Notes');
   const uploadedContext = contextDocs
@@ -324,7 +333,6 @@ function ElevenLabsAgentPageInner() {
     return (await response.json()) as T;
   };
 
-
   const appendLog = (entry: Omit<LogEntry, 'id' | 'ts'>) => {
     setLog((prev) => [
       ...prev,
@@ -346,7 +354,10 @@ function ElevenLabsAgentPageInner() {
           appendLog({ role: 'event', text: 'Loaded upcoming appointments from calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
-          appendLog({ role: 'error', text: `Loading appointments failed: ${formatMessage(error)}` });
+          appendLog({
+            role: 'error',
+            text: `Loading appointments failed: ${formatMessage(error)}`,
+          });
           return JSON.stringify({ error: formatMessage(error) });
         }
       },
@@ -369,7 +380,10 @@ function ElevenLabsAgentPageInner() {
       }) => {
         playToolCallSound();
         try {
-          const response = await callBackend<{ data: unknown }>('/appointments/availability', params);
+          const response = await callBackend<{ data: unknown }>(
+            '/appointments/availability',
+            params,
+          );
           appendLog({ role: 'event', text: 'Availability checked against calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
@@ -404,24 +418,37 @@ function ElevenLabsAgentPageInner() {
           appendLog({ role: 'event', text: 'Appointment created in connected calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
-          appendLog({ role: 'error', text: `Appointment creation failed: ${formatMessage(error)}` });
+          appendLog({
+            role: 'error',
+            text: `Appointment creation failed: ${formatMessage(error)}`,
+          });
           return JSON.stringify({ error: formatMessage(error) });
         }
       },
       cancel_appointment: async (params: { eventId: string }) => {
         playToolCallSound();
         try {
-          const response = await callBackend<{ data: { success: boolean } }>('/appointments/cancel', {
-            eventId: params.eventId,
-          });
+          const response = await callBackend<{ data: { success: boolean } }>(
+            '/appointments/cancel',
+            {
+              eventId: params.eventId,
+            },
+          );
           appendLog({ role: 'event', text: 'Appointment cancelled in connected calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
-          appendLog({ role: 'error', text: `Appointment cancellation failed: ${formatMessage(error)}` });
+          appendLog({
+            role: 'error',
+            text: `Appointment cancellation failed: ${formatMessage(error)}`,
+          });
           return JSON.stringify({ error: formatMessage(error) });
         }
       },
-      reschedule_appointment: async (params: { eventId: string; startIso: string; endIso: string }) => {
+      reschedule_appointment: async (params: {
+        eventId: string;
+        startIso: string;
+        endIso: string;
+      }) => {
         playToolCallSound();
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/reschedule', {
@@ -434,7 +461,10 @@ function ElevenLabsAgentPageInner() {
           appendLog({ role: 'event', text: 'Appointment rescheduled in connected calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
-          appendLog({ role: 'error', text: `Appointment reschedule failed: ${formatMessage(error)}` });
+          appendLog({
+            role: 'error',
+            text: `Appointment reschedule failed: ${formatMessage(error)}`,
+          });
           return JSON.stringify({ error: formatMessage(error) });
         }
       },
@@ -453,7 +483,10 @@ function ElevenLabsAgentPageInner() {
           });
         })
         .catch((error) => {
-          appendLog({ role: 'error', text: `Failed to fetch conversation details: ${formatMessage(error)}` });
+          appendLog({
+            role: 'error',
+            text: `Failed to fetch conversation details: ${formatMessage(error)}`,
+          });
         });
     },
     onMessage: (message) => {
@@ -461,7 +494,10 @@ function ElevenLabsAgentPageInner() {
       const role = typeof record.role === 'string' ? record.role : 'agent';
       const text = typeof record.message === 'string' ? record.message : formatMessage(message);
       appendLog({ role: role === 'user' ? 'user' : 'agent', text });
-      if (role === 'user' && /hang up|hangup|end call|goodbye|stop the call|stop call|disconnect/i.test(text)) {
+      if (
+        role === 'user' &&
+        /hang up|hangup|end call|goodbye|stop the call|stop call|disconnect/i.test(text)
+      ) {
         appendLog({ role: 'event', text: 'Ending call on user request.' });
         void conversation.endSession();
       }
@@ -470,11 +506,15 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'error', text: formatMessage(error) });
       toast.error('ElevenLabs conversation failed. Check your API key and agent.');
     },
-    onModeChange: (mode) => appendLog({ role: 'event', text: `Mode changed: ${formatMessage(mode)}` }),
-    onStatusChange: (status) => appendLog({ role: 'event', text: `Status: ${formatMessage(status)}` }),
+    onModeChange: (mode) =>
+      appendLog({ role: 'event', text: `Mode changed: ${formatMessage(mode)}` }),
+    onStatusChange: (status) =>
+      appendLog({ role: 'event', text: `Status: ${formatMessage(status)}` }),
     onDebug: (event) => appendLog({ role: 'event', text: `Debug: ${formatMessage(event)}` }),
-    onAgentToolRequest: (event) => appendLog({ role: 'event', text: `Tool request: ${formatMessage(event)}` }),
-    onAgentToolResponse: (event) => appendLog({ role: 'event', text: `Tool response: ${formatMessage(event)}` }),
+    onAgentToolRequest: (event) =>
+      appendLog({ role: 'event', text: `Tool request: ${formatMessage(event)}` }),
+    onAgentToolResponse: (event) =>
+      appendLog({ role: 'event', text: `Tool response: ${formatMessage(event)}` }),
   });
 
   const statusLabel = useMemo(() => {
@@ -533,10 +573,12 @@ function ElevenLabsAgentPageInner() {
         emergency_disclaimer: formatEmergencyInfo(policies),
         escalation_conditions: formatEscalationInfo(policies),
         staff_directory: clinic?.staffMembers?.length
-          ? clinic.staffMembers.map((s) => {
-              const base = `${s.name} (${s.role || 'Staff'})`;
-              return s.phone ? `${base} [${s.phone}]` : base;
-            }).join(' | ')
+          ? clinic.staffMembers
+              .map((s) => {
+                const base = `${s.name} (${s.role || 'Staff'})`;
+                return s.phone ? `${base} [${s.phone}]` : base;
+              })
+              .join(' | ')
           : String(staffDirectoryDoc?.content ?? ''),
         clinic_notes: String(clinicNotesDoc?.content ?? ''),
       };
@@ -551,9 +593,11 @@ function ElevenLabsAgentPageInner() {
           connectionType: 'websocket',
           dynamicVariables,
         }) as unknown as Promise<unknown>);
-        const conversationId = typeof conversationIdResult === 'string' ? conversationIdResult : null;
+        const conversationId =
+          typeof conversationIdResult === 'string' ? conversationIdResult : null;
         conversationIdRef.current = conversationId;
-        if (conversationId) appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
+        if (conversationId)
+          appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
         conversation.sendContextualUpdate(
           buildContextualUpdate({
             agentName: dynamicVariables.agent_name,
@@ -575,9 +619,11 @@ function ElevenLabsAgentPageInner() {
           connectionType: 'webrtc',
           dynamicVariables,
         }) as unknown as Promise<unknown>);
-        const conversationId = typeof conversationIdResult === 'string' ? conversationIdResult : null;
+        const conversationId =
+          typeof conversationIdResult === 'string' ? conversationIdResult : null;
         conversationIdRef.current = conversationId;
-        if (conversationId) appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
+        if (conversationId)
+          appendLog({ role: 'system', text: `Conversation ID: ${conversationId}` });
         conversation.sendContextualUpdate(
           buildContextualUpdate({
             agentName: dynamicVariables.agent_name,
@@ -590,7 +636,10 @@ function ElevenLabsAgentPageInner() {
           }),
         );
       }
-      appendLog({ role: 'system', text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME}.` });
+      appendLog({
+        role: 'system',
+        text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME}.`,
+      });
     } catch (error) {
       if (connectionType === 'webrtc') {
         appendLog({ role: 'event', text: 'WebRTC failed, retrying with WebSocket.' });
@@ -604,7 +653,10 @@ function ElevenLabsAgentPageInner() {
             connectionType: 'websocket',
           });
           setConnectionType('websocket');
-          appendLog({ role: 'system', text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME} (WebSocket).` });
+          appendLog({
+            role: 'system',
+            text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME} (WebSocket).`,
+          });
           return;
         } catch (fallbackError) {
           appendLog({ role: 'error', text: formatMessage(fallbackError) });
@@ -651,13 +703,17 @@ function ElevenLabsAgentPageInner() {
         <CardHeader>
           <CardTitle>ElevenLabs Conversational Agent</CardTitle>
           <CardDescription>
-            Live voice session with the {agentNameVar.trim() || DEFAULT_AGENT_NAME} agent using ElevenLabs WebRTC.
+            Live voice session with the {agentNameVar.trim() || DEFAULT_AGENT_NAME} agent using
+            ElevenLabs WebRTC.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-3 min-w-0">
             <Badge variant="outline">{statusLabel}</Badge>
-            <span className="text-sm text-muted-foreground max-w-full truncate" title={agentId || 'Not set'}>
+            <span
+              className="text-sm text-muted-foreground max-w-full truncate"
+              title={agentId || 'Not set'}
+            >
               Agent ID: {agentId || 'Not set'}
             </span>
             <span className="text-sm text-muted-foreground">
@@ -726,12 +782,10 @@ function ElevenLabsAgentPageInner() {
             <Button
               onClick={startConversation}
               disabled={
-                conversation.status === 'connected' ||
-                isCreatingToken ||
-                isCreatingSignedUrl
+                conversation.status === 'connected' || isCreatingToken || isCreatingSignedUrl
               }
             >
-              {(isCreatingToken || isCreatingSignedUrl) ? 'Starting...' : 'Start'}
+              {isCreatingToken || isCreatingSignedUrl ? 'Starting...' : 'Start'}
             </Button>
             <Button
               variant="outline"
@@ -744,7 +798,9 @@ function ElevenLabsAgentPageInner() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Agent Name Variable</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Agent Name Variable
+              </label>
               <Input
                 value={agentNameVar}
                 onChange={(event) => setAgentNameVar(event.target.value)}
@@ -752,7 +808,9 @@ function ElevenLabsAgentPageInner() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Clinic Name Variable</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                Clinic Name Variable
+              </label>
               <Input
                 value={clinicNameVar}
                 onChange={(event) => setClinicNameVar(event.target.value)}
@@ -799,7 +857,7 @@ function ElevenLabsAgentPageInner() {
                 <div key={entry.id} className="rounded-md border border-muted/60 p-3">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="uppercase tracking-wide">{entry.role}</span>
-                    <span>{new Date(entry.ts).toLocaleTimeString()}</span>
+                    <span>{new Date(entry.ts).toLocaleTimeString('en-GB')}</span>
                   </div>
                   <p className="mt-2 whitespace-pre-wrap text-foreground">{entry.text}</p>
                 </div>

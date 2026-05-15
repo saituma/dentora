@@ -16,12 +16,7 @@ import {
   useGetCallTranscriptQuery,
 } from '@/features/calls/callsApi';
 import type { CallSession } from '@/features/calls/types';
-import {
-  formatDuration,
-  formatMoney,
-  formatStatusLabel,
-  statusColors,
-} from './call-utils';
+import { formatDuration, formatMoney, formatStatusLabel, statusColors } from './call-utils';
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from 'recharts';
 
 export function CallDetailPanel({ call }: { call: CallSession }) {
@@ -35,12 +30,16 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
   const costs = costData?.data ?? null;
   const transcriptTurns = transcript?.fullTranscript ?? [];
   const userTurns = transcriptTurns.filter((turn) => (turn.role ?? '').toString() === 'user');
-  const assistantTurns = transcriptTurns.filter((turn) => (turn.role ?? '').toString() === 'assistant');
+  const assistantTurns = transcriptTurns.filter(
+    (turn) => (turn.role ?? '').toString() === 'assistant',
+  );
   const firstUserTurn = userTurns[0]?.content ?? userTurns[0]?.text ?? '';
   const lastAssistantTurn =
-    [...assistantTurns].reverse().find((turn) => (turn.content ?? turn.text)?.toString().trim())?.content
-    ?? [...assistantTurns].reverse().find((turn) => (turn.content ?? turn.text)?.toString().trim())?.text
-    ?? '';
+    [...assistantTurns].reverse().find((turn) => (turn.content ?? turn.text)?.toString().trim())
+      ?.content ??
+    [...assistantTurns].reverse().find((turn) => (turn.content ?? turn.text)?.toString().trim())
+      ?.text ??
+    '';
 
   const roleChartData = [
     { name: 'Caller', value: userTurns.length },
@@ -83,7 +82,9 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
         {callDetails?.aiProvider && (
           <div>
             <p className="text-sm font-medium">AI Provider</p>
-            <p className="text-sm text-muted-foreground">{callDetails.aiProvider} / {callDetails.aiModel}</p>
+            <p className="text-sm text-muted-foreground">
+              {callDetails.aiProvider} / {callDetails.aiModel}
+            </p>
           </div>
         )}
         {callDetails?.twilioCallSid && (
@@ -139,7 +140,13 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
             <ChartContainer config={roleChartConfig} className="h-[220px] w-full">
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                <Pie data={roleChartData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} />
+                <Pie
+                  data={roleChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={55}
+                  outerRadius={85}
+                />
                 <ChartLegend content={<ChartLegendContent nameKey="name" />} />
               </PieChart>
             </ChartContainer>
@@ -177,7 +184,7 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
                 <div className="flex items-center justify-between">
                   <Badge variant="outline">{event.eventType}</Badge>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(event.timestamp).toLocaleTimeString()}
+                    {new Date(event.timestamp).toLocaleTimeString('en-GB')}
                   </span>
                 </div>
                 {event.actor && (
@@ -190,12 +197,14 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
                   <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                     {typeof event.payload?.userText === 'string' && event.payload.userText ? (
                       <p>
-                        <span className="font-medium text-foreground">User:</span> {event.payload.userText}
+                        <span className="font-medium text-foreground">User:</span>{' '}
+                        {event.payload.userText}
                       </p>
                     ) : null}
                     {typeof event.payload?.aiText === 'string' && event.payload.aiText ? (
                       <p>
-                        <span className="font-medium text-foreground">AI:</span> {event.payload.aiText}
+                        <span className="font-medium text-foreground">AI:</span>{' '}
+                        {event.payload.aiText}
                       </p>
                     ) : null}
                     {!event.payload?.userText && !event.payload?.aiText ? (
@@ -242,12 +251,15 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
         ) : (
           <div className="space-y-2 max-h-[360px] overflow-y-auto">
             {transcriptTurns.map((turn, index) => (
-              <div key={`${turn.timestamp ?? 't'}-${index}`} className="rounded-lg border p-3 text-sm">
+              <div
+                key={`${turn.timestamp ?? 't'}-${index}`}
+                className="rounded-lg border p-3 text-sm"
+              >
                 <div className="flex items-center justify-between">
                   <Badge variant="outline">{turn.role ?? 'unknown'}</Badge>
                   {turn.timestamp ? (
                     <span className="text-xs text-muted-foreground">
-                      {new Date(turn.timestamp).toLocaleTimeString()}
+                      {new Date(turn.timestamp).toLocaleTimeString('en-GB')}
                     </span>
                   ) : null}
                 </div>
@@ -278,7 +290,9 @@ export function CallDetailPanel({ call }: { call: CallSession }) {
                   <div key={item.id} className="rounded-lg border p-3 text-sm">
                     <div className="flex items-center justify-between">
                       <Badge variant="outline">{item.service}</Badge>
-                      <span className="text-xs text-muted-foreground">{formatMoney(item.totalCost)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatMoney(item.totalCost)}
+                      </span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {item.provider} · {item.units} units @ {formatMoney(item.unitCost)}

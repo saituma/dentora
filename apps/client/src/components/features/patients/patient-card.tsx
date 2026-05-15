@@ -1,32 +1,32 @@
-"use client"
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Mail, Phone, Calendar, ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Mail, Phone, Calendar, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /**
  * Patient card component - displays patient information in a compact card format.
  * Following shadcn/ui composition with accessibility.
  */
 interface PatientInfo {
-  id: string
-  name: string
-  email: string
-  phone?: string
-  lastVisit?: Date
-  nextAppointment?: Date
-  initials?: string
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  lastVisit?: Date;
+  nextAppointment?: Date;
+  initials?: string;
 }
 
 interface PatientCardProps {
-  patient: PatientInfo
-  onView?: (id: string) => void
-  onEdit?: (id: string) => void
-  onDelete?: (id: string) => void
-  isLoading?: boolean
-  className?: string
+  patient: PatientInfo;
+  onView?: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  isLoading?: boolean;
+  className?: string;
 }
 
 export function PatientCard({
@@ -37,21 +37,29 @@ export function PatientCard({
   isLoading,
   className,
 }: PatientCardProps) {
-  const initials = patient.initials || patient.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
+  const initials =
+    patient.initials ||
+    patient.name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase();
 
   return (
     <Card
       data-slot="patient-card"
-      className={cn("hover:shadow-md transition-shadow", isLoading && "opacity-50 pointer-events-none", className)}
+      className={cn(
+        'hover:shadow-md transition-shadow',
+        isLoading && 'opacity-50 pointer-events-none',
+        className,
+      )}
     >
       <CardHeader>
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarFallback className="bg-blue-100 text-blue-800 font-semibold">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-blue-100 text-blue-800 font-semibold">
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <CardTitle className="truncate">{patient.name}</CardTitle>
@@ -82,14 +90,14 @@ export function PatientCard({
         {patient.nextAppointment && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4 flex-shrink-0" />
-            <span>Next: {patient.nextAppointment.toLocaleDateString()}</span>
+            <span>Next: {patient.nextAppointment.toLocaleDateString('en-GB')}</span>
           </div>
         )}
 
         {/* Last visit */}
         {patient.lastVisit && (
           <div className="text-xs text-muted-foreground">
-            Last visit: {patient.lastVisit.toLocaleDateString()}
+            Last visit: {patient.lastVisit.toLocaleDateString('en-GB')}
           </div>
         )}
 
@@ -133,5 +141,5 @@ export function PatientCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

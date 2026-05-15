@@ -1,13 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,7 +51,9 @@ export default function IntegrationsPage() {
 
   const webhookBase = webhookBaseData?.baseUrl?.replace(/\/+$/, '') || '';
   const apiRoot = webhookBase
-    ? (webhookBase.endsWith('/api') ? webhookBase : `${webhookBase}/api`)
+    ? webhookBase.endsWith('/api')
+      ? webhookBase
+      : `${webhookBase}/api`
     : API_BASE_URL;
   const apiRootNormalized = apiRoot.replace(/\/+$/, '');
 
@@ -98,9 +94,7 @@ export default function IntegrationsPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h2 className="text-lg font-semibold">Integrations</h2>
-        <p className="text-sm text-muted-foreground">
-          Manage connected services and integrations
-        </p>
+        <p className="text-sm text-muted-foreground">Manage connected services and integrations</p>
       </div>
 
       <Card>
@@ -118,7 +112,10 @@ export default function IntegrationsPage() {
           ) : hasAssignedNumber ? (
             <div className="space-y-3">
               {telephonyNumbers.map((number) => (
-                <div key={number.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                <div
+                  key={number.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
+                >
                   <div>
                     <div className="text-sm font-medium">{number.phoneNumber}</div>
                     <div className="text-xs text-muted-foreground">
@@ -160,7 +157,9 @@ export default function IntegrationsPage() {
                     Unable to load Twilio numbers. Check that Twilio credentials are configured.
                   </div>
                 ) : twilioIncomingNumbers.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No available Twilio numbers found.</div>
+                  <div className="text-sm text-muted-foreground">
+                    No available Twilio numbers found.
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {twilioIncomingNumbers.map((number) => (
@@ -186,7 +185,9 @@ export default function IntegrationsPage() {
                             }
                           }}
                         >
-                          {assigningNumber ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : null}
+                          {assigningNumber ? (
+                            <Loader2Icon className="mr-1 size-3 animate-spin" />
+                          ) : null}
                           Assign
                         </Button>
                       </div>
@@ -262,8 +263,11 @@ function IntegrationCard({
   activating: boolean;
   testing: boolean;
 }) {
-  const providerLabel = PROVIDER_LABELS[integration.provider] ?? integration.provider.replace(/_/g, ' ');
-  const typeLabel = INTEGRATION_TYPE_LABELS[integration.integrationType] ?? integration.integrationType.replace(/_/g, ' ');
+  const providerLabel =
+    PROVIDER_LABELS[integration.provider] ?? integration.provider.replace(/_/g, ' ');
+  const typeLabel =
+    INTEGRATION_TYPE_LABELS[integration.integrationType] ??
+    integration.integrationType.replace(/_/g, ' ');
 
   return (
     <Card>
@@ -279,11 +283,17 @@ function IntegrationCard({
       <CardContent>
         {integration.healthStatus && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className={integration.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : ''}>
+            <span
+              className={
+                integration.healthStatus === 'healthy' ? 'text-green-600 dark:text-green-400' : ''
+              }
+            >
               {integration.healthStatus === 'healthy' ? 'Healthy' : integration.healthStatus}
             </span>
             {integration.lastCheckedAt && (
-              <span>· Last checked {new Date(integration.lastCheckedAt).toLocaleString()}</span>
+              <span>
+                · Last checked {new Date(integration.lastCheckedAt).toLocaleString('en-GB')}
+              </span>
             )}
           </div>
         )}
@@ -295,7 +305,11 @@ function IntegrationCard({
               onClick={() => onActivate(integration.id)}
               disabled={activating}
             >
-              {activating ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : <ZapIcon className="mr-1 size-3" />}
+              {activating ? (
+                <Loader2Icon className="mr-1 size-3 animate-spin" />
+              ) : (
+                <ZapIcon className="mr-1 size-3" />
+              )}
               Activate
             </Button>
           )}
@@ -305,14 +319,14 @@ function IntegrationCard({
             onClick={() => onTest(integration.id)}
             disabled={testing}
           >
-            {testing ? <Loader2Icon className="mr-1 size-3 animate-spin" /> : <PlayIcon className="mr-1 size-3" />}
+            {testing ? (
+              <Loader2Icon className="mr-1 size-3 animate-spin" />
+            ) : (
+              <PlayIcon className="mr-1 size-3" />
+            )}
             Test
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(integration.id)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => onDelete(integration.id)}>
             <TrashIcon className="mr-1 size-3" />
             Remove
           </Button>

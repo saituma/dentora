@@ -28,17 +28,19 @@ import type { FetchBaseQueryError } from '@reduxjs/toolkit/query';
 const formatDateTime = (value: string) => {
   if (!value) return 'Unknown';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('en-GB');
 };
 
 const getErrorMessage = (error: unknown): string => {
   if (!error) return '';
   const maybeFetchError = error as FetchBaseQueryError;
   if (typeof maybeFetchError === 'object' && maybeFetchError && 'status' in maybeFetchError) {
-    const data = maybeFetchError.data as any;
+    const data = maybeFetchError.data as
+      | { error?: { message?: string }; message?: string }
+      | string;
+    if (typeof data === 'string') return data;
     if (typeof data?.error?.message === 'string') return data.error.message;
     if (typeof data?.message === 'string') return data.message;
-    if (typeof data === 'string') return data;
     return `Request failed (${String(maybeFetchError.status)})`;
   }
   return 'Request failed';
@@ -46,20 +48,19 @@ const getErrorMessage = (error: unknown): string => {
 
 export default function AppointmentsPage() {
   const { data: integrationsData } = useGetIntegrationsQuery();
-  const calendarIntegration = useMemo(() => (
-    integrationsData?.data?.find((integration) => (
-      integration.integrationType === 'calendar' && integration.provider === 'google_calendar'
-    )) ?? null
-  ), [integrationsData?.data]);
+  const calendarIntegration = useMemo(
+    () =>
+      integrationsData?.data?.find(
+        (integration) =>
+          integration.integrationType === 'calendar' && integration.provider === 'google_calendar',
+      ) ?? null,
+    [integrationsData?.data],
+  );
 
   const hasActiveCalendar = calendarIntegration?.status === 'active';
-  const {
-    data,
-    isLoading,
-    error,
-    refetch,
-  } = useGetUpcomingAppointmentsQuery(hasActiveCalendar ? { days: 60 } : skipToken);
-  const events = data?.data?.events ?? [];
+  const { data, isLoading, error, refetch } = useGetUpcomingAppointmentsQuery(
+    hasActiveCalendar ? { days: 60 } : skipToken,
+  );
   const errorMessage = getErrorMessage(error);
   const [selectedEvent, setSelectedEvent] = useState<{
     title: string;
@@ -71,17 +72,21 @@ export default function AppointmentsPage() {
   } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const calendarEvents = useMemo(() => events.map((event) => ({
-    id: event.id,
-    title: event.summary,
-    start: event.start,
-    end: event.end,
-    extendedProps: {
-      description: event.description,
-      htmlLink: event.htmlLink,
-      status: event.status,
-    },
-  })), [events]);
+  const calendarEvents = useMemo(
+    () =>
+      (data?.data?.events ?? []).map((event) => ({
+        id: event.id,
+        title: event.summary,
+        start: event.start,
+        end: event.end,
+        extendedProps: {
+          description: event.description,
+          htmlLink: event.htmlLink,
+          status: event.status,
+        },
+      })),
+    [data?.data?.events],
+  );
 
   return (
     <div className="space-y-6">
@@ -94,7 +99,9 @@ export default function AppointmentsPage() {
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
           <Badge variant={calendarIntegration?.status === 'active' ? 'default' : 'secondary'}>
-            {calendarIntegration?.status === 'active' ? 'Calendar Connected' : 'Calendar Not Connected'}
+            {calendarIntegration?.status === 'active'
+              ? 'Calendar Connected'
+              : 'Calendar Not Connected'}
           </Badge>
           {calendarIntegration?.config?.calendarId ? (
             <span className="text-sm text-muted-foreground">
@@ -107,9 +114,7 @@ export default function AppointmentsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Appointment Calendar</CardTitle>
-          <CardDescription>
-            Google-style calendar view of your live appointments.
-          </CardDescription>
+          <CardDescription>Google-style calendar view of your live appointments.</CardDescription>
         </CardHeader>
         <CardContent>
           {!hasActiveCalendar ? (
@@ -128,9 +133,11 @@ export default function AppointmentsPage() {
             <EmptyState
               icon={CalendarIcon}
               title="Unable to load appointments"
-              description={errorMessage
-                ? `Calendar connected but events failed to load. ${errorMessage}`
-                : 'Calendar connected but events failed to load. Reconnect Google Calendar and try again.'}
+              description={
+                errorMessage
+                  ? `Calendar connected but events failed to load. ${errorMessage}`
+                  : 'Calendar connected but events failed to load. Reconnect Google Calendar and try again.'
+              }
             >
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => refetch()}>
@@ -197,9 +204,11 @@ export default function AppointmentsPage() {
             <EmptyState
               icon={CalendarIcon}
               title="Unable to load appointments"
-              description={errorMessage
-                ? `Calendar connected but events failed to load. ${errorMessage}`
-                : 'Calendar connected but events failed to load. Reconnect Google Calendar and try again.'}
+              description={
+                errorMessage
+                  ? `Calendar connected but events failed to load. ${errorMessage}`
+                  : 'Calendar connected but events failed to load. Reconnect Google Calendar and try again.'
+              }
             >
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => refetch()}>
@@ -227,9 +236,7 @@ export default function AppointmentsPage() {
                   <p className="text-sm text-muted-foreground">
                     {formatDateTime(event.start)} → {formatDateTime(event.end)}
                   </p>
-                  {event.description ? (
-                    <p className="mt-2 text-sm">{event.description}</p>
-                  ) : null}
+                  {event.description ? <p className="mt-2 text-sm">{event.description}</p> : null}
                 </div>
               ))}
             </div>
@@ -256,15 +263,22 @@ export default function AppointmentsPage() {
               </div>
               {selectedEvent.description ? (
                 <div>
-                  <span className="font-medium text-foreground">Details:</span> {selectedEvent.description}
+                  <span className="font-medium text-foreground">Details:</span>{' '}
+                  {selectedEvent.description}
                 </div>
               ) : null}
             </div>
           ) : null}
           <AlertDialogFooter>
             {selectedEvent?.htmlLink ? (
-              <AlertDialogClose render={<Button render={<a href={selectedEvent.htmlLink} target="_blank" rel="noreferrer" />} />}>
-                  Open in Google Calendar
+              <AlertDialogClose
+                render={
+                  <Button
+                    render={<a href={selectedEvent.htmlLink} target="_blank" rel="noreferrer" />}
+                  />
+                }
+              >
+                Open in Google Calendar
               </AlertDialogClose>
             ) : null}
             <AlertDialogClose render={<Button variant="ghost" />}>Close</AlertDialogClose>

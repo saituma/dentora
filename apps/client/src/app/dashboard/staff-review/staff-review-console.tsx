@@ -59,7 +59,7 @@ const titleCase = (value: string): string =>
 const formatDateTime = (value: string | null): string => {
   if (!value) return 'Not set';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString('en-GB');
 };
 
 function severityVariant(severity: StaffReviewSeverity): 'default' | 'error' | 'warning' | 'info' {

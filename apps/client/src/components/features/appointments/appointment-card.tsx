@@ -1,31 +1,31 @@
-"use client"
+'use client';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { AppointmentBadge, type AppointmentStatus } from "./appointment-badge"
-import { Calendar, Clock, User, Stethoscope } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AppointmentBadge, type AppointmentStatus } from './appointment-badge';
+import { Calendar, Clock, Stethoscope } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /**
  * Appointment card component - displays appointment details in a card layout.
  * Following shadcn/ui composition patterns.
  */
 interface Appointment {
-  id: string
-  patientName: string
-  dentist: string
-  dateTime: Date
-  status: AppointmentStatus
-  notes?: string
-  duration?: number // in minutes
+  id: string;
+  patientName: string;
+  dentist: string;
+  dateTime: Date;
+  status: AppointmentStatus;
+  notes?: string;
+  duration?: number; // in minutes
 }
 
 interface AppointmentCardProps {
-  appointment: Appointment
-  onEdit?: (id: string) => void
-  onCancel?: (id: string) => void
-  onConfirm?: (id: string) => void
-  className?: string
+  appointment: Appointment;
+  onEdit?: (id: string) => void;
+  onCancel?: (id: string) => void;
+  onConfirm?: (id: string) => void;
+  className?: string;
 }
 
 export function AppointmentCard({
@@ -35,15 +35,15 @@ export function AppointmentCard({
   onConfirm,
   className,
 }: AppointmentCardProps) {
-  const isEditable = appointment.status === "scheduled"
-  const isConfirmable = ["scheduled", "rescheduled"].includes(appointment.status)
-  const isCancellable = ["scheduled", "confirmed"].includes(appointment.status)
+  const isEditable = appointment.status === 'scheduled';
+  const isConfirmable = ['scheduled', 'rescheduled'].includes(appointment.status);
+  const isCancellable = ['scheduled', 'confirmed'].includes(appointment.status);
 
   return (
     <Card
       data-slot="appointment-card"
       data-status={appointment.status}
-      className={cn("hover:shadow-md transition-shadow", className)}
+      className={cn('hover:shadow-md transition-shadow', className)}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
@@ -63,11 +63,13 @@ export function AppointmentCard({
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="w-4 h-4" />
-            <span>{appointment.dateTime.toLocaleDateString()}</span>
+            <span>{appointment.dateTime.toLocaleDateString('en-GB')}</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="w-4 h-4" />
-            <span>{appointment.dateTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+            <span>
+              {appointment.dateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
           </div>
         </div>
 
@@ -122,5 +124,5 @@ export function AppointmentCard({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
