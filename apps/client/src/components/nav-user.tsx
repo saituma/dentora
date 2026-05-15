@@ -1,11 +1,8 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import Link from 'next/link';
+import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,35 +11,33 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu';
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { EllipsisVerticalIcon, CircleUserRoundIcon, BellIcon, LogOutIcon } from "lucide-react"
+} from '@/components/ui/sidebar';
+import { EllipsisVerticalIcon, CircleUserRoundIcon, BellIcon, LogOutIcon } from 'lucide-react';
 
 export function NavUser({
   user,
   onLogout,
 }: {
   user: {
-    name: string
-    email: string
-    avatar: string
-  }
-  onLogout?: () => void
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  onLogout?: () => void;
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile } = useSidebar();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
-            }
+            render={<SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />}
           >
             <Avatar className="size-8 rounded-lg grayscale">
               <AvatarImage src={user.avatar} alt={user.name} />
@@ -50,15 +45,21 @@ export function NavUser({
             </Avatar>
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
-              <span className="text-foreground/70 truncate text-xs">
-                {user.email}
-              </span>
+              <span className="text-foreground/70 truncate text-xs">{user.email}</span>
             </div>
-            <EllipsisVerticalIcon className="ms-auto size-4" />
+            <Image
+              src="/dentora.png"
+              alt="Dentora"
+              width={20}
+              height={20}
+              className="ms-auto shrink-0 opacity-60"
+              unoptimized
+            />
+            <EllipsisVerticalIcon className="size-4 shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-56"
-            side={isMobile ? "bottom" : "right"}
+            side={isMobile ? 'bottom' : 'right'}
             align="end"
             sideOffset={4}
           >
@@ -71,9 +72,7 @@ export function NavUser({
                   </Avatar>
                   <div className="grid flex-1 text-start text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {user.email}
-                    </span>
+                    <span className="text-muted-foreground truncate text-xs">{user.email}</span>
                   </div>
                 </div>
               </DropdownMenuLabel>
@@ -82,28 +81,25 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings">
-                  <CircleUserRoundIcon
-                  />
+                  <CircleUserRoundIcon />
                   Account
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/settings">
-                  <BellIcon
-                  />
+                  <BellIcon />
                   Notifications
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>
-              <LogOutIcon
-              />
+              <LogOutIcon />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
-  )
+  );
 }
