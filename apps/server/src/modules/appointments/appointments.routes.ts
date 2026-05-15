@@ -19,9 +19,16 @@ import {
   beginAppointmentRescheduleByExternalEventId,
   confirmAppointmentHold,
   createAppointmentHold,
+  getAppointmentByExternalCalendarEventId,
   markAppointmentExternalSyncState,
   markAppointmentReconciliationNeeded,
 } from './appointment-ledger.service.js';
+import {
+  createAppointmentChangeReviewItem,
+  CANCEL_REVIEW_MESSAGE,
+  RESCHEDULE_REVIEW_MESSAGE,
+} from './appointment-change-review.service.js';
+import { features } from '../../config/features.js';
 
 const appointmentsRateLimiter = rateLimiter({
   maxRequests: 120,
@@ -404,6 +411,20 @@ appointmentsRouter.post(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
+
+      if (features.aiAppointmentChangesRequireReview) {
+        const appt = await getAppointmentByExternalCalendarEventId(tenantId, req.body.eventId);
+        if (!appt) throw new ValidationError('Appointment not found');
+        await createAppointmentChangeReviewItem({
+          tenantId,
+          action: 'cancel',
+          appointment: appt,
+          verificationMethod: 'unknown',
+        });
+        res.json({ data: { success: true, message: CANCEL_REVIEW_MESSAGE } });
+        return;
+      }
+
       const appointment = await beginAppointmentCancellationByExternalEventId({
         tenantId,
         externalCalendarEventId: req.body.eventId,
@@ -447,6 +468,21 @@ appointmentsRouter.post(
       const clinic = await configService.getClinicProfile(tenantId);
       if (!clinic?.timezone) {
         throw new ValidationError('Clinic timezone is required to reschedule appointments');
+      }
+
+      if (features.aiAppointmentChangesRequireReview) {
+        const appt = await getAppointmentByExternalCalendarEventId(tenantId, req.body.eventId);
+        if (!appt) throw new ValidationError('Appointment not found');
+        await createAppointmentChangeReviewItem({
+          tenantId,
+          action: 'reschedule',
+          appointment: appt,
+          verificationMethod: 'unknown',
+          requestedStartAt: req.body.slot.startIso,
+          requestedEndAt: req.body.slot.endIso,
+        });
+        res.json({ data: { success: true, message: RESCHEDULE_REVIEW_MESSAGE } });
+        return;
       }
 
       const startAt = new Date(req.body.slot.startIso);
