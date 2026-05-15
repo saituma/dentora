@@ -660,6 +660,7 @@ export const users = pgTable(
     email: text('email').notNull().unique(),
     passwordHash: text('password_hash').notNull(),
     displayName: text('display_name'),
+    avatarUrl: text('avatar_url'),
     role: userRoleEnum('role').notNull().default('viewer'),
     emailVerified: boolean('email_verified').notNull().default(false),
     mfaSecret: text('mfa_secret'),

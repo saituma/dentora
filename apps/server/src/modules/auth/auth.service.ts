@@ -915,6 +915,7 @@ export async function getUserAccountInfo(userId: string): Promise<{
   id: string;
   email: string;
   displayName: string | null;
+  avatarUrl: string | null;
   role: string;
   hasPassword: boolean;
   providers: string[];
@@ -934,6 +935,7 @@ export async function getUserAccountInfo(userId: string): Promise<{
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    avatarUrl: user.avatarUrl ?? null,
     role: user.role,
     hasPassword: !isRandomHash,
     providers,

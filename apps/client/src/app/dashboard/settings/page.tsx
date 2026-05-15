@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,14 +36,34 @@ const timezones = [
   { value: 'Europe/London', label: 'London' },
 ];
 
+async function uploadPhoto(endpoint: string, file: File): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_BASE_URL}/${endpoint}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? 'Upload failed');
+  }
+}
+
 export default function SettingsPage() {
   const { user } = useAppSelector((state) => state.auth);
-  const { data: clinic, isLoading } = useGetClinicQuery();
+  const { data: clinic, isLoading, refetch: refetchClinic } = useGetClinicQuery();
   const [updateClinic] = useUpdateClinicMutation();
   const [changePassword, { isLoading: updatingPassword }] = useChangePasswordMutation();
   const [setPassword, { isLoading: settingPassword }] = useSetPasswordMutation();
   const [updateDisplayName, { isLoading: updatingDisplayName }] = useUpdateDisplayNameMutation();
-  const { data: accountInfo } = useGetMeQuery();
+  const { data: accountInfo, refetch: refetchMe } = useGetMeQuery();
+
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const [clinicName, setClinicName] = useState('');
   const [address, setAddress] = useState('');
@@ -58,13 +79,11 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (accountInfo?.displayName) setDisplayName(accountInfo.displayName);
   }, [accountInfo?.displayName]);
 
   useEffect(() => {
     if (clinic) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClinicName(clinic.clinicName ?? '');
       setAddress(clinic.address ?? '');
       setPhone(clinic.phone ?? '');
@@ -86,7 +105,7 @@ export default function SettingsPage() {
         emailAlerts?: boolean;
         smsAlerts?: boolean;
       };
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setEmailAlerts(parsed.emailAlerts ?? true);
       setSmsAlerts(parsed.smsAlerts ?? false);
     } catch {
@@ -254,6 +273,51 @@ export default function SettingsPage() {
                       placeholder="A short description of your practice"
                     />
                   </Field>
+                  <Field>
+                    <FieldLabel>Clinic logo</FieldLabel>
+                    <div className="flex items-center gap-4">
+                      {clinic?.logo && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`${API_BASE_URL}/uploads/image?key=${encodeURIComponent(clinic.logo)}`}
+                          alt="Clinic logo"
+                          className="h-16 w-16 rounded-lg object-cover border"
+                        />
+                      )}
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setUploadingLogo(true);
+                          try {
+                            await uploadPhoto('uploads/clinic-logo', file);
+                            await refetchClinic();
+                            toast.success('Clinic logo updated');
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : 'Upload failed');
+                          } finally {
+                            setUploadingLogo(false);
+                            if (logoInputRef.current) logoInputRef.current.value = '';
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        disabled={uploadingLogo}
+                        onClick={() => logoInputRef.current?.click()}
+                      >
+                        {uploadingLogo
+                          ? 'Uploading…'
+                          : clinic?.logo
+                            ? 'Change logo'
+                            : 'Upload logo'}
+                      </Button>
+                    </div>
+                  </Field>
                 </FieldGroup>
               )}
             </CardContent>
@@ -327,10 +391,59 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Account</CardTitle>
-              <CardDescription>Your name shown in the sidebar</CardDescription>
+              <CardDescription>Your name and profile photo shown in the sidebar</CardDescription>
             </CardHeader>
             <CardContent>
               <FieldGroup>
+                <Field>
+                  <FieldLabel>Profile photo</FieldLabel>
+                  <div className="flex items-center gap-4">
+                    {accountInfo?.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`${API_BASE_URL}/uploads/image?key=${encodeURIComponent(accountInfo.avatarUrl)}`}
+                        alt="Profile photo"
+                        className="h-16 w-16 rounded-full object-cover border"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-2xl font-semibold text-muted-foreground">
+                        {(accountInfo?.displayName ?? user?.displayName ?? '?')[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setUploadingAvatar(true);
+                        try {
+                          await uploadPhoto('uploads/user-avatar', file);
+                          await refetchMe();
+                          toast.success('Profile photo updated');
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : 'Upload failed');
+                        } finally {
+                          setUploadingAvatar(false);
+                          if (avatarInputRef.current) avatarInputRef.current.value = '';
+                        }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={uploadingAvatar}
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      {uploadingAvatar
+                        ? 'Uploading…'
+                        : accountInfo?.avatarUrl
+                          ? 'Change photo'
+                          : 'Upload photo'}
+                    </Button>
+                  </div>
+                </Field>
                 <Field>
                   <FieldLabel>Display name</FieldLabel>
                   <Input
