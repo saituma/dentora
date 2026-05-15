@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
+import { ensureAgentPromptDates } from './ensure-agent-prompt.js';
 import { ProviderError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 
@@ -37,6 +38,9 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
+      // Ensure the agent's stored prompt uses {{today_date}} so dynamic variables work
+      await ensureAgentPromptDates(tenantId, agentId);
+
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
         {
@@ -55,7 +59,7 @@ elevenlabsRouter.post(
         );
       }
 
-      const payload = await response.json() as {
+      const payload = (await response.json()) as {
         token?: string;
         expires_at?: number;
         expiresAt?: string;
@@ -120,6 +124,8 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
+      await ensureAgentPromptDates(tenantId, agentId);
+
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
         {
@@ -138,7 +144,7 @@ elevenlabsRouter.post(
         );
       }
 
-      const payload = await response.json() as { signed_url?: string };
+      const payload = (await response.json()) as { signed_url?: string };
       if (!payload.signed_url) {
         throw new ValidationError('ElevenLabs signed URL response missing signed_url field');
       }
@@ -204,7 +210,7 @@ elevenlabsRouter.post(
         );
       }
 
-      const agentPayload = await agentResponse.json() as {
+      const agentPayload = (await agentResponse.json()) as {
         conversation_config?: {
           tts?: {
             voice_id?: string;
@@ -222,9 +228,10 @@ elevenlabsRouter.post(
         throw new ValidationError('Agent voice_id not found');
       }
 
-      const modelId = ttsConfig?.model_id && !/conversational/i.test(ttsConfig.model_id)
-        ? ttsConfig.model_id
-        : 'eleven_multilingual_v2';
+      const modelId =
+        ttsConfig?.model_id && !/conversational/i.test(ttsConfig.model_id)
+          ? ttsConfig.model_id
+          : 'eleven_multilingual_v2';
 
       const ttsResponse = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=mp3_44100_128`,
@@ -269,7 +276,9 @@ elevenlabsRouter.post(
 
       res.setHeader('Content-Type', ttsResponse.headers.get('Content-Type') ?? 'audio/mpeg');
       res.setHeader('Cache-Control', 'no-store');
-      const stream = Readable.fromWeb(ttsResponse.body as unknown as import('node:stream/web').ReadableStream);
+      const stream = Readable.fromWeb(
+        ttsResponse.body as unknown as import('node:stream/web').ReadableStream,
+      );
       stream.pipe(res);
     } catch (error) {
       logger.error({ err: error }, 'Failed to generate ElevenLabs voice preview');
