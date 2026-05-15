@@ -1,5 +1,15 @@
 import React from 'react';
-import { BotIcon, CameraIcon, CheckCircle2Icon, GlobeIcon, PaperclipIcon, SendHorizontalIcon, UserIcon, XIcon } from 'lucide-react';
+import NextImage from 'next/image';
+import {
+  BotIcon,
+  CameraIcon,
+  CheckCircle2Icon,
+  GlobeIcon,
+  PaperclipIcon,
+  SendHorizontalIcon,
+  UserIcon,
+  XIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +59,9 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
 
   const [draft, setDraft] = React.useState('');
   const [isThinking, setIsThinking] = React.useState(false);
-  const [messages, setMessages] = React.useState<Array<{ id: string; role: 'assistant' | 'user'; content: string }>>([
+  const [messages, setMessages] = React.useState<
+    Array<{ id: string; role: 'assistant' | 'user'; content: string }>
+  >([
     {
       id: 'welcome',
       role: 'assistant',
@@ -124,7 +136,10 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
     if (!hasChatContext) return '';
     const transcript = messages
       .filter((message) => message.role === 'assistant' || message.role === 'user')
-      .map((message) => `### ${message.role === 'user' ? 'Clinic team' : 'AI context assistant'}\n${message.content}`)
+      .map(
+        (message) =>
+          `### ${message.role === 'user' ? 'Clinic team' : 'AI context assistant'}\n${message.content}`,
+      )
       .join('\n\n');
     return `# AI Chat Context\n\n${transcript}\n\n# Clinic Snapshot\n${flow.configuratorContext}\n`;
   }, [flow.configuratorContext, hasChatContext, messages]);
@@ -209,69 +224,91 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
         }}
       />
       <div className="flex min-h-[680px] flex-col overflow-hidden rounded-2xl border bg-background">
-          <div className="border-b bg-muted/20 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Tell me everything your receptionist should know. Press Enter to send.</p>
-          </div>
-          <div className="flex-1 space-y-4 overflow-y-auto bg-muted/10 p-4 sm:p-6">
-            {messages.map((message) => (
-              <div key={message.id} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
-                {message.role === 'assistant' && (
-                  <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
-                    <BotIcon className="size-4" />
-                  </div>
-                )}
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'border bg-background text-foreground'}`}>
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-                {message.role === 'user' && (
-                  <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
-                    <UserIcon className="size-4" />
-                  </div>
-                )}
-              </div>
-            ))}
-            {isThinking && (
-              <div className="flex items-start gap-3">
+        <div className="border-b bg-muted/20 px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            Tell me everything your receptionist should know. Press Enter to send.
+          </p>
+        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto bg-muted/10 p-4 sm:p-6">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}
+            >
+              {message.role === 'assistant' && (
                 <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
                   <BotIcon className="size-4" />
                 </div>
-                <div className="rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground">
-                  Thinking...
-                </div>
+              )}
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'border bg-background text-foreground'}`}
+              >
+                <p className="whitespace-pre-wrap">{message.content}</p>
               </div>
-            )}
-            <div ref={endOfMessagesRef} />
-          </div>
-          <div className="border-t bg-background p-3 sm:p-4">
-            <div className="flex items-end gap-2">
-              <Button type="button" variant="outline" size="icon" onClick={() => flow.fileInputRef.current?.click()} aria-label="Attach context files">
-                <PaperclipIcon className="size-4" />
-              </Button>
-              <Textarea
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="Type clinic details, scripts, rules, pricing, FAQs, or escalation instructions..."
-                className="min-h-[52px] max-h-40 resize-y"
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    void sendMessage();
-                  }
-                }}
-              />
-              <Button type="button" onClick={() => void sendMessage()} disabled={isThinking || draft.trim().length === 0} aria-label="Send message">
-                <SendHorizontalIcon className="size-4" />
-                Send
-              </Button>
+              {message.role === 'user' && (
+                <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                  <UserIcon className="size-4" />
+                </div>
+              )}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">Enter to send, Shift+Enter for new line.</p>
-            <div className="mt-4 rounded-2xl border bg-muted/10 p-4">
+          ))}
+          {isThinking && (
+            <div className="flex items-start gap-3">
+              <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground">
+                <BotIcon className="size-4" />
+              </div>
+              <div className="rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground">
+                Thinking...
+              </div>
+            </div>
+          )}
+          <div ref={endOfMessagesRef} />
+        </div>
+        <div className="border-t bg-background p-3 sm:p-4">
+          <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => flow.fileInputRef.current?.click()}
+              aria-label="Attach context files"
+            >
+              <PaperclipIcon className="size-4" />
+            </Button>
+            <Textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Type clinic details, scripts, rules, pricing, FAQs, or escalation instructions..."
+              className="min-h-[52px] max-h-40 resize-y"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  void sendMessage();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              onClick={() => void sendMessage()}
+              disabled={isThinking || draft.trim().length === 0}
+              aria-label="Send message"
+            >
+              <SendHorizontalIcon className="size-4" />
+              Send
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Enter to send, Shift+Enter for new line.
+          </p>
+          <div className="mt-4 rounded-2xl border bg-muted/10 p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium">Attached files</p>
               <Badge variant="outline">{flow.contextFiles.length}</Badge>
             </div>
             {flow.contextFiles.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">No files uploaded yet. Chat alone also works.</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                No files uploaded yet. Chat alone also works.
+              </p>
             ) : (
               <div className="mt-3 space-y-2">
                 {flow.contextFiles.map((file) => (
@@ -279,9 +316,19 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">{Math.max(1, Math.round(file.size / 1024))} KB</p>
+                        <p className="text-xs text-muted-foreground">
+                          {Math.max(1, Math.round(file.size / 1024))} KB
+                        </p>
                       </div>
-                      <Button type="button" size="icon-sm" variant="ghost" onClick={() => flow.setContextFiles((prev) => prev.filter((item) => item.id !== file.id))} aria-label={`Remove ${file.name}`}>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() =>
+                          flow.setContextFiles((prev) => prev.filter((item) => item.id !== file.id))
+                        }
+                        aria-label={`Remove ${file.name}`}
+                      >
                         <XIcon className="size-4" />
                       </Button>
                     </div>
@@ -289,37 +336,62 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
                 ))}
               </div>
             )}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-            <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button variant="outline" onClick={flow.goBack} className="min-w-28">
+              Back
+            </Button>
             <Button
               type="button"
               variant="secondary"
               onClick={async () => {
                 try {
                   const documents = [
-                    ...flow.contextFiles.map((file) => ({ name: file.name, content: file.content, mimeType: file.mimeType })),
-                    ...(chatContextDocumentContent ? [{ name: 'chat-context-notes.md', content: chatContextDocumentContent, mimeType: 'text/markdown' }] : []),
+                    ...flow.contextFiles.map((file) => ({
+                      name: file.name,
+                      content: file.content,
+                      mimeType: file.mimeType,
+                    })),
+                    ...(chatContextDocumentContent
+                      ? [
+                          {
+                            name: 'chat-context-notes.md',
+                            content: chatContextDocumentContent,
+                            mimeType: 'text/markdown',
+                          },
+                        ]
+                      : []),
                   ];
                   if (documents.length === 0) {
                     toast.error('Add chat notes or files before saving.');
                     return;
                   }
-                  await flow.saveContextDocuments({
-                    documents,
-                  }).unwrap();
+                  await flow
+                    .saveContextDocuments({
+                      documents,
+                    })
+                    .unwrap();
                   toast.success('AI context saved');
                   flow.goNext('download');
                 } catch (error: unknown) {
                   toast.error(getUserFriendlyApiError(error));
                 }
               }}
-              disabled={flow.savingContextDocuments || (!hasChatContext && flow.contextFiles.length === 0)}
+              disabled={
+                flow.savingContextDocuments || (!hasChatContext && flow.contextFiles.length === 0)
+              }
               className="min-w-40"
             >
               {flow.savingContextDocuments ? 'Saving...' : 'Save & Continue'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => flow.goNext('download')} className="min-w-32">Skip for now</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => flow.goNext('download')}
+              className="min-w-32"
+            >
+              Skip for now
+            </Button>
           </div>
         </div>
       </div>
@@ -348,17 +420,21 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
         <CardHeader className="space-y-1">
           <CardTitle className="text-lg">Clinic photo, website & documents</CardTitle>
           <CardDescription>
-            Your website and photo are stored on your clinic profile. Upload a brochure or overview file here and it joins the same{' '}
-            <span className="font-medium text-foreground">Attached files</span> list in the chat panel above for AI context.
+            Your website and photo are stored on your clinic profile. Upload a brochure or overview
+            file here and it joins the same{' '}
+            <span className="font-medium text-foreground">Attached files</span> list in the chat
+            panel above for AI context.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
             <div className="flex shrink-0 flex-col items-start gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Clinic photo</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Clinic photo
+              </p>
               <div className="relative size-24 overflow-hidden rounded-xl border bg-muted">
                 {logoPreview ? (
-                  <img src={logoPreview} alt="" className="size-full object-cover" />
+                  <NextImage src={logoPreview} alt="" fill className="object-cover" unoptimized />
                 ) : (
                   <div className="flex size-full items-center justify-center text-muted-foreground">
                     <CameraIcon className="size-8 opacity-60" aria-hidden />
@@ -366,7 +442,12 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => photoInputRef.current?.click()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                >
                   {logoPreview ? 'Replace photo' : 'Upload photo'}
                 </Button>
                 {logoPreview ? (
@@ -402,14 +483,24 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
           <div className="rounded-xl border border-dashed bg-muted/15 p-4">
             <p className="text-sm font-medium">About your clinic (file)</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Optional PDF, Word doc, or text describing your practice—processed like other context attachments.
+              Optional PDF, Word doc, or text describing your practice—processed like other context
+              attachments.
             </p>
-            <Button type="button" variant="secondary" className="mt-3" onClick={() => aboutClinicFileRef.current?.click()}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="mt-3"
+              onClick={() => aboutClinicFileRef.current?.click()}
+            >
               Choose file
             </Button>
           </div>
 
-          <Button type="button" onClick={() => void saveClinicMaterials()} disabled={savingClinicMaterials}>
+          <Button
+            type="button"
+            onClick={() => void saveClinicMaterials()}
+            disabled={savingClinicMaterials}
+          >
             {savingClinicMaterials ? 'Saving…' : 'Save website & photo'}
           </Button>
         </CardContent>
@@ -475,11 +566,18 @@ export function DownloadDataStep({ flow }: { flow: OnboardingFlow }) {
         <CardContent className="space-y-4">
           <div className="rounded-xl border bg-muted/10 p-4 text-sm text-muted-foreground">
             <p>
-              Tip: If you added chat notes or uploaded files in the AI Chat step, click <span className="font-medium text-foreground">Save</span> first so they appear in the export.
+              Tip: If you added chat notes or uploaded files in the AI Chat step, click{' '}
+              <span className="font-medium text-foreground">Save</span> first so they appear in the
+              export.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button type="button" variant="secondary" onClick={() => void downloadPdf()} disabled={downloading}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void downloadPdf()}
+              disabled={downloading}
+            >
               {downloading ? 'Preparing…' : 'Download your data'}
             </Button>
             <Button type="button" variant="outline" onClick={() => flow.goNext('test-call')}>
@@ -493,7 +591,9 @@ export function DownloadDataStep({ flow }: { flow: OnboardingFlow }) {
       </Card>
 
       <div className="flex flex-wrap gap-3">
-        <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
+        <Button variant="outline" onClick={flow.goBack} className="min-w-28">
+          Back
+        </Button>
       </div>
     </div>
   );
@@ -524,11 +624,17 @@ export function OnboardingCompleteStep({
         <CardHeader className="space-y-2">
           <CardTitle className="text-xl">Finish onboarding first</CardTitle>
           <CardDescription>
-            Publish your configuration from the review step to mark onboarding complete. Then you will see the success screen and can open the dashboard.
+            Publish your configuration from the review step to mark onboarding complete. Then you
+            will see the success screen and can open the dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button type="button" variant="secondary" className="min-w-44" onClick={() => router.push('/onboarding/test-call')}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-w-44"
+            onClick={() => router.push('/onboarding/test-call')}
+          >
             Back to Review &amp; Go Live
           </Button>
         </CardContent>
@@ -543,14 +649,22 @@ export function OnboardingCompleteStep({
           <CheckCircle2Icon className="size-9" aria-hidden />
         </div>
         <div className="space-y-2">
-          <CardTitle className="text-2xl font-semibold tracking-tight">You completed onboarding</CardTitle>
+          <CardTitle className="text-2xl font-semibold tracking-tight">
+            You completed onboarding
+          </CardTitle>
           <CardDescription className="text-base text-muted-foreground">
-            Your configuration is saved and your session is ready. Use the dashboard to manage your clinic, review calls, and tune your AI receptionist anytime.
+            Your configuration is saved and your session is ready. Use the dashboard to manage your
+            clinic, review calls, and tune your AI receptionist anytime.
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent>
-        <Button type="button" className="min-w-48" size="lg" onClick={() => router.push('/dashboard')}>
+        <Button
+          type="button"
+          className="min-w-48"
+          size="lg"
+          onClick={() => router.push('/dashboard')}
+        >
           Continue to dashboard
         </Button>
       </CardContent>
@@ -558,7 +672,37 @@ export function OnboardingCompleteStep({
   );
 }
 
+const ERROR_CODE_TO_STEP: Record<string, { id: string; label: string }> = {
+  BUSINESS_HOURS_MISSING: { id: 'schedule', label: 'Clinic Schedule' },
+  VOICE_PROFILE_MISSING: { id: 'voice-setup', label: 'Voice Setup' },
+  PHONE_NUMBER_MISSING: { id: 'phone-number', label: 'Phone Number' },
+  CLINIC_PROFILE_MISSING: { id: 'clinic-profile', label: 'Clinic Profile' },
+  KNOWLEDGE_BASE_MISSING: { id: 'knowledge-base', label: 'Knowledge Base' },
+};
+
+const AREA_TO_STEP: Record<string, { id: string; label: string }> = {
+  schedule: { id: 'schedule', label: 'Clinic Schedule' },
+  voice: { id: 'voice-setup', label: 'Voice Setup' },
+  phone: { id: 'phone-number', label: 'Phone Number' },
+  clinic_profile: { id: 'clinic-profile', label: 'Clinic Profile' },
+};
+
+function getBlockingErrorStep(error: unknown): { id: string; label: string } | null {
+  const details = (
+    error as {
+      data?: {
+        error?: { details?: { errors?: { code: string; severity: string; area?: string }[] } };
+      };
+    }
+  )?.data?.error?.details?.errors;
+  if (!Array.isArray(details)) return null;
+  const blocking = details.find((e) => e.severity === 'blocking');
+  if (!blocking) return null;
+  return ERROR_CODE_TO_STEP[blocking.code] ?? AREA_TO_STEP[blocking.area ?? ''] ?? null;
+}
+
 export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
+  const router = useRouter();
   return (
     <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
@@ -570,17 +714,23 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
           <div className="mb-6 space-y-3">
             <div className="flex items-center justify-between rounded-xl border bg-background/70 p-3">
               <span className="text-sm font-medium">Readiness Score</span>
-              <span className="text-lg font-bold text-primary">{flow.onboardingData.readinessScore}%</span>
+              <span className="text-lg font-bold text-primary">
+                {flow.onboardingData.readinessScore}%
+              </span>
             </div>
             <div className="flex items-center justify-between rounded-xl border bg-background/70 p-3">
               <span className="text-sm font-medium">Steps Completed</span>
-              <span className="text-sm">{flow.onboardingData.completedSteps.length} / {STEP_ORDER.length}</span>
+              <span className="text-sm">
+                {flow.onboardingData.completedSteps.length} / {STEP_ORDER.length}
+              </span>
             </div>
             {flow.onboardingData.validationErrors.length > 0 && (
               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3">
                 <p className="mb-1 text-sm font-medium text-destructive">Blocking Issues:</p>
                 {flow.onboardingData.validationErrors.map((error, index) => (
-                  <p key={index} className="text-xs text-destructive">{error.message}</p>
+                  <p key={index} className="text-xs text-destructive">
+                    {error.message}
+                  </p>
                 ))}
                 {flow.hasMissingPoliciesError && (
                   <div className="mt-3">
@@ -591,12 +741,22 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
                       disabled={flow.savingPolicies}
                       onClick={async () => {
                         try {
-                          await flow.savePolicies({
-                            policies: [
-                              { policyType: 'escalation', content: 'Escalate to a human team member when the caller asks for clinical advice, has unresolved billing disputes, or requests manager intervention.' },
-                              { policyType: 'emergency', content: 'If the caller reports severe pain, bleeding, trauma, or breathing issues, instruct them to call 911 immediately and notify the on-call staff.' },
-                            ],
-                          }).unwrap();
+                          await flow
+                            .savePolicies({
+                              policies: [
+                                {
+                                  policyType: 'escalation',
+                                  content:
+                                    'Escalate to a human team member when the caller asks for clinical advice, has unresolved billing disputes, or requests manager intervention.',
+                                },
+                                {
+                                  policyType: 'emergency',
+                                  content:
+                                    'If the caller reports severe pain, bleeding, trauma, or breathing issues, instruct them to call 911 immediately and notify the on-call staff.',
+                                },
+                              ],
+                            })
+                            .unwrap();
                           await flow.refetchOnboardingStatus();
                           toast.success('Policies fixed. You can publish now.');
                         } catch (error: unknown) {
@@ -614,7 +774,9 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
               <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3">
                 <p className="mb-1 text-sm font-medium text-yellow-600">Warnings:</p>
                 {flow.onboardingData.validationWarnings.map((warning, index) => (
-                  <p key={index} className="text-xs text-yellow-600">{warning.message}</p>
+                  <p key={index} className="text-xs text-yellow-600">
+                    {warning.message}
+                  </p>
                 ))}
               </div>
             )}
@@ -628,11 +790,20 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
                 <p className="text-sm font-medium">Connect Google Calendar now</p>
                 <Field>
                   <FieldLabel>Google account email (optional)</FieldLabel>
-                  <Input type="email" placeholder="frontdesk@clinic.com" value={flow.googleCalendarEmail} onChange={(event) => flow.setGoogleCalendarEmail(event.target.value)} />
+                  <Input
+                    type="email"
+                    placeholder="frontdesk@clinic.com"
+                    value={flow.googleCalendarEmail}
+                    onChange={(event) => flow.setGoogleCalendarEmail(event.target.value)}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel>Calendar ID</FieldLabel>
-                  <Input placeholder="primary" value={flow.googleCalendarId} onChange={(event) => flow.setGoogleCalendarId(event.target.value)} />
+                  <Input
+                    placeholder="primary"
+                    value={flow.googleCalendarId}
+                    onChange={(event) => flow.setGoogleCalendarId(event.target.value)}
+                  />
                 </Field>
                 <Button
                   type="button"
@@ -653,16 +824,26 @@ export function TestCallStep({ flow }: { flow: OnboardingFlow }) {
           </div>
         )}
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
+          <Button variant="outline" onClick={flow.goBack} className="min-w-28">
+            Back
+          </Button>
           <Button
-            disabled={flow.publishingConfig || (flow.onboardingData && !flow.onboardingData.isReady)}
+            disabled={
+              flow.publishingConfig || (flow.onboardingData && !flow.onboardingData.isReady)
+            }
             onClick={async () => {
               try {
                 await flow.publishConfig().unwrap();
                 toast.success('Configuration published! Your AI receptionist is live.');
                 flow.goNext('complete');
               } catch (error: unknown) {
-                toast.error(getUserFriendlyApiError(error));
+                const step = getBlockingErrorStep(error);
+                if (step) {
+                  toast.error(`Please complete the ${step.label} step first.`);
+                  router.push(`/onboarding/${step.id}`);
+                } else {
+                  toast.error(getUserFriendlyApiError(error));
+                }
               }
             }}
             className="min-w-36"
