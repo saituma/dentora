@@ -39,23 +39,19 @@ export function NavUser({
           <DropdownMenuTrigger
             render={<SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />}
           >
-            <Avatar className="size-8 rounded-lg grayscale">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="rounded-lg">CN</AvatarFallback>
-            </Avatar>
-            <div className="grid flex-1 text-start text-sm leading-tight">
-              <span className="truncate font-medium">{user.name}</span>
-              <span className="text-foreground/70 truncate text-xs">{user.email}</span>
-            </div>
             <Image
               src="/dentora.png"
               alt="Dentora"
               width={20}
               height={20}
-              className="ms-auto shrink-0 opacity-60"
+              className="shrink-0 opacity-60"
               unoptimized
             />
-            <EllipsisVerticalIcon className="size-4 shrink-0" />
+            <div className="grid flex-1 text-start text-sm leading-tight">
+              <span className="truncate font-medium">{user.name}</span>
+              <span className="text-foreground/70 truncate text-xs">{user.email}</span>
+            </div>
+            <EllipsisVerticalIcon className="ms-auto size-4 shrink-0" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-56"
