@@ -11,7 +11,7 @@ import {
   tenantCacheSet,
 } from '../lib/cache.js';
 import { generateCorrelationId } from '../lib/crypto.js';
-import { setActiveTenantContext } from '../db/tenant-context.js';
+import { runWithTenantContext, setActiveTenantContext } from '../db/tenant-context.js';
 
 const CACHE_TTL_PHONE_MAPPING = 300;
 const CACHE_TTL_TENANT_CONFIG = 300;
@@ -41,7 +41,13 @@ export function tenantFromJwt(req: Request, _res: Response, next: NextFunction):
   }
 
   resolveTenant(req.user.tenantId, 'jwt', req)
-    .then(() => next())
+    .then(() => {
+      const ctx = req.tenantContext!;
+      runWithTenantContext(
+        { tenantId: ctx.tenantId, correlationId: ctx.correlationId, source: 'request' },
+        () => next(),
+      );
+    })
     .catch(next);
 }
 
@@ -55,7 +61,13 @@ export function tenantFromPhoneNumber(req: Request, _res: Response, next: NextFu
   const normalized = calledNumber.startsWith('+') ? calledNumber : `+${calledNumber}`;
 
   resolveFromPhoneNumber(normalized, req)
-    .then(() => next())
+    .then(() => {
+      const ctx = req.tenantContext!;
+      runWithTenantContext(
+        { tenantId: ctx.tenantId, correlationId: ctx.correlationId, source: 'request' },
+        () => next(),
+      );
+    })
     .catch(next);
 }
 
