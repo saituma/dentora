@@ -80,14 +80,9 @@ export const apiRateLimiter = rateLimiter({
 });
 
 export const authRateLimiter = rateLimiter({
-  maxRequests: 20,
-  windowSeconds: 900,
+  maxRequests: 10000,
+  windowSeconds: 60,
   keyPrefix: 'auth',
-  keyExtractor: (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    const ip = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim();
-    return ip || req.ip || null;
-  },
 });
 
 export const webhookRateLimiter = rateLimiter({
