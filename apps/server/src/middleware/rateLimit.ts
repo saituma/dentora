@@ -1,4 +1,3 @@
-
 import type { Request, Response, NextFunction } from 'express';
 import { getRedis } from '../lib/cache.js';
 import { RateLimitError } from '../lib/errors.js';
@@ -16,9 +15,7 @@ export function rateLimiter(config: RateLimitConfig) {
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const subject = keyExtractor
-        ? keyExtractor(req)
-        : req.tenantContext?.tenantId || req.ip;
+      const subject = keyExtractor ? keyExtractor(req) : req.tenantContext?.tenantId || req.ip;
 
       if (!subject) {
         next();
@@ -83,10 +80,14 @@ export const apiRateLimiter = rateLimiter({
 });
 
 export const authRateLimiter = rateLimiter({
-  maxRequests: 5,
+  maxRequests: 20,
   windowSeconds: 900,
   keyPrefix: 'auth',
-  keyExtractor: (req) => req.ip || null,
+  keyExtractor: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim();
+    return ip || req.ip || null;
+  },
 });
 
 export const webhookRateLimiter = rateLimiter({
