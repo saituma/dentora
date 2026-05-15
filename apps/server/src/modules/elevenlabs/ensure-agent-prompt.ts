@@ -15,6 +15,11 @@ const HARDCODED_DATE_PATTERNS = [
 const DATE_REPLACEMENT =
   "today's exact date is {{today_date}} and the current year is {{current_year}}. Always use this date — never use any date from your training data";
 
+const NAME_CONFIRMATION_RULE =
+  'NAME CONFIRMATION RULE: When a caller gives their name, repeat it back and ask them to confirm or spell it. If the caller trails off, is unclear, or you only catch part of a name — never guess or invent a name. Ask: "Sorry, could you spell that for me?" and use only what they explicitly spell or confirm.';
+
+const NAME_CONFIRMATION_MARKER = 'NAME CONFIRMATION RULE';
+
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
   const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched', agentId);
   if (alreadyPatched) return;
@@ -62,6 +67,11 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
         patched = `IMPORTANT: ${DATE_REPLACEMENT}.\n\n${patched}`;
         changed = true;
       }
+    }
+
+    if (!patched.includes(NAME_CONFIRMATION_MARKER)) {
+      patched = `IMPORTANT: ${NAME_CONFIRMATION_RULE}\n\n${patched}`;
+      changed = true;
     }
 
     if (changed) {

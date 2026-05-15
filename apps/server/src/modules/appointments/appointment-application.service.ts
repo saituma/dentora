@@ -118,11 +118,17 @@ export async function bookLedgerBackedAppointment(
     lookAheadDays: 1,
   });
 
+  const sameInstant = (a: string, b: string) => {
+    const ta = Date.parse(a);
+    const tb = Date.parse(b);
+    return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb;
+  };
+
   const exactSlot = recheckedAvailability.exactMatch;
   if (
     !exactSlot ||
-    exactSlot.startIso !== input.slot.startIso ||
-    exactSlot.endIso !== input.slot.endIso
+    !sameInstant(exactSlot.startIso, input.slot.startIso) ||
+    !sameInstant(exactSlot.endIso, input.slot.endIso)
   ) {
     throw new ValidationError('Appointment slot is no longer available');
   }

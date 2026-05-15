@@ -300,11 +300,17 @@ appointmentsRouter.post(
         lookAheadDays: 1,
       });
 
+      const sameInstant = (a: string, b: string) => {
+        const ta = Date.parse(a);
+        const tb = Date.parse(b);
+        return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb;
+      };
+
       const exactSlot = recheckedAvailability.exactMatch;
       if (
         !exactSlot ||
-        exactSlot.startIso !== req.body.slot.startIso ||
-        exactSlot.endIso !== req.body.slot.endIso
+        !sameInstant(exactSlot.startIso, req.body.slot.startIso) ||
+        !sameInstant(exactSlot.endIso, req.body.slot.endIso)
       ) {
         throw new ValidationError('Appointment slot is no longer available');
       }
