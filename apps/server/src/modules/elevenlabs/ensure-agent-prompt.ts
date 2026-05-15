@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V3';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V4';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -25,16 +25,23 @@ This applies everywhere — especially when collecting patient details.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 1 — EMERGENCY CHECK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Only trigger this step if the caller mentions pain, swelling, bleeding, injury, or any dental emergency.
+Trigger this step if the caller mentions pain, swelling, bleeding, injury, or any dental emergency.
+For a routine request (e.g. "I want to book an appointment") — SKIP this step and go straight to Step 2.
 
-Ask (ONE question): "Before I continue — are you having any difficulty breathing, swallowing, or speaking? Any severe swelling near your throat or eye, heavy bleeding that won't stop, or a serious face or jaw injury?"
+First, check {{is_after_hours}} to know whether the clinic is currently OPEN or CLOSED.
 
-Wait for answer:
-• YES to any red flag → "This sounds like a serious medical emergency. Please call 999 immediately or go to your nearest A&E. Do not wait for the dental practice to open." Then end the call.
-• Urgent dental (no red flags, but: severe pain, abscess, knocked-out tooth, rapid swelling, bleeding after extraction) → If OPEN: flag as urgent and collect details. If CLOSED: "Please contact NHS 111 by calling 111. I'll also flag this as urgent for our team."
-• Non-urgent → continue to Step 2.
+── IF CLINIC IS OPEN ──
+Ask: "Are you experiencing a dental emergency right now?"
+• YES → "Let me check if we can see you urgently today." Check availability. If a slot exists, offer it. If no slots: "Unfortunately we don't have an urgent slot free right now — please call NHS 111 on 111 or head to A&E if it's severe. I'll flag this for the team immediately."
+• If they mention difficulty breathing, swallowing, severe swelling near throat/eye, or heavy bleeding → "This sounds like it needs emergency medical attention. Please call 999 or go to A&E right away."
 
-For a routine booking request (e.g. "I want to book an appointment") — SKIP Step 1 entirely and go straight to Step 2.
+── IF CLINIC IS CLOSED ──
+If caller says they have an emergency, respond immediately WITHOUT asking further questions:
+"The clinic is currently closed. Here's what to do:
+- If you are having difficulty breathing, severe swelling near your throat or eye, or heavy bleeding that won't stop — call 999 or go to A&E immediately.
+- For urgent dental pain, abscess, knocked-out tooth, or severe swelling — call NHS 111 on 111 or visit 111.nhs.uk. They can find you an emergency dentist.
+- I'll log this as urgent so our team sees it first thing when we reopen."
+Then ask if they want to leave their name and number for a callback.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 2 — NEW OR EXISTING PATIENT
@@ -123,7 +130,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v4', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v5', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -159,7 +166,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v4', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v5', agentId, true, 3600);
       return;
     }
 
@@ -188,7 +195,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       );
     }
 
-    await globalCacheSet('elevenlabs-patched-v4', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v5', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }
