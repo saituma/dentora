@@ -18,6 +18,9 @@ import {
   sendStaffReviewAlerts,
   sendStaffReviewDailyDigest,
 } from './modules/staff-review/staff-review-notification.service.js';
+import { processCostAttribution } from './workers/cost-attribution.worker.js';
+import { processAnalyticsEvent } from './workers/analytics-events.worker.js';
+import { processNotificationDelivery } from './workers/notification-delivery.worker.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
@@ -32,16 +35,18 @@ async function start(): Promise<void> {
     process.exit(1);
   }
 
-  // Register workers here as job processors are implemented.
-  // Example:
-  // workers.push(
-  //   createWorker(QUEUE_NAMES.RECORDING_PROCESSING, processRecording),
-  //   createWorker(QUEUE_NAMES.NOTIFICATION_DELIVERY, processNotification),
-  // );
-  //
-  // Dead-letter queue monitor — log DLQ jobs for alerting via log aggregation
-  // (Datadog/Sentry picks these up via structured log fields)
   const { createWorker } = await import('./lib/queue.js');
+
+  // ── Phase 3 workers ─────────────────────────────────────────────────────────
+  workers.push(
+    createWorker(QUEUE_NAMES.COST_ATTRIBUTION, processCostAttribution, { concurrency: 10 }),
+    createWorker(QUEUE_NAMES.ANALYTICS_EVENTS, processAnalyticsEvent, { concurrency: 20 }),
+    createWorker(QUEUE_NAMES.NOTIFICATION_DELIVERY, processNotificationDelivery, {
+      concurrency: 5,
+    }),
+  );
+
+  // Dead-letter queue monitor — log DLQ jobs for alerting via log aggregation
   type DlqJobData = {
     tenantId: string;
     originalQueue: string;

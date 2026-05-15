@@ -269,7 +269,7 @@ async function createUserWithTenant(input: {
   // Provision a phone number in the background — non-blocking so signup completes instantly.
   // If Twilio is not configured or provisioning fails the clinic still exists; number can
   // be assigned manually from the admin panel.
-  void purchaseAndProvisionPhoneNumber(tenantId).catch((err) => {
+  void purchaseAndProvisionPhoneNumber(tenantId).catch((err: unknown) => {
     logger.error(
       { err, tenantId },
       'Phone number auto-provisioning failed for new clinic — assign manually via admin panel',

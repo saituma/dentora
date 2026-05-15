@@ -66,6 +66,9 @@ const envSchema = z.object({
   TWILIO_TWIML_APP_SID: z.string().default(''),
   TWILIO_VERIFY_SERVICE_SID: z.string().default(''),
   TWILIO_WEBHOOK_BASE_URL: z.string().default('http://localhost:4000'),
+  // ISO 3166-1 alpha-2 country code for auto-purchasing phone numbers on signup.
+  // Defaults to GB (UK). Change to US, AU, etc. if you expand to other markets.
+  TWILIO_NUMBER_COUNTRY: z.string().default('GB'),
 
   OPENAI_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),

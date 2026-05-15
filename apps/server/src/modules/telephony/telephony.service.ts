@@ -365,6 +365,71 @@ export async function autoAssignPhoneNumberForTenant(tenantId: string): Promise<
   });
 }
 
+/**
+ * Purchases a new phone number from Twilio and assigns it to a tenant.
+ * Called automatically on clinic signup — runs in the background, non-blocking.
+ * Idempotent: returns existing number if tenant already has one.
+ */
+export async function purchaseAndProvisionPhoneNumber(tenantId: string): Promise<TwilioNumber> {
+  const [existing] = await db
+    .select()
+    .from(twilioNumbers)
+    .where(and(eq(twilioNumbers.tenantId, tenantId), eq(twilioNumbers.status, 'active')))
+    .limit(1);
+
+  if (existing) {
+    logger.info(
+      { tenantId, phoneNumber: existing.phoneNumber },
+      'Tenant already has a phone number',
+    );
+    return existing;
+  }
+
+  const client = createTwilioRestClient();
+  const { voiceUrl, statusCallback } = buildTwilioWebhookUrls();
+  const countryCode = env.TWILIO_NUMBER_COUNTRY || 'GB';
+
+  const available = await client.availablePhoneNumbers(countryCode).local.list({ limit: 1 });
+
+  if (available.length === 0) {
+    throw new TelephonyError(`No available local phone numbers in country: ${countryCode}`);
+  }
+
+  const purchased = await client.incomingPhoneNumbers.create({
+    phoneNumber: available[0].phoneNumber,
+    voiceUrl,
+    voiceMethod: 'POST',
+    statusCallback,
+    statusCallbackMethod: 'POST',
+  });
+
+  const id = generateId();
+  const [number] = await db
+    .insert(twilioNumbers)
+    .values({
+      id,
+      tenantId,
+      phoneNumber: purchased.phoneNumber,
+      twilioSid: purchased.sid,
+      friendlyName: purchased.friendlyName ?? undefined,
+      capabilities: (purchased.capabilities as Record<string, boolean>) ?? {
+        voice: true,
+        sms: false,
+      },
+      status: 'active',
+    })
+    .returning();
+
+  await cache.setPhoneMapping(purchased.phoneNumber, tenantId);
+
+  logger.info(
+    { tenantId, phoneNumber: purchased.phoneNumber, twilioSid: purchased.sid, countryCode },
+    'Phone number purchased and provisioned for new clinic',
+  );
+
+  return number;
+}
+
 export async function resolveTenantByPhone(phoneNumber: string): Promise<string> {
   logger.info({ phoneNumber }, 'Resolving tenant for phone number');
   const cached = await cache.getPhoneMapping(phoneNumber);

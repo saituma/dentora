@@ -1,6 +1,10 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import { logger } from '../../lib/logger.js';
+import { enqueueJob, QUEUE_NAMES } from '../../lib/queue.js';
+import type { CostAttributionJobData } from '../../workers/cost-attribution.worker.js';
+import type { AnalyticsEventJobData } from '../../workers/analytics-events.worker.js';
+import type { NotificationJobData } from '../../workers/notification-delivery.worker.js';
 import * as callService from '../calls/call.service.js';
 import { db } from '../../db/index.js';
 import { callSessions, tenantConfigVersions } from '../../db/schema.js';
@@ -121,6 +125,7 @@ interface MediaStreamSession {
   pendingAudioChunks: string[];
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>;
   lastActivityAt: number;
+  startedAt: number;
   turnCount: number;
   firstMediaLogged?: boolean;
   dynamicVariables: Record<string, unknown>;
@@ -789,6 +794,7 @@ export async function handleStreamStart(
       pendingAudioChunks: [],
       conversationHistory: [],
       lastActivityAt: Date.now(),
+      startedAt: Date.now(),
       turnCount: 0,
       dynamicVariables,
       contextualUpdate,
@@ -1184,6 +1190,58 @@ async function handleStreamEndWithTenant(
       eventType: 'call.completed',
       actor: 'system',
       payload: { turnCount: session.turnCount, endReason },
+    });
+
+    // Enqueue background jobs — non-blocking, failures don't affect the call record
+    const durationSeconds = Math.round((Date.now() - session.startedAt) / 1000);
+    const aiResponseChars = session.conversationHistory
+      .filter((t) => t.role === 'assistant')
+      .reduce((sum, t) => sum + t.content.length, 0);
+    const callerNumberMasked = '***'; // caller number is encrypted in DB — don't pass PHI in job
+
+    const summary =
+      session.conversationHistory.length > 0
+        ? (session.conversationHistory
+            .filter((t) => t.role === 'assistant')
+            .slice(-1)[0]
+            ?.content?.slice(0, 200) ?? 'No summary available')
+        : 'No conversation recorded';
+
+    void Promise.all([
+      enqueueJob<CostAttributionJobData>(
+        QUEUE_NAMES.COST_ATTRIBUTION,
+        {
+          tenantId: session.tenantId,
+          callSessionId,
+          durationSeconds,
+          aiResponseChars,
+          turnCount: session.turnCount,
+        },
+        { deduplicationId: `cost-${callSessionId}` },
+      ),
+      enqueueJob<AnalyticsEventJobData>(
+        QUEUE_NAMES.ANALYTICS_EVENTS,
+        { tenantId: session.tenantId, callSessionId, eventType: 'call.completed' },
+        { deduplicationId: `analytics-${callSessionId}` },
+      ),
+      enqueueJob<NotificationJobData>(
+        QUEUE_NAMES.NOTIFICATION_DELIVERY,
+        {
+          tenantId: session.tenantId,
+          type: session.turnCount > 1 ? 'call_summary' : 'missed_call',
+          callSessionId,
+          payload: {
+            durationSeconds,
+            turnCount: session.turnCount,
+            summary,
+            callerNumberMasked,
+            endReason,
+          },
+        },
+        { deduplicationId: `notify-${callSessionId}` },
+      ),
+    ]).catch((err) => {
+      logger.error({ err, callSessionId }, 'Failed to enqueue post-call jobs');
     });
   } catch (err) {
     logger.error({ err, callSessionId }, 'Error during stream cleanup');

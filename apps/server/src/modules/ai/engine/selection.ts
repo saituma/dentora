@@ -1,4 +1,3 @@
-
 import { db } from '../../../db/index.js';
 import { providerRegistry, providerPricing } from '../../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -6,7 +5,11 @@ import { cache } from '../../../lib/cache.js';
 import { logger } from '../../../lib/logger.js';
 import { AllProvidersFailedError } from '../../../lib/errors.js';
 import { resolveApiKey } from '../../api-keys/api-key.service.js';
-import { getPreferredTtsProviderForVoiceId, isCustomTtsVoiceId } from '../providers/voice-routing.js';
+import {
+  getPreferredTtsProviderForVoiceId,
+  isCustomTtsVoiceId,
+} from '../providers/voice-routing.js';
+import { getCachedPhrase, setCachedPhrase, isCacheable } from '../../../lib/phrase-cache.js';
 import {
   getLlmAdapter,
   getSttAdapter,
@@ -175,7 +178,9 @@ function getDefaultCandidates(workloadType: WorkloadType): ProviderCandidate[] {
   ];
 }
 
-async function getProviderHealthFromRedis(providerName: string): Promise<ProviderHealthSnapshot | null> {
+async function getProviderHealthFromRedis(
+  providerName: string,
+): Promise<ProviderHealthSnapshot | null> {
   try {
     const raw = await cache.getGlobal('provider-health', providerName);
     return raw ? JSON.parse(raw) : null;
@@ -199,7 +204,9 @@ export async function recordProviderOutcome(
       : latencyMs;
     const successRate = existing
       ? existing.successRate * (1 - alpha) + (success ? 1 : 0) * alpha
-      : success ? 1 : 0;
+      : success
+        ? 1
+        : 0;
 
     const snapshot: ProviderHealthSnapshot = {
       avgLatencyMs,
@@ -208,7 +215,12 @@ export async function recordProviderOutcome(
       ...(error ? { lastErrorAt: new Date().toISOString(), lastError: error } : {}),
     };
 
-    await cache.setGlobal('provider-health', providerName, JSON.stringify(snapshot), PROVIDER_HEALTH_CACHE_TTL);
+    await cache.setGlobal(
+      'provider-health',
+      providerName,
+      JSON.stringify(snapshot),
+      PROVIDER_HEALTH_CACHE_TTL,
+    );
   } catch (err) {
     logger.warn({ err, providerName }, 'Failed to record provider outcome in cache');
   }
@@ -223,21 +235,17 @@ async function buildCandidates(workloadType: WorkloadType): Promise<ProviderCand
         return parsed;
       }
 
-      logger.warn(
-        { workloadType },
-        'Ignoring empty cached provider candidates and rebuilding',
-      );
-    } catch { /* ignore parse errors */ }
+      logger.warn({ workloadType }, 'Ignoring empty cached provider candidates and rebuilding');
+    } catch {
+      /* ignore parse errors */
+    }
   }
 
   const providers = await db
     .select()
     .from(providerRegistry)
     .where(
-      and(
-        eq(providerRegistry.providerType, workloadType),
-        eq(providerRegistry.isActive, true),
-      ),
+      and(eq(providerRegistry.providerType, workloadType), eq(providerRegistry.isActive, true)),
     );
 
   const candidates: ProviderCandidate[] = [];
@@ -292,7 +300,9 @@ function qualifyProviders(
   });
 }
 
-function scoreProviders(candidates: ProviderCandidate[]): Array<ProviderCandidate & { score: number }> {
+function scoreProviders(
+  candidates: ProviderCandidate[],
+): Array<ProviderCandidate & { score: number }> {
   if (candidates.length === 0) return [];
 
   const maxCost = Math.max(...candidates.map((c) => c.costPer1k), 0.01);
@@ -416,7 +426,10 @@ export async function executeLlmWithFailover(
       };
     } catch (error) {
       lastError = error as Error;
-      const latency = (error instanceof Error && 'latencyMs' in error) ? (error as Error & { latencyMs: number }).latencyMs : 0;
+      const latency =
+        error instanceof Error && 'latencyMs' in error
+          ? (error as Error & { latencyMs: number }).latencyMs
+          : 0;
       await recordProviderOutcome(candidate.name, false, latency, (error as Error).message);
 
       logger.warn(
@@ -504,6 +517,29 @@ export async function executeTtsWithFailover(
     throw new AllProvidersFailedError('tts');
   }
 
+  // ── Phrase cache check ────────────────────────────────────────────────
+  // Short, common phrases are pre-generated with ElevenLabs and stored in R2.
+  // A cache hit skips all TTS providers entirely — zero cost, ~10ms latency.
+  const { text, voiceId } = request.ttsRequest;
+  if (isCacheable(text)) {
+    const cached = await getCachedPhrase(text, voiceId);
+    if (cached) {
+      return {
+        audio: cached,
+        provider: 'phrase-cache',
+        latencyMs: 0,
+        characterCount: text.length,
+        selectionResult: {
+          providerId: 'phrase-cache',
+          providerName: 'phrase-cache',
+          selectionReason: { cost: 0, latency: 0, reliability: 1, score: 1 },
+          fallbackCount: 0,
+        },
+      };
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────
+
   let lastError: Error | null = null;
   const maxAttempts = Math.min(ordered.length, MAX_FAILOVER_ATTEMPTS + 1);
 
@@ -514,6 +550,11 @@ export async function executeTtsWithFailover(
     try {
       const response = await adapter.synthesize(request.ttsRequest);
       await recordProviderOutcome(candidate.name, true, response.latencyMs);
+
+      // Write back to phrase cache so next call with same text is free
+      if (isCacheable(text)) {
+        void setCachedPhrase(text, voiceId, response.audio);
+      }
 
       return {
         ...response,
