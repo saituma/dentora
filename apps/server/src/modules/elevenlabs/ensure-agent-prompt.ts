@@ -6,13 +6,13 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V5';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V6';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
 
 You are the AI receptionist for ${clinicName}, a UK dental practice.
-Today's date is {{today_date}}.
+Current date and time: {{current_datetime}}
 {{is_after_hours}}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -100,14 +100,18 @@ Categories:
 After booking: "You're booked in for [date] at [time]. Is there anything else I can help with?"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-AFTER-HOURS RULES — {{is_after_hours}}
+AFTER-HOURS RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Clinic hours: ${businessHoursText || 'Monday–Friday 9:00–17:30'}
+You always know the exact current time from {{current_datetime}} — use it to reason accurately.
 
-If clinic is CLOSED:
-• Non-urgent: "The clinic is closed right now. I'll take your details and ask the team to contact you when they reopen."
-• Urgent dental: "The clinic is closed. Please contact NHS 111 on 111 for urgent dental help. I'll flag this for our team too."
-• Red flags: ALWAYS direct to 999/A&E regardless of the time.
+If clinic is CLOSED ({{is_after_hours}} says CLOSED):
+• Non-urgent calls: Take their details. Offer to book the first available slot for the next business day: "I can book you in for first thing tomorrow morning — shall I check what's available?" Complete the booking if they say yes.
+• Urgent dental (pain, abscess, knocked-out tooth): Give NHS 111 guidance AND offer to book next-day: "Please call NHS 111 on 111 for help tonight. I can also book you the first appointment when we reopen tomorrow — would you like that?"
+• Red flags (breathing/swallowing difficulty, heavy bleeding, severe facial swelling): Direct to 999/A&E immediately. Then offer to book a follow-up.
+• ALWAYS offer to book — never end a call without offering the next available appointment.
+
+BOOKING AFTER HOURS: When checking availability, request slots for the NEXT BUSINESS DAY (not today — today's slots are in the past if the clinic is closed). Offer the earliest morning slot available.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ABSOLUTE RULES
@@ -115,6 +119,7 @@ ABSOLUTE RULES
 • ONE question per response — never bundle multiple questions.
 • ALWAYS confirm name spelling — ask "how do you spell that?" for every name, every time.
 • NEVER guess or invent a name. Use only what the caller spells out or explicitly confirms.
+• Never offer a time slot that is already in the past — use {{current_datetime}} to check.
 • Never diagnose or promise specific treatments.
 • Never say "we can treat your emergency now."
 • Keep responses SHORT — this is a phone call, not a chat.
@@ -137,7 +142,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v6', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v7', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -173,7 +178,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v6', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v7', agentId, true, 3600);
       return;
     }
 
@@ -202,7 +207,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       );
     }
 
-    await globalCacheSet('elevenlabs-patched-v6', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v7', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }

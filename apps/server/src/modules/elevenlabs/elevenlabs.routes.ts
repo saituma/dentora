@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { ensureAgentPromptDates } from './ensure-agent-prompt.js';
-import { getAfterHoursInfo } from '../telephony/telephony.service.js';
+import { isWithinBusinessHours } from '../telephony/telephony.service.js';
+import { getClinicProfile } from '../config/config.service.js';
 import { ProviderError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 
@@ -13,6 +14,53 @@ const convaiRateLimiter = rateLimiter({
   windowSeconds: 60,
   keyPrefix: 'elevenlabs-convai',
 });
+
+async function buildSessionDynamicVars(tenantId: string): Promise<Record<string, string>> {
+  try {
+    const clinic = await getClinicProfile(tenantId).catch(() => null);
+
+    const timezone = clinic?.timezone ?? 'Europe/London';
+    const now = new Date();
+
+    const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const currentDate = dateFormatter.format(now);
+    const currentTime = timeFormatter.format(now);
+    const currentDateTime = `${currentDate} at ${currentTime}`;
+
+    const isOpen = isWithinBusinessHours(
+      clinic?.businessHours as Record<string, { start: string; end: string } | null> | null,
+      timezone,
+    );
+
+    const isAfterHoursText = isOpen
+      ? `NOTE: The clinic is currently OPEN. Current date and time: ${currentDateTime}.`
+      : `NOTE: The clinic is currently CLOSED. Current date and time: ${currentDateTime}. Do not offer same-day slots — offer tomorrow morning or the next business day.`;
+
+    return {
+      is_after_hours: isAfterHoursText,
+      current_datetime: currentDateTime,
+    };
+  } catch (err) {
+    logger.warn({ err, tenantId }, 'buildSessionDynamicVars failed, using defaults');
+    return {
+      is_after_hours: 'NOTE: Clinic status unknown.',
+      current_datetime: new Date().toISOString(),
+    };
+  }
+}
 
 const createTokenSchema = z.object({
   agentId: z.string().min(1).max(120),
@@ -39,17 +87,8 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      // Fire-and-forget — don't block token issuance on the prompt patch
       void ensureAgentPromptDates(tenantId, agentId);
-
-      // Compute after-hours status to inject as dynamic variable
-      const afterHoursInfo = await getAfterHoursInfo(tenantId).catch(() => ({
-        isAfterHours: false,
-        message: '',
-      }));
-      const isAfterHoursText = afterHoursInfo.isAfterHours
-        ? 'NOTE: The clinic is currently CLOSED (outside working hours). Follow the after-hours rules below.'
-        : 'NOTE: The clinic is currently OPEN during normal business hours.';
+      const sessionVars = await buildSessionDynamicVars(tenantId);
 
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
@@ -88,9 +127,7 @@ elevenlabsRouter.post(
         data: {
           token: payload.token,
           expiresAt: payload.expires_at ?? payload.expiresAt ?? null,
-          // Client passes this as a dynamic variable in startSession so the agent
-          // knows whether the clinic is currently open or closed.
-          dynamicVariables: { is_after_hours: isAfterHoursText },
+          dynamicVariables: sessionVars,
         },
         meta: {
           agentId,
@@ -134,14 +171,7 @@ elevenlabsRouter.post(
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
       void ensureAgentPromptDates(tenantId, agentId);
-
-      const afterHoursInfo = await getAfterHoursInfo(tenantId).catch(() => ({
-        isAfterHours: false,
-        message: '',
-      }));
-      const isAfterHoursText = afterHoursInfo.isAfterHours
-        ? 'NOTE: The clinic is currently CLOSED (outside working hours). Follow the after-hours rules below.'
-        : 'NOTE: The clinic is currently OPEN during normal business hours.';
+      const sessionVars = await buildSessionDynamicVars(tenantId);
 
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
@@ -174,8 +204,7 @@ elevenlabsRouter.post(
       res.json({
         data: {
           signedUrl: payload.signed_url,
-          // Client passes this as dynamicVariables in startSession
-          dynamicVariables: { is_after_hours: isAfterHoursText },
+          dynamicVariables: sessionVars,
         },
         meta: {
           agentId,
