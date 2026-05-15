@@ -1,4 +1,4 @@
-import { and, eq, isNull, desc } from 'drizzle-orm';
+import { and, eq, isNull, desc, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { patientProfiles } from '../../db/schema.js';
 import { encryptField, decryptField, hashForSearch } from '../../lib/encrypted-column.js';
@@ -141,7 +141,8 @@ export async function upsertPatientProfile(input: {
     .insert(patientProfiles)
     .values({ ...payload, createdAt: now })
     .onConflictDoUpdate({
-      target: [patientProfiles.phoneNumberHash],
+      target: [patientProfiles.tenantId, patientProfiles.phoneNumberHash],
+      targetWhere: sql`${patientProfiles.phoneNumberHash} IS NOT NULL`,
       set: payload,
     })
     .returning();
