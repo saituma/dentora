@@ -1,6 +1,11 @@
-
 import { db } from '../../db/index.js';
-import { callSessions, callEvents, callCosts, callTranscripts } from '../../db/schema.js';
+import {
+  callSessions,
+  callEvents,
+  callCosts,
+  callTranscripts,
+  appointments,
+} from '../../db/schema.js';
 import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { tenantCacheGet, tenantCacheSet } from '../../lib/cache.js';
 
@@ -8,6 +13,9 @@ export interface DashboardStats {
   totalCalls: number;
   averageDurationSeconds: number;
   completionRate: number;
+  bookingRate: number;
+  bookedCalls: number;
+  hangupCount: number;
   totalCost: string;
   sentimentBreakdown: Record<string, number>;
   topIntents: Array<{ intent: string; count: number }>;
@@ -115,21 +123,51 @@ export async function getDashboardStats(input: {
       avgLatency: sql<number>`COALESCE(AVG(${callEvents.latencyMs}), 0)::int`,
     })
     .from(callEvents)
+    .where(and(eq(callEvents.tenantId, tenantId), sql`${callEvents.latencyMs} IS NOT NULL`));
+
+  // Calls that resulted in an actual appointment booking
+  const [bookingStats] = await db
+    .select({
+      bookedCalls: sql<number>`COUNT(DISTINCT ${appointments.callSessionId})::int`,
+    })
+    .from(appointments)
+    .innerJoin(callSessions, eq(appointments.callSessionId, callSessions.id))
     .where(
       and(
-        eq(callEvents.tenantId, tenantId),
-        sql`${callEvents.latencyMs} IS NOT NULL`,
+        eq(appointments.tenantId, tenantId),
+        gte(callSessions.startedAt, startDate),
+        lte(callSessions.startedAt, endDate),
       ),
     );
 
-  const completionRate = callStats.totalCalls > 0
-    ? (callStats.completed / callStats.totalCalls) * 100
-    : 0;
+  // Calls where the caller hung up (incomplete conversations)
+  const [hangupStats] = await db
+    .select({
+      hangupCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(callSessions)
+    .where(
+      and(
+        eq(callSessions.tenantId, tenantId),
+        gte(callSessions.startedAt, startDate),
+        lte(callSessions.startedAt, endDate),
+        eq(callSessions.endReason, 'caller_hangup'),
+      ),
+    );
+
+  const completionRate =
+    callStats.totalCalls > 0 ? (callStats.completed / callStats.totalCalls) * 100 : 0;
+
+  const bookedCalls = bookingStats.bookedCalls ?? 0;
+  const bookingRate = callStats.totalCalls > 0 ? (bookedCalls / callStats.totalCalls) * 100 : 0;
 
   const result: DashboardStats = {
     totalCalls: callStats.totalCalls,
     averageDurationSeconds: callStats.avgDuration,
     completionRate: Math.round(completionRate * 100) / 100,
+    bookingRate: Math.round(bookingRate * 100) / 100,
+    bookedCalls,
+    hangupCount: hangupStats.hangupCount ?? 0,
     totalCost: costStats.totalCost,
     sentimentBreakdown,
     topIntents,
@@ -168,7 +206,9 @@ export async function getHourlyCallVolume(input: {
 export async function getProviderPerformance(_input: {
   startDate: Date;
   endDate: Date;
-}): Promise<Array<{ provider: string; avgLatencyMs: number; totalCalls: number; failureRate: number }>> {
+}): Promise<
+  Array<{ provider: string; avgLatencyMs: number; totalCalls: number; failureRate: number }>
+> {
   const results = await db
     .select({
       provider: sql<string>`${callEvents.payload}->>'provider'`,
@@ -176,12 +216,7 @@ export async function getProviderPerformance(_input: {
       totalCalls: sql<number>`COUNT(DISTINCT ${callEvents.callSessionId})::int`,
     })
     .from(callEvents)
-    .where(
-      and(
-        eq(callEvents.eventType, 'llm_response'),
-        sql`${callEvents.latencyMs} IS NOT NULL`,
-      ),
-    )
+    .where(and(eq(callEvents.eventType, 'llm_response'), sql`${callEvents.latencyMs} IS NOT NULL`))
     .groupBy(sql`${callEvents.payload}->>'provider'`);
 
   return results.map((r) => ({

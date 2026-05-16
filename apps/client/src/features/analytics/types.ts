@@ -2,6 +2,9 @@ export interface DashboardStats {
   totalCalls: number;
   averageDurationSeconds: number;
   completionRate: number;
+  bookingRate: number;
+  bookedCalls: number;
+  hangupCount: number;
   totalCost: string;
   sentimentBreakdown: Record<string, number>;
   topIntents: Array<{ intent: string; count: number }>;

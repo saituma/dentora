@@ -11,17 +11,11 @@ import { useGetCallsQuery } from '@/features/calls/callsApi';
 import type { CallSession } from '@/features/calls/types';
 
 function isMissedCall(call: CallSession): boolean {
-  const endReason = call.endReason?.toLowerCase() ?? '';
-  const summary = call.intentSummary?.toLowerCase() ?? '';
-  const shortOrUnresolved =
-    (call.durationSeconds ?? 0) < 90 ||
-    (!summary.includes('booked') && !summary.includes('confirmed'));
-  const badEnd =
-    endReason.includes('hangup') ||
-    endReason.includes('abandoned') ||
-    endReason.includes('no_response') ||
-    call.status === 'failed';
-  return badEnd && shortOrUnresolved;
+  if (call.status === 'failed') return true;
+  const endReason = call.endReason ?? '';
+  // caller hung up mid-conversation (short = no time to complete)
+  if (endReason === 'caller_hangup' && (call.durationSeconds ?? 0) < 120) return true;
+  return false;
 }
 
 function formatDuration(seconds?: number): string {
@@ -84,7 +78,7 @@ export default function MissedCallsPage() {
             Calls needing follow-up
           </CardTitle>
           <CardDescription>
-            Calls that ended early, were abandoned, or did not result in a booking.
+            Callers who hung up within 2 minutes, or calls that failed. These may need a callback.
           </CardDescription>
         </CardHeader>
         <CardContent>

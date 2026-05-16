@@ -302,7 +302,11 @@ export default function DashboardOverviewPage() {
       i.integrationType === 'calendar' && i.provider === 'google_calendar' && i.status === 'active',
   );
 
-  const refetchOpts = { refetchOnFocus: true, refetchOnReconnect: true, pollingInterval: 60_000 } as const;
+  const refetchOpts = {
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+    pollingInterval: 60_000,
+  } as const;
   const {
     data: dashboardStats,
     isLoading: statsLoading,
@@ -418,15 +422,15 @@ export default function DashboardOverviewPage() {
               }
             />
             <StatsCard
-              title="Appointment rate"
-              value={formatPercent(dashboardStats?.completionRate)}
-              description={`Booked from calls — ${statsCardPeriodPhrase(period)}`}
+              title="Booking rate"
+              value={formatPercent(dashboardStats?.bookingRate)}
+              description={`${dashboardStats?.bookedCalls ?? 0} appointments booked — ${statsCardPeriodPhrase(period)}`}
               trend={
-                dashboardStats?.completionRate != null && dashboardStats.completionRate > 50
+                dashboardStats?.hangupCount != null && dashboardStats.hangupCount > 0
                   ? {
-                      value: Math.round(dashboardStats.completionRate),
-                      label: 'Above target',
-                      positive: true,
+                      value: dashboardStats.hangupCount,
+                      label: 'hung up early',
+                      positive: false,
                     }
                   : undefined
               }
@@ -934,7 +938,7 @@ export default function DashboardOverviewPage() {
                 <p className="text-sm font-medium">AI Receptionist Performance</p>
                 <p className="text-xs text-muted-foreground">
                   {completedCalls} calls completed, {escalatedCalls} escalated to staff &middot;{' '}
-                  {formatPercent(dashboardStats.completionRate)} success rate
+                  {dashboardStats.bookedCalls} booked · {dashboardStats.hangupCount} hung up
                 </p>
               </div>
             </div>
