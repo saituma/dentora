@@ -253,8 +253,10 @@ function ElevenLabsAgentPageInner() {
 
   const startAmbient = useCallback(() => {
     const ctx = ambientCtxRef.current;
+    console.error('[ambient] startAmbient called, ctx state:', ctx?.state ?? 'null');
     if (!ctx) return;
     const play = (buffer: AudioBuffer) => {
+      console.error('[ambient] playing buffer, duration:', buffer.duration);
       const gain = ctx.createGain();
       gain.gain.value = 0.3;
       gain.connect(ctx.destination);
@@ -264,16 +266,22 @@ function ElevenLabsAgentPageInner() {
       source.connect(gain);
       source.start();
       ambientSourceRef.current = source;
+      console.error('[ambient] source started');
     };
     if (ambientBufferRef.current) {
       play(ambientBufferRef.current);
     } else {
+      console.error('[ambient] fetching /clinic-ambient.mp3');
       fetch('/clinic-ambient.mp3')
         .then((r) => {
+          console.error('[ambient] fetch response:', r.status, r.ok);
           if (!r.ok) throw new Error(`HTTP ${r.status}`);
           return r.arrayBuffer();
         })
-        .then((ab) => ctx.decodeAudioData(ab))
+        .then((ab) => {
+          console.error('[ambient] decoding audio, byteLength:', ab.byteLength);
+          return ctx.decodeAudioData(ab);
+        })
         .then((buffer) => {
           ambientBufferRef.current = buffer;
           if (ambientCtxRef.current === ctx) play(buffer);
@@ -516,6 +524,7 @@ function ElevenLabsAgentPageInner() {
       },
     },
     onConnect: () => {
+      console.error('[ambient] onConnect fired');
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
       startAmbient();
     },
@@ -597,9 +606,12 @@ function ElevenLabsAgentPageInner() {
         const ctx = new AudioContextClass();
         await ctx.resume();
         ambientCtxRef.current = ctx;
+        console.error('[ambient] AudioContext created, state:', ctx.state);
+      } else {
+        console.error('[ambient] AudioContext not available');
       }
-    } catch {
-      // Non-fatal — ambient will just be silent
+    } catch (err) {
+      console.error('[ambient] AudioContext creation failed', err);
     }
 
     const clinicTimezone = clinic?.timezone || 'UTC';
