@@ -258,7 +258,7 @@ function ElevenLabsAgentPageInner() {
     const play = (buffer: AudioBuffer) => {
       console.error('[ambient] playing buffer, duration:', buffer.duration);
       const gain = ctx.createGain();
-      gain.gain.value = 0.3;
+      gain.gain.value = 0.8;
       gain.connect(ctx.destination);
       const source = ctx.createBufferSource();
       source.buffer = buffer;
