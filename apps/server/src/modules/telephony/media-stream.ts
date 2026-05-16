@@ -380,6 +380,7 @@ const buildContextualUpdate = (input: {
   clinicName?: string;
   staffDirectory?: string;
   clinicNotes?: string;
+  faqsList?: string;
   speechSpeedInstruction?: string;
 }): string => {
   const lines = [
@@ -390,6 +391,7 @@ const buildContextualUpdate = (input: {
     input.clinicName ? `Clinic name: ${input.clinicName}` : null,
     input.staffDirectory ? `Staff directory: ${input.staffDirectory}` : null,
     input.clinicNotes ? `Clinic notes: ${input.clinicNotes}` : null,
+    input.faqsList ? `FAQs: ${input.faqsList}` : null,
     'Instructions:',
     input.agentName
       ? `- Always introduce yourself as ${input.agentName}. Never use any other name.`
@@ -549,6 +551,7 @@ async function buildConvaiContext(tenantId: string) {
     clinicName: dynamicVariables.clinic_name as string,
     staffDirectory: String(staffDirectory ?? ''),
     clinicNotes: String(clinicNotes ?? ''),
+    faqsList: dynamicVariables.faqs_list as string,
     speechSpeedInstruction,
   });
 

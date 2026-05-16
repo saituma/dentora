@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V7';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V8';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -128,6 +128,14 @@ When a caller asks about cost, quote the price directly: "A [service] costs £[p
 If no price is listed for that service: "I don't have the exact cost for that — I'll ask the team to call you back with the pricing."
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FREQUENTLY ASKED QUESTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use the FAQ list: {{faqs_list}}
+Each entry is "Q: [question] A: [answer]".
+When a caller asks a question that matches or closely resembles one of these, give the answer directly — word for word if possible.
+If no FAQ matches: "I don't have that detail to hand — I'll make a note for the team to call you back."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 AFTER-HOURS RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Clinic hours: ${businessHoursText || 'Monday–Friday 9:00–17:30'}
@@ -172,7 +180,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v8', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v9', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -208,7 +216,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v8', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v9', agentId, true, 3600);
       return;
     }
 
@@ -237,7 +245,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       );
     }
 
-    await globalCacheSet('elevenlabs-patched-v8', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v9', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }
