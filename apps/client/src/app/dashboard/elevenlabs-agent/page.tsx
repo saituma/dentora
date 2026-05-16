@@ -549,18 +549,21 @@ function ElevenLabsAgentPageInner() {
       toast.error('Select an agent voice below before starting.');
       return;
     }
+
+    // Start ambient BEFORE any await — getUserMedia consumes the user gesture
+    // activation in Firefox, blocking audio.play() if called after it.
+    stopAmbient();
+    startAmbient();
+
     if (!textOnly) {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
+        stopAmbient();
         toast.error('Microphone permission is required to start the receptionist.');
         return;
       }
     }
-
-    // Start ambient immediately during user gesture so autoplay is allowed
-    stopAmbient();
-    startAmbient();
 
     const clinicTimezone = clinic?.timezone || 'UTC';
     const todayDate = new Intl.DateTimeFormat('en-CA', {
