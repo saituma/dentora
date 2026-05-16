@@ -231,6 +231,62 @@ const formatMessage = (message: unknown): string => {
   }
 };
 
+function useAmbientAudio(active: boolean) {
+  const ctxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const bufferRef = useRef<AudioBuffer | null>(null);
+
+  useEffect(() => {
+    if (!active) {
+      sourceRef.current?.stop();
+      sourceRef.current = null;
+      ctxRef.current?.close().catch(() => undefined);
+      ctxRef.current = null;
+      return;
+    }
+
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    ctxRef.current = ctx;
+
+    const start = (buffer: AudioBuffer) => {
+      const gain = ctx.createGain();
+      gain.gain.value = 0.3;
+      gain.connect(ctx.destination);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gain);
+      source.start();
+      sourceRef.current = source;
+    };
+
+    if (bufferRef.current) {
+      start(bufferRef.current);
+    } else {
+      fetch('/clinic-ambient.mp3')
+        .then((r) => r.arrayBuffer())
+        .then((ab) => ctx.decodeAudioData(ab))
+        .then((buffer) => {
+          bufferRef.current = buffer;
+          if (ctxRef.current === ctx) start(buffer);
+        })
+        .catch(() => undefined);
+    }
+
+    return () => {
+      sourceRef.current?.stop();
+      sourceRef.current = null;
+      ctx.close().catch(() => undefined);
+      ctxRef.current = null;
+    };
+  }, [active]);
+}
+
 export default function ElevenLabsAgentPage() {
   return (
     <ConversationProvider>
@@ -516,6 +572,8 @@ function ElevenLabsAgentPageInner() {
     onAgentToolResponse: (event) =>
       appendLog({ role: 'event', text: `Tool response: ${formatMessage(event)}` }),
   });
+
+  useAmbientAudio(conversation.status === 'connected');
 
   const statusLabel = useMemo(() => {
     if (conversation.status === 'connected') return 'Connected';
