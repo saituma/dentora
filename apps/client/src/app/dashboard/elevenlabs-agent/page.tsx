@@ -526,7 +526,6 @@ function ElevenLabsAgentPageInner() {
     onConnect: () => {
       console.error('[ambient] onConnect fired');
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
-      startAmbient();
     },
     onDisconnect: () => {
       stopAmbient();
@@ -607,6 +606,8 @@ function ElevenLabsAgentPageInner() {
         await ctx.resume();
         ambientCtxRef.current = ctx;
         console.error('[ambient] AudioContext created, state:', ctx.state);
+        // Start ambient immediately — don't wait for onConnect
+        startAmbient();
       } else {
         console.error('[ambient] AudioContext not available');
       }
