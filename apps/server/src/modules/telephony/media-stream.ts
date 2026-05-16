@@ -18,6 +18,7 @@ import {
   assertMediaStreamCallSessionMatchesToken,
   verifyMediaStreamBinding,
 } from './stream-token.js';
+import { mixAmbient } from '../../lib/ambient-mixer.js';
 import {
   mediaStreamInvalidStartTotal,
   mediaStreamPendingLimitExceededTotal,
@@ -130,6 +131,7 @@ interface MediaStreamSession {
   firstMediaLogged?: boolean;
   dynamicVariables: Record<string, unknown>;
   contextualUpdate: string;
+  ambientOffset: number;
 }
 
 const activeSessions = new Map<string, MediaStreamSession>();
@@ -798,6 +800,7 @@ export async function handleStreamStart(
       turnCount: 0,
       dynamicVariables,
       contextualUpdate,
+      ambientOffset: 0,
     };
 
     activeSessions.set(callSessionId, session);
@@ -1114,10 +1117,13 @@ function flushPendingAudio(session: MediaStreamSession): void {
 function sendAudioToTwilio(session: MediaStreamSession, audioBase64: string): void {
   if (session.ws.readyState !== WebSocket.OPEN) return;
 
+  const { mixed, newOffset } = mixAmbient(audioBase64, session.ambientOffset);
+  session.ambientOffset = newOffset;
+
   const chunkSize = 8000;
   let chunkCount = 0;
-  for (let i = 0; i < audioBase64.length; i += chunkSize) {
-    const chunk = audioBase64.slice(i, i + chunkSize);
+  for (let i = 0; i < mixed.length; i += chunkSize) {
+    const chunk = mixed.slice(i, i + chunkSize);
     const mediaMessage = JSON.stringify({
       event: 'media',
       streamSid: session.streamSid,
