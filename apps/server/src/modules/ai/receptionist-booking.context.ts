@@ -65,14 +65,25 @@ function parseStaffDirectory(context: TenantAIContext): StaffEntry[] {
       return Array.isArray(rawTopics) ? rawTopics : [];
     })
     .map((topic) => topic as { type?: string; title?: string; content?: string })
-    .filter((topic) => topic.type === 'context_document' && typeof topic.content === 'string' && topic.content.trim())
+    .filter(
+      (topic) =>
+        topic.type === 'context_document' &&
+        typeof topic.content === 'string' &&
+        topic.content.trim(),
+    )
     .filter((topic) => (topic.title ?? '').toLowerCase().includes('staff'));
 
   const entries: StaffEntry[] = [];
   for (const topic of topics) {
-    const lines = topic.content!.split('\n').map((line) => line.trim()).filter(Boolean);
+    const lines = topic
+      .content!.split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
     for (const line of lines) {
-      const parts = line.split(/[-•|]/).map((part) => part.trim()).filter(Boolean);
+      const parts = line
+        .split(/[-•|]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
       const phone = line.replace(/\D/g, '').trim();
       const status = /\b(unavailable|off|away|out)\b/i.test(line)
         ? 'unavailable'
@@ -129,7 +140,9 @@ function getDayKeyForDate(date: string, timezone: string): string | null {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     weekday: 'long',
-  }).format(localDate).toLowerCase();
+  })
+    .format(localDate)
+    .toLowerCase();
 }
 
 export function isClinicOpenOnDate(
@@ -138,16 +151,25 @@ export function isClinicOpenOnDate(
   requestedDate: string,
   timezone: string,
 ): boolean {
-  if (closedDates.includes(requestedDate) || !schedule || typeof schedule !== 'object') return false;
+  if (closedDates.includes(requestedDate) || !schedule || typeof schedule !== 'object')
+    return false;
   const dayKey = getDayKeyForDate(requestedDate, timezone);
   if (!dayKey) return false;
   const rawEntry = schedule[dayKey];
   if (!rawEntry || typeof rawEntry !== 'object') return false;
   const entry = rawEntry as { start?: unknown; end?: unknown };
-  return typeof entry.start === 'string' && !!entry.start.trim() && typeof entry.end === 'string' && !!entry.end.trim();
+  return (
+    typeof entry.start === 'string' &&
+    !!entry.start.trim() &&
+    typeof entry.end === 'string' &&
+    !!entry.end.trim()
+  );
 }
 
-export function mergePatientDetails(current: PatientBookingDetails, incoming: PatientBookingDetails): PatientBookingDetails {
+export function mergePatientDetails(
+  current: PatientBookingDetails,
+  incoming: PatientBookingDetails,
+): PatientBookingDetails {
   const incomingName = incoming.fullName?.trim();
   const nameChanged = Boolean(incomingName && incomingName !== current.fullName);
 
@@ -155,7 +177,9 @@ export function mergePatientDetails(current: PatientBookingDetails, incoming: Pa
     fullName: incomingName || current.fullName,
     nameConfirmed: nameChanged
       ? undefined
-      : (typeof incoming.nameConfirmed === 'boolean' ? incoming.nameConfirmed : current.nameConfirmed),
+      : typeof incoming.nameConfirmed === 'boolean'
+        ? incoming.nameConfirmed
+        : current.nameConfirmed,
     namePronunciation: incoming.namePronunciation?.trim() || current.namePronunciation,
     age: typeof incoming.age === 'number' ? incoming.age : current.age,
     phoneNumber: incoming.phoneNumber?.trim() || current.phoneNumber,
@@ -163,9 +187,12 @@ export function mergePatientDetails(current: PatientBookingDetails, incoming: Pa
   };
 }
 
-export function getMissingPatientField(patient: PatientBookingDetails): keyof PatientBookingDetails | null {
+export function getMissingPatientField(
+  patient: PatientBookingDetails,
+): keyof PatientBookingDetails | null {
   if (!patient.fullName) return 'fullName';
   if (typeof patient.age !== 'number') return 'age';
+  // Only ask for phone number if it wasn't already supplied by the caller's inbound number.
   if (!patient.phoneNumber) return 'phoneNumber';
   if (!patient.reasonForVisit) return 'reasonForVisit';
   return null;
@@ -177,7 +204,10 @@ export function extractPronunciationFromNotes(notes?: string | null): string | n
   return match ? match[1].trim() : null;
 }
 
-export function buildPatientNotes(reasonForVisit?: string, namePronunciation?: string): string | null {
+export function buildPatientNotes(
+  reasonForVisit?: string,
+  namePronunciation?: string,
+): string | null {
   const parts: string[] = [];
   if (reasonForVisit?.trim()) parts.push(`Reason: ${reasonForVisit.trim()}`);
   if (namePronunciation?.trim()) parts.push(`Pronunciation: ${namePronunciation.trim()}`);
@@ -220,7 +250,9 @@ export function buildSlotOptionsText(slots: CalendarSlot[], timezone: string): s
   if (topSlots.length === 0) return '';
 
   const sameDate = topSlots.every(
-    (slot) => formatDateInTimezone(new Date(slot.startIso), timezone) === formatDateInTimezone(new Date(topSlots[0].startIso), timezone),
+    (slot) =>
+      formatDateInTimezone(new Date(slot.startIso), timezone) ===
+      formatDateInTimezone(new Date(topSlots[0].startIso), timezone),
   );
 
   if (sameDate) {
@@ -229,6 +261,9 @@ export function buildSlotOptionsText(slots: CalendarSlot[], timezone: string): s
     return `I have openings on ${dateLabel} at ${joinWithOr(timeLabels)}.`;
   }
 
-  const optionLabels = topSlots.map((slot) => `${formatFullSlotDate(slot.startIso, timezone)} at ${formatSlotTime(slot.startIso, timezone)}`);
+  const optionLabels = topSlots.map(
+    (slot) =>
+      `${formatFullSlotDate(slot.startIso, timezone)} at ${formatSlotTime(slot.startIso, timezone)}`,
+  );
   return `I have openings on ${joinWithOr(optionLabels)}.`;
 }

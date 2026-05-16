@@ -41,6 +41,13 @@ import {
   StethoscopeIcon,
   ActivityIcon,
   ClipboardCheckIcon,
+  PoundSterlingIcon,
+  BuildingIcon,
+  HelpCircleIcon,
+  ClockIcon,
+  PhoneMissedIcon,
+  MessageSquareIcon,
+  CreditCardIcon,
 } from 'lucide-react';
 
 const navMain = [
@@ -51,12 +58,19 @@ const navMain = [
   { title: 'Patients', url: '/dashboard/patients', icon: UsersIcon },
   { title: 'Staff', url: '/dashboard/staff', icon: StethoscopeIcon },
   { title: 'Staff Review', url: '/dashboard/staff-review', icon: ClipboardCheckIcon },
+  { title: 'Prices', url: '/dashboard/prices', icon: PoundSterlingIcon },
+  { title: 'Opening Hours', url: '/dashboard/opening-hours', icon: ClockIcon },
+  { title: 'FAQs', url: '/dashboard/faqs', icon: HelpCircleIcon },
   { title: 'Calls', url: '/dashboard/calls', icon: PhoneIcon },
+  { title: 'Missed Calls', url: '/dashboard/missed-calls', icon: PhoneMissedIcon },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3Icon },
 ];
 
 const navSecondary = [
+  { title: 'Clinic Details', url: '/dashboard/clinic', icon: BuildingIcon },
+  { title: 'Messages', url: '/dashboard/messages', icon: MessageSquareIcon },
   { title: 'Integrations', url: '/dashboard/integrations', icon: PlugIcon },
+  { title: 'Billing', url: '/dashboard/billing', icon: CreditCardIcon },
   { title: 'Settings', url: '/dashboard/settings', icon: SettingsIcon },
 ];
 

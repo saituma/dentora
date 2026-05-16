@@ -10,6 +10,7 @@ import { db } from '../../db/index.js';
 import { callSessions, tenantConfigVersions } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
+import { decryptField } from '../../lib/encrypted-column.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
@@ -426,11 +427,18 @@ async function buildConvaiContext(tenantId: string) {
     )
     .filter((topic: SensitiveTopic) => topic?.type === 'context_document');
 
-  const formatStaffMembers = (staff: Array<{ name?: string; role?: string; phone?: string }>) => {
+  const formatStaffMembers = (
+    staff: Array<{ name?: string; role?: string; phone?: string; workingDays?: string[] }>,
+  ) => {
     if (!staff || !staff.length) return '';
     return staff
       .map((s) => {
-        const base = `${s.name ?? 'Staff'} (${s.role ?? 'Member'})`;
+        const role = s.role ?? 'Member';
+        const days =
+          Array.isArray(s.workingDays) && s.workingDays.length > 0
+            ? `, works ${s.workingDays.join('/')}`
+            : '';
+        const base = `${s.name ?? 'Staff'} (${role}${days})`;
         return s.phone ? `${base} [${s.phone}]` : base;
       })
       .join(' | ');
@@ -742,6 +750,7 @@ export async function handleStreamStart(
         tenantId: callSessions.tenantId,
         configVersionId: callSessions.configVersionId,
         twilioCallSid: callSessions.twilioCallSid,
+        callerNumber: callSessions.callerNumber,
       })
       .from(callSessions)
       .where(eq(callSessions.id, callSessionId))
@@ -769,6 +778,16 @@ export async function handleStreamStart(
 
     const { tenantId, configVersionId } = tokenClaims;
 
+    // Decrypt caller number so it can be injected into agent context without being re-asked.
+    let decryptedCallerNumber: string | null = null;
+    if (callSession?.callerNumber) {
+      try {
+        decryptedCallerNumber = decryptField(callSession.callerNumber);
+      } catch {
+        // Non-fatal: agent will still work, just won't have pre-filled phone number.
+      }
+    }
+
     setActiveTenantContext({
       tenantId,
       correlationId: callSessionId,
@@ -783,6 +802,15 @@ export async function handleStreamStart(
 
     const configVersion = cvRow?.version ?? 1;
     const { dynamicVariables, contextualUpdate, voiceProfile } = await buildConvaiContext(tenantId);
+
+    // Inject the inbound caller number so the agent never needs to ask the patient for their number.
+    if (decryptedCallerNumber) {
+      dynamicVariables.caller_phone_number = decryptedCallerNumber;
+    }
+    const callerPhoneInstruction = decryptedCallerNumber
+      ? `\n- The caller's inbound phone number is ${decryptedCallerNumber}. Use this as their phone number for appointment booking — do NOT ask them for their phone number.`
+      : '';
+    const enrichedContextualUpdate = contextualUpdate + callerPhoneInstruction;
 
     const session: MediaStreamSession = {
       callSessionId,
@@ -799,7 +827,7 @@ export async function handleStreamStart(
       startedAt: Date.now(),
       turnCount: 0,
       dynamicVariables,
-      contextualUpdate,
+      contextualUpdate: enrichedContextualUpdate,
       ambientOffset: 0,
     };
 

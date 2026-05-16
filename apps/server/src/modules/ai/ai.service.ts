@@ -1,6 +1,13 @@
-
 import { db } from '../../db/index.js';
-import { tenantConfigVersions, voiceProfile, faqLibrary, services, policies, bookingRules, clinicProfile } from '../../db/schema.js';
+import {
+  tenantConfigVersions,
+  voiceProfile,
+  faqLibrary,
+  services,
+  policies,
+  bookingRules,
+  clinicProfile,
+} from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
@@ -46,7 +53,10 @@ const LEGACY_DEFAULT_GREETINGS = new Set([
   'hello, thank you for calling. how may i help you today?',
 ]);
 
-function normalizeGreetingMessage(clinicName: string, greetingMessage?: string | null): string | null {
+function normalizeGreetingMessage(
+  clinicName: string,
+  greetingMessage?: string | null,
+): string | null {
   const normalized = String(greetingMessage ?? '').trim();
   if (!normalized) {
     return `Hi, welcome to ${clinicName}, what can I help you with today?`;
@@ -70,14 +80,16 @@ function formatScheduleValue(schedule?: Record<string, unknown> | null): string 
 
       const entry = rawValue as ScheduleEntry;
       if (!entry?.start || !entry?.end) return `${day}: Closed`;
-      const firstBreak = Array.isArray(entry.breaks) && entry.breaks.length > 0
-        ? entry.breaks[0]
-        : entry.breakStart && entry.breakEnd
-          ? { start: entry.breakStart, end: entry.breakEnd }
-          : null;
-      const breakLabel = firstBreak?.start && firstBreak?.end
-        ? ` (break ${firstBreak.start}-${firstBreak.end})`
-        : '';
+      const firstBreak =
+        Array.isArray(entry.breaks) && entry.breaks.length > 0
+          ? entry.breaks[0]
+          : entry.breakStart && entry.breakEnd
+            ? { start: entry.breakStart, end: entry.breakEnd }
+            : null;
+      const breakLabel =
+        firstBreak?.start && firstBreak?.end
+          ? ` (break ${firstBreak.start}-${firstBreak.end})`
+          : '';
       return `${day}: ${entry.start}-${entry.end}${breakLabel}`;
     })
     .filter(Boolean);
@@ -85,9 +97,7 @@ function formatScheduleValue(schedule?: Record<string, unknown> | null): string 
   return lines.length > 0 ? lines.join('; ') : 'Not provided';
 }
 
-function formatServicesForPrompt(
-  serviceList: Record<string, unknown>[],
-): string {
+function formatServicesForPrompt(serviceList: Record<string, unknown>[]): string {
   if (serviceList.length === 0) return 'Not provided';
 
   return serviceList
@@ -123,8 +133,12 @@ function formatContactInfo(clinic: Record<string, unknown>): string {
   };
 
   const items = [
-    clinicData.phone || clinicData.primaryPhone ? `Phone: ${clinicData.phone || clinicData.primaryPhone}` : null,
-    clinicData.email || clinicData.supportEmail ? `Email: ${clinicData.email || clinicData.supportEmail}` : null,
+    clinicData.phone || clinicData.primaryPhone
+      ? `Phone: ${clinicData.phone || clinicData.primaryPhone}`
+      : null,
+    clinicData.email || clinicData.supportEmail
+      ? `Email: ${clinicData.email || clinicData.supportEmail}`
+      : null,
     clinicData.website ? `Website: ${clinicData.website}` : null,
     clinicData.address ? `Address: ${clinicData.address}` : null,
   ].filter(Boolean);
@@ -151,14 +165,28 @@ function formatBookableStaffForPrompt(clinic: Record<string, unknown>): string {
     return 'Not configured — add providers under Dashboard → Staff.';
   }
   const lines = raw
-    .map((row) => row as { name?: string; role?: string; acceptsAppointments?: boolean })
+    .map(
+      (row) =>
+        row as {
+          name?: string;
+          role?: string;
+          acceptsAppointments?: boolean;
+          workingDays?: string[];
+        },
+    )
     .filter((row) => typeof row.name === 'string' && row.name.trim().length > 0)
     .filter((row) => row.acceptsAppointments !== false)
     .map((row) => {
       const role = typeof row.role === 'string' && row.role.trim() ? row.role.trim() : 'Staff';
-      return `${row.name!.trim()} (${role})`;
+      const days =
+        Array.isArray(row.workingDays) && row.workingDays.length > 0
+          ? `works ${row.workingDays.join('/')}`
+          : null;
+      return days ? `${row.name!.trim()} (${role}, ${days})` : `${row.name!.trim()} (${role})`;
     });
-  return lines.length > 0 ? lines.join('; ') : 'No staff marked for appointments — enable in Dashboard → Staff.';
+  return lines.length > 0
+    ? lines.join('; ')
+    : 'No staff marked for appointments — enable in Dashboard → Staff.';
 }
 
 function formatPromotionsForPrompt(policyList: Record<string, unknown>[]): string {
@@ -166,8 +194,8 @@ function formatPromotionsForPrompt(policyList: Record<string, unknown>[]): strin
     .map((policy) => policy as { policyType?: string; content?: string })
     .filter((policy) => {
       const type = policy.policyType?.toLowerCase() ?? '';
-      return ['promotion', 'promotions', 'offer', 'special', 'announcement', 'update'].some((token) =>
-        type.includes(token),
+      return ['promotion', 'promotions', 'offer', 'special', 'announcement', 'update'].some(
+        (token) => type.includes(token),
       );
     })
     .map((policy) => policy.content?.trim())
@@ -183,7 +211,12 @@ function formatUploadedContextForPrompt(policyList: Record<string, unknown>[]): 
       return Array.isArray(rawTopics) ? rawTopics : [];
     })
     .map((topic) => topic as { type?: string; title?: string; content?: string })
-    .filter((topic) => topic.type === 'context_document' && typeof topic.content === 'string' && topic.content.trim())
+    .filter(
+      (topic) =>
+        topic.type === 'context_document' &&
+        typeof topic.content === 'string' &&
+        topic.content.trim(),
+    )
     .map((topic) => {
       const title = topic.title?.trim() || 'Uploaded context';
       return `${title}:\n${topic.content!.trim()}`;
@@ -215,12 +248,13 @@ function buildPromptContextBlock(context: TenantAIContext): string[] {
     clinicData.businessHours ?? bookingData.operatingSchedule ?? null,
   );
   const uploadedContext = formatUploadedContextForPrompt(context.policies);
-  const faqSummary = context.faqs.length > 0
-    ? context.faqs
-      .map((faq) => faq as { question?: string; answer?: string })
-      .map((faq) => `Q: ${faq.question ?? 'Question'} A: ${faq.answer ?? 'Not provided'}`)
-      .join(' | ')
-    : 'None provided';
+  const faqSummary =
+    context.faqs.length > 0
+      ? context.faqs
+          .map((faq) => faq as { question?: string; answer?: string })
+          .map((faq) => `Q: ${faq.question ?? 'Question'} A: ${faq.answer ?? 'Not provided'}`)
+          .join(' | ')
+      : 'None provided';
 
   return [
     'Context (dynamic, can be updated during testing):',
@@ -324,11 +358,23 @@ export async function loadTenantAIContext(
     throw new ConfigNotFoundError(tenantId, configVersion);
   }
 
-  const [clinic] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  const [clinic] = await db
+    .select()
+    .from(clinicProfile)
+    .where(eq(clinicProfile.tenantId, tenantId))
+    .limit(1);
   const tenantServices = await db.select().from(services).where(eq(services.tenantId, tenantId));
-  const [booking] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
+  const [booking] = await db
+    .select()
+    .from(bookingRules)
+    .where(eq(bookingRules.tenantId, tenantId))
+    .limit(1);
   const tenantPolicies = await db.select().from(policies).where(eq(policies.tenantId, tenantId));
-  const [voice] = await db.select().from(voiceProfile).where(eq(voiceProfile.tenantId, tenantId)).limit(1);
+  const [voice] = await db
+    .select()
+    .from(voiceProfile)
+    .where(eq(voiceProfile.tenantId, tenantId))
+    .limit(1);
   const faqs = await db.select().from(faqLibrary).where(eq(faqLibrary.tenantId, tenantId));
 
   const context: TenantAIContext = {
@@ -341,7 +387,10 @@ export async function loadTenantAIContext(
     policies: tenantPolicies,
     voiceProfile: {
       ...(voice ?? {}),
-      greetingMessage: normalizeGreetingMessage(clinic?.clinicName ?? 'our clinic', voice?.greetingMessage),
+      greetingMessage: normalizeGreetingMessage(
+        clinic?.clinicName ?? 'our clinic',
+        voice?.greetingMessage,
+      ),
     },
     faqs,
   };
@@ -351,14 +400,24 @@ export async function loadTenantAIContext(
   return context;
 }
 
-export async function loadCurrentTenantAIContext(
-  tenantId: string,
-): Promise<TenantAIContext> {
-  const [clinic] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+export async function loadCurrentTenantAIContext(tenantId: string): Promise<TenantAIContext> {
+  const [clinic] = await db
+    .select()
+    .from(clinicProfile)
+    .where(eq(clinicProfile.tenantId, tenantId))
+    .limit(1);
   const tenantServices = await db.select().from(services).where(eq(services.tenantId, tenantId));
-  const [booking] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
+  const [booking] = await db
+    .select()
+    .from(bookingRules)
+    .where(eq(bookingRules.tenantId, tenantId))
+    .limit(1);
   const tenantPolicies = await db.select().from(policies).where(eq(policies.tenantId, tenantId));
-  const [voice] = await db.select().from(voiceProfile).where(eq(voiceProfile.tenantId, tenantId)).limit(1);
+  const [voice] = await db
+    .select()
+    .from(voiceProfile)
+    .where(eq(voiceProfile.tenantId, tenantId))
+    .limit(1);
   const faqs = await db.select().from(faqLibrary).where(eq(faqLibrary.tenantId, tenantId));
 
   return {
@@ -371,7 +430,10 @@ export async function loadCurrentTenantAIContext(
     policies: tenantPolicies,
     voiceProfile: {
       ...(voice ?? {}),
-      greetingMessage: normalizeGreetingMessage(clinic?.clinicName ?? 'our clinic', voice?.greetingMessage),
+      greetingMessage: normalizeGreetingMessage(
+        clinic?.clinicName ?? 'our clinic',
+        voice?.greetingMessage,
+      ),
     },
     faqs,
   };

@@ -570,6 +570,7 @@ async function processRecognizedTranscript(
     conversationHistory: session.conversationHistory,
     userMessage: transcript,
     sessionState: session.sessionState,
+    callerNumber: session.callerNumber,
   });
   session.sessionState = turnResult.sessionState;
 

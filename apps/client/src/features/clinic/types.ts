@@ -7,6 +7,11 @@ export interface StaffMember {
   phone?: string;
   /** When true (default), AI may offer this person as a bookable provider. */
   acceptsAppointments?: boolean;
+  /**
+   * Days of the week this person works, e.g. ['monday','tuesday','wednesday'].
+   * When set, AI uses this to answer "who works on [day]?" questions.
+   */
+  workingDays?: string[];
 }
 
 export interface ClinicProfile {
