@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
@@ -231,69 +231,6 @@ const formatMessage = (message: unknown): string => {
   }
 };
 
-function useAmbientAudio(active: boolean) {
-  const ctxRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const bufferRef = useRef<AudioBuffer | null>(null);
-
-  useEffect(() => {
-    if (!active) {
-      sourceRef.current?.stop();
-      sourceRef.current = null;
-      ctxRef.current?.close().catch(() => undefined);
-      ctxRef.current = null;
-      return;
-    }
-
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) {
-      console.error('[ambient] AudioContext not supported');
-      return;
-    }
-
-    const ctx = new AudioContextClass();
-    ctxRef.current = ctx;
-
-    const start = (buffer: AudioBuffer) => {
-      ctx.resume().catch((err) => console.error('[ambient] resume failed', err));
-      const gain = ctx.createGain();
-      gain.gain.value = 0.3;
-      gain.connect(ctx.destination);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(gain);
-      source.start();
-      sourceRef.current = source;
-    };
-
-    if (bufferRef.current) {
-      start(bufferRef.current);
-    } else {
-      fetch('/clinic-ambient.mp3')
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.arrayBuffer();
-        })
-        .then((ab) => ctx.decodeAudioData(ab))
-        .then((buffer) => {
-          bufferRef.current = buffer;
-          if (ctxRef.current === ctx) start(buffer);
-        })
-        .catch((err) => console.error('[ambient] failed to load/decode', err));
-    }
-
-    return () => {
-      sourceRef.current?.stop();
-      sourceRef.current = null;
-      ctx.close().catch(() => undefined);
-      ctxRef.current = null;
-    };
-  }, [active]);
-}
-
 export default function ElevenLabsAgentPage() {
   return (
     <ConversationProvider>
@@ -310,6 +247,52 @@ function ElevenLabsAgentPageInner() {
   const [agentNameVar, setAgentNameVar] = useState(DEFAULT_AGENT_NAME);
   const [clinicNameVar, setClinicNameVar] = useState('Your Clinic');
   const conversationIdRef = useRef<string | null>(null);
+  const ambientCtxRef = useRef<AudioContext | null>(null);
+  const ambientSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const ambientBufferRef = useRef<AudioBuffer | null>(null);
+
+  const startAmbient = useCallback(() => {
+    const ctx = ambientCtxRef.current;
+    if (!ctx) return;
+    const play = (buffer: AudioBuffer) => {
+      const gain = ctx.createGain();
+      gain.gain.value = 0.3;
+      gain.connect(ctx.destination);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gain);
+      source.start();
+      ambientSourceRef.current = source;
+    };
+    if (ambientBufferRef.current) {
+      play(ambientBufferRef.current);
+    } else {
+      fetch('/clinic-ambient.mp3')
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.arrayBuffer();
+        })
+        .then((ab) => ctx.decodeAudioData(ab))
+        .then((buffer) => {
+          ambientBufferRef.current = buffer;
+          if (ambientCtxRef.current === ctx) play(buffer);
+        })
+        .catch((err) => console.error('[ambient] load failed', err));
+    }
+  }, []);
+
+  const stopAmbient = useCallback(() => {
+    try {
+      ambientSourceRef.current?.stop();
+    } catch {
+      /* already stopped */
+    }
+    ambientSourceRef.current = null;
+    ambientCtxRef.current?.close().catch(() => undefined);
+    ambientCtxRef.current = null;
+  }, []);
+
   const [createToken, { isLoading: isCreatingToken }] = useCreateConversationTokenMutation();
   const [createSignedUrl, { isLoading: isCreatingSignedUrl }] = useCreateSignedUrlMutation();
   const [fetchConversationDetails] = useLazyGetConversationDetailsQuery();
@@ -532,8 +515,12 @@ function ElevenLabsAgentPageInner() {
         }
       },
     },
-    onConnect: () => appendLog({ role: 'event', text: 'Connected to ElevenLabs.' }),
+    onConnect: () => {
+      appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
+      startAmbient();
+    },
     onDisconnect: () => {
+      stopAmbient();
       appendLog({ role: 'event', text: 'Disconnected.' });
       const conversationId = conversationIdRef.current;
       if (!conversationId) return;
@@ -580,8 +567,6 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'event', text: `Tool response: ${formatMessage(event)}` }),
   });
 
-  useAmbientAudio(conversation.status === 'connected');
-
   const statusLabel = useMemo(() => {
     if (conversation.status === 'connected') return 'Connected';
     if (conversation.status === 'connecting') return 'Connecting';
@@ -600,6 +585,21 @@ function ElevenLabsAgentPageInner() {
         toast.error('Microphone permission is required to start the receptionist.');
         return;
       }
+    }
+
+    // Create and unlock AudioContext during the user gesture so browsers allow playback
+    try {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        stopAmbient();
+        const ctx = new AudioContextClass();
+        await ctx.resume();
+        ambientCtxRef.current = ctx;
+      }
+    } catch {
+      // Non-fatal — ambient will just be silent
     }
 
     const clinicTimezone = clinic?.timezone || 'UTC';
