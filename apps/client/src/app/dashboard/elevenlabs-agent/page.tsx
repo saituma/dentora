@@ -248,12 +248,16 @@ function useAmbientAudio(active: boolean) {
     const AudioContextClass =
       window.AudioContext ||
       (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) {
+      console.error('[ambient] AudioContext not supported');
+      return;
+    }
 
     const ctx = new AudioContextClass();
     ctxRef.current = ctx;
 
     const start = (buffer: AudioBuffer) => {
+      ctx.resume().catch((err) => console.error('[ambient] resume failed', err));
       const gain = ctx.createGain();
       gain.gain.value = 0.3;
       gain.connect(ctx.destination);
@@ -269,13 +273,16 @@ function useAmbientAudio(active: boolean) {
       start(bufferRef.current);
     } else {
       fetch('/clinic-ambient.mp3')
-        .then((r) => r.arrayBuffer())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.arrayBuffer();
+        })
         .then((ab) => ctx.decodeAudioData(ab))
         .then((buffer) => {
           bufferRef.current = buffer;
           if (ctxRef.current === ctx) start(buffer);
         })
-        .catch(() => undefined);
+        .catch((err) => console.error('[ambient] failed to load/decode', err));
     }
 
     return () => {
