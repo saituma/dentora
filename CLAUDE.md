@@ -137,7 +137,7 @@ Hash columns for lookups: `patientProfiles.phoneNumberHash`, `callSessions.calle
 ## Testing
 
 - Server: Vitest. Tests live at `apps/server/src/**/*.test.ts`.
-- E2E: Playwright at `e2e/`. Run with `pnpm --filter @repo/client exec playwright test`.
+- E2E: Playwright at `e2e/`. Run with `pnpm test:e2e` from the repo root. Credentials go in `.env.test` (gitignored).
 - Pre-commit: Husky + lint-staged runs ESLint + Prettier on changed files.
 - CI: TypeScript + tests + lint must pass before deploy.
 
@@ -157,18 +157,17 @@ Hash columns for lookups: `patientProfiles.phoneNumberHash`, `callSessions.calle
 
 ## Deployment
 
-Production: DigitalOcean LON1 Droplet via SSH + Docker Compose.  
-Triggered by: CI passing on `master` → `deploy.yml` workflow.
+Production: Heroku. Deploy by pushing to the `heroku` git remote.
 
 ```bash
-# On the server (manually if needed)
-cd /opt/dental-flow
-git pull origin master
-docker compose -f docker-compose.prod.yaml pull
-docker compose -f docker-compose.prod.yaml up -d --remove-orphans
+# Deploy (manually)
+git push heroku master
+
+# Set up Heroku remote if missing
+heroku git:remote -a <app-name>
 ```
 
-Services: `postgres`, `redis`, `server`, `worker`, `client`, `nginx`, `certbot`, `datadog-agent`.
+The `Procfile` at repo root runs the server: `web: node apps/server/dist/index.js`.
 
 ---
 
