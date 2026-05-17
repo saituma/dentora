@@ -1,3 +1,5 @@
+import React from 'react';
+import { XIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,10 +8,43 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUserFriendlyApiError } from '@/lib/api-error';
-import type { FaqCategory, ServiceCategory } from '../onboarding-types';
+import { isSupportedContextFile, readContextFileContent } from '../onboarding-shared';
+import type { FaqCategory, ServiceCategory, UploadedContextFile } from '../onboarding-types';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 
+const TERMS_FILE_PREFIX = 'clinic-terms-and-conditions';
+const TERMS_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+
 export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
+  const [termsFile, setTermsFile] = React.useState<UploadedContextFile | null>(null);
+  const termsInputRef = React.useRef<HTMLInputElement>(null);
+
+  const onTermsFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > TERMS_MAX_SIZE_BYTES) {
+      toast.error(`${file.name} is too large. Keep the file under 5MB.`);
+      return;
+    }
+    if (!isSupportedContextFile(file)) {
+      toast.error(`${file.name} is not supported. Use TXT, MD, PDF, DOCX, or similar.`);
+      return;
+    }
+    const content = (await readContextFileContent(file)).trim();
+    if (!content) {
+      toast.error(`${file.name} is empty.`);
+      return;
+    }
+    setTermsFile({
+      id: `${TERMS_FILE_PREFIX}-${file.lastModified}`,
+      name: `${TERMS_FILE_PREFIX}-${file.name}`,
+      size: file.size,
+      mimeType: file.type || 'text/plain',
+      content: content.slice(0, 30000),
+    });
+  };
+
   return (
     <Card className="border bg-card/95 shadow-sm rounded-3xl">
       <CardHeader>
@@ -54,6 +89,19 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
               if (validStaff.length > 0) {
                 await flow.saveStaffMembers({ staffMembers: validStaff }).unwrap();
               }
+              if (termsFile) {
+                await flow
+                  .saveContextDocuments({
+                    documents: [
+                      {
+                        name: termsFile.name,
+                        content: termsFile.content,
+                        mimeType: termsFile.mimeType,
+                      },
+                    ],
+                  })
+                  .unwrap();
+              }
               toast.success('Knowledge base saved');
               flow.goNext('voice');
             } catch (error: unknown) {
@@ -62,6 +110,49 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
           }}
         >
           <FieldGroup>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Clinic terms &amp; conditions</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => termsInputRef.current?.click()}
+                >
+                  {termsFile ? 'Replace file' : 'Upload file'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Optional. Upload a TXT, MD, PDF, DOCX, or XLSX up to 5MB. The document is saved as
+                AI context so the receptionist can quote your terms accurately.
+              </p>
+              <input
+                ref={termsInputRef}
+                type="file"
+                accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.xlsx,text/plain,text/markdown,text/csv,application/json,text/xml,text/html,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(event) => void onTermsFileSelected(event)}
+              />
+              {termsFile && (
+                <div className="flex items-start justify-between gap-3 rounded-xl border bg-background/70 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{termsFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {Math.max(1, Math.round(termsFile.size / 1024))} KB
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() => setTermsFile(null)}
+                    aria-label={`Remove ${termsFile.name}`}
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium">Services</p>
@@ -160,7 +251,7 @@ export function KnowledgeBaseStep({ flow }: { flow: OnboardingFlow }) {
 
             <div className="flex flex-wrap gap-3 pt-2">
               <Button type="button" variant="outline" onClick={flow.goBack} className="min-w-28">Back</Button>
-              <Button type="submit" className="min-w-28" disabled={flow.savingServices || flow.savingFaqs || flow.savingStaff}>{flow.savingServices || flow.savingFaqs || flow.savingStaff ? 'Saving...' : 'Next'}</Button>
+              <Button type="submit" className="min-w-28" disabled={flow.savingServices || flow.savingFaqs || flow.savingStaff || flow.savingContextDocuments}>{flow.savingServices || flow.savingFaqs || flow.savingStaff || flow.savingContextDocuments ? 'Saving...' : 'Next'}</Button>
             </div>
           </FieldGroup>
         </form>
