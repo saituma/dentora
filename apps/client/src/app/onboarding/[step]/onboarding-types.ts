@@ -51,6 +51,7 @@ export const STEPS = [
   { id: 'rules', label: 'Rules' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'schedule', label: 'Schedule' },
+  { id: 'clinic-history', label: 'History' },
   { id: 'ai-chat', label: 'AI Chat' },
   { id: 'download', label: 'Download' },
   { id: 'test-call', label: 'Test' },
@@ -74,11 +75,13 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
   },
   voice: {
     title: 'Choose voice and personality',
-    description: 'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
+    description:
+      'Pick an ElevenLabs voice and greeting style that matches your brand and patient experience.',
   },
   'phone-number': {
     title: 'Choose your clinic phone number',
-    description: 'Select one available Twilio number for this clinic. Each clinic can have only one active number.',
+    description:
+      'Select one available Twilio number for this clinic. Each clinic can have only one active number.',
   },
   rules: {
     title: 'Set booking rules',
@@ -90,15 +93,23 @@ export const STEP_META: Record<OnboardingStep, { title: string; description: str
   },
   schedule: {
     title: 'Set clinic hours and breaks',
-    description: 'Define real working days, opening hours, and break windows so booking always respects your clinic schedule.',
+    description:
+      'Define real working days, opening hours, and break windows so booking always respects your clinic schedule.',
+  },
+  'clinic-history': {
+    title: 'Upload your clinic history',
+    description:
+      'Upload existing patient records, visit history, or treatment files so your AI receptionist can reference them when patients call.',
   },
   'ai-chat': {
     title: 'AI Chat to upload data',
-    description: 'Upload clinic docs, scripts, pricing, and FAQs so the AI answers like your front desk.',
+    description:
+      'Upload clinic docs, scripts, pricing, and FAQs so the AI answers like your front desk.',
   },
   download: {
     title: 'Download your clinic context',
-    description: 'Download a PDF of your full onboarding data for review, record-keeping, and updates.',
+    description:
+      'Download a PDF of your full onboarding data for review, record-keeping, and updates.',
   },
   'test-call': {
     title: 'Run a quick test call',

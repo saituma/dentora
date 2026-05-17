@@ -32,18 +32,23 @@ const STEP_FIELDS: Record<string, { fields: FieldMeta[]; nextStep: string }> = {
       { key: 'timezone', label: 'Timezone', type: 'text', placeholder: 'Europe/London' },
     ],
   },
-  'schedule': {
-    nextStep: 'ai-chat',
+  schedule: {
+    nextStep: 'clinic-history',
     fields: [
       { key: 'defaultDuration', label: 'Appt Duration (min)', type: 'number', placeholder: '30' },
       { key: 'cancellationHours', label: 'Cancel Notice (hrs)', type: 'number', placeholder: '24' },
       { key: 'advanceBookingDays', label: 'Max Booking (days)', type: 'number', placeholder: '30' },
     ],
   },
-  'voice': {
+  voice: {
     nextStep: 'phone-number',
     fields: [
-      { key: 'greeting', label: 'Greeting Message', type: 'text', placeholder: 'Hi, welcome to our clinic...' },
+      {
+        key: 'greeting',
+        label: 'Greeting Message',
+        type: 'text',
+        placeholder: 'Hi, welcome to our clinic...',
+      },
     ],
   },
 };
@@ -71,7 +76,9 @@ type ChatMessage = TextMessage | FieldCardMessage;
 const containerVariants: Variants = {
   hidden: { opacity: 0, y: 20, scale: 0.95, transformOrigin: 'bottom right' },
   visible: {
-    opacity: 1, y: 0, scale: 1,
+    opacity: 1,
+    y: 0,
+    scale: 1,
     transition: { type: 'spring', damping: 25, stiffness: 300, staggerChildren: 0.05 },
   },
   exit: { opacity: 0, y: 20, scale: 0.95, transition: { duration: 0.2 } },
@@ -84,7 +91,11 @@ const messageVariants: Variants = {
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-function getScreenContext(pathname: string): { isOnboarding: boolean; screenName: string; subtitle: string } {
+function getScreenContext(pathname: string): {
+  isOnboarding: boolean;
+  screenName: string;
+  subtitle: string;
+} {
   if (pathname?.startsWith('/onboarding')) {
     const step = pathname.split('/').filter(Boolean).at(-1) ?? '';
     return {
@@ -109,14 +120,16 @@ const WELCOME_ONBOARDING: TextMessage = {
   id: 'welcome',
   kind: 'text',
   role: 'assistant',
-  content: "Hi! I'm Dentora AI — your setup assistant. Tell me your clinic details and I'll fill in the forms for you. For example: \"My clinic is Bright Smile Dental at 42 Oak Ave, phone 555-1234\"",
+  content:
+    'Hi! I\'m Dentora AI — your setup assistant. Tell me your clinic details and I\'ll fill in the forms for you. For example: "My clinic is Bright Smile Dental at 42 Oak Ave, phone 555-1234"',
 };
 
 const WELCOME_DASHBOARD: TextMessage = {
   id: 'welcome',
   kind: 'text',
   role: 'assistant',
-  content: "Hey! I'm Dentora AI — your smart assistant. Ask me anything — platform help, call analytics, dental advice, appointment tips, or literally whatever's on your mind. I'm here for it all.",
+  content:
+    "Hey! I'm Dentora AI — your smart assistant. Ask me anything — platform help, call analytics, dental advice, appointment tips, or literally whatever's on your mind. I'm here for it all.",
 };
 
 interface AiAction {
@@ -144,31 +157,39 @@ export function DentoraAiChat() {
     screenCtx.isOnboarding ? WELCOME_ONBOARDING : WELCOME_DASHBOARD,
   ]);
 
-  const executeActions = useCallback((actions: AiAction[]) => {
-    for (const action of actions) {
-      switch (action.type) {
-        case 'updateFields':
-          if (action.fields && Object.keys(action.fields).length > 0) {
-            window.dispatchEvent(new CustomEvent('dentora-ai-fields', { detail: action.fields }));
-          }
-          break;
-        case 'save':
-          window.dispatchEvent(new CustomEvent('dentora-ai-save'));
-          break;
-        case 'navigate':
-          if (action.path) {
-            router.push(action.path);
-          }
-          break;
-        case 'showToast':
-          if (action.message) {
-            const toastFn = action.toastType === 'error' ? toast.error : action.toastType === 'info' ? toast.info : toast.success;
-            toastFn(action.message);
-          }
-          break;
+  const executeActions = useCallback(
+    (actions: AiAction[]) => {
+      for (const action of actions) {
+        switch (action.type) {
+          case 'updateFields':
+            if (action.fields && Object.keys(action.fields).length > 0) {
+              window.dispatchEvent(new CustomEvent('dentora-ai-fields', { detail: action.fields }));
+            }
+            break;
+          case 'save':
+            window.dispatchEvent(new CustomEvent('dentora-ai-save'));
+            break;
+          case 'navigate':
+            if (action.path) {
+              router.push(action.path);
+            }
+            break;
+          case 'showToast':
+            if (action.message) {
+              const toastFn =
+                action.toastType === 'error'
+                  ? toast.error
+                  : action.toastType === 'info'
+                    ? toast.info
+                    : toast.success;
+              toastFn(action.message);
+            }
+            break;
+        }
       }
-    }
-  }, [router]);
+    },
+    [router],
+  );
 
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
@@ -193,7 +214,9 @@ export function DentoraAiChat() {
 
   const advanceStep = () => {
     if (stepConfig?.nextStep) {
-      window.dispatchEvent(new CustomEvent('dentora-ai-next-step', { detail: { step: stepConfig.nextStep } }));
+      window.dispatchEvent(
+        new CustomEvent('dentora-ai-next-step', { detail: { step: stepConfig.nextStep } }),
+      );
     }
   };
 
@@ -201,7 +224,12 @@ export function DentoraAiChat() {
     const text = draft.trim();
     if (!text || isThinking) return;
 
-    const userMsg: TextMessage = { id: `u-${Date.now()}`, kind: 'text', role: 'user', content: text };
+    const userMsg: TextMessage = {
+      id: `u-${Date.now()}`,
+      kind: 'text',
+      role: 'user',
+      content: text,
+    };
     const allMessages = [...messages, userMsg];
     setMessages(allMessages);
     setDraft('');
@@ -215,7 +243,9 @@ export function DentoraAiChat() {
       const csrf = await fetchCsrfToken();
       if (csrf) headers['x-csrf-token'] = csrf;
 
-      const textMessages = allMessages.filter((m): m is TextMessage => m.kind === 'text' && m.id !== 'welcome');
+      const textMessages = allMessages.filter(
+        (m): m is TextMessage => m.kind === 'text' && m.id !== 'welcome',
+      );
 
       const res = await fetch(`${API_BASE_URL}/onboarding/ai-chat`, {
         method: 'POST',
@@ -279,7 +309,9 @@ export function DentoraAiChat() {
   };
 
   const confirmCard = (cardId: string) => {
-    const card = messages.find((m) => m.id === cardId && m.kind === 'field-card') as FieldCardMessage | undefined;
+    const card = messages.find((m) => m.id === cardId && m.kind === 'field-card') as
+      | FieldCardMessage
+      | undefined;
     if (!card) return;
 
     applyFields(card.fields);
@@ -393,7 +425,10 @@ export function DentoraAiChat() {
                                   value={String(value)}
                                   disabled={msg.confirmed}
                                   onChange={(e) => {
-                                    const v = meta?.type === 'number' ? Number(e.target.value) || 0 : e.target.value;
+                                    const v =
+                                      meta?.type === 'number'
+                                        ? Number(e.target.value) || 0
+                                        : e.target.value;
                                     updateCardField(msg.id, key, v);
                                   }}
                                   className={cn(
@@ -450,7 +485,12 @@ export function DentoraAiChat() {
                         </AvatarFallback>
                       </Avatar>
                     )}
-                    <div className={cn('flex max-w-[85%] flex-col gap-1', msg.role === 'user' && 'items-end')}>
+                    <div
+                      className={cn(
+                        'flex max-w-[85%] flex-col gap-1',
+                        msg.role === 'user' && 'items-end',
+                      )}
+                    >
                       {msg.role === 'assistant' && (
                         <span className="text-xs font-medium text-gray-600">Dentora AI</span>
                       )}
@@ -467,12 +507,35 @@ export function DentoraAiChat() {
                             remarkPlugins={[remarkGfm]}
                             components={{
                               p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
-                              strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-                              ul: ({ children }) => <ul className="mb-1.5 ml-4 list-disc space-y-0.5 last:mb-0">{children}</ul>,
-                              ol: ({ children }) => <ol className="mb-1.5 ml-4 list-decimal space-y-0.5 last:mb-0">{children}</ol>,
+                              strong: ({ children }) => (
+                                <strong className="font-semibold text-white">{children}</strong>
+                              ),
+                              ul: ({ children }) => (
+                                <ul className="mb-1.5 ml-4 list-disc space-y-0.5 last:mb-0">
+                                  {children}
+                                </ul>
+                              ),
+                              ol: ({ children }) => (
+                                <ol className="mb-1.5 ml-4 list-decimal space-y-0.5 last:mb-0">
+                                  {children}
+                                </ol>
+                              ),
                               li: ({ children }) => <li>{children}</li>,
-                              code: ({ children }) => <code className="rounded bg-white/10 px-1 py-0.5 text-xs text-blue-300">{children}</code>,
-                              a: ({ href, children }) => <a href={href} className="text-blue-400 underline underline-offset-2" target="_blank" rel="noopener noreferrer">{children}</a>,
+                              code: ({ children }) => (
+                                <code className="rounded bg-white/10 px-1 py-0.5 text-xs text-blue-300">
+                                  {children}
+                                </code>
+                              ),
+                              a: ({ href, children }) => (
+                                <a
+                                  href={href}
+                                  className="text-blue-400 underline underline-offset-2"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  {children}
+                                </a>
+                              ),
                             }}
                           >
                             {msg.content}
@@ -487,7 +550,11 @@ export function DentoraAiChat() {
               })}
 
               {isThinking && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-3">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-3"
+                >
                   <Avatar className="h-8 w-8 shrink-0 border border-white/[0.06] shadow-sm">
                     <AvatarFallback className="bg-blue-500/10 text-blue-400">
                       <Sparkles className="h-3.5 w-3.5" />
@@ -518,7 +585,9 @@ export function DentoraAiChat() {
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder={screenCtx.isOnboarding ? "Tell me your clinic details..." : "Ask me anything..."}
+                  placeholder={
+                    screenCtx.isOnboarding ? 'Tell me your clinic details...' : 'Ask me anything...'
+                  }
                   className="flex-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none transition-all placeholder:text-gray-600 focus:border-blue-500/40 focus:ring-2 focus:ring-blue-500/10"
                 />
                 <Button
@@ -551,11 +620,23 @@ export function DentoraAiChat() {
         <span className="absolute inset-0 -z-10 rounded-full bg-inherit opacity-20 blur-xl transition-opacity duration-300 group-hover:opacity-40" />
         <AnimatePresence mode="wait">
           {isOpen ? (
-            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
+            <motion.div
+              key="close"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
               <X className="h-6 w-6" />
             </motion.div>
           ) : (
-            <motion.div key="chat" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
+            <motion.div
+              key="chat"
+              initial={{ rotate: 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -90, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
               <MessageSquare className="h-6 w-6" />
             </motion.div>
           )}

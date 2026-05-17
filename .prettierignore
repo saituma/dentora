@@ -5,4 +5,7 @@ out
 build
 *.lock
 pnpm-lock.yaml
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
 apps/server/drizzle

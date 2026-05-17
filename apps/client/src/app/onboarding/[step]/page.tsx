@@ -12,17 +12,26 @@ import { ClinicProfileStep } from './steps/basic-steps';
 import { KnowledgeBaseStep } from './steps/knowledge-step';
 import { VoiceStep } from './steps/voice-step';
 import { IntegrationsStep, PhoneNumberStep, ScheduleStep } from './steps/operations-steps';
-import { AiChatStep, DownloadDataStep, OnboardingCompleteStep, TestCallStep } from './steps/context-publish-steps';
+import {
+  AiChatStep,
+  ClinicHistoryStep,
+  DownloadDataStep,
+  OnboardingCompleteStep,
+  TestCallStep,
+} from './steps/context-publish-steps';
 import { DentoraProgressLogo } from './dentora-progress-logo';
 
 function OnboardingStepContent() {
   const flow = useOnboardingFlow();
   const dispatch = useAppDispatch();
-  const authOnboardingComplete = useAppSelector((state) => state.auth.onboardingStatus === 'complete');
+  const authOnboardingComplete = useAppSelector(
+    (state) => state.auth.onboardingStatus === 'complete',
+  );
 
-  const { data: serverOnboarding, isLoading: onboardingStatusLoading } = useGetOnboardingStatusQuery(undefined, {
-    skip: flow.step !== 'complete',
-  });
+  const { data: serverOnboarding, isLoading: onboardingStatusLoading } =
+    useGetOnboardingStatusQuery(undefined, {
+      skip: flow.step !== 'complete',
+    });
   const serverSaysPublished = serverOnboarding?.hasPublishedConfig === true;
   const showCelebration = authOnboardingComplete || serverSaysPublished;
   const resolvingPublishedState =
@@ -91,7 +100,9 @@ function OnboardingStepContent() {
             <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
               Step {flow.currentStep + 1} of {STEPS.length}
             </p>
-            <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">{STEP_META[flow.step].title}</h1>
+            <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">
+              {STEP_META[flow.step].title}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">{STEP_META[flow.step].description}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -101,7 +112,10 @@ function OnboardingStepContent() {
             </div>
           </div>
         </div>
-        <Stepper steps={STEPS as unknown as Array<{ id: string; label: string }>} currentStep={flow.currentStep} />
+        <Stepper
+          steps={STEPS as unknown as Array<{ id: string; label: string }>}
+          currentStep={flow.currentStep}
+        />
       </div>
 
       {flow.step === 'clinic-profile' && <ClinicProfileStep flow={flow} />}
@@ -110,6 +124,7 @@ function OnboardingStepContent() {
       {flow.step === 'phone-number' && <PhoneNumberStep flow={flow} />}
       {flow.step === 'integrations' && <IntegrationsStep flow={flow} />}
       {flow.step === 'schedule' && <ScheduleStep flow={flow} />}
+      {flow.step === 'clinic-history' && <ClinicHistoryStep flow={flow} />}
       {flow.step === 'ai-chat' && <AiChatStep flow={flow} />}
       {flow.step === 'download' && <DownloadDataStep flow={flow} />}
       {flow.step === 'test-call' && <TestCallStep flow={flow} />}

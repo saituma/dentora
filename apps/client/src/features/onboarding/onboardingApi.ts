@@ -140,7 +140,7 @@ export interface ConfigChatResponse {
 export const onboardingApi = createApi({
   reducerPath: 'onboardingApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['OnboardingStatus', 'Readiness', 'ContextDocuments'],
+  tagTypes: ['OnboardingStatus', 'Readiness', 'ContextDocuments', 'ClinicHistoryFiles'],
   endpoints: (builder) => ({
     getOnboardingStatus: builder.query<OnboardingStatus, void>({
       query: () => '/onboarding/status',
@@ -165,7 +165,10 @@ export const onboardingApi = createApi({
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
 
-    saveServices: builder.mutation<{ success: boolean; step: string }, { services: ServiceInput[] }>({
+    saveServices: builder.mutation<
+      { success: boolean; step: string },
+      { services: ServiceInput[] }
+    >({
       query: (data) => ({
         url: '/onboarding/services',
         method: 'POST',
@@ -183,14 +186,16 @@ export const onboardingApi = createApi({
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
 
-    savePolicies: builder.mutation<{ success: boolean; step: string }, { policies: PolicyInput[] }>({
-      query: (data) => ({
-        url: '/onboarding/policies',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['OnboardingStatus', 'Readiness'],
-    }),
+    savePolicies: builder.mutation<{ success: boolean; step: string }, { policies: PolicyInput[] }>(
+      {
+        query: (data) => ({
+          url: '/onboarding/policies',
+          method: 'POST',
+          body: data,
+        }),
+        invalidatesTags: ['OnboardingStatus', 'Readiness'],
+      },
+    ),
 
     saveVoiceProfile: builder.mutation<{ success: boolean; step: string }, VoiceProfileInput>({
       query: (data) => ({
@@ -210,7 +215,10 @@ export const onboardingApi = createApi({
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
 
-    saveStaffMembers: builder.mutation<{ success: boolean; step: string }, { staffMembers: StaffMemberInput[] }>({
+    saveStaffMembers: builder.mutation<
+      { success: boolean; step: string },
+      { staffMembers: StaffMemberInput[] }
+    >({
       query: (data) => ({
         url: '/onboarding/staff',
         method: 'POST',
@@ -331,10 +339,7 @@ export const onboardingApi = createApi({
       }),
       invalidatesTags: ['OnboardingStatus', 'Readiness'],
     }),
-    uploadContextDocuments: builder.mutation<
-      { success: boolean; count: number },
-      FormData
-    >({
+    uploadContextDocuments: builder.mutation<{ success: boolean; count: number }, FormData>({
       query: (formData) => ({
         url: '/onboarding/context-documents/upload',
         method: 'POST',
@@ -343,13 +348,66 @@ export const onboardingApi = createApi({
       invalidatesTags: ['OnboardingStatus', 'Readiness', 'ContextDocuments'],
     }),
     getContextDocuments: builder.query<
-      { data: Array<{ id: string; title: string; mimeType: string; charCount: number; preview: string }> },
+      {
+        data: Array<{
+          id: string;
+          title: string;
+          mimeType: string;
+          charCount: number;
+          preview: string;
+        }>;
+      },
       void
     >({
       query: () => ({
         url: '/onboarding/context-documents',
       }),
       providesTags: ['ContextDocuments'],
+    }),
+    getClinicHistoryFiles: builder.query<
+      {
+        data: Array<{
+          id: string;
+          name: string;
+          mimeType: string;
+          sizeBytes: number;
+          createdAt: string;
+        }>;
+      },
+      void
+    >({
+      query: () => ({
+        url: '/onboarding/clinic-history',
+      }),
+      providesTags: ['ClinicHistoryFiles'],
+    }),
+    uploadClinicHistoryFiles: builder.mutation<
+      {
+        success: boolean;
+        count: number;
+        files: Array<{
+          id: string;
+          name: string;
+          mimeType: string;
+          sizeBytes: number;
+          createdAt: string;
+        }>;
+      },
+      FormData
+    >({
+      query: (formData) => ({
+        url: '/onboarding/clinic-history/upload',
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['ClinicHistoryFiles', 'OnboardingStatus'],
+    }),
+    deleteClinicHistoryFile: builder.mutation<{ success: boolean }, string>({
+      query: (fileId) => ({
+        url: `/onboarding/clinic-history/${encodeURIComponent(fileId)}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['ClinicHistoryFiles'],
     }),
   }),
 });
@@ -371,4 +429,7 @@ export const {
   useSaveContextDocumentsMutation,
   useUploadContextDocumentsMutation,
   useGetContextDocumentsQuery,
+  useGetClinicHistoryFilesQuery,
+  useUploadClinicHistoryFilesMutation,
+  useDeleteClinicHistoryFileMutation,
 } = onboardingApi;

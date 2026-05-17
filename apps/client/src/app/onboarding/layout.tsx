@@ -15,22 +15,22 @@ const ONBOARDING_STEPS = [
   { id: 'phone-number', label: 'Phone Number' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'schedule', label: 'Clinic Schedule' },
+  { id: 'clinic-history', label: 'Clinic History' },
   { id: 'ai-chat', label: 'AI Context' },
   { id: 'download', label: 'Export Data' },
   { id: 'test-call', label: 'Review & Publish' },
   { id: 'complete', label: 'Complete' },
 ] as const;
 
-export default function OnboardingLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isHydrated } = useAppSelector((state) => state.auth);
   const router = useRouter();
   const pathname = usePathname();
   const activeStepId = pathname?.split('/').filter(Boolean).at(-1) ?? 'clinic-profile';
-  const activeStepIndex = Math.max(0, ONBOARDING_STEPS.findIndex((step) => step.id === activeStepId));
+  const activeStepIndex = Math.max(
+    0,
+    ONBOARDING_STEPS.findIndex((step) => step.id === activeStepId),
+  );
   const activeStep = ONBOARDING_STEPS[activeStepIndex] ?? ONBOARDING_STEPS[0];
   const totalSteps = ONBOARDING_STEPS.length;
 
@@ -63,12 +63,15 @@ export default function OnboardingLayout({
           </div>
           <div className="relative space-y-8">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-gray-500">Onboarding</p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-gray-500">
+                Onboarding
+              </p>
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Build your AI front desk
               </h1>
               <p className="mt-2 max-w-md text-sm text-gray-400">
-                Set up your Dentora AI receptionist in a few simple steps — calls, scheduling, and patient communication on autopilot.
+                Set up your Dentora AI receptionist in a few simple steps — calls, scheduling, and
+                patient communication on autopilot.
               </p>
             </div>
 
@@ -96,7 +99,9 @@ export default function OnboardingLayout({
                           : 'border-white/[0.06] bg-transparent text-gray-600'
                     }`}
                   >
-                    <span className="w-6 text-[10px] tabular-nums">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="w-6 text-[10px] tabular-nums">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
                     <span className="truncate">{step.label}</span>
                   </div>
                 );

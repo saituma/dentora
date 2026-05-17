@@ -17,6 +17,7 @@ import { logger } from '../../lib/logger.js';
 import { db } from '../../db/index.js';
 import {
   bookingRules,
+  clinicHistoryFiles,
   clinicProfile,
   faqLibrary,
   integrations,
@@ -25,11 +26,12 @@ import {
   tenantRegistry,
   voiceProfile,
 } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import PDFDocument from 'pdfkit';
 import type { Readable } from 'stream';
-import { uploadFile, buildStorageKey, isStorageConfigured } from '../../lib/storage.js';
+import { buildStorageKey, deleteFile, isStorageConfigured, uploadFile } from '../../lib/storage.js';
+import { decryptField, encryptField } from '../../lib/encrypted-column.js';
 
 export const onboardingRouter = Router();
 
@@ -46,6 +48,22 @@ const CONTEXT_DOC_MAX_CHARS = 200000;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: CONTEXT_DOC_MAX_BYTES, files: 10 },
+});
+
+const CLINIC_HISTORY_MAX_BYTES = 20 * 1024 * 1024;
+const CLINIC_HISTORY_ALLOWED_EXTENSIONS = new Set([
+  'csv',
+  'xlsx',
+  'xls',
+  'json',
+  'pdf',
+  'docx',
+  'txt',
+]);
+
+const clinicHistoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: CLINIC_HISTORY_MAX_BYTES, files: 10 },
 });
 
 const liveTranscribeRawParser = express.raw({
@@ -1076,6 +1094,169 @@ onboardingRouter.post(
     }
   },
 );
+
+onboardingRouter.get('/clinic-history', async (req, res, next) => {
+  try {
+    const tenantId = req.tenantContext!.tenantId;
+    const rows = await db
+      .select({
+        id: clinicHistoryFiles.id,
+        originalName: clinicHistoryFiles.originalName,
+        mimeType: clinicHistoryFiles.mimeType,
+        sizeBytes: clinicHistoryFiles.sizeBytes,
+        createdAt: clinicHistoryFiles.createdAt,
+      })
+      .from(clinicHistoryFiles)
+      .where(eq(clinicHistoryFiles.tenantId, tenantId))
+      .orderBy(desc(clinicHistoryFiles.createdAt));
+
+    req.audit?.({
+      action: 'onboarding.clinic_history_listed',
+      entityType: 'clinic_history_files',
+      entityId: tenantId,
+    });
+
+    res.json({
+      data: rows.map((row) => ({
+        id: row.id,
+        name: decryptField(row.originalName) ?? '',
+        mimeType: row.mimeType,
+        sizeBytes: row.sizeBytes,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+onboardingRouter.post(
+  '/clinic-history/upload',
+  clinicHistoryUpload.array('files', 10),
+  async (req, res, next) => {
+    try {
+      if (!isStorageConfigured()) {
+        throw new ValidationError(
+          'Object storage is not configured. Contact support before uploading patient history.',
+        );
+      }
+
+      const files = (req.files ?? []) as Express.Multer.File[];
+      if (!files.length) {
+        throw new ValidationError('No files uploaded.');
+      }
+
+      const tenantId = req.tenantContext!.tenantId;
+      const userId = req.user?.userId;
+      const inserted: Array<{
+        id: string;
+        name: string;
+        mimeType: string;
+        sizeBytes: number;
+        createdAt: string;
+      }> = [];
+
+      for (const file of files) {
+        const extension = getFileExtension(file.originalname);
+        if (!CLINIC_HISTORY_ALLOWED_EXTENSIONS.has(extension)) {
+          throw new ValidationError(
+            `Unsupported file type for ${file.originalname}. Allowed: CSV, XLSX, XLS, JSON, PDF, DOCX, TXT.`,
+          );
+        }
+
+        const storageKey = buildStorageKey(tenantId, 'patient-history', file.originalname);
+        await uploadFile({
+          key: storageKey,
+          body: file.buffer,
+          contentType: file.mimetype || 'application/octet-stream',
+          metadata: { tenantId, uploadedBy: userId ?? 'unknown' },
+        });
+
+        const encryptedName = encryptField(file.originalname);
+        if (!encryptedName) {
+          throw new ValidationError(`Could not store ${file.originalname}.`);
+        }
+
+        const [row] = await db
+          .insert(clinicHistoryFiles)
+          .values({
+            tenantId,
+            originalName: encryptedName,
+            mimeType: file.mimetype || 'application/octet-stream',
+            sizeBytes: file.size,
+            storageKey,
+            uploadedByUserId: userId ?? null,
+          })
+          .returning({
+            id: clinicHistoryFiles.id,
+            createdAt: clinicHistoryFiles.createdAt,
+          });
+
+        inserted.push({
+          id: row.id,
+          name: file.originalname,
+          mimeType: file.mimetype || 'application/octet-stream',
+          sizeBytes: file.size,
+          createdAt: row.createdAt.toISOString(),
+        });
+
+        req.audit?.({
+          action: 'onboarding.clinic_history_uploaded',
+          entityType: 'clinic_history_files',
+          entityId: row.id,
+          afterState: { sizeBytes: file.size, mimeType: file.mimetype },
+        });
+      }
+
+      res.json({ success: true, count: inserted.length, files: inserted });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+onboardingRouter.delete('/clinic-history/:id', async (req, res, next) => {
+  try {
+    const tenantId = req.tenantContext!.tenantId;
+    const fileId = String(req.params.id ?? '');
+    if (!fileId) {
+      throw new ValidationError('Missing file id.');
+    }
+
+    const [row] = await db
+      .select({ id: clinicHistoryFiles.id, storageKey: clinicHistoryFiles.storageKey })
+      .from(clinicHistoryFiles)
+      .where(and(eq(clinicHistoryFiles.id, fileId), eq(clinicHistoryFiles.tenantId, tenantId)))
+      .limit(1);
+
+    if (!row) {
+      return res.status(404).json({ error: 'File not found.' });
+    }
+
+    try {
+      await deleteFile(row.storageKey);
+    } catch (storageErr) {
+      logger.warn(
+        { err: storageErr, storageKey: row.storageKey, tenantId },
+        'Failed to delete clinic history file from object storage; deleting DB row anyway',
+      );
+    }
+
+    await db
+      .delete(clinicHistoryFiles)
+      .where(and(eq(clinicHistoryFiles.id, fileId), eq(clinicHistoryFiles.tenantId, tenantId)));
+
+    req.audit?.({
+      action: 'onboarding.clinic_history_deleted',
+      entityType: 'clinic_history_files',
+      entityId: fileId,
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 onboardingRouter.post('/publish', async (req, res, next) => {
   try {

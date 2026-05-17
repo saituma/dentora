@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/store/hooks";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAppSelector } from '@/store/hooks';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,9 +14,7 @@ export function ProtectedRoute({
   requireOnboardingComplete = false,
 }: ProtectedRouteProps) {
   const router = useRouter();
-  const { isAuthenticated, onboardingStatus, isHydrated } = useAppSelector(
-    (state) => state.auth
-  );
+  const { isAuthenticated, onboardingStatus, isHydrated } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -24,40 +22,33 @@ export function ProtectedRoute({
     }
 
     if (!isAuthenticated) {
-      router.replace("/login");
+      router.replace('/login');
       return;
     }
-    if (
-      requireOnboardingComplete &&
-      onboardingStatus !== "complete"
-    ) {
+    if (requireOnboardingComplete && onboardingStatus !== 'complete') {
       const step =
-        onboardingStatus === "clinic-profile"
-          ? "clinic-profile"
-          : onboardingStatus === "plan"
-            ? "plan"
-          : onboardingStatus === "knowledge-base"
-            ? "knowledge-base"
-            : onboardingStatus === "voice"
-              ? "voice"
-              : onboardingStatus === "rules"
-                ? "rules"
-                : onboardingStatus === "integrations"
-                  ? "integrations"
-                  : onboardingStatus === "ai-chat"
-                    ? "ai-chat"
-                  : onboardingStatus === "test-call"
-                    ? "test-call"
-                    : "clinic-profile";
+        onboardingStatus === 'clinic-profile'
+          ? 'clinic-profile'
+          : onboardingStatus === 'plan'
+            ? 'plan'
+            : onboardingStatus === 'knowledge-base'
+              ? 'knowledge-base'
+              : onboardingStatus === 'voice'
+                ? 'voice'
+                : onboardingStatus === 'rules'
+                  ? 'rules'
+                  : onboardingStatus === 'integrations'
+                    ? 'integrations'
+                    : onboardingStatus === 'clinic-history'
+                      ? 'clinic-history'
+                      : onboardingStatus === 'ai-chat'
+                        ? 'ai-chat'
+                        : onboardingStatus === 'test-call'
+                          ? 'test-call'
+                          : 'clinic-profile';
       router.replace(`/onboarding/${step}`);
     }
-  }, [
-    isAuthenticated,
-    onboardingStatus,
-    requireOnboardingComplete,
-    router,
-    isHydrated,
-  ]);
+  }, [isAuthenticated, onboardingStatus, requireOnboardingComplete, router, isHydrated]);
 
   if (!isHydrated) {
     return null;
@@ -67,10 +58,7 @@ export function ProtectedRoute({
     return null;
   }
 
-  if (
-    requireOnboardingComplete &&
-    onboardingStatus !== "complete"
-  ) {
+  if (requireOnboardingComplete && onboardingStatus !== 'complete') {
     return null;
   }
 

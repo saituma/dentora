@@ -1005,6 +1005,24 @@ export const tenantApiKeys = pgTable(
   ],
 );
 
+export const clinicHistoryFiles = pgTable(
+  'clinic_history_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    originalName: text('original_name').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    storageKey: text('storage_key').notNull(),
+    uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('clinic_history_files_tenant_idx').on(table.tenantId, table.createdAt)],
+);
+
 export const calendarPhiRemediationRuns = pgTable(
   'calendar_phi_remediation_runs',
   {
@@ -1106,6 +1124,17 @@ export const faqLibraryRelations = relations(faqLibrary, ({ one }) => ({
 
 export const integrationsRelations = relations(integrations, ({ one }) => ({
   tenant: one(tenantRegistry, { fields: [integrations.tenantId], references: [tenantRegistry.id] }),
+}));
+
+export const clinicHistoryFilesRelations = relations(clinicHistoryFiles, ({ one }) => ({
+  tenant: one(tenantRegistry, {
+    fields: [clinicHistoryFiles.tenantId],
+    references: [tenantRegistry.id],
+  }),
+  uploadedBy: one(users, {
+    fields: [clinicHistoryFiles.uploadedByUserId],
+    references: [users.id],
+  }),
 }));
 
 export const appointmentsRelations = relations(appointments, ({ one }) => ({

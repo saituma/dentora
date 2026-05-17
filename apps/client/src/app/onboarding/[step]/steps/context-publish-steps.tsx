@@ -4,9 +4,11 @@ import {
   BotIcon,
   CameraIcon,
   CheckCircle2Icon,
+  FileTextIcon,
   GlobeIcon,
   PaperclipIcon,
   SendHorizontalIcon,
+  UploadCloudIcon,
   UserIcon,
   XIcon,
 } from 'lucide-react';
@@ -21,6 +23,11 @@ import { getUserFriendlyApiError } from '@/lib/api-error';
 import { API_BASE_URL, ensureFreshAccessToken, getAuthHeaders, fetchCsrfToken } from '@/lib/api';
 import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
 import type { ClinicProfile } from '@/features/clinic/types';
+import {
+  useDeleteClinicHistoryFileMutation,
+  useGetClinicHistoryFilesQuery,
+  useUploadClinicHistoryFilesMutation,
+} from '@/features/onboarding/onboardingApi';
 import { useRouter } from 'next/navigation';
 import type { OnboardingFlow } from '../use-onboarding-flow';
 import { STEP_ORDER } from '../onboarding-types';
@@ -503,6 +510,211 @@ export function AiChatStep({ flow }: { flow: OnboardingFlow }) {
           >
             {savingClinicMaterials ? 'Saving…' : 'Save website & photo'}
           </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const PATIENT_DATA_ACCEPT =
+  '.csv,.xlsx,.xls,.json,.pdf,.docx,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/json,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain';
+
+const PATIENT_DATA_ALLOWED_EXTENSIONS = new Set([
+  'csv',
+  'xlsx',
+  'xls',
+  'json',
+  'pdf',
+  'docx',
+  'txt',
+]);
+
+const MAX_PATIENT_FILE_BYTES = 20 * 1024 * 1024;
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getExt(name: string): string {
+  const parts = name.toLowerCase().split('.');
+  return parts.length > 1 ? parts[parts.length - 1] : '';
+}
+
+export function ClinicHistoryStep({ flow }: { flow: OnboardingFlow }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const {
+    data: serverFiles,
+    isLoading: loadingFiles,
+    isFetching: fetchingFiles,
+  } = useGetClinicHistoryFilesQuery();
+  const [uploadFiles, { isLoading: uploading }] = useUploadClinicHistoryFilesMutation();
+  const [deleteFile, { isLoading: deleting }] = useDeleteClinicHistoryFileMutation();
+
+  const files = serverFiles?.data ?? [];
+
+  const handleSelected = async (selected: FileList | File[] | null) => {
+    if (!selected) return;
+    const incoming = Array.from(selected);
+    if (incoming.length === 0) return;
+
+    const accepted: File[] = [];
+    for (const file of incoming) {
+      if (file.size > MAX_PATIENT_FILE_BYTES) {
+        toast.error(`${file.name} is larger than 20MB.`);
+        continue;
+      }
+      if (!PATIENT_DATA_ALLOWED_EXTENSIONS.has(getExt(file.name))) {
+        toast.error(`${file.name} is not a supported file type.`);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length === 0) return;
+
+    const formData = new FormData();
+    for (const file of accepted) formData.append('files', file, file.name);
+
+    try {
+      const result = await uploadFiles(formData).unwrap();
+      toast.success(`${result.count} file${result.count === 1 ? '' : 's'} uploaded`);
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyApiError(error));
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    try {
+      await deleteFile(id).unwrap();
+      toast.success('File removed');
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyApiError(error));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="border bg-card/95 shadow-sm rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-xl">Upload patient history</CardTitle>
+          <CardDescription>
+            Add existing patient records, treatment history, or visit logs (CSV, Excel, PDF, Word).
+            Each file must be under 20MB. Files are encrypted at rest and never shared between
+            clinics.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={PATIENT_DATA_ACCEPT}
+            className="hidden"
+            onChange={(event) => {
+              void handleSelected(event.target.files);
+              event.target.value = '';
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDragging(false);
+              void handleSelected(event.dataTransfer.files);
+            }}
+            className={`flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              isDragging
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/30 bg-muted/10 hover:border-primary/50 hover:bg-muted/20'
+            }`}
+          >
+            <UploadCloudIcon className="size-8 text-muted-foreground" aria-hidden />
+            <p className="text-sm font-medium">
+              {uploading ? 'Uploading…' : 'Click to upload or drag files here'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              CSV, Excel, PDF, Word, JSON, TXT — up to 20MB per file
+            </p>
+          </button>
+
+          <div className="rounded-2xl border bg-muted/10 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Uploaded files</p>
+              <Badge variant="outline">{files.length}</Badge>
+            </div>
+            {loadingFiles ? (
+              <p className="mt-3 text-sm text-muted-foreground">Loading files…</p>
+            ) : files.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No patient history files uploaded yet. You can skip this step and add files later
+                from settings.
+              </p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {files.map((file) => (
+                  <div key={file.id} className="rounded-lg border bg-background p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <FileTextIcon
+                          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatFileSize(file.sizeBytes)}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => void handleRemove(file.id)}
+                        disabled={deleting}
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={flow.goBack} className="min-w-28">
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => flow.goNext('ai-chat')}
+              disabled={uploading || fetchingFiles}
+              className="min-w-40"
+            >
+              Save & Continue
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => flow.goNext('ai-chat')}
+              className="min-w-32"
+            >
+              Skip for now
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
