@@ -55,7 +55,7 @@ function OnboardingStepContent() {
         <div className="min-w-0 max-w-full border border-foreground/[0.1] bg-card/95 p-5 shadow-sm backdrop-blur sm:p-7">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="text-xs font-medium text-[#b275ff]">
                 Step {STEPS.length} of {STEPS.length}
               </p>
               <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">
@@ -97,7 +97,7 @@ function OnboardingStepContent() {
       <div className="min-w-0 max-w-full border border-foreground/[0.1] bg-card/95 p-5 shadow-sm backdrop-blur sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-xs font-medium text-[#b275ff]">
               Step {flow.currentStep + 1} of {STEPS.length}
             </p>
             <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">

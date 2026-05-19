@@ -13,7 +13,7 @@ export default function AnalyticsLoading() {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-3"
+            className="rounded-xl border border-black/[0.06] bg-black/[0.02] p-5 space-y-3"
           >
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-32 w-full rounded-lg" />

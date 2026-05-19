@@ -9,7 +9,7 @@ const fadeUp = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true },
-  transition: { duration: 0.7, ease: [0.32, 0.72, 0, 1] as const },
+  transition: { duration: 0.7, ease: 'easeOut' as const },
 };
 
 export default function ContactPage() {
@@ -26,82 +26,99 @@ export default function ContactPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
       <motion.div {...fadeUp} className="mb-16 text-center">
-        <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-blue-400">CONTACT US</p>
-        <h1 className="text-4xl font-bold text-white md:text-5xl">Get in Touch</h1>
-        <p className="mx-auto mt-4 max-w-lg text-lg text-gray-400">
-          Questions? Want a demo? We're here to help.
+        <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#b275ff]">
+          Contact Us
+        </p>
+        <h1 className="font-display text-4xl font-bold text-black md:text-5xl">Get in Touch</h1>
+        <p className="mx-auto mt-4 max-w-lg text-lg text-gray-500">
+          Questions? Want a demo? We&apos;re here to help.
         </p>
       </motion.div>
 
       <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-5">
-        <motion.div {...fadeUp} className="space-y-6 lg:col-span-2">
+        <motion.div {...fadeUp} className="space-y-4 lg:col-span-2">
           {[
-            { icon: Mail, title: 'Email', detail: 'info@clientreach.ai', sub: 'We respond within 24 hours' },
+            {
+              icon: Mail,
+              title: 'Email',
+              detail: 'info@clientreach.ai',
+              sub: 'We respond within 24 hours',
+            },
             { icon: Phone, title: 'Phone', detail: '(555) 123-4567', sub: 'Mon–Fri 9am–5pm EST' },
-            { icon: MapPin, title: 'Office', detail: 'Remote-first company', sub: 'Serving clinics nationwide' },
+            {
+              icon: MapPin,
+              title: 'Office',
+              detail: 'Remote-first company',
+              sub: 'Serving clinics nationwide',
+            },
           ].map((item) => (
-            <div key={item.title} className="rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5">
-              <div className="flex items-start gap-4 rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-6">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-                  <item.icon className="size-5 text-blue-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{item.title}</p>
-                  <p className="mt-1 text-sm text-gray-300">{item.detail}</p>
-                  <p className="text-xs text-gray-500">{item.sub}</p>
-                </div>
+            <div
+              key={item.title}
+              className="flex items-start gap-4 rounded-2xl border border-black/[0.08] bg-white p-5 shadow-sm"
+            >
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#b275ff]/10">
+                <item.icon className="size-5 text-[#b275ff]" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-black">{item.title}</p>
+                <p className="mt-0.5 text-sm text-gray-600">{item.detail}</p>
+                <p className="text-xs text-gray-400">{item.sub}</p>
               </div>
             </div>
           ))}
         </motion.div>
 
-        <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="lg:col-span-3">
-          <div className="rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5">
-            <div className="rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-8">
-              <h2 className="mb-1 text-xl font-bold text-white">Send us a message</h2>
-              <p className="mb-6 text-sm text-gray-400">Fill out the form and we'll respond within 24 hours</p>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-gray-300">Name</label>
-                    <input
-                      name="name"
-                      placeholder="Your name"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-gray-300">Email</label>
-                    <input
-                      name="email"
-                      type="email"
-                      placeholder="you@clinic.com"
-                      required
-                      className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
+        <motion.div
+          {...fadeUp}
+          transition={{ ...fadeUp.transition, delay: 0.1 }}
+          className="lg:col-span-3"
+        >
+          <div className="rounded-2xl border border-black/[0.08] bg-white p-8 shadow-sm">
+            <h2 className="mb-1 text-xl font-bold text-black">Send us a message</h2>
+            <p className="mb-6 text-sm text-gray-500">
+              Fill out the form and we&apos;ll respond within 24 hours
+            </p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-gray-300">Message</label>
-                  <textarea
-                    name="message"
-                    placeholder="Tell us about your practice..."
-                    rows={5}
+                  <label className="mb-1.5 block text-xs font-medium text-gray-700">Name</label>
+                  <input
+                    name="name"
+                    placeholder="Your name"
                     required
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black placeholder:text-gray-400 focus:border-[#b275ff] focus:outline-none"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Sending...' : 'Send Message'}
-                  <ArrowRight className="size-4" />
-                </button>
-              </form>
-            </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-gray-700">Email</label>
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="you@clinic.com"
+                    required
+                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black placeholder:text-gray-400 focus:border-[#b275ff] focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700">Message</label>
+                <textarea
+                  name="message"
+                  placeholder="Tell us about your practice..."
+                  rows={5}
+                  required
+                  className="w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-black placeholder:text-gray-400 focus:border-[#b275ff] focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#b275ff] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#a060f0] disabled:opacity-50"
+              >
+                {isSubmitting ? 'Sending...' : 'Send Message'}
+                <ArrowRight className="size-4" />
+              </button>
+            </form>
           </div>
         </motion.div>
       </div>

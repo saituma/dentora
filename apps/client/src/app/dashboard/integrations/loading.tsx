@@ -7,7 +7,7 @@ export default function IntegrationsLoading() {
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 space-y-4"
+            className="rounded-xl border border-black/[0.06] bg-black/[0.02] p-5 space-y-4"
           >
             <div className="flex items-center gap-3">
               <Skeleton className="size-10 rounded-xl" />

@@ -4,30 +4,22 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MarketingGuard } from '@/components/auth/marketing-guard';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
 import { useState } from 'react';
-import { ChevronDown, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 const navLinks = [
   { label: 'Features', href: '/features' },
   { label: 'How It Works', href: '/how-it-works' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'Testimonials', href: '/testimonials' },
-];
-
-const resourceLinks = [
-  { label: 'Help Center', href: '/contact' },
-  { label: 'Privacy Policy', href: '/privacy' },
-  { label: 'Terms of Service', href: '/terms' },
-  { label: 'HIPAA Compliance', href: '/terms' },
+  { label: 'Blog', href: '/contact' },
 ];
 
 function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [resourcesOpen, setResourcesOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-[#0a0e1a]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-black/[0.06] bg-[#f4f2ee]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
         <Link href="/" aria-label="Home" className="flex items-center gap-2">
           <Image
@@ -36,7 +28,7 @@ function Header() {
             width={678}
             height={581}
             priority
-            className="h-10 w-auto"
+            className="h-9 w-auto"
           />
         </Link>
 
@@ -45,63 +37,43 @@ function Header() {
             <Link
               key={link.label}
               href={link.href}
-              className="relative px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white"
+              className="px-4 py-2 text-[15px] text-gray-600 transition-colors hover:text-black"
             >
               {link.label}
             </Link>
           ))}
-          <div className="relative">
-            <button
-              onClick={() => setResourcesOpen(!resourcesOpen)}
-              className="flex items-center gap-1 px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white"
-            >
-              Resources
-              <ChevronDown className="size-3.5" />
-            </button>
-            {resourcesOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-white/10 bg-[#0f1424] p-2 shadow-xl">
-                {resourceLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    className="block rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-                    onClick={() => setResourcesOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
           <Link
             href="/login"
-            className="rounded-lg border border-white/10 px-5 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+            className="px-5 py-2 text-[15px] font-medium text-gray-700 transition hover:text-black"
           >
             Login
           </Link>
           <Link
             href="/contact"
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            className="flex items-center gap-2 rounded-full bg-[#b275ff] px-6 py-2.5 text-[15px] font-medium text-white transition hover:bg-[#a060f0]"
           >
-            Book a Demo
+            Contact us
+            <span className="flex size-5 items-center justify-center rounded-full bg-white/20 text-xs">
+              →
+            </span>
           </Link>
         </div>
 
-        <button className="lg:hidden text-gray-300" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button className="lg:hidden text-gray-700" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-white/5 bg-[#0a0e1a] px-5 py-4 lg:hidden">
+        <div className="border-t border-black/[0.06] bg-[#f4f2ee] px-5 py-4 lg:hidden">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
-              className="block py-2 text-sm text-gray-300 hover:text-white"
+              className="block py-2.5 text-[15px] text-gray-600 hover:text-black"
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
@@ -110,15 +82,15 @@ function Header() {
           <div className="mt-4 flex flex-col gap-2">
             <Link
               href="/login"
-              className="rounded-lg border border-white/10 px-5 py-2 text-center text-sm text-gray-300"
+              className="rounded-full border border-black/10 px-5 py-2.5 text-center text-[15px] text-gray-700"
             >
               Login
             </Link>
             <Link
               href="/contact"
-              className="rounded-lg bg-blue-600 px-5 py-2 text-center text-sm font-medium text-white"
+              className="rounded-full bg-[#b275ff] px-5 py-2.5 text-center text-[15px] font-medium text-white"
             >
-              Book a Demo
+              Contact us
             </Link>
           </div>
         </div>
@@ -127,124 +99,60 @@ function Header() {
   );
 }
 
-const footerColumns = [
-  {
-    title: 'PRODUCT',
-    links: [
-      { label: 'Features', href: '/features' },
-      { label: 'How it Works', href: '#how-it-works' },
-      { label: 'Integrations', href: '#' },
-    ],
-  },
-  {
-    title: 'COMPANY',
-    links: [
-      { label: 'About Us', href: '#' },
-      { label: 'Careers', href: '#' },
-      { label: 'Blog', href: '#' },
-      { label: 'Contact Us', href: '/contact' },
-    ],
-  },
-  {
-    title: 'RESOURCES',
-    links: [
-      { label: 'Help Center', href: '/contact' },
-      { label: 'Privacy Policy', href: '/privacy' },
-      { label: 'Terms of Service', href: '/terms' },
-      { label: 'HIPAA Compliance', href: '/terms' },
-    ],
-  },
-];
-
 function Footer() {
   return (
-    <footer className="relative z-10 border-t border-white/[0.06] bg-[#060a14]">
-      <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-6">
-          <div className="lg:col-span-2">
-            <Link href="/" className="flex items-center gap-2">
-              <Image
-                src="/dentora.png"
-                alt="Dentora"
-                width={678}
-                height={581}
-                className="h-12 w-auto"
-              />
+    <footer className="border-t border-black/[0.06] bg-[#f4f2ee]">
+      <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
+        <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 md:justify-start">
+            <Link href="/" className="hover:text-black transition-colors">
+              Home
             </Link>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-gray-400">
-              The #1 AI receptionist for dental clinics. Answer every call. Book more appointments.
-              Delight every patient.
-            </p>
-            <div className="mt-6 flex gap-4">
-              {['f', 'in'].map((icon) => (
-                <div
-                  key={icon}
-                  className="flex size-8 items-center justify-center rounded-full border border-white/10 text-xs text-gray-400 transition hover:border-blue-500 hover:text-blue-400"
-                >
-                  {icon}
-                </div>
-              ))}
-            </div>
+            <Link href="/privacy" className="hover:text-black transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-black transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/contact" className="hover:text-black transition-colors">
+              Contact
+            </Link>
           </div>
 
-          {footerColumns.map((col) => (
-            <div key={col.title}>
-              <h4 className="mb-4 text-sm font-semibold text-gray-300">{col.title}</h4>
-              <ul className="space-y-3">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-gray-500 transition hover:text-blue-400"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-
-          <div>
-            <h4 className="mb-2 text-sm font-semibold text-white">Ready to Get Started?</h4>
-            <p className="mb-4 text-xs leading-relaxed text-gray-400">
-              Book a demo today and see how Dentora can grow your practice.
-            </p>
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-1 text-sm font-medium text-blue-400 transition hover:text-blue-300"
+          <div className="flex items-center gap-3">
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noreferrer"
+              className="flex size-9 items-center justify-center rounded-full border border-black/10 text-gray-500 transition hover:border-[#b275ff] hover:text-[#b275ff]"
+              aria-label="Instagram"
             >
-              Book a Demo →
-            </Link>
+              <svg className="size-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+              </svg>
+            </a>
+            <a
+              href="https://linkedin.com"
+              target="_blank"
+              rel="noreferrer"
+              className="flex size-9 items-center justify-center rounded-full border border-black/10 text-gray-500 transition hover:border-[#b275ff] hover:text-[#b275ff]"
+              aria-label="LinkedIn"
+            >
+              <svg className="size-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+              </svg>
+            </a>
+            <a
+              href="mailto:info@dentora.ai"
+              className="text-sm text-gray-500 hover:text-black transition-colors"
+            >
+              info@dentora.ai
+            </a>
           </div>
         </div>
-      </div>
 
-      <div className="border-t border-white/[0.06]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-8">
-          <p className="text-xs text-gray-500">
-            © {new Date().getFullYear()} Dentora AI Receptionist. All rights reserved.
-          </p>
-          <a
-            href="https://clientreach.ai"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-3 rounded-full border border-white/[0.06] bg-white/[0.03] px-5 py-2.5 backdrop-blur-md no-underline transition-colors hover:border-[#0EA5E9]/40"
-          >
-            <Image
-              src="/clientreach-logo.png"
-              alt="Client Reach AI"
-              width={20}
-              height={20}
-              className="rounded object-contain"
-            />
-            <span className="text-xs font-medium tracking-wider text-gray-500">Made by</span>
-            <span className="text-sm font-bold tracking-wide text-[#0EA5E9]">Client Reach AI</span>
-          </a>
-          <div className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs text-gray-400">
-            <span className="font-semibold">HIPAA</span>
-            <span className="text-[10px] text-gray-500">COMPLIANT</span>
-          </div>
+        <div className="mt-8 border-t border-black/[0.06] pt-6 text-center text-xs text-gray-400">
+          © {new Date().getFullYear()} Dentora AI Receptionist. All rights reserved.
         </div>
       </div>
     </footer>
@@ -254,14 +162,11 @@ function Footer() {
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <MarketingGuard>
-      <div className="relative flex min-h-svh flex-col bg-[#0a0e1a] text-white">
-        <ShatteredToothBg />
-        <div className="relative z-10 flex flex-1 flex-col">
-          <Header />
-          <main className="flex-1">
-            <ErrorBoundary>{children}</ErrorBoundary>
-          </main>
-        </div>
+      <div className="relative flex min-h-svh flex-col bg-[#f4f2ee] text-black">
+        <Header />
+        <main className="flex-1">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
         <Footer />
       </div>
     </MarketingGuard>

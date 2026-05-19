@@ -181,133 +181,145 @@ export function LoginForm() {
   if (oauthLoading) {
     return (
       <div className="flex min-h-[320px] w-full flex-col items-center justify-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-white" />
-        <p className="text-sm text-white/50">Signing you in…</p>
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-black/10 border-t-[#b275ff]" />
+        <p className="text-sm text-gray-400">Signing you in…</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full rounded-3xl border border-white/[0.08] bg-[#0f1424]/80 p-1.5 shadow-sm">
-      <div className="rounded-[calc(1.5rem-6px)] border border-white/[0.06] bg-gradient-to-br from-[#0f1424] to-[#0a0e1a] p-8">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-white">Welcome back</h2>
-          <p className="mt-1 text-sm text-gray-400">
-            Sign in with password, email code, or Google.
-          </p>
-        </div>
-        <form onSubmit={handlePasswordLogin} aria-label="Login form">
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="email" className="text-gray-300">
-                Email
+    <div className="w-full">
+      <div className="mb-7">
+        <h2 className="font-display text-2xl font-bold text-black">Welcome back</h2>
+        <p className="mt-1 text-sm text-gray-500">Sign in with password, email code, or Google.</p>
+      </div>
+      <form onSubmit={handlePasswordLogin} aria-label="Login form">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="email" className="text-sm font-medium text-gray-700">
+              Email
+            </FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              placeholder="admin@clinic.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              inputMode="email"
+              aria-label="Email address"
+              required
+              className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+            />
+          </Field>
+          <Field>
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor="password" className="text-sm font-medium text-gray-700">
+                Password
               </FieldLabel>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@clinic.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                inputMode="email"
-                aria-label="Email address"
-                required
-                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
-              />
-            </Field>
-            <Field>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="password" className="text-gray-300">
-                  Password
-                </FieldLabel>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-blue-400 underline-offset-2 hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                aria-label="Password"
-                required
-                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
-              />
-            </Field>
-            <Field>
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 text-xs font-mono uppercase tracking-[0.14em] text-white hover:bg-blue-700"
-                disabled={isLoading}
+              <Link
+                href="/forgot-password"
+                className="text-sm text-[#b275ff] underline-offset-2 hover:underline"
               >
-                {isLoading ? 'Signing in...' : 'Sign in with password'}
-              </Button>
-            </Field>
-            <Field>
+                Forgot password?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              aria-label="Password"
+              required
+              className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+            />
+          </Field>
+          <Field>
+            <Button
+              type="submit"
+              className="w-full rounded-full bg-[#b275ff] text-[15px] font-medium text-white hover:bg-[#a060f0]"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </Field>
+
+          <div className="relative my-1">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-black/[0.08]" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white px-3 text-gray-400">or continue with</span>
+            </div>
+          </div>
+
+          <Field>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+              onClick={startGoogle}
+              disabled={googleLoading}
+              aria-label="Continue with Google"
+            >
+              <svg className="mr-2 size-4" viewBox="0 0 24 24">
+                <path
+                  d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+                  fill="currentColor"
+                />
+              </svg>
+              {googleLoading ? 'Redirecting...' : 'Continue with Google'}
+            </Button>
+          </Field>
+          <Field>
+            {!otpSent ? (
               <Button
                 type="button"
                 variant="outline"
-                className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white"
-                onClick={startGoogle}
-                disabled={googleLoading}
-                aria-label="Continue with Google"
+                className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+                onClick={handleSendOtp}
+                disabled={sendingOtp || !email}
+                aria-label="Send sign in code to email"
               >
-                {googleLoading ? 'Redirecting...' : 'Continue with Google'}
+                {sendingOtp ? 'Sending code...' : 'Send email code'}
               </Button>
-            </Field>
-            <Field>
-              {!otpSent ? (
+            ) : (
+              <div className="space-y-2">
+                <FieldLabel htmlFor={otpInputId} className="sr-only">
+                  Email verification code
+                </FieldLabel>
+                <Input
+                  id={otpInputId}
+                  placeholder="Enter 6-digit code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  aria-label="Email verification code"
+                  className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+                />
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white"
-                  onClick={handleSendOtp}
-                  disabled={sendingOtp || !email}
-                  aria-label="Send sign in code to email"
+                  className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={handleOtpLogin}
+                  disabled={verifyingOtp || otpCode.length !== 6}
                 >
-                  {sendingOtp ? 'Sending code...' : 'Send email code'}
+                  {verifyingOtp ? 'Verifying...' : 'Sign in with email code'}
                 </Button>
-              ) : (
-                <div className="space-y-2">
-                  <FieldLabel htmlFor={otpInputId} className="sr-only">
-                    Email verification code
-                  </FieldLabel>
-                  <Input
-                    id={otpInputId}
-                    placeholder="Enter 6-digit code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    autoComplete="one-time-code"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    aria-label="Email verification code"
-                    className="border-white/10 bg-white/5 text-white placeholder:text-gray-500 focus:border-blue-500"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full border-white/10 bg-white/5 text-xs font-mono uppercase tracking-[0.14em] text-gray-300 hover:bg-white/10 hover:text-white"
-                    onClick={handleOtpLogin}
-                    disabled={verifyingOtp || otpCode.length !== 6}
-                  >
-                    {verifyingOtp ? 'Verifying...' : 'Sign in with email code'}
-                  </Button>
-                </div>
-              )}
-            </Field>
-            <p className="text-gray-500 text-xs text-center">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-blue-400 underline-offset-2 hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </FieldGroup>
-        </form>
-      </div>
+              </div>
+            )}
+          </Field>
+          <p className="text-gray-500 text-sm text-center">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-[#b275ff] underline-offset-2 hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </FieldGroup>
+      </form>
     </div>
   );
 }

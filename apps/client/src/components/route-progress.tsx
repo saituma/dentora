@@ -67,7 +67,7 @@ export function RouteProgress() {
     <div
       ref={barRef}
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 top-0 z-[9999] h-[2px] origin-left bg-blue-500 shadow-[0_0_12px_2px_rgba(59,130,246,0.65)]"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[9999] h-[2px] origin-left bg-[#b275ff] shadow-[0_0_12px_2px_rgba(178,117,255,0.65)]"
       style={{ transform: 'scaleX(0)', opacity: 0 }}
     />
   );

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Manrope, Playfair_Display, Inter, Geist_Mono } from 'next/font/google';
+import { Manrope, Syne, Inter, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ReduxProvider, ThemeProviderWrapper } from '@/components/providers';
 import { Toaster } from '@/components/ui/sonner';
@@ -11,8 +11,9 @@ const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono', disp
 const interHeading = Inter({ subsets: ['latin'], variable: '--font-heading', display: 'swap' });
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
 const manrope = Manrope({ subsets: ['latin'], variable: '--font-ui', display: 'swap' });
-const playfairDisplay = Playfair_Display({
+const syne = Syne({
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-display',
   display: 'swap',
 });
@@ -33,7 +34,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn('font-mono', inter.variable, interHeading.variable, geistMono.variable)}
     >
-      <body className={`${manrope.variable} ${playfairDisplay.variable} antialiased`}>
+      <body className={`${manrope.variable} ${syne.variable} antialiased`}>
         <RouteProgress />
         <ReduxProvider>
           <ThemeProviderWrapper>

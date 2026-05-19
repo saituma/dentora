@@ -143,14 +143,14 @@
 
 :root {
   --font-ui: 'Manrope', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-display: 'Syne', ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-ui);
   --font-geist-mono:
     ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
-  --brand-primary: #4fc3f7;
-  --brand-secondary: #81d4fa;
-  --brand-highlight: #e3f2fd;
+  --brand-primary: #b275ff;
+  --brand-secondary: #e0ff4f;
+  --brand-highlight: #f4f2ee;
   --brand-bg: #0b0f1a;
   --brand-text: #c7d0d9;
 
@@ -177,7 +177,7 @@
   --chart-3: color-mix(in srgb, var(--brand-primary) 60%, var(--brand-secondary));
   --chart-4: color-mix(in srgb, var(--brand-secondary) 70%, #ffffff);
   --chart-5: color-mix(in srgb, var(--brand-primary) 65%, var(--brand-bg));
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: #ffffff;
   --sidebar-foreground: var(--brand-bg);
   --sidebar-primary: var(--brand-primary);
@@ -254,14 +254,17 @@
   }
   h1 {
     font-family: var(--font-display);
+    font-weight: 800;
     letter-spacing: -0.03em;
   }
   h2 {
     font-family: var(--font-display);
+    font-weight: 700;
     letter-spacing: -0.025em;
   }
   h3 {
     font-family: var(--font-display);
+    font-weight: 700;
     letter-spacing: -0.02em;
   }
   code,

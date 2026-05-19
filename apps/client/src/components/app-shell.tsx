@@ -3,7 +3,6 @@
 import { usePathname } from 'next/navigation';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { DashboardHeader } from '@/components/dashboard-header';
-import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
 import { DentoraAiChat } from '@/components/dentora-ai-chat';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
@@ -14,8 +13,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   return (
-    <div className="dark relative bg-[#0a0e1a]">
-      <ShatteredToothBg />
+    <div className="relative bg-background">
       <DentoraAiChat />
       <div className="relative z-10">
         <SidebarProvider
