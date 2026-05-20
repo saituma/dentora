@@ -27,6 +27,11 @@
     "prepare": "husky",
     "heroku-postbuild": "pnpm --filter @repo/server build"
   },
+  "pnpm": {
+    "overrides": {
+      "protobufjs": "^7.5.5"
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
