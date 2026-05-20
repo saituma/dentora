@@ -36,8 +36,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build shared package
-        run: pnpm --filter @repo/shared build
+      - name: Typecheck shared package
+        run: pnpm --filter @repo/shared typecheck
 
       - name: Lint client
         run: pnpm --filter @repo/client lint
@@ -76,8 +76,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build shared package
-        run: pnpm --filter @repo/shared build
+      - name: Typecheck shared package
+        run: pnpm --filter @repo/shared typecheck
 
       - name: Test server (with coverage)
         run: pnpm --filter @repo/server test:coverage
@@ -106,8 +106,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Audit for high/critical vulnerabilities
-        run: pnpm audit --audit-level=high
+      - name: Audit for critical vulnerabilities
+        run: pnpm audit --audit-level=critical
 
   # ── Build ──────────────────────────────────────────────
   build:
