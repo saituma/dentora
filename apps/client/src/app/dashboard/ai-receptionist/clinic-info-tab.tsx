@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2Icon } from 'lucide-react';
@@ -138,7 +144,11 @@ export function ClinicInfoTab(props: {
                           value={entry.name}
                           onChange={(event) => {
                             const value = event.target.value;
-                            setStaffEntries((prev) => prev.map((row, idx) => (idx === index ? { ...row, name: value } : row)));
+                            setStaffEntries((prev) =>
+                              prev.map((row, idx) =>
+                                idx === index ? { ...row, name: value } : row,
+                              ),
+                            );
                           }}
                           placeholder="Dr. Amanuel Tadesse"
                         />
@@ -149,7 +159,11 @@ export function ClinicInfoTab(props: {
                           value={entry.role}
                           onChange={(event) => {
                             const value = event.target.value;
-                            setStaffEntries((prev) => prev.map((row, idx) => (idx === index ? { ...row, role: value } : row)));
+                            setStaffEntries((prev) =>
+                              prev.map((row, idx) =>
+                                idx === index ? { ...row, role: value } : row,
+                              ),
+                            );
                           }}
                           placeholder="Orthodontist / Front Desk"
                         />
@@ -160,7 +174,11 @@ export function ClinicInfoTab(props: {
                           value={entry.phone}
                           onChange={(event) => {
                             const value = event.target.value;
-                            setStaffEntries((prev) => prev.map((row, idx) => (idx === index ? { ...row, phone: value } : row)));
+                            setStaffEntries((prev) =>
+                              prev.map((row, idx) =>
+                                idx === index ? { ...row, phone: value } : row,
+                              ),
+                            );
                           }}
                           placeholder="+1 555-123-4567"
                         />
@@ -172,7 +190,9 @@ export function ClinicInfoTab(props: {
                           onValueChange={(value) => {
                             const nextStatus = value ?? 'Available';
                             setStaffEntries((prev) =>
-                              prev.map((row, idx) => (idx === index ? { ...row, status: nextStatus } : row)),
+                              prev.map((row, idx) =>
+                                idx === index ? { ...row, status: nextStatus } : row,
+                              ),
                             );
                           }}
                         >
@@ -181,7 +201,9 @@ export function ClinicInfoTab(props: {
                           </SelectTrigger>
                           <SelectContent>
                             {STATUS_OPTIONS.map((status) => (
-                              <SelectItem key={status} value={status}>{status}</SelectItem>
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -194,7 +216,11 @@ export function ClinicInfoTab(props: {
                         value={entry.notes}
                         onChange={(event) => {
                           const value = event.target.value;
-                          setStaffEntries((prev) => prev.map((row, idx) => (idx === index ? { ...row, notes: value } : row)));
+                          setStaffEntries((prev) =>
+                            prev.map((row, idx) =>
+                              idx === index ? { ...row, notes: value } : row,
+                            ),
+                          );
                         }}
                         placeholder="Speaks Amharic, prefers morning calls, etc."
                       />
@@ -204,7 +230,9 @@ export function ClinicInfoTab(props: {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setStaffEntries((prev) => prev.filter((_, idx) => idx !== index))}
+                        onClick={() =>
+                          setStaffEntries((prev) => prev.filter((_, idx) => idx !== index))
+                        }
                       >
                         Remove
                       </Button>
@@ -213,10 +241,14 @@ export function ClinicInfoTab(props: {
                 ))}
                 {!hasEntries && (
                   <div className="rounded-lg border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-                    No staff added yet. Click "Add staff member" to begin.
+                    No staff added yet. Click &quot;Add staff member&quot; to begin.
                   </div>
                 )}
-                <Button type="button" variant="outline" onClick={() => setStaffEntries((prev) => [...prev, emptyStaffEntry()])}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStaffEntries((prev) => [...prev, emptyStaffEntry()])}
+                >
                   Add staff member
                 </Button>
               </div>

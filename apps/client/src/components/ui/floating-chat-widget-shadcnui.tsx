@@ -1,71 +1,63 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
-import {
-  Brain,
-  Code,
-  MessageSquare,
-  Send,
-  Sparkles,
-  X,
-  Zap,
-} from "lucide-react";
-import { useCallback, useId, useState } from "react";
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { AnimatePresence, motion, type Variants } from 'framer-motion';
+import { Brain, Code, MessageSquare, Send, Sparkles, X, Zap } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 interface Agent {
   id: string;
   name: string;
   role: string;
   avatar: string;
-  status: "online" | "busy" | "offline";
+  status: 'online' | 'busy' | 'offline';
   icon: React.ElementType;
   gradient: string;
 }
 
 const AI_AGENTS: Agent[] = [
   {
-    id: "gpt4",
-    name: "GPT-4",
-    role: "Advanced Reasoning",
-    avatar: "https://github.com/shadcn.png",
-    status: "online",
+    id: 'gpt4',
+    name: 'GPT-4',
+    role: 'Advanced Reasoning',
+    avatar: 'https://github.com/shadcn.png',
+    status: 'online',
     icon: Sparkles,
-    gradient: "from-green-500/20 to-emerald-500/20",
+    gradient: 'from-green-500/20 to-emerald-500/20',
   },
   {
-    id: "claude",
-    name: "Claude 3.5",
-    role: "Creative Writing",
-    avatar: "https://github.com/shadcn.png",
-    status: "online",
+    id: 'claude',
+    name: 'Claude 3.5',
+    role: 'Creative Writing',
+    avatar: 'https://github.com/shadcn.png',
+    status: 'online',
     icon: Brain,
-    gradient: "from-orange-500/20 to-amber-500/20",
+    gradient: 'from-orange-500/20 to-amber-500/20',
   },
   {
-    id: "gemini",
-    name: "Gemini Pro",
-    role: "Multimodal Analysis",
-    avatar: "https://github.com/shadcn.png",
-    status: "busy",
+    id: 'gemini',
+    name: 'Gemini Pro',
+    role: 'Multimodal Analysis',
+    avatar: 'https://github.com/shadcn.png',
+    status: 'busy',
     icon: Zap,
-    gradient: "from-blue-500/20 to-cyan-500/20",
+    gradient: 'from-blue-500/20 to-cyan-500/20',
   },
   {
-    id: "copilot",
-    name: "Copilot",
-    role: "Code Assistant",
-    avatar: "https://github.com/shadcn.png",
-    status: "online",
+    id: 'copilot',
+    name: 'Copilot',
+    role: 'Code Assistant',
+    avatar: 'https://github.com/shadcn.png',
+    status: 'online',
     icon: Code,
-    gradient: "from-purple-500/20 to-violet-500/20",
+    gradient: 'from-purple-500/20 to-violet-500/20',
   },
 ];
 
@@ -74,14 +66,14 @@ const containerVariants: Variants = {
     opacity: 0,
     y: 20,
     scale: 0.95,
-    transformOrigin: "bottom right",
+    transformOrigin: 'bottom right',
   },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
     transition: {
-      type: "spring",
+      type: 'spring',
       damping: 25,
       stiffness: 300,
       staggerChildren: 0.05,
@@ -103,21 +95,17 @@ const messageVariants: Variants = {
     opacity: 1,
     y: 0,
     x: 0,
-    transition: { type: "spring", stiffness: 500, damping: 30 },
+    transition: { type: 'spring', stiffness: 500, damping: 30 },
   },
 };
 
 export function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>(AI_AGENTS[0].id);
-  const [message, setMessage] = useState("");
-  const widgetId = useId();
-
+  const [message, setMessage] = useState('');
   const toggleOpen = useCallback(() => setIsOpen((prev) => !prev), []);
 
-  const currentAgent =
-    AI_AGENTS.find((a) => a.id === selectedAgent) || AI_AGENTS[0];
-  const AgentIcon = currentAgent.icon;
+  const currentAgent = AI_AGENTS.find((a) => a.id === selectedAgent) || AI_AGENTS[0];
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
@@ -135,39 +123,32 @@ export function FloatingChatWidget() {
             <div className="relative border-b border-border/40 bg-muted/30 p-4 overflow-hidden">
               <div
                 className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-50",
-                  currentAgent.gradient
+                  'absolute inset-0 bg-gradient-to-br opacity-50',
+                  currentAgent.gradient,
                 )}
               />
               <div className="relative flex items-center justify-between z-10">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                      <AvatarImage
-                        src={currentAgent.avatar}
-                        alt={currentAgent.name}
-                      />
+                      <AvatarImage src={currentAgent.avatar} alt={currentAgent.name} />
                       <AvatarFallback>AI</AvatarFallback>
                     </Avatar>
                     <span
                       className={cn(
-                        "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
-                        currentAgent.status === "online"
-                          ? "bg-emerald-500"
-                          : currentAgent.status === "busy"
-                            ? "bg-amber-500"
-                            : "bg-slate-400"
+                        'absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background',
+                        currentAgent.status === 'online'
+                          ? 'bg-emerald-500'
+                          : currentAgent.status === 'busy'
+                            ? 'bg-amber-500'
+                            : 'bg-slate-400',
                       )}
                     />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {currentAgent.name}
-                    </h3>
+                    <h3 className="text-sm font-semibold text-foreground">{currentAgent.name}</h3>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground">
-                        {currentAgent.role}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{currentAgent.role}</span>
                     </div>
                   </div>
                 </div>
@@ -184,7 +165,12 @@ export function FloatingChatWidget() {
 
             {/* Agent Selector */}
             <div className="border-b border-border/40 p-3">
-              <Select value={selectedAgent} onValueChange={(v) => { if (v) setSelectedAgent(v); }}>
+              <Select
+                value={selectedAgent}
+                onValueChange={(v) => {
+                  if (v) setSelectedAgent(v);
+                }}
+              >
                 <SelectTrigger className="w-full border-none bg-transparent shadow-none focus:ring-0 focus:ring-offset-0 text-lg font-medium h-auto hover:bg-transparent px-2 py-6 cursor-pointer">
                   <SelectValue placeholder="Select an agent" />
                 </SelectTrigger>
@@ -200,19 +186,15 @@ export function FloatingChatWidget() {
                         <div className="flex items-center gap-3 py-1">
                           <div
                             className={cn(
-                              "flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br",
-                              agent.gradient
+                              'flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br',
+                              agent.gradient,
                             )}
                           >
                             <Icon className="h-4 w-4 text-foreground/80" />
                           </div>
                           <div className="flex flex-col text-left">
-                            <span className="text-sm font-medium">
-                              {agent.name}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {agent.role}
-                            </span>
+                            <span className="text-sm font-medium">{agent.name}</span>
+                            <span className="text-[10px] text-muted-foreground">{agent.role}</span>
                           </div>
                         </div>
                       </SelectItem>
@@ -227,9 +209,7 @@ export function FloatingChatWidget() {
               <motion.div variants={messageVariants} className="flex gap-3">
                 <Avatar className="h-8 w-8 border border-border/40 shadow-sm">
                   <AvatarImage src={currentAgent.avatar} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    AI
-                  </AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-primary">AI</AvatarFallback>
                 </Avatar>
                 <div className="flex max-w-[85%] flex-col gap-1">
                   <span className="text-xs font-medium text-muted-foreground">
@@ -237,8 +217,8 @@ export function FloatingChatWidget() {
                   </span>
                   <div className="rounded-2xl rounded-tl-none bg-muted/50 px-4 py-2.5 text-sm shadow-sm backdrop-blur-sm border border-border/20">
                     <p>
-                      Hello! I'm {currentAgent.name}. How can I assist you with
-                      your project today?
+                      Hello! I&apos;m {currentAgent.name}. How can I assist you with your project
+                      today?
                     </p>
                   </div>
                 </div>
@@ -271,9 +251,7 @@ export function FloatingChatWidget() {
               >
                 <Avatar className="h-8 w-8 border border-border/40 shadow-sm">
                   <AvatarImage src={currentAgent.avatar} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    AI
-                  </AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-primary">AI</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
                   <div className="rounded-2xl rounded-tl-none bg-muted/50 px-4 py-3 shadow-sm backdrop-blur-sm border border-border/20 w-16 flex items-center justify-center gap-1">
@@ -291,7 +269,7 @@ export function FloatingChatWidget() {
                 className="relative flex items-center gap-2"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  setMessage("");
+                  setMessage('');
                 }}
               >
                 <input
@@ -319,18 +297,14 @@ export function FloatingChatWidget() {
         whileTap={{ scale: 0.95 }}
         onClick={toggleOpen}
         className={cn(
-          "cursor-pointer group relative flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all duration-300",
+          'cursor-pointer group relative flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all duration-300',
           isOpen
-            ? "bg-destructive text-destructive-foreground rotate-90"
-            : "bg-primary text-primary-foreground hover:shadow-primary/25"
+            ? 'bg-destructive text-destructive-foreground rotate-90'
+            : 'bg-primary text-primary-foreground hover:shadow-primary/25',
         )}
       >
         <span className="absolute inset-0 -z-10 rounded-full bg-inherit opacity-20 blur-xl transition-opacity duration-300 group-hover:opacity-40" />
-        {isOpen ? (
-          <X className="h-6 w-6 text-white" />
-        ) : (
-          <MessageSquare className="h-6 w-6" />
-        )}
+        {isOpen ? <X className="h-6 w-6 text-white" /> : <MessageSquare className="h-6 w-6" />}
       </motion.button>
     </div>
   );
