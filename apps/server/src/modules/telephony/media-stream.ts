@@ -102,6 +102,11 @@ interface ElevenLabsInterruption {
   type: 'interruption';
 }
 
+interface ElevenLabsPing {
+  type: 'ping';
+  ping_event?: { event_id?: number };
+}
+
 type ElevenLabsMessage =
   | ElevenLabsConversationInitMetadata
   | ElevenLabsAudioEvent
@@ -109,7 +114,8 @@ type ElevenLabsMessage =
   | ElevenLabsAgentResponse
   | ElevenLabsClientToolCall
   | ElevenLabsAgentToolResponse
-  | ElevenLabsInterruption;
+  | ElevenLabsInterruption
+  | ElevenLabsPing;
 
 interface MediaStreamSession {
   callSessionId: string;
@@ -1105,6 +1111,13 @@ async function handleElevenLabsMessageWithTenant(
         if (session.ws.readyState === WebSocket.OPEN) {
           session.ws.close();
         }
+      }
+      break;
+    }
+    case 'ping': {
+      const eventId = (message as ElevenLabsPing).ping_event?.event_id;
+      if (session.elevenSocket?.readyState === WebSocket.OPEN && eventId !== undefined) {
+        session.elevenSocket.send(JSON.stringify({ type: 'pong', event_id: eventId }));
       }
       break;
     }
