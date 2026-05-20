@@ -24,7 +24,7 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "heroku-postbuild": "pnpm --filter @repo/server build"
   },
   "pnpm": {
