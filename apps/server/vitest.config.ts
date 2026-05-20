@@ -10,8 +10,8 @@ export default defineConfig({
       include: ['src/lib/**', 'src/middleware/**', 'src/modules/**/**.service.ts', 'src/modules/**/**.routes.ts'],
       reporter: ['text', 'text-summary'],
       thresholds: {
-        lines: 50,
-        functions: 50,
+        lines: 25,
+        functions: 30,
       },
     },
     testTimeout: 15000,

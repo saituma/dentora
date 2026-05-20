@@ -55,6 +55,11 @@ vi.mock('twilio', () => ({
   default: vi.fn(),
 }));
 
+const mockPurchaseAndProvisionPhoneNumber = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('../telephony/telephony.service.js', () => ({
+  purchaseAndProvisionPhoneNumber: mockPurchaseAndProvisionPhoneNumber,
+}));
+
 import {
   login,
   register,
@@ -110,6 +115,8 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   mockEnv.NODE_ENV = 'development';
   mockEnv.REDIS_DISABLED = false;
+  // Re-apply after resetAllMocks wipes the implementation.
+  mockPurchaseAndProvisionPhoneNumber.mockResolvedValue(undefined);
 });
 
 describe('login', () => {

@@ -5,6 +5,8 @@ const mockEnv = vi.hoisted(() => ({
   NODE_ENV: 'development' as 'development' | 'staging' | 'production',
   CLIENT_URL: 'http://localhost:3000',
   REFRESH_TOKEN_EXPIRY_DAYS: 7,
+  COOKIE_SAMESITE: 'lax' as const,
+  COOKIE_SECURE: false,
 }));
 
 const mockAuthService = vi.hoisted(() => ({
