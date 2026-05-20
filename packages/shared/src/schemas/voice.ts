@@ -9,7 +9,7 @@ export const VoiceProfileSchema = z.object({
   voiceId: z.string().min(1),
   speakingSpeed: z.number().min(SPEAKING_SPEED_MIN).max(SPEAKING_SPEED_MAX),
   tone: z.enum(['calm', 'friendly', 'professional', 'urgent']),
-  pronunciationHints: z.record(z.string()).nullable().default(null),
+  pronunciationHints: z.record(z.string(), z.string()).nullable().default(null),
   fallbackVoiceId: z.string().nullable().default(null),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

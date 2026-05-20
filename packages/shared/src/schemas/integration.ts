@@ -9,7 +9,7 @@ export const IntegrationSchema = z.object({
   provider: z.string().min(1),
   status: z.enum(['disconnected', 'pending', 'active', 'error']),
   credentialRef: z.string().min(1),
-  capabilities: z.record(z.unknown()),
+  capabilities: z.record(z.string(), z.unknown()),
   healthLastCheckedAt: z.coerce.date().nullable().default(null),
   healthStatus: z.enum(['healthy', 'degraded', 'failing']),
   createdAt: z.coerce.date(),

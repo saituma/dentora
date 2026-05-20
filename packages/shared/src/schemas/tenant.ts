@@ -28,7 +28,7 @@ export const TenantConfigVersionSchema = z.object({
   status: z.enum(['draft', 'validated', 'published', 'rolled_back']),
   source: z.enum(['onboarding', 'ai_chat', 'admin_edit']),
   completenessScore: z.number().min(0).max(100),
-  validationReport: z.record(z.unknown()),
+  validationReport: z.record(z.string(), z.unknown()),
   publishedAt: z.coerce.date().nullable(),
   createdBy: z.string().uuid(),
   createdAt: z.coerce.date(),

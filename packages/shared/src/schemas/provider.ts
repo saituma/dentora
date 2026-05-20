@@ -8,7 +8,7 @@ export const ProviderRegistrySchema = z.object({
   displayName: z.string().min(1),
   enabled: z.boolean(),
   priority: z.number().int().min(0),
-  config: z.record(z.unknown()).default({}),
+  config: z.record(z.string(), z.unknown()).default({}),
   capabilities: z.object({
     languages: z.array(z.string()),
     features: z.array(z.string()),

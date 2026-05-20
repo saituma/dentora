@@ -5,11 +5,11 @@ export const PolicySchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
   configVersion: z.number().int().positive(),
-  escalationConditions: z.record(z.unknown()),
+  escalationConditions: z.record(z.string(), z.unknown()),
   emergencyDisclaimer: z.string().min(10),
   sensitiveTopics: z.array(z.string()),
   humanCallbackSlaMinutes: z.number().int().min(5).max(240),
-  complianceFlags: z.record(z.unknown()),
+  complianceFlags: z.record(z.string(), z.unknown()),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });

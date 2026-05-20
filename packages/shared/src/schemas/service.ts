@@ -15,7 +15,7 @@ export const ServiceSchema = z.object({
   durationMinutes: z.number().int().min(SERVICE_DURATION_MIN).max(SERVICE_DURATION_MAX),
   newPatientAllowed: z.boolean(),
   requiresStaffApproval: z.boolean(),
-  bookingConstraints: z.record(z.unknown()).default({}),
+  bookingConstraints: z.record(z.string(), z.unknown()).default({}),
   active: z.boolean(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),

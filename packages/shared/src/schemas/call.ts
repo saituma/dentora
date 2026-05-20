@@ -21,7 +21,7 @@ export const CallEventSchema = z.object({
   tenantId: z.string().uuid(),
   callSessionId: z.string().uuid(),
   eventType: z.string().min(1),
-  eventPayload: z.record(z.unknown()),
+  eventPayload: z.record(z.string(), z.unknown()),
   createdAt: z.coerce.date(),
 });
 
@@ -57,7 +57,7 @@ export const CallCostLineItemSchema = z.object({
   unitCostUsd: z.number().min(0),
   totalCostUsd: z.number().min(0),
   latencyMs: z.number().int().min(0),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(), z.unknown()).default({}),
   createdAt: z.coerce.date(),
 });
 
