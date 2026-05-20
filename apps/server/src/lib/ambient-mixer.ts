@@ -72,3 +72,25 @@ export function mixAmbient(
 export function isAmbientLoaded(): boolean {
   return ambientBuffer !== null && ambientBuffer.length > 0;
 }
+
+export function getAmbientChunk(
+  ambientOffset: number,
+  byteCount: number,
+): { chunk: string; newOffset: number } {
+  if (!ambientBuffer || ambientBuffer.length === 0) {
+    return { chunk: Buffer.alloc(byteCount, 0xff).toString('base64'), newOffset: ambientOffset };
+  }
+
+  const len = ambientBuffer.length;
+  const out = Buffer.allocUnsafe(byteCount);
+  let offset = ambientOffset;
+
+  for (let i = 0; i < byteCount; i++) {
+    const ambientSample = mulawDecode(ambientBuffer[offset % len]!);
+    const scaled = Math.max(-32768, Math.min(32767, Math.round(ambientSample * AMBIENT_VOLUME)));
+    out[i] = mulawEncode(scaled);
+    offset = (offset + 1) % len;
+  }
+
+  return { chunk: out.toString('base64'), newOffset: offset };
+}
