@@ -1,6 +1,6 @@
 import { db } from '../../db/index.js';
-import { twilioNumbers, callSessions, tenantActiveConfig } from '../../db/schema.js';
-import { eq, and, sql, or } from 'drizzle-orm';
+import { twilioNumbers, callSessions, tenantActiveConfig, callCosts } from '../../db/schema.js';
+import { eq, and, sql, or, gte } from 'drizzle-orm';
 import { cache } from '../../lib/cache.js';
 import { logger } from '../../lib/logger.js';
 import { NotFoundError, TelephonyError, PhoneNumberNotMappedError } from '../../lib/errors.js';
@@ -649,6 +649,41 @@ export async function checkConcurrentCallLimit(
   const plan = (tenant?.plan ?? 'starter') as keyof typeof MAX_CONCURRENT_CALLS;
   const limit = MAX_CONCURRENT_CALLS[plan] ?? MAX_CONCURRENT_CALLS.starter;
   const current = await getActiveConcurrentCalls(tenantId);
+
+  return { allowed: current < limit, current, limit };
+}
+
+// Monthly AI-spend safety ceiling per plan (USD). This is a runaway/abuse
+// guard, not a usage meter — normal clinic traffic stays far below it.
+const MONTHLY_COST_CAP_USD: Record<string, number> = {
+  starter: 50,
+  professional: 200,
+  enterprise: 1000,
+};
+
+/** Sum of attributed call cost for the tenant since the start of the current (UTC) month. */
+export async function getMonthToDateCostUsd(tenantId: string): Promise<number> {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const [row] = await db
+    .select({ total: sql<string>`COALESCE(SUM(${callCosts.totalCost}), 0)` })
+    .from(callCosts)
+    .where(and(eq(callCosts.tenantId, tenantId), gte(callCosts.createdAt, monthStart)));
+  return Number.parseFloat(row?.total ?? '0') || 0;
+}
+
+export async function checkMonthlyCostCap(
+  tenantId: string,
+): Promise<{ allowed: boolean; current: number; limit: number }> {
+  const [tenant] = await db
+    .select({ plan: sql<string>`plan` })
+    .from(sql`tenant_registry`)
+    .where(sql`id = ${tenantId}`)
+    .limit(1);
+
+  const plan = (tenant?.plan ?? 'starter') as keyof typeof MONTHLY_COST_CAP_USD;
+  const limit = MONTHLY_COST_CAP_USD[plan] ?? MONTHLY_COST_CAP_USD.starter;
+  const current = await getMonthToDateCostUsd(tenantId);
 
   return { allowed: current < limit, current, limit };
 }

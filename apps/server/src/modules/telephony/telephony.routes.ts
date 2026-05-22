@@ -395,6 +395,22 @@ telephonyRouter.post(
         return;
       }
 
+      const costCap = await telephonyService.checkMonthlyCostCap(tenantId);
+      if (!costCap.allowed) {
+        logger.error(
+          { callSid: CallSid, tenantId, currentUsd: costCap.current, limitUsd: costCap.limit },
+          'Monthly AI cost cap reached — diverting inbound call to voicemail',
+        );
+        const costCapTwiml = twimlXml([
+          '<Response>',
+          '<Say voice="alice">Thanks for calling. Our reception line is unavailable right now. Please leave a message after the tone and the team will call you back.</Say>',
+          `<Record maxLength="180" action="${env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '')}/api/telephony/webhook/voicemail?tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
+          '</Response>',
+        ]);
+        res.type('text/xml').send(costCapTwiml);
+        return;
+      }
+
       const result = await telephonyService.handleInboundCall({
         callSid: CallSid,
         to: To,

@@ -14,6 +14,7 @@ import { decryptField } from '../../lib/encrypted-column.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
+import { elevenLabsFetch } from '../elevenlabs/elevenlabs-fetch.js';
 import { runWithTenantContext, setActiveTenantContext } from '../../db/tenant-context.js';
 import {
   assertMediaStreamCallSessionMatchesToken,
@@ -569,7 +570,7 @@ async function createConvaiWebSocket(
   agentId: string,
 ): Promise<WebSocket> {
   const { apiKey } = await resolveApiKey(session.tenantId, 'elevenlabs');
-  const response = await fetch(
+  const response = await elevenLabsFetch(
     `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
     {
       headers: {

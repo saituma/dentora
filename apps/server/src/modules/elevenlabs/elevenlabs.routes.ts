@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
 import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { ensureAgentPromptDates } from './ensure-agent-prompt.js';
+import { elevenLabsFetch } from './elevenlabs-fetch.js';
 import { isWithinBusinessHours } from '../telephony/telephony.service.js';
 import { getClinicProfile } from '../config/config.service.js';
 import { ProviderError, ValidationError } from '../../lib/errors.js';
@@ -90,7 +91,7 @@ elevenlabsRouter.post(
       void ensureAgentPromptDates(tenantId, agentId);
       const sessionVars = await buildSessionDynamicVars(tenantId);
 
-      const response = await fetch(
+      const response = await elevenLabsFetch(
         `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
         { headers: { 'xi-api-key': apiKey } },
       );
@@ -173,7 +174,7 @@ elevenlabsRouter.post(
       void ensureAgentPromptDates(tenantId, agentId);
       const sessionVars = await buildSessionDynamicVars(tenantId);
 
-      const response = await fetch(
+      const response = await elevenLabsFetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
         { headers: { 'xi-api-key': apiKey } },
       );
@@ -236,7 +237,7 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      const agentResponse = await fetch(
+      const agentResponse = await elevenLabsFetch(
         `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`,
         {
           headers: {
@@ -277,7 +278,7 @@ elevenlabsRouter.post(
           ? ttsConfig.model_id
           : 'eleven_multilingual_v2';
 
-      const ttsResponse = await fetch(
+      const ttsResponse = await elevenLabsFetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=mp3_44100_128`,
         {
           method: 'POST',
@@ -353,7 +354,7 @@ elevenlabsRouter.get(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      const response = await fetch(
+      const response = await elevenLabsFetch(
         `https://api.elevenlabs.io/v1/convai/conversations/${encodeURIComponent(conversationId)}`,
         {
           headers: {
