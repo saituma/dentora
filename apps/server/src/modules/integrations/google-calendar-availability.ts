@@ -168,6 +168,8 @@ export async function findAvailableCalendarSlots(input: CalendarAvailabilityInpu
   const lookAheadDays = Math.max(1, input.lookAheadDays || 7);
   const closedDates = normalizeClosedDates(input.closedDates);
   const requestedTime = parseTimeString(input.requestedTime);
+  // Never offer a slot in the past, or one before an explicit caller-supplied floor.
+  const earliestStartMs = Math.max(Date.now(), input.minimumStartAt?.getTime() ?? 0);
 
   const [year, month, day] = requestedDate.split('-').map(Number);
   const rangeStart = makeDateInTimeZone(input.timezone, year, month, day, 0, 0);
@@ -262,6 +264,7 @@ export async function findAvailableCalendarSlots(input: CalendarAvailabilityInpu
     ) {
       const slotEnd = new Date(slotStart.getTime() + durationMinutes * 60_000);
       const occupancyEnd = new Date(slotEnd.getTime() + bufferMinutes * 60_000);
+      if (slotStart.getTime() < earliestStartMs) continue;
       if (overlapsRange(slotStart.getTime(), slotEnd.getTime(), breakIntervals)) continue;
       if (overlapsRange(slotStart.getTime(), occupancyEnd.getTime(), busyIntervals)) continue;
       if (!slotMatchesRequestedPeriod(slotStart, input.timezone, input.requestedPeriod)) continue;

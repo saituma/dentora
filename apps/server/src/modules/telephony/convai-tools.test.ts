@@ -33,9 +33,13 @@ vi.mock('../integrations/integration.service.js', () => ({
   getActiveGoogleCalendarIntegration: mockGetActiveGoogleCalendarIntegration,
 }));
 
-vi.mock('../integrations/google-calendar.shared.js', () => ({
-  resolveValidGoogleAccessToken: mockResolveValidGoogleAccessToken,
-}));
+vi.mock('../integrations/google-calendar.shared.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../integrations/google-calendar.shared.js')>();
+  return {
+    ...actual,
+    resolveValidGoogleAccessToken: mockResolveValidGoogleAccessToken,
+  };
+});
 
 vi.mock('../patients/patients.service.js', () => ({
   findPatientProfile: mockFindPatientProfile,

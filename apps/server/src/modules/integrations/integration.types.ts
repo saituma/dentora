@@ -44,6 +44,8 @@ export interface CalendarAvailabilityInput {
   closedDates?: string[] | null;
   maxSlots?: number;
   lookAheadDays?: number;
+  /** Slots starting before this instant are never returned. Past slots are always excluded regardless. */
+  minimumStartAt?: Date;
 }
 
 export interface CreateCalendarAppointmentInput {

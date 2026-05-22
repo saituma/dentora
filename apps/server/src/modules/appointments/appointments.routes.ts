@@ -10,7 +10,10 @@ import {
   rescheduleGoogleCalendarAppointment,
 } from '../integrations/integration.service.js';
 import { upsertPatientProfile } from '../patients/patients.service.js';
-import { resolveValidGoogleAccessToken } from '../integrations/google-calendar.shared.js';
+import {
+  resolveValidGoogleAccessToken,
+  makeDateInTimeZone,
+} from '../integrations/google-calendar.shared.js';
 import { ValidationError } from '../../lib/errors.js';
 import { hashForSearch } from '../../lib/encrypted-column.js';
 import {
@@ -169,9 +172,37 @@ appointmentsRouter.post(
         ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
         : null;
 
+      // Mirror the same-day rule enforced by POST /book so the agent is never
+      // offered a slot it cannot actually book. After noon, same-day booking is
+      // closed entirely; before noon, same-day slots must be in the afternoon.
+      const tz = clinic.timezone;
+      const dateParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const nowHour = Number(
+        new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(
+          new Date(),
+        ),
+      );
+      let minimumStartAt: Date;
+      if (nowHour >= 12) {
+        const [ty, tm, td] = dateParts
+          .format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+          .split('-')
+          .map(Number);
+        minimumStartAt = makeDateInTimeZone(tz, ty, tm, td, 0, 0);
+      } else {
+        const [y, m, d] = dateParts.format(new Date()).split('-').map(Number);
+        minimumStartAt = makeDateInTimeZone(tz, y, m, d, 12, 0);
+      }
+
       const availability = await findAvailableCalendarSlots({
         tenantId,
         timezone: clinic.timezone,
+        minimumStartAt,
         requestedDate: req.body.requestedDate,
         requestedTime: req.body.requestedTime ?? null,
         requestedPeriod: req.body.requestedPeriod ?? null,

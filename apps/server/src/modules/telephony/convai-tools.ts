@@ -1,5 +1,6 @@
 import * as configService from '../config/config.service.js';
 import { findAvailableCalendarSlots } from '../integrations/integration.service.js';
+import { makeDateInTimeZone } from '../integrations/google-calendar.shared.js';
 import { findPatientProfile } from '../patients/patients.service.js';
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
@@ -171,9 +172,41 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
   }
   const requestedDate = normalizeAgentDate(rawRequestedDate, clinic.timezone);
 
+  // Never offer a slot that createAppointmentWithSms would reject: enforce the
+  // min-notice window and the same-day rule (no same-day after noon; before
+  // noon, same-day slots must be in the afternoon).
+  const minNoticeHours = rules?.minNoticePeriodHours ?? 2;
+  const minNoticeFloorMs = Date.now() + minNoticeHours * 60 * 60 * 1000;
+  const availabilityDateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: clinic.timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const availabilityNowHour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: clinic.timezone,
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date()),
+  );
+  let sameDayFloor: Date;
+  if (availabilityNowHour >= 12) {
+    const [ty, tm, td] = availabilityDateParts
+      .format(new Date(Date.now() + 24 * 60 * 60 * 1000))
+      .split('-')
+      .map(Number);
+    sameDayFloor = makeDateInTimeZone(clinic.timezone, ty, tm, td, 0, 0);
+  } else {
+    const [y, m, d] = availabilityDateParts.format(new Date()).split('-').map(Number);
+    sameDayFloor = makeDateInTimeZone(clinic.timezone, y, m, d, 12, 0);
+  }
+  const minimumStartAt = new Date(Math.max(minNoticeFloorMs, sameDayFloor.getTime()));
+
   const availability = await findAvailableCalendarSlots({
     tenantId,
     timezone: clinic.timezone,
+    minimumStartAt,
     requestedDate,
     requestedTime: params.requestedTime ? String(params.requestedTime) : null,
     requestedPeriod: params.requestedPeriod

@@ -550,9 +550,12 @@ function ElevenLabsAgentPageInner() {
     }).format(new Date());
     const currentYear = todayDate.slice(0, 4);
 
+    const resolvedAgentName = agentNameVar.trim() || DEFAULT_AGENT_NAME;
+    const resolvedClinicName = clinicNameVar.trim() || clinic?.clinicName || 'Your Clinic';
+
     const dynamicVariables = {
-      agent_name: agentNameVar.trim() || DEFAULT_AGENT_NAME,
-      clinic_name: clinicNameVar.trim() || clinic?.clinicName || 'Your Clinic',
+      agent_name: resolvedAgentName,
+      clinic_name: resolvedClinicName,
       clinic_phone: clinic?.phone ?? 'Unknown',
       clinic_email: clinic?.email ?? 'Unknown',
       clinic_address: clinic?.address ?? 'Unknown',
@@ -570,7 +573,9 @@ function ElevenLabsAgentPageInner() {
       voice_tone: voiceProfile?.tone ?? '',
       voice_language: voiceProfile?.language ?? '',
       voice_id: voiceProfile?.voiceId ?? '',
-      greeting_message: voiceProfile?.greetingMessage ?? '',
+      greeting_message:
+        voiceProfile?.greetingMessage?.trim() ||
+        `Hi, thanks for calling ${resolvedClinicName}. This is ${resolvedAgentName} — how can I help you today?`,
       after_hours_message: voiceProfile?.afterHoursMessage ?? '',
       hold_music: voiceProfile?.holdMusic ?? '',
       emergency_disclaimer: formatEmergencyInfo(policies),

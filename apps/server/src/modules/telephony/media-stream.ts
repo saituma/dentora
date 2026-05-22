@@ -533,7 +533,9 @@ async function buildConvaiContext(tenantId: string) {
     voice_language: (vp?.language as string) ?? '',
     voice_id: (vp?.voiceId as string) ?? '',
     speech_speed: normalizedSpeechSpeed ?? '',
-    greeting_message: (vp?.greetingMessage as string) ?? '',
+    greeting_message:
+      (vp?.greetingMessage as string)?.trim() ||
+      `Hi, thanks for calling ${clinic?.clinicName ?? 'the clinic'}. This is Receptionist — how can I help you today?`,
     after_hours_message: (vp?.afterHoursMessage as string) ?? '',
     hold_music: (vp?.holdMusic as string) ?? '',
     emergency_disclaimer: formatEmergencyInfo(
