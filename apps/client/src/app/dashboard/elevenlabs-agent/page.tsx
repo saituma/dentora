@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
@@ -247,23 +247,6 @@ function ElevenLabsAgentPageInner() {
   const [agentNameVar, setAgentNameVar] = useState(DEFAULT_AGENT_NAME);
   const [clinicNameVar, setClinicNameVar] = useState('Your Clinic');
   const conversationIdRef = useRef<string | null>(null);
-  const ambientAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  const startAmbient = useCallback(() => {
-    const audio = new Audio('/clinic-ambient.mp3');
-    audio.loop = true;
-    audio.volume = 0.8;
-    ambientAudioRef.current = audio;
-    audio.play().catch((err) => console.error('[ambient] play failed', err));
-  }, []);
-
-  const stopAmbient = useCallback(() => {
-    if (ambientAudioRef.current) {
-      ambientAudioRef.current.pause();
-      ambientAudioRef.current.src = '';
-      ambientAudioRef.current = null;
-    }
-  }, []);
 
   const [createToken, { isLoading: isCreatingToken }] = useCreateConversationTokenMutation();
   const [createSignedUrl, { isLoading: isCreatingSignedUrl }] = useCreateSignedUrlMutation();
@@ -491,7 +474,6 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
     },
     onDisconnect: () => {
-      stopAmbient();
       appendLog({ role: 'event', text: 'Disconnected.' });
       const conversationId = conversationIdRef.current;
       if (!conversationId) return;
@@ -550,16 +532,10 @@ function ElevenLabsAgentPageInner() {
       return;
     }
 
-    // Start ambient BEFORE any await — getUserMedia consumes the user gesture
-    // activation in Firefox, blocking audio.play() if called after it.
-    stopAmbient();
-    startAmbient();
-
     if (!textOnly) {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch {
-        stopAmbient();
         toast.error('Microphone permission is required to start the receptionist.');
         return;
       }
