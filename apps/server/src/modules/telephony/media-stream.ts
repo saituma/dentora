@@ -19,7 +19,6 @@ import {
   assertMediaStreamCallSessionMatchesToken,
   verifyMediaStreamBinding,
 } from './stream-token.js';
-import { mixAmbient, getAmbientChunk, isAmbientLoaded } from '../../lib/ambient-mixer.js';
 import {
   mediaStreamInvalidStartTotal,
   mediaStreamPendingLimitExceededTotal,
@@ -138,9 +137,6 @@ interface MediaStreamSession {
   firstMediaLogged?: boolean;
   dynamicVariables: Record<string, unknown>;
   contextualUpdate: string;
-  ambientOffset: number;
-  ambientInterval: ReturnType<typeof setInterval> | null;
-  lastAgentAudioAt: number;
 }
 
 const activeSessions = new Map<string, MediaStreamSession>();
@@ -149,12 +145,6 @@ const MAX_SESSION_DURATION_MS = 30 * 60 * 1000;
 export const MEDIA_STREAM_START_TIMEOUT_MS = 5_000;
 export const MAX_PENDING_MEDIA_STREAMS = 100;
 export const MAX_PENDING_MEDIA_STREAMS_PER_IP = 10;
-
-// Ambient background loop: sends clinic noise during agent silence so it plays continuously.
-const AMBIENT_LOOP_INTERVAL_MS = 100; // 100ms tick
-const AMBIENT_LOOP_BYTES = 800; // 100ms × 8kHz
-// Stop ambient for this long after each agent audio chunk to avoid overlap.
-const AGENT_AUDIO_ACTIVE_THRESHOLD_MS = 200;
 
 interface PendingMediaStreamConnection {
   id: string;
@@ -845,9 +835,6 @@ export async function handleStreamStart(
       turnCount: 0,
       dynamicVariables,
       contextualUpdate: enrichedContextualUpdate,
-      ambientOffset: 0,
-      ambientInterval: null,
-      lastAgentAudioAt: 0,
     };
 
     activeSessions.set(callSessionId, session);
@@ -985,7 +972,6 @@ async function handleElevenLabsMessageWithTenant(
       }
 
       flushPendingAudio(session);
-      startAmbientLoop(session);
       break;
     }
     case 'audio': {
@@ -1172,47 +1158,15 @@ function flushPendingAudio(session: MediaStreamSession): void {
   session.pendingAudioChunks = [];
 }
 
-function startAmbientLoop(session: MediaStreamSession): void {
-  if (session.ambientInterval || !isAmbientLoaded()) return;
-  session.ambientInterval = setInterval(() => {
-    if (session.ws.readyState !== WebSocket.OPEN) return;
-    if (Date.now() - session.lastAgentAudioAt < AGENT_AUDIO_ACTIVE_THRESHOLD_MS) return;
-    const { chunk, newOffset } = getAmbientChunk(session.ambientOffset, AMBIENT_LOOP_BYTES);
-    session.ambientOffset = newOffset;
-    session.ws.send(
-      JSON.stringify({
-        event: 'media',
-        streamSid: session.streamSid,
-        media: { payload: chunk },
-      }),
-    );
-  }, AMBIENT_LOOP_INTERVAL_MS);
-}
-
-function stopAmbientLoop(session: MediaStreamSession): void {
-  if (session.ambientInterval) {
-    clearInterval(session.ambientInterval);
-    session.ambientInterval = null;
-  }
-}
-
 function sendAudioToTwilio(session: MediaStreamSession, audioBase64: string): void {
   if (session.ws.readyState !== WebSocket.OPEN) return;
-  session.lastAgentAudioAt = Date.now();
-
-  const { mixed, newOffset } = mixAmbient(audioBase64, session.ambientOffset);
-  session.ambientOffset = newOffset;
-
   const chunkSize = 8000;
   let chunkCount = 0;
-  for (let i = 0; i < mixed.length; i += chunkSize) {
-    const chunk = mixed.slice(i, i + chunkSize);
-    const mediaMessage = JSON.stringify({
-      event: 'media',
-      streamSid: session.streamSid,
-      media: { payload: chunk },
-    });
-    session.ws.send(mediaMessage);
+  for (let i = 0; i < audioBase64.length; i += chunkSize) {
+    const chunk = audioBase64.slice(i, i + chunkSize);
+    session.ws.send(
+      JSON.stringify({ event: 'media', streamSid: session.streamSid, media: { payload: chunk } }),
+    );
     chunkCount += 1;
   }
   logger.debug({ callSessionId: session.callSessionId, chunkCount }, 'Sent audio chunks to Twilio');
@@ -1335,7 +1289,6 @@ async function handleStreamEndWithTenant(
   } catch (err) {
     logger.error({ err, callSessionId }, 'Error during stream cleanup');
   } finally {
-    stopAmbientLoop(session);
     try {
       if (session.elevenSocket?.readyState === WebSocket.OPEN) {
         session.elevenSocket.close();

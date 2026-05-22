@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger } from './logger.js';
 
-const AMBIENT_VOLUME = 0.3;
+const AMBIENT_VOLUME = 0.08;
 
 let ambientBuffer: Buffer | null = null;
 
