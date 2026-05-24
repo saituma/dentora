@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Dentora — Onboarding Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── Robi tokens ── */
+:root {
+  --light-100:  oklch(97.05% 0.0057 128.5);
+  --light-200:  oklch(94.12% 0.0054 117.9);
+  --light-400:  oklch(89.59% 0.0042 121.6);
+  --light-800:  oklch(54.83% 0.0015 106.5);
+  --light-1000: oklch(33.25% 0.0017 106.5);
+  --light-1100: oklch(23.89% 0.0019 106.5);
+  --teal-50:    oklch(95.43% 0.0094 171.8);
+  --teal-300:   oklch(74.47% 0.0172 172.5);
+  --teal-700:   oklch(39.33% 0.0116 171.2);
+  --border-lt:  var(--light-200);
+  --border:     var(--light-400);
+  --muted:      var(--light-800);
+  --accent:     var(--teal-700);
+  --fg:         var(--light-1000);
+}
+
+/* ── Print: natural A4 flow, let Chromium paginate ── */
+@page {
+  size: A4;
+  margin: 14mm 16mm;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Lexend', -apple-system, sans-serif;
+  background: oklch(100% 0 0);
+  color: var(--fg);
+  font-size: 8pt;
+  font-weight: 300;
+  line-height: 1.6;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ── Page section: explicit break before pages 2 and 3 ── */
+.pg { display: block; }
+.pg + .pg { break-before: page; page-break-before: always; }
+
+/* ── Top bar ── */
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 4mm;
+  border-bottom: 1px solid var(--border-lt);
+  margin-bottom: 6mm;
+}
+.brand     { font-size: 9.5pt; font-weight: 600; letter-spacing: -0.3px; color: var(--light-1100); }
+.brand-dot { color: var(--accent); }
+.doc-label { font-size: 6pt; font-weight: 400; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+
+/* ── Page title ── */
+.page-title {
+  padding-bottom: 6mm;
+  border-bottom: 1px solid var(--border-lt);
+  margin-bottom: 7mm;
+}
+.page-title h1 {
+  font-size: 30pt; font-weight: 200; letter-spacing: -1.2px;
+  color: var(--light-1100); line-height: 1.05; margin-bottom: 3mm;
+}
+.page-title h1 em { font-style: normal; color: var(--accent); }
+.page-title p {
+  font-size: 8pt; font-weight: 300; color: var(--muted);
+  line-height: 1.7; max-width: 155mm;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 6pt; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 3.5mm;
+  display: flex; align-items: center; gap: 7px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border-lt); }
+
+/* ── Steps ── */
+.step-list { display: flex; flex-direction: column; margin-bottom: 7mm; }
+.step-row {
+  display: flex; gap: 5mm; padding: 4mm 0;
+  border-bottom: 1px solid var(--border-lt);
+  break-inside: avoid; page-break-inside: avoid;
+}
+.step-row:last-child { border-bottom: none; }
+.step-index { font-size: 7pt; font-weight: 600; color: var(--muted); width: 5mm; min-width: 5mm; padding-top: 0.3mm; }
+.step-content { flex: 1; }
+.step-header  { display: flex; align-items: baseline; gap: 3mm; margin-bottom: 1.5mm; }
+.step-name    { font-size: 9pt; font-weight: 500; color: var(--light-1100); letter-spacing: -0.2px; }
+
+.chip { font-size: 5.5pt; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; padding: 1.5px 5px; border-radius: 2px; }
+.chip-req   { background: oklch(33.25% 0.0017 106.5 / 0.08); color: var(--light-1000); }
+.chip-rec   { background: var(--teal-50); color: var(--teal-700); border: 1px solid var(--teal-300); }
+.chip-opt   { background: var(--light-100); color: var(--muted); }
+.chip-oauth { background: oklch(74.47% 0.0172 172.5 / 0.15); color: var(--teal-700); }
+
+.step-desc  { font-size: 7.5pt; font-weight: 300; color: var(--muted); line-height: 1.6; margin-bottom: 2mm; }
+
+.field-row { display: flex; flex-wrap: wrap; gap: 1.5mm; }
+.field      { font-size: 6.5pt; font-weight: 400; padding: 1.5px 5px; border-radius: 2px; color: var(--light-1000); background: oklch(33.25% 0.0017 106.5 / 0.06); }
+.field-req  { color: var(--light-1100); background: oklch(33.25% 0.0017 106.5 / 0.10); font-weight: 500; }
+.field-file { color: var(--teal-700); background: var(--teal-50); }
+
+/* ── Callout ── */
+.callout {
+  border: 1px solid var(--border-lt); border-left: 2px solid var(--accent);
+  padding: 4mm 5mm; border-radius: 0 3px 3px 0;
+  break-inside: avoid; page-break-inside: avoid;
+  margin-bottom: 7mm;
+}
+.callout-title { font-size: 8pt; font-weight: 600; color: var(--light-1100); margin-bottom: 2.5mm; }
+.callout-list  { list-style: none; display: flex; flex-direction: column; gap: 1.8mm; }
+.callout-list li { font-size: 7.5pt; font-weight: 300; color: var(--muted); padding-left: 10px; position: relative; line-height: 1.55; }
+.callout-list li::before { content: '–'; position: absolute; left: 0; color: var(--accent); }
+
+/* ── Footer strip ── */
+.doc-footer {
+  margin-top: 8mm; padding-top: 3.5mm; border-top: 1px solid var(--border-lt);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.footer-brand     { font-size: 8pt; font-weight: 500; color: var(--light-1000); }
+.footer-brand-dot { color: var(--accent); }
+.footer-meta      { font-size: 6.5pt; font-weight: 300; color: var(--muted); }
+
+/* ── CSV table ── */
+.csv-wrap { break-inside: avoid; page-break-inside: avoid; margin-bottom: 0; }
+.csv-table { width: 100%; border-collapse: collapse; }
+.csv-table thead th {
+  font-size: 6pt; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); padding: 0 3mm 3mm; text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.csv-table thead th:first-child  { width: 28mm; }
+.csv-table thead th:nth-child(2) { width: 14mm; }
+.csv-table thead th:nth-child(3) { width: 55mm; }
+.csv-table tbody td {
+  padding: 3mm 3mm; font-size: 7.5pt; font-weight: 300;
+  border-bottom: 1px solid var(--border-lt); vertical-align: top;
+}
+.csv-table tbody tr:last-child td { border-bottom: none; }
+.csv-table tbody tr { break-inside: avoid; }
+.col-name    { font-weight: 500; color: var(--light-1100); font-size: 7pt; }
+.col-alias   { color: var(--muted); font-size: 7pt; line-height: 1.55; }
+.col-example { color: var(--muted); font-style: italic; font-size: 7pt; }
+.req-pill { background: oklch(33.25% 0.0017 106.5 / 0.08); color: var(--light-1000); font-size: 5.5pt; font-weight: 600; padding: 1.5px 5px; border-radius: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+.opt-pill { background: var(--light-100); color: var(--muted); font-size: 5.5pt; font-weight: 500; padding: 1.5px 5px; border-radius: 2px; letter-spacing: 0.5px; text-transform: uppercase; }
+
+.systems-note {
+  font-size: 7pt; font-weight: 300; color: var(--muted); line-height: 1.65;
+  padding: 3mm 3.5mm; background: var(--light-100); border-radius: 2px; margin-top: 2mm;
+}
+.systems-note strong { font-weight: 500; color: var(--fg); }
+
+/* ── Checklist ── */
+.check-wrap { break-inside: avoid; page-break-inside: avoid; margin-bottom: 7mm; }
+.check-table { width: 100%; border-collapse: collapse; }
+.check-table thead th {
+  font-size: 6pt; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); padding: 0 3mm 3mm; text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.check-table thead th:first-child  { width: 6mm; text-align: center; }
+.check-table thead th:nth-child(3) { width: 33mm; }
+.check-table thead th:last-child   { width: 45mm; }
+.check-table tbody td {
+  padding: 2.5mm 3mm; font-size: 7.5pt; font-weight: 300;
+  border-bottom: 1px solid var(--border-lt); vertical-align: middle;
+}
+.check-table tbody tr:last-child td { border-bottom: none; }
+.check-table tbody tr { break-inside: avoid; }
+.check-box  { width: 10px; height: 10px; border: 1.5px solid var(--border); border-radius: 2px; display: inline-block; }
+.check-item { font-weight: 400; color: var(--light-1100); }
+.check-step { font-size: 6pt; font-weight: 500; padding: 1px 4px; border-radius: 2px; background: oklch(33.25% 0.0017 106.5 / 0.07); color: var(--muted); margin-left: 3px; text-transform: uppercase; }
+.check-fmt  { font-size: 7pt; color: var(--muted); }
+.check-note { font-size: 7pt; font-weight: 300; color: var(--muted); }
+
+/* ── Support ── */
+.support-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; }
+.support-card  { border: 1px solid var(--border-lt); border-radius: 3px; padding: 3.5mm; }
+.support-title { font-size: 8pt; font-weight: 500; color: var(--light-1100); margin-bottom: 0.5mm; }
+.support-val   { font-size: 7.5pt; font-weight: 300; color: var(--accent); }
+.support-sub   { font-size: 7pt; font-weight: 300; color: var(--muted); margin-top: 1mm; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     PAGE 1 — Steps 1–6
+═══════════════════════════════════════ -->
+<div class="pg">
+
+  <div class="topbar">
+    <div class="brand">Dent<span class="brand-dot">.</span>ora</div>
+    <div class="doc-label">Onboarding Guide &nbsp;·&nbsp; v1.1</div>
+  </div>
+
+  <div class="page-title">
+    <h1>Setting Up Your<br/><em>AI Receptionist</em></h1>
+    <p>Everything your practice needs to go live with Dentora. Complete the required steps to activate your AI receptionist — optional items improve accuracy and are strongly recommended.</p>
+  </div>
+
+  <div class="section-label">Steps 1 – 6 &nbsp; Practice information</div>
+  <div class="step-list">
+
+    <div class="step-row">
+      <div class="step-index">01</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Clinic Profile</span>
+          <span class="chip chip-req">Required</span>
+        </div>
+        <div class="step-desc">The basic identity of your practice — used in patient-facing communications and throughout your dashboard.</div>
+        <div class="field-row">
+          <span class="field field-req">Practice name</span>
+          <span class="field field-req">Address</span>
+          <span class="field field-req">Phone number</span>
+          <span class="field field-req">Email address</span>
+          <span class="field field-req">Timezone</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">02</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Knowledge Base — Services, FAQs &amp; Staff</span>
+          <span class="chip chip-req">Required</span>
+        </div>
+        <div class="step-desc">Your AI receptionist draws on this to answer questions about treatments, pricing, team members, and policies. Add at least one service and one FAQ to proceed.</div>
+        <div class="field-row">
+          <span class="field field-req">Service name</span>
+          <span class="field field-req">Category</span>
+          <span class="field field-req">Duration (mins)</span>
+          <span class="field field-req">Price (£)</span>
+          <span class="field">Description</span>
+          <span class="field field-req">FAQ question</span>
+          <span class="field field-req">FAQ answer</span>
+          <span class="field">FAQ category</span>
+          <span class="field">Staff name &amp; role</span>
+          <span class="field field-file">T&amp;C document (PDF / DOCX / TXT · max 5 MB)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">03</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Voice &amp; Tone</span>
+          <span class="chip chip-req">Required</span>
+        </div>
+        <div class="step-desc">Choose your AI receptionist's voice, greeting script, speaking speed, and personality. A live preview plays before you save.</div>
+        <div class="field-row">
+          <span class="field field-req">Voice selection</span>
+          <span class="field field-req">Greeting message</span>
+          <span class="field field-req">Tone</span>
+          <span class="field">Speaking speed</span>
+          <span class="field">Language</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">04</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Phone Number</span>
+          <span class="chip chip-req">Required</span>
+        </div>
+        <div class="step-desc">Select a UK phone number for your AI receptionist from the available list. This is the number patients will call.</div>
+        <div class="field-row">
+          <span class="field field-req">Select number from list</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">05</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Google Calendar Integration</span>
+          <span class="chip chip-oauth">OAuth setup</span>
+        </div>
+        <div class="step-desc">Authorise Dentora to read and write your Google Calendar so the AI can check real-time availability and book appointments. Completed via Google sign-in — no file upload required.</div>
+        <div class="field-row">
+          <span class="field">Google account email</span>
+          <span class="field">Calendar ID (optional)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">06</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Opening Hours &amp; Schedule</span>
+          <span class="chip chip-req">Required</span>
+        </div>
+        <div class="step-desc">Set your weekly operating hours, break windows, and any closed dates. At least one working day must be enabled to proceed.</div>
+        <div class="field-row">
+          <span class="field field-req">Working days</span>
+          <span class="field field-req">Open / close times</span>
+          <span class="field">Break windows</span>
+          <span class="field">Closed dates</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Before you start — have these ready</div>
+    <ul class="callout-list">
+      <li>A full services list with treatment names, durations, and prices for both NHS and private treatments.</li>
+      <li>Your most common patient questions — "Do you take NHS?", "What are your emergency slots?" etc.</li>
+      <li>Your weekly opening hours including any half-days or regular lunch breaks.</li>
+      <li>The Google account that owns your practice calendar — you'll authorise it in step 5.</li>
+      <li>A CSV export from your current patient management system — you'll upload this in step 8.</li>
+    </ul>
+  </div>
+
+  <div class="doc-footer">
+    <div class="footer-brand">Dent<span class="footer-brand-dot">.</span>ora</div>
+    <div class="footer-meta">Page 1 of 3 &nbsp;·&nbsp; dentora.co.uk</div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     PAGE 2 — Steps 7–10 + CSV reference
+═══════════════════════════════════════ -->
+<div class="pg">
+
+  <div class="topbar">
+    <div class="brand">Dent<span class="brand-dot">.</span>ora</div>
+    <div class="doc-label">Onboarding Guide &nbsp;·&nbsp; v1.1</div>
+  </div>
+
+  <div class="section-label">Steps 7 – 10 &nbsp; AI training, patient import, testing &amp; go-live</div>
+  <div class="step-list">
+
+    <div class="step-row">
+      <div class="step-index">07</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">AI Context — Practice Documents</span>
+          <span class="chip chip-opt">Optional · Recommended</span>
+        </div>
+        <div class="step-desc">Upload documents about your practice so the AI gives richer, more accurate answers. Up to 10 files, 5 MB each. You can also paste information or a website URL directly into the AI chat window.</div>
+        <div class="field-row">
+          <span class="field field-file">Treatment brochures (PDF / DOCX)</span>
+          <span class="field field-file">Price lists (XLSX / CSV)</span>
+          <span class="field field-file">Policy documents (PDF / DOCX / TXT)</span>
+          <span class="field field-file">Custom FAQ document (TXT)</span>
+          <span class="field field-file">Clinic photo (JPG / PNG · max 1.5 MB)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">08</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Import Patient Records</span>
+          <span class="chip chip-rec">Recommended</span>
+        </div>
+        <div class="step-desc">Export your existing patient list from your current practice software and upload it as a CSV file. Dentora imports all records so the AI recognises returning callers by name from day one — no waiting for data to build up organically. Max 5,000 rows · 10 MB. See the column reference below.</div>
+        <div class="field-row">
+          <span class="field field-req">Full name (or First + Last columns)</span>
+          <span class="field field-req">Phone number</span>
+          <span class="field">Date of birth</span>
+          <span class="field">Last visit date</span>
+          <span class="field">Notes / medical flags</span>
+          <span class="field field-file">CSV file · max 10 MB · 5,000 rows</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">09</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Test Call</span>
+          <span class="chip chip-oauth">Interactive</span>
+        </div>
+        <div class="step-desc">Make a live test call to your AI receptionist before going live. Verify it answers correctly, books appointments, and handles edge cases. Nothing to prepare or upload.</div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-index">10</div>
+      <div class="step-content">
+        <div class="step-header">
+          <span class="step-name">Publish &amp; Go Live</span>
+          <span class="chip chip-req">Required</span>
+        </div>
+        <div class="step-desc">Review your full configuration and publish. Your AI receptionist activates immediately. Every setting can be changed at any time from your dashboard without any downtime.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Step 8 &nbsp; Patient CSV column reference</div>
+  <div class="csv-wrap">
+    <table class="csv-table">
+      <thead>
+        <tr>
+          <th>Column header</th>
+          <th>Required</th>
+          <th>Also accepted as</th>
+          <th>Example value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name">Full Name</td>
+          <td><span class="req-pill">Yes</span></td>
+          <td class="col-alias">Name, Patient Name, Patient<br/>Or split: First Name + Last Name</td>
+          <td class="col-example">Sarah Johnson</td>
+        </tr>
+        <tr>
+          <td class="col-name">Phone Number</td>
+          <td><span class="req-pill">Yes</span></td>
+          <td class="col-alias">Phone, Mobile, Mobile Number, Tel, Telephone, Contact Number</td>
+          <td class="col-example">07712 345678</td>
+        </tr>
+        <tr>
+          <td class="col-name">Date of Birth</td>
+          <td><span class="opt-pill">No</span></td>
+          <td class="col-alias">DOB, Birthdate, Birthday</td>
+          <td class="col-example">1985-06-14 or 14/06/1985</td>
+        </tr>
+        <tr>
+          <td class="col-name">Last Visit</td>
+          <td><span class="opt-pill">No</span></td>
+          <td class="col-alias">Last Visit At, Last Appointment, Last Visit Date</td>
+          <td class="col-example">2025-11-03</td>
+        </tr>
+        <tr>
+          <td class="col-name">Notes</td>
+          <td><span class="opt-pill">No</span></td>
+          <td class="col-alias">Note, Comments, Comment, Medical History</td>
+          <td class="col-example">Allergic to latex</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="systems-note">
+      <strong>How to export from common systems —</strong>
+      &nbsp;<strong>Dentally:</strong> Reports → Patient List → Export CSV &nbsp;·&nbsp;
+      <strong>SOE / Exact:</strong> Patient Manager → Print → Export to Spreadsheet &nbsp;·&nbsp;
+      <strong>Carestream R4:</strong> Patient → Search All → Export &nbsp;·&nbsp;
+      <strong>Other systems:</strong> contact us and we will help you extract the right columns.
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div class="footer-brand">Dent<span class="footer-brand-dot">.</span>ora</div>
+    <div class="footer-meta">Page 2 of 3 &nbsp;·&nbsp; dentora.co.uk</div>
+  </div>
+
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     PAGE 3 — Checklist + Support
+═══════════════════════════════════════ -->
+<div class="pg">
+
+  <div class="topbar">
+    <div class="brand">Dent<span class="brand-dot">.</span>ora</div>
+    <div class="doc-label">Onboarding Guide &nbsp;·&nbsp; v1.1</div>
+  </div>
+
+  <div class="section-label">Complete onboarding checklist</div>
+  <div class="check-wrap">
+    <table class="check-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Item</th>
+          <th>Format</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Clinic name, address, phone, email, timezone</span><span class="check-step">Step 1</span></td>
+          <td class="check-fmt">Form fields</td>
+          <td class="check-note">Required to proceed</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Services list (name, category, duration, price)</span><span class="check-step">Step 2</span></td>
+          <td class="check-fmt">Form fields</td>
+          <td class="check-note">Minimum 1 service required</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">FAQs (question + answer)</span><span class="check-step">Step 2</span></td>
+          <td class="check-fmt">Form fields</td>
+          <td class="check-note">Minimum 1 FAQ required</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Staff names &amp; roles</span><span class="check-step">Step 2 · Optional</span></td>
+          <td class="check-fmt">Form fields</td>
+          <td class="check-note">Improves AI responses</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Terms &amp; Conditions document</span><span class="check-step">Step 2 · Optional</span></td>
+          <td class="check-fmt">PDF / DOCX / TXT</td>
+          <td class="check-note">Max 5 MB</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Voice, tone &amp; greeting message</span><span class="check-step">Step 3</span></td>
+          <td class="check-fmt">Form / selector</td>
+          <td class="check-note">Preview available before saving</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Phone number selection</span><span class="check-step">Step 4</span></td>
+          <td class="check-fmt">Select from list</td>
+          <td class="check-note">Assigned UK Twilio number</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Google Calendar authorisation</span><span class="check-step">Step 5</span></td>
+          <td class="check-fmt">Google sign-in</td>
+          <td class="check-note">Authorise in browser — no file</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Opening hours &amp; schedule</span><span class="check-step">Step 6</span></td>
+          <td class="check-fmt">Form fields</td>
+          <td class="check-note">Minimum 1 working day</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Practice documents (brochures, policies, FAQs)</span><span class="check-step">Step 7 · Optional</span></td>
+          <td class="check-fmt">PDF / DOCX / XLSX / CSV / TXT</td>
+          <td class="check-note">Up to 10 files, 5 MB each</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Patient records CSV export</span><span class="check-step">Step 8 · Recommended</span></td>
+          <td class="check-fmt">CSV · max 10 MB · 5,000 rows</td>
+          <td class="check-note">Full Name + Phone required</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Test call completed</span><span class="check-step">Step 9</span></td>
+          <td class="check-fmt">Interactive</td>
+          <td class="check-note">Verify AI responds correctly</td>
+        </tr>
+        <tr>
+          <td style="text-align:center"><span class="check-box"></span></td>
+          <td><span class="check-item">Publish &amp; go live</span><span class="check-step">Step 10</span></td>
+          <td class="check-fmt">Confirm in dashboard</td>
+          <td class="check-note">Activates AI receptionist immediately</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-label">Need help?</div>
+  <div class="support-grid">
+    <div class="support-card">
+      <div class="support-title">Live Chat</div>
+      <div class="support-sub">In your Dentora dashboard<br/>Mon–Fri, 9am–6pm GMT</div>
+    </div>
+    <div class="support-card">
+      <div class="support-title">Email Support</div>
+      <div class="support-val">hello@dentora.co.uk</div>
+      <div class="support-sub">Response within 4 business hours</div>
+    </div>
+    <div class="support-card">
+      <div class="support-title">Help Centre</div>
+      <div class="support-val">help.dentora.co.uk</div>
+      <div class="support-sub">Video walkthroughs for every step</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <div class="footer-brand">Dent<span class="footer-brand-dot">.</span>ora</div>
+    <div class="footer-meta">Page 3 of 3 &nbsp;·&nbsp; v1.1 &nbsp;·&nbsp; May 2026 &nbsp;·&nbsp; dentora.co.uk</div>
+  </div>
+
+</div>
+
+</body>
+</html>

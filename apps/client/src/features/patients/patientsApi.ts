@@ -2,6 +2,12 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/lib/api';
 import type { CallSession } from '@/features/calls/types';
 
+export type ImportResult = {
+  imported: number;
+  skipped: number;
+  errors: Array<{ row: number; message: string }>;
+};
+
 export type PatientProfile = {
   id: string;
   tenantId: string;
@@ -46,6 +52,13 @@ export const patientsApi = createApi({
         body,
       }),
     }),
+    importPatients: builder.mutation<{ data: ImportResult }, FormData>({
+      query: (formData) => ({
+        url: '/patients/import',
+        method: 'POST',
+        body: formData,
+      }),
+    }),
     getPatientById: builder.query<{ data: PatientProfile }, string>({
       query: (patientId) => `/patients/${patientId}`,
     }),
@@ -61,6 +74,7 @@ export const patientsApi = createApi({
 export const {
   useGetPatientsQuery,
   useUpsertPatientMutation,
+  useImportPatientsMutation,
   useGetPatientByIdQuery,
   useGetPatientCallsQuery,
 } = patientsApi;

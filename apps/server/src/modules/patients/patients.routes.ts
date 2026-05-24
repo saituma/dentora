@@ -1,20 +1,47 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
+import * as XLSX from 'xlsx';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
 import {
   findPatientProfile,
   listPatientProfiles,
   upsertPatientProfile,
   getPatientProfileById,
+  bulkImportPatients,
 } from './patients.service.js';
 import { listCallSessionsByCaller } from '../calls/call.service.js';
 import { deletePatientAndAllData } from './patient.deletion.js';
 import { exportPatientData } from './patient.export.js';
+import { ValidationError } from '../../lib/errors.js';
 
 const patientsRateLimiter = rateLimiter({
   maxRequests: 120,
   windowSeconds: 60,
   keyPrefix: 'patients',
+});
+
+const importRateLimiter = rateLimiter({
+  maxRequests: 10,
+  windowSeconds: 60,
+  keyPrefix: 'patients-import',
+});
+
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+    if (
+      ext === 'csv' ||
+      file.mimetype === 'text/csv' ||
+      file.mimetype === 'application/vnd.ms-excel'
+    ) {
+      cb(null, true);
+    } else {
+      cb(new ValidationError('Only CSV files are allowed'));
+    }
+  },
 });
 
 const lookupSchema = z.object({
@@ -102,6 +129,42 @@ patientsRouter.post(
         entityId: profile.id,
       });
       res.json({ data: profile });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+patientsRouter.post(
+  '/import',
+  authenticateJwt,
+  resolveTenant,
+  importRateLimiter,
+  csvUpload.single('file'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) throw new ValidationError('No file uploaded');
+
+      const tenantId = req.tenantContext!.tenantId;
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer', raw: false });
+      const sheetName = workbook.SheetNames[0];
+      if (!sheetName) throw new ValidationError('CSV file is empty');
+
+      const sheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: '' });
+
+      if (rows.length === 0) throw new ValidationError('CSV contains no data rows');
+      if (rows.length > 5000)
+        throw new ValidationError('CSV must not exceed 5,000 rows per import');
+
+      const result = await bulkImportPatients({ tenantId, rows });
+
+      req.audit?.({
+        action: 'patient.import',
+        entityType: 'patient_profile',
+      });
+
+      res.json({ data: result });
     } catch (error) {
       next(error);
     }

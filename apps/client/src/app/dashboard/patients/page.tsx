@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,8 +23,13 @@ import {
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/empty-state';
-import { useGetPatientsQuery, useUpsertPatientMutation, type PatientProfile } from '@/features/patients/patientsApi';
-import { UsersIcon } from 'lucide-react';
+import {
+  useGetPatientsQuery,
+  useUpsertPatientMutation,
+  useImportPatientsMutation,
+  type PatientProfile,
+} from '@/features/patients/patientsApi';
+import { UploadIcon, UsersIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate, formatDateTime } from './patient-utils';
 
@@ -44,8 +49,35 @@ export default function PatientsPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [editingPatient, setEditingPatient] = useState<PatientProfile | null>(null);
-  const { data, isLoading } = useGetPatientsQuery(search ? { search } : undefined, { refetchOnFocus: true });
+  const { data, isLoading } = useGetPatientsQuery(search ? { search } : undefined, {
+    refetchOnFocus: true,
+  });
   const [upsertPatient] = useUpsertPatientMutation();
+  const [importPatients, { isLoading: isImporting }] = useImportPatientsMutation();
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCsvImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const result = await importPatients(formData).unwrap();
+      const { imported, skipped, errors } = result.data;
+      if (errors.length > 0) {
+        toast.warning(
+          `Imported ${imported} patients, ${skipped} skipped. First error: row ${errors[0].row} — ${errors[0].message}`,
+        );
+      } else {
+        toast.success(`Successfully imported ${imported} patient${imported === 1 ? '' : 's'}`);
+      }
+    } catch {
+      toast.error('Import failed — check the file format and try again');
+    }
+  };
 
   const patients = useMemo(() => data?.data ?? [], [data?.data]);
 
@@ -54,10 +86,11 @@ export default function PatientsPage() {
   const filteredPatients = useMemo(() => {
     if (!search) return patients;
     const needle = search.toLowerCase();
-    return patients.filter((patient) => (
-      patient.fullName.toLowerCase().includes(needle)
-      || patient.phoneNumber.toLowerCase().includes(needle)
-    ));
+    return patients.filter(
+      (patient) =>
+        patient.fullName.toLowerCase().includes(needle) ||
+        patient.phoneNumber.toLowerCase().includes(needle),
+    );
   }, [patients, search]);
 
   const handleSave = () => {
@@ -68,7 +101,11 @@ export default function PatientsPage() {
         dateOfBirth: selectedPatient.dateOfBirth || null,
         notes: selectedPatient.notes || null,
         lastVisitAt: selectedPatient.lastVisitAt || null,
-      }).unwrap().then(() => { setEditingPatient(null); }),
+      })
+        .unwrap()
+        .then(() => {
+          setEditingPatient(null);
+        }),
       { loading: 'Saving…', success: 'Patient saved', error: 'Failed to save' },
     );
   };
@@ -82,9 +119,24 @@ export default function PatientsPage() {
             Returning patients are recognized by phone number and date of birth.
           </p>
         </div>
-        <Button onClick={() => setEditingPatient({ ...blankPatient })}>
-          Add patient
-        </Button>
+        <div className="flex gap-2">
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleCsvImport}
+          />
+          <Button
+            variant="outline"
+            onClick={() => csvInputRef.current?.click()}
+            disabled={isImporting}
+          >
+            <UploadIcon className="mr-2 h-4 w-4" />
+            {isImporting ? 'Importing…' : 'Import CSV'}
+          </Button>
+          <Button onClick={() => setEditingPatient({ ...blankPatient })}>Add patient</Button>
+        </div>
       </div>
 
       <Card>
@@ -124,11 +176,21 @@ export default function PatientsPage() {
                           <Skeleton className="h-3 w-24" />
                         </div>
                       </TableCell>
-                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                      <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
-                      <TableCell className="text-right"><Skeleton className="ml-auto h-8 w-14" /></TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-28" />
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <Skeleton className="h-4 w-24" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-5 w-14 rounded-full" />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Skeleton className="ml-auto h-8 w-14" />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -162,11 +224,17 @@ export default function PatientsPage() {
                     >
                       <TableCell>
                         <div className="font-medium">{patient.fullName}</div>
-                        <div className="text-xs text-muted-foreground">{patient.notes || 'No notes'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {patient.notes || 'No notes'}
+                        </div>
                       </TableCell>
                       <TableCell>{patient.phoneNumber}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{formatDate(patient.dateOfBirth)}</TableCell>
-                      <TableCell className="hidden md:table-cell">{formatDateTime(patient.lastVisitAt)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {formatDate(patient.dateOfBirth)}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {formatDateTime(patient.lastVisitAt)}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">Active</Badge>
                       </TableCell>
@@ -191,7 +259,10 @@ export default function PatientsPage() {
         </CardContent>
       </Card>
 
-      <Sheet open={Boolean(editingPatient)} onOpenChange={(open) => !open && setEditingPatient(null)}>
+      <Sheet
+        open={Boolean(editingPatient)}
+        onOpenChange={(open) => !open && setEditingPatient(null)}
+      >
         <SheetContent>
           <SheetHeader>
             <SheetTitle>{editingPatient?.id === 'new' ? 'Add patient' : 'Edit patient'}</SheetTitle>
@@ -202,7 +273,9 @@ export default function PatientsPage() {
               <label className="text-sm font-medium">Full name</label>
               <Input
                 value={selectedPatient.fullName}
-                onChange={(event) => setEditingPatient({ ...selectedPatient, fullName: event.target.value })}
+                onChange={(event) =>
+                  setEditingPatient({ ...selectedPatient, fullName: event.target.value })
+                }
                 placeholder="Patient name"
               />
             </div>
@@ -210,7 +283,9 @@ export default function PatientsPage() {
               <label className="text-sm font-medium">Phone number</label>
               <Input
                 value={selectedPatient.phoneNumber}
-                onChange={(event) => setEditingPatient({ ...selectedPatient, phoneNumber: event.target.value })}
+                onChange={(event) =>
+                  setEditingPatient({ ...selectedPatient, phoneNumber: event.target.value })
+                }
                 placeholder="Phone number"
               />
             </div>
@@ -218,7 +293,9 @@ export default function PatientsPage() {
               <label className="text-sm font-medium">Date of birth</label>
               <Input
                 value={selectedPatient.dateOfBirth ?? ''}
-                onChange={(event) => setEditingPatient({ ...selectedPatient, dateOfBirth: event.target.value })}
+                onChange={(event) =>
+                  setEditingPatient({ ...selectedPatient, dateOfBirth: event.target.value })
+                }
                 placeholder="YYYY-MM-DD"
               />
             </div>
@@ -226,7 +303,9 @@ export default function PatientsPage() {
               <label className="text-sm font-medium">Last visit</label>
               <Input
                 value={selectedPatient.lastVisitAt ?? ''}
-                onChange={(event) => setEditingPatient({ ...selectedPatient, lastVisitAt: event.target.value })}
+                onChange={(event) =>
+                  setEditingPatient({ ...selectedPatient, lastVisitAt: event.target.value })
+                }
                 placeholder="YYYY-MM-DD or ISO timestamp"
               />
             </div>
@@ -234,15 +313,15 @@ export default function PatientsPage() {
               <label className="text-sm font-medium">Notes</label>
               <Input
                 value={selectedPatient.notes ?? ''}
-                onChange={(event) => setEditingPatient({ ...selectedPatient, notes: event.target.value })}
+                onChange={(event) =>
+                  setEditingPatient({ ...selectedPatient, notes: event.target.value })
+                }
                 placeholder="Notes, preferences, insurance"
               />
             </div>
           </div>
           <div className="mt-6 flex gap-2">
-            <Button onClick={handleSave}>
-              Save profile
-            </Button>
+            <Button onClick={handleSave}>Save profile</Button>
             <Button variant="outline" onClick={() => setEditingPatient(null)}>
               Cancel
             </Button>

@@ -150,6 +150,106 @@ export async function upsertPatientProfile(input: {
   return decryptRow(row);
 }
 
+export type ImportResult = {
+  imported: number;
+  skipped: number;
+  errors: Array<{ row: number; message: string }>;
+};
+
+function normalizeKey(s: string): string {
+  return s.toLowerCase().replace(/[\s_-]+/g, '');
+}
+
+function pick(row: Record<string, string>, ...keys: string[]): string | null {
+  for (const k of keys) {
+    const v = row[k]?.trim();
+    if (v) return v;
+  }
+  return null;
+}
+
+export async function bulkImportPatients(input: {
+  tenantId: string;
+  rows: Record<string, string>[];
+}): Promise<ImportResult> {
+  assertTenantAccess(input.tenantId);
+  let imported = 0;
+  let skipped = 0;
+  const errors: Array<{ row: number; message: string }> = [];
+
+  for (let i = 0; i < input.rows.length; i++) {
+    const rowNum = i + 2; // 1-indexed + header row
+    const raw = input.rows[i];
+
+    // Normalize all keys once
+    const row: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      row[normalizeKey(k)] = String(v ?? '');
+    }
+
+    // Resolve full name — handle split first/last or combined
+    const fullName =
+      pick(row, 'fullname', 'name', 'patientname', 'patient') ??
+      (() => {
+        const first = pick(row, 'firstname', 'forename', 'givenname');
+        const last = pick(row, 'lastname', 'surname', 'familyname');
+        return first && last ? `${first} ${last}` : (first ?? last ?? null);
+      })();
+
+    const phoneNumber = pick(
+      row,
+      'phonenumber',
+      'phone',
+      'mobile',
+      'mobilenumber',
+      'tel',
+      'telephone',
+      'contactnumber',
+    );
+
+    if (!fullName || fullName.length < 2) {
+      errors.push({ row: rowNum, message: 'Missing or invalid full name' });
+      skipped++;
+      continue;
+    }
+    if (!phoneNumber || phoneNumber.length < 7) {
+      errors.push({ row: rowNum, message: 'Missing or invalid phone number' });
+      skipped++;
+      continue;
+    }
+
+    const dobRaw = pick(row, 'dateofbirth', 'dob', 'birthdate', 'birthday', 'dateofbirth');
+    const lastVisitRaw = pick(row, 'lastvisitat', 'lastvisit', 'lastappointment', 'lastvisitdate');
+    const notes = pick(row, 'notes', 'note', 'comments', 'comment', 'medicalhistory');
+
+    let lastVisitAt: Date | null = null;
+    if (lastVisitRaw) {
+      const d = new Date(lastVisitRaw);
+      if (!isNaN(d.getTime())) lastVisitAt = d;
+    }
+
+    try {
+      await upsertPatientProfile({
+        tenantId: input.tenantId,
+        fullName,
+        phoneNumber,
+        dateOfBirth: dobRaw ?? null,
+        lastVisitAt,
+        notes: notes ?? null,
+      });
+      imported++;
+    } catch (err) {
+      errors.push({
+        row: rowNum,
+        message: err instanceof Error ? err.message : 'Failed to save row',
+      });
+      skipped++;
+    }
+  }
+
+  return { imported, skipped, errors };
+}
+
 export async function listPatientProfiles(input: {
   tenantId: string;
   search?: string | null;
