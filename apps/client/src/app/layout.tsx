@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { RouteProgress } from '@/components/route-progress';
 import { cn } from '@/lib/utils';
+import { ShatteredToothBg } from '@/components/shattered-tooth-bg';
 
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono', display: 'swap' });
 const interHeading = Inter({ subsets: ['latin'], variable: '--font-heading', display: 'swap' });
@@ -38,6 +39,7 @@ export default function RootLayout({
         <RouteProgress />
         <ReduxProvider>
           <ThemeProviderWrapper>
+            <ShatteredToothBg />
             <ErrorBoundary>{children}</ErrorBoundary>
             <Toaster />
           </ThemeProviderWrapper>
