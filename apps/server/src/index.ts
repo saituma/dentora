@@ -49,8 +49,19 @@ import { appointmentsRouter } from './modules/appointments/index.js';
 import { patientsRouter } from './modules/patients/index.js';
 import { staffReviewRouter } from './modules/staff-review/index.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
+import { dentallyVerificationRouter, pmsWebhooksRouter } from './modules/pms/index.js';
 
 const app = express();
+
+interface RawBodyRequest extends express.Request {
+  rawBody?: string;
+}
+
+function capturePmsWebhookRawBody(req: express.Request, _res: express.Response, buf: Buffer): void {
+  if (req.originalUrl.startsWith('/api/pms/webhooks')) {
+    (req as RawBodyRequest).rawBody = buf.toString('utf8');
+  }
+}
 
 app.set('trust proxy', 1);
 let allowedOrigins = env.CORS_ORIGIN.split(',')
@@ -101,7 +112,7 @@ app.use(
   }),
 );
 app.use(compression());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb', verify: capturePmsWebhookRawBody }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(requestId);
@@ -181,6 +192,8 @@ app.use('/api/appointments', appointmentsRouter);
 app.use('/api/patients', patientsRouter);
 app.use('/api/staff-review', staffReviewRouter);
 app.use('/api/uploads', uploadsRouter);
+app.use('/api/pms/dentally/verify', dentallyVerificationRouter);
+app.use('/api/pms/webhooks', pmsWebhooksRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -230,6 +243,16 @@ async function start() {
 
     attachMediaStreamWebSocket(server);
     attachReceptionistLiveWebSocket(server);
+
+    server.on('clientError', (err, socket) => {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ECONNRESET' || code === 'EPIPE') {
+        socket.destroy();
+        return;
+      }
+      logger.warn({ err }, 'HTTP client error');
+      socket.destroy();
+    });
 
     // Prevent Neon compute autosuspend (triggers a ~1-3s cold start after 5 min idle)
     const dbKeepAlive = setInterval(
