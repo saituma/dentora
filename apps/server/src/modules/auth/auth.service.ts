@@ -310,15 +310,16 @@ async function sendEmailOtp_Smtp(input: { email: string; code: string }): Promis
     throw new ValidationError('SMTP is not configured for email verification');
   }
 
-  const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    secure: env.SMTP_SECURE,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
+  const transporter = nodemailer.createTransport(
+    // Force IPv4 — Heroku Common Runtime has no IPv6 outbound; nodemailer types don't expose family
+    {
+      host: env.SMTP_HOST,
+      port: env.SMTP_PORT,
+      secure: env.SMTP_SECURE,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+      family: 4,
+    } as unknown as Parameters<typeof nodemailer.createTransport>[0],
+  );
 
   await transporter.sendMail({
     from: env.SMTP_FROM,
