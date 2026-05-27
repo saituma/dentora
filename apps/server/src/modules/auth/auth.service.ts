@@ -330,6 +330,9 @@ async function sendEmailOtp_Smtp(input: { email: string; code: string }): Promis
 }
 
 async function sendEmailOtpViaSmtp(input: { email: string; code: string }): Promise<void> {
+  if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS) {
+    return sendEmailOtp_Smtp(input);
+  }
   if (env.RESEND_API_KEY) {
     return sendEmailOtp_Resend(input);
   }
