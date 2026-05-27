@@ -600,6 +600,108 @@ async function createConvaiWebSocket(
     const initPayload = {
       type: 'conversation_initiation_client_data',
       dynamic_variables: session.dynamicVariables,
+      client_tools: [
+        {
+          name: 'forward_call',
+          description:
+            'Transfer the live call to a human team member or the clinic main line. Use this when the caller asks to speak to a person, a specific staff member, or a human.',
+          parameters: {
+            type: 'object',
+            properties: {
+              targetNumber: {
+                type: 'string',
+                description:
+                  'E.164 phone number to forward to. Leave empty to use the clinic default number.',
+              },
+              staffName: {
+                type: 'string',
+                description:
+                  'Name or role of the staff member to forward to (e.g. "Dr Smith"). Used to look up their number if targetNumber is empty.',
+              },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'check_availability',
+          description: 'Check available appointment slots for a given date or date range.',
+          parameters: {
+            type: 'object',
+            properties: {
+              date: { type: 'string', description: 'Date to check in YYYY-MM-DD format.' },
+              dateRangeStart: { type: 'string', description: 'Start of date range YYYY-MM-DD.' },
+              dateRangeEnd: { type: 'string', description: 'End of date range YYYY-MM-DD.' },
+              durationMinutes: { type: 'number', description: 'Appointment duration in minutes.' },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'create_appointment',
+          description: 'Book a new appointment for a patient after confirming all details.',
+          parameters: {
+            type: 'object',
+            properties: {
+              patientName: { type: 'string' },
+              patientDob: { type: 'string', description: 'Date of birth YYYY-MM-DD.' },
+              patientPhone: { type: 'string' },
+              startIso: { type: 'string', description: 'Appointment start time in ISO 8601.' },
+              durationMinutes: { type: 'number' },
+              reason: { type: 'string' },
+            },
+            required: ['patientName', 'startIso'],
+          },
+        },
+        {
+          name: 'cancel_appointment',
+          description: 'Cancel an existing appointment.',
+          parameters: {
+            type: 'object',
+            properties: {
+              appointmentId: { type: 'string' },
+              patientName: { type: 'string' },
+              patientPhone: { type: 'string' },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'reschedule_appointment',
+          description: 'Reschedule an existing appointment to a new time.',
+          parameters: {
+            type: 'object',
+            properties: {
+              appointmentId: { type: 'string' },
+              newStartIso: { type: 'string' },
+              patientName: { type: 'string' },
+              patientPhone: { type: 'string' },
+            },
+            required: ['newStartIso'],
+          },
+        },
+        {
+          name: 'lookup_patient',
+          description: 'Look up an existing patient record by name or phone number.',
+          parameters: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              phone: { type: 'string' },
+            },
+            required: [],
+          },
+        },
+        {
+          name: 'get_clinic_info',
+          description: 'Get clinic contact details, address, and general information.',
+          parameters: { type: 'object', properties: {}, required: [] },
+        },
+        {
+          name: 'get_business_hours',
+          description: 'Get the clinic opening hours and closed dates.',
+          parameters: { type: 'object', properties: {}, required: [] },
+        },
+      ],
     };
     socket.send(JSON.stringify(initPayload));
     logger.info(
