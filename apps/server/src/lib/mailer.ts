@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { lookup as dnsLookup } from 'node:dns/promises';
 import { env } from '../config/env.js';
 
 export interface SendEmailInput {
@@ -30,16 +31,19 @@ async function sendViaResend(input: SendEmailInput): Promise<void> {
 }
 
 async function sendViaSmtp(input: SendEmailInput): Promise<void> {
-  const transporter = nodemailer.createTransport(
-    // Force IPv4 — Heroku Common Runtime has no IPv6 outbound; nodemailer types don't expose family
-    {
-      host: env.SMTP_HOST,
-      port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
-      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-      family: 4,
-    } as unknown as Parameters<typeof nodemailer.createTransport>[0],
-  );
+  // Heroku Common Runtime has no IPv6 outbound — pre-resolve to IPv4 so nodemailer
+  // never attempts the AAAA address. tls.servername keeps cert validation correct.
+  const ipv4Host = await dnsLookup(env.SMTP_HOST, { family: 4 })
+    .then((r) => r.address)
+    .catch(() => env.SMTP_HOST);
+
+  const transporter = nodemailer.createTransport({
+    host: ipv4Host,
+    port: env.SMTP_PORT,
+    secure: env.SMTP_SECURE,
+    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    tls: { servername: env.SMTP_HOST },
+  } as unknown as Parameters<typeof nodemailer.createTransport>[0]);
   await transporter.sendMail({
     from: env.SMTP_FROM,
     to: input.to,
