@@ -865,9 +865,22 @@ export async function handleStreamStart(
       return false;
     }
 
-    await ensureAgentPromptDates(tenantId, agentId);
+    // Fire-and-forget: patching takes 3 sequential ElevenLabs API round-trips (~4s on cache
+    // miss) which would blow the 5s media_stream_start_timeout. The cache makes it a no-op
+    // on subsequent calls within the 1-hour TTL, so the only affected call is the first one
+    // after a cache miss — which will still work, just with the previous agent prompt.
+    void ensureAgentPromptDates(tenantId, agentId);
 
     const elevenSocket = await createConvaiWebSocket(session, agentId);
+
+    // Guard: if the session ended while we were waiting for the ElevenLabs signed URL
+    // (e.g. timeout fired or caller hung up), close the socket immediately rather than
+    // leaving it orphaned.
+    if (!activeSessions.has(callSessionId)) {
+      elevenSocket.close();
+      return false;
+    }
+
     session.elevenSocket = elevenSocket;
 
     elevenSocket.on('message', (data) => {
