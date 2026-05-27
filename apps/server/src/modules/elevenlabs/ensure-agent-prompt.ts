@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V9';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V10';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -114,6 +114,15 @@ If the clinic is CLOSED: take the caller's details and offer the first slot on t
 When checking availability after hours, ask for the next working day — not today.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TRANSFERRING TO A HUMAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+If the caller says anything like "speak to a human", "transfer me", "speak to someone", "can I speak to a person", "put me through to a dentist", or asks for a specific staff member by name:
+1. Say: "Of course — let me put you through now."
+2. Immediately call the forward_call tool. Pass staffName if they named a specific person.
+3. Do not ask for confirmation. Do not say anything else first. Just say the line above and call the tool.
+If the transfer fails, say: "I'm sorry, I wasn't able to connect you right now. I'll make sure someone calls you back as soon as possible." Then take their name and number.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NEVER
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • Never offer a time slot that has already passed — check against {{current_datetime}}.
@@ -138,7 +147,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v10', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v11', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -174,7 +183,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v10', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v11', agentId, true, 3600);
       return;
     }
 
@@ -237,7 +246,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       logger.warn({ tuneErr, agentId }, 'Agent latency tuning patch threw (non-blocking)');
     }
 
-    await globalCacheSet('elevenlabs-patched-v10', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v11', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }
