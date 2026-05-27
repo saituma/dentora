@@ -13,7 +13,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   return (
-    <div className="relative bg-background">
+    <div className="relative bg-transparent">
       <DentoraAiChat />
       <div className="relative z-10">
         <SidebarProvider
