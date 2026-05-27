@@ -90,9 +90,31 @@ const envSchema = z.object({
   GOOGLE_OAUTH_ERROR_REDIRECT: z.string().default('http://localhost:3000/onboarding/ai-chat'),
   GOOGLE_AUTH_REDIRECT_URI: z.string().default('http://localhost:4000/api/auth/google/callback'),
 
+  ENABLE_DENTALLY: booleanFromString.default(false),
+  DENTALLY_API_BASE_URL: z.string().url().default('https://api.dentally.co'),
+  DENTALLY_SANDBOX_MODE: booleanFromString.default(true),
+  DENTALLY_VERIFICATION_ENABLED: booleanFromString.default(false),
+  DENTALLY_ALLOW_SANDBOX_WRITES: booleanFromString.default(false),
+  DENTALLY_CONTROLLED_PILOT: booleanFromString.default(false),
+  DENTALLY_PILOT_TENANT_IDS: z.string().default(''),
+  DENTALLY_PILOT_INTEGRATION_IDS: z.string().default(''),
+  DENTALLY_APPOINTMENT_PATH: z.string().default('/appointments'),
+  DENTALLY_PATIENT_PATH: z.string().default('/patients'),
+  DENTALLY_CLINICIAN_PATH: z.string().default('/practitioners'),
+  DENTALLY_ROOM_PATH: z.string().default('/rooms'),
+  DENTALLY_WEBHOOK_PATH: z.string().default('/webhooks'),
+  DENTALLY_AUTH_PATH: z.string().default('/user'),
+  DENTALLY_WEBHOOK_SIGNATURE_HEADER: z.string().default('x-dentally-signature'),
+  DENTALLY_WEBHOOK_TIMESTAMP_HEADER: z.string().default('x-dentally-timestamp'),
+  DENTALLY_WEBHOOK_REPLAY_WINDOW_SECONDS: z.coerce.number().min(1).max(3600).default(300),
+  DENTALLY_REQUEST_TIMEOUT_MS: z.coerce.number().min(500).max(60000).default(15000),
+  DENTALLY_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+
   SMTP_HOST: z.string().default(''),
   SMTP_PORT: z.coerce.number().default(587),
-  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_SECURE: z
+    .preprocess((v) => v === true || v === 'true' || v === '1', z.boolean())
+    .default(false),
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
   SMTP_FROM: z.string().default(''),
@@ -112,6 +134,79 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+function parseCsvList(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isUuidList(value: string): boolean {
+  return parseCsvList(value).every((item) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item),
+  );
+}
+
+function isDentallySandboxBaseUrl(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname.toLowerCase() === 'api.sandbox.dentally.co';
+  } catch {
+    return false;
+  }
+}
+
+export function getDentallyEnvFatalErrors(
+  config: Pick<
+    Env,
+    | 'ENABLE_DENTALLY'
+    | 'DENTALLY_VERIFICATION_ENABLED'
+    | 'DENTALLY_SANDBOX_MODE'
+    | 'DENTALLY_ALLOW_SANDBOX_WRITES'
+    | 'DENTALLY_API_BASE_URL'
+    | 'DENTALLY_CONTROLLED_PILOT'
+    | 'DENTALLY_PILOT_TENANT_IDS'
+    | 'DENTALLY_PILOT_INTEGRATION_IDS'
+  >,
+): string[] {
+  const fatal: string[] = [];
+
+  if (config.DENTALLY_ALLOW_SANDBOX_WRITES) {
+    if (!config.ENABLE_DENTALLY) {
+      fatal.push('DENTALLY_ALLOW_SANDBOX_WRITES=true requires ENABLE_DENTALLY=true');
+    }
+    if (!config.DENTALLY_VERIFICATION_ENABLED) {
+      fatal.push('DENTALLY_ALLOW_SANDBOX_WRITES=true requires DENTALLY_VERIFICATION_ENABLED=true');
+    }
+    if (config.DENTALLY_SANDBOX_MODE) {
+      fatal.push('DENTALLY_ALLOW_SANDBOX_WRITES=true requires DENTALLY_SANDBOX_MODE=false');
+    }
+    if (!isDentallySandboxBaseUrl(config.DENTALLY_API_BASE_URL)) {
+      fatal.push('DENTALLY_ALLOW_SANDBOX_WRITES=true requires Dentally sandbox API base URL');
+    }
+  }
+
+  if (config.DENTALLY_CONTROLLED_PILOT) {
+    if (!config.ENABLE_DENTALLY) {
+      fatal.push('DENTALLY_CONTROLLED_PILOT=true requires ENABLE_DENTALLY=true');
+    }
+    if (parseCsvList(config.DENTALLY_PILOT_TENANT_IDS).length === 0) {
+      fatal.push('DENTALLY_CONTROLLED_PILOT=true requires DENTALLY_PILOT_TENANT_IDS');
+    }
+    if (parseCsvList(config.DENTALLY_PILOT_INTEGRATION_IDS).length === 0) {
+      fatal.push('DENTALLY_CONTROLLED_PILOT=true requires DENTALLY_PILOT_INTEGRATION_IDS');
+    }
+  }
+
+  if (config.DENTALLY_PILOT_TENANT_IDS && !isUuidList(config.DENTALLY_PILOT_TENANT_IDS)) {
+    fatal.push('DENTALLY_PILOT_TENANT_IDS must be a comma-separated UUID list');
+  }
+  if (config.DENTALLY_PILOT_INTEGRATION_IDS && !isUuidList(config.DENTALLY_PILOT_INTEGRATION_IDS)) {
+    fatal.push('DENTALLY_PILOT_INTEGRATION_IDS must be a comma-separated UUID list');
+  }
+
+  return fatal;
+}
 
 export function isDefaultOrLocalRedisUrl(redisUrl: string): boolean {
   const normalized = redisUrl.trim().toLowerCase();
@@ -193,6 +288,13 @@ function loadEnv() {
     console.error(
       '❌ COOKIE_SAMESITE=none requires COOKIE_SECURE=true (browsers reject SameSite=None without Secure)',
     );
+    process.exit(1);
+  }
+
+  const dentallyFatal = getDentallyEnvFatalErrors(result.data);
+  if (dentallyFatal.length > 0) {
+    console.error('❌ Unsafe Dentally environment configuration:');
+    dentallyFatal.forEach((msg) => console.error(`  - ${msg}`));
     process.exit(1);
   }
 
