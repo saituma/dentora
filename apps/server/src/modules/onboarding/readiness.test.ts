@@ -260,11 +260,11 @@ describe('onboarding readiness gate', () => {
     expect(codes(result)).toContain('BOOKING_RULES_MISSING');
   });
 
-  it('blocks when booking is enabled without active Google Calendar integration', async () => {
+  it('warns when booking is enabled without active Google Calendar integration', async () => {
     const result = await readiness({ integrations: [] });
 
-    expect(result.ready).toBe(false);
-    expect(codes(result)).toContain('GOOGLE_CALENDAR_INTEGRATION_MISSING');
+    expect(result.ready).toBe(true);
+    expect(result.warnings.map((w) => w.code)).toContain('GOOGLE_CALENDAR_INTEGRATION_MISSING');
   });
 
   it('blocks when voice profile or voice agent is missing', async () => {
@@ -275,11 +275,11 @@ describe('onboarding readiness gate', () => {
     expect(codes(missingAgent)).toContain('VOICE_AGENT_ID_MISSING');
   });
 
-  it('blocks when active phone number is missing', async () => {
+  it('warns when active phone number is missing', async () => {
     const result = await readiness({ phoneNumbers: [] });
 
-    expect(result.ready).toBe(false);
-    expect(codes(result)).toContain('ACTIVE_PHONE_NUMBER_MISSING');
+    expect(result.ready).toBe(true);
+    expect(result.warnings.map((w) => w.code)).toContain('ACTIVE_PHONE_NUMBER_MISSING');
   });
 
   it('blocks when emergency or escalation policy is missing', async () => {
@@ -305,12 +305,13 @@ describe('onboarding readiness gate', () => {
     expect(mockDb.select).not.toHaveBeenCalled();
   });
 
-  it('go-live guard rejects blocking issues', async () => {
+  it('go-live guard succeeds with warnings when phone number is missing', async () => {
     queueReadinessRows({ requirePublishedConfig: false, phoneNumbers: [] });
 
-    await expect(withTenant(() => assertTenantReadyForGoLive('tenant-a'))).rejects.toThrow(
-      ValidationError,
-    );
+    await expect(withTenant(() => assertTenantReadyForGoLive('tenant-a'))).resolves.toMatchObject({
+      ready: true,
+      blockingIssues: [],
+    });
   });
 
   it('go-live guard succeeds when tenant is ready for first publish', async () => {

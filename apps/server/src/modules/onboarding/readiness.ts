@@ -272,11 +272,11 @@ export async function computeOnboardingReadiness(
       );
     }
     if (!hasHumanHandoffTarget(clinic)) {
-      blockingIssues.push(
-        blocking(
+      warnings.push(
+        warning(
           'policy',
           'HUMAN_HANDOFF_TARGET_MISSING',
-          'A human handoff phone number is required.',
+          'A human handoff phone number is recommended.',
         ),
       );
     }
@@ -317,19 +317,19 @@ export async function computeOnboardingReadiness(
     return isObject(capabilities) ? capabilities.voice !== false : true;
   });
   if (!activeVoiceNumber) {
-    blockingIssues.push(
-      blocking(
+    warnings.push(
+      warning(
         'telephony',
         'ACTIVE_PHONE_NUMBER_MISSING',
-        'An active voice-capable Twilio number is required.',
+        'An active voice-capable Twilio number is recommended.',
       ),
     );
   } else if (!hasText(activeVoiceNumber.twilioSid)) {
-    blockingIssues.push(
-      blocking(
+    warnings.push(
+      warning(
         'telephony',
         'TWILIO_NUMBER_SID_MISSING',
-        'Active Twilio number must include a Twilio SID.',
+        'Active Twilio number should include a Twilio SID.',
       ),
     );
   }
@@ -345,11 +345,11 @@ export async function computeOnboardingReadiness(
       integration.status === 'active',
   );
   if (!googleCalendar) {
-    blockingIssues.push(
-      blocking(
+    warnings.push(
+      warning(
         'calendar',
         'GOOGLE_CALENDAR_INTEGRATION_MISSING',
-        'An active Google Calendar integration is required for booking.',
+        'An active Google Calendar integration is recommended for booking.',
       ),
     );
   } else {
