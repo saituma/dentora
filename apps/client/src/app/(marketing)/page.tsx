@@ -100,7 +100,7 @@ function HeroSection() {
               AI Receptionist for Dental Clinics · UK & Ireland
             </motion.div>
 
-            <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-[#c7d0d9] md:text-6xl lg:text-[4.5rem]">
+            <h1 className="font-display text-3xl font-extrabold leading-[1.05] tracking-tight text-[#c7d0d9] sm:text-5xl md:text-6xl lg:text-[4.5rem]">
               AI Receptionist
               <br />
               for Dental Clinics
@@ -370,37 +370,56 @@ function LiveFeedSection() {
           {...inView}
           className="overflow-hidden rounded-2xl border border-white/10 bg-[#111827]"
         >
-          <div className="grid grid-cols-12 gap-2 border-b border-white/10 px-6 py-3 text-xs font-medium uppercase tracking-wide text-[#c7d0d9]/50">
+          {/* Desktop header */}
+          <div className="hidden grid-cols-12 gap-2 border-b border-white/10 px-6 py-3 text-xs font-medium uppercase tracking-wide text-[#c7d0d9]/50 sm:grid">
             <span className="col-span-2">Time</span>
             <span className="col-span-3">Number</span>
             <span className="col-span-2">Type</span>
             <span className="col-span-5">Detail</span>
           </div>
 
-          <div className="divide-y divide-black/[0.04]">
+          <div className="divide-y divide-white/5">
             {entries.map((e, i) => (
               <div
                 key={`${e.time}-${e.phone}-${i}`}
-                className={cn(
-                  'grid grid-cols-12 gap-2 px-6 py-3.5 text-sm',
-                  i === 0 && 'bg-[#4fc3f7]/[0.03]',
-                )}
+                className={cn(i === 0 && 'bg-[#4fc3f7]/[0.03]')}
               >
-                <span className="col-span-2 text-[#c7d0d9]/50">{e.time}</span>
-                <span className="col-span-3 font-mono text-xs text-[#c7d0d9]/60 self-center">
-                  {e.phone}
-                </span>
-                <span className="col-span-2">
-                  <span
-                    className={cn(
-                      'rounded-full px-2.5 py-1 text-xs font-medium',
-                      TYPE_STYLE[e.type] ?? 'bg-white/8 text-[#c7d0d9]/70',
-                    )}
-                  >
-                    {e.type}
+                {/* Mobile card */}
+                <div className="flex items-start justify-between gap-3 px-4 py-3 sm:hidden">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                          TYPE_STYLE[e.type] ?? 'bg-white/8 text-[#c7d0d9]/70',
+                        )}
+                      >
+                        {e.type}
+                      </span>
+                      <span className="truncate text-xs text-[#c7d0d9]/70">{e.detail}</span>
+                    </div>
+                    <p className="mt-1 font-mono text-[10px] text-[#c7d0d9]/50">{e.phone}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-[#c7d0d9]/40">{e.time}</span>
+                </div>
+                {/* Desktop row */}
+                <div className="hidden grid-cols-12 gap-2 px-6 py-3.5 text-sm sm:grid">
+                  <span className="col-span-2 text-[#c7d0d9]/50">{e.time}</span>
+                  <span className="col-span-3 self-center font-mono text-xs text-[#c7d0d9]/60">
+                    {e.phone}
                   </span>
-                </span>
-                <span className="col-span-5 truncate text-[#c7d0d9]/70">{e.detail}</span>
+                  <span className="col-span-2">
+                    <span
+                      className={cn(
+                        'rounded-full px-2.5 py-1 text-xs font-medium',
+                        TYPE_STYLE[e.type] ?? 'bg-white/8 text-[#c7d0d9]/70',
+                      )}
+                    >
+                      {e.type}
+                    </span>
+                  </span>
+                  <span className="col-span-5 truncate text-[#c7d0d9]/70">{e.detail}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -548,7 +567,7 @@ function CTASection() {
     <section className="px-6 pb-24 pt-8 lg:px-8">
       <motion.div
         {...inView}
-        className="mx-auto max-w-4xl overflow-hidden rounded-3xl bg-gradient-to-br from-[#4fc3f7] to-[#0284c7] p-12 text-center shadow-2xl shadow-[#4fc3f7]/20"
+        className="mx-auto max-w-4xl overflow-hidden rounded-3xl bg-gradient-to-br from-[#4fc3f7] to-[#0284c7] p-6 text-center shadow-2xl shadow-[#4fc3f7]/20 sm:p-12"
       >
         <h2 className="font-display text-4xl font-extrabold text-white md:text-5xl">
           Let Dentora answer.

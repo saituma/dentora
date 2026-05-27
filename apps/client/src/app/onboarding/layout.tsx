@@ -53,7 +53,7 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="relative w-full border-b border-white/10 bg-[#111827] px-5 py-7 sm:px-7 lg:sticky lg:top-0 lg:h-svh lg:w-[40%] lg:border-b-0 lg:border-r lg:py-10"
+          className="relative w-full border-b border-white/10 bg-[#111827] px-5 py-6 sm:px-7 sm:py-8 lg:sticky lg:top-0 lg:h-svh lg:w-[40%] lg:border-b-0 lg:border-r lg:py-10"
         >
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-[#4fc3f7]/10 blur-3xl" />
