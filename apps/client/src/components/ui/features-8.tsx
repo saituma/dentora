@@ -9,7 +9,7 @@ const patientMoments = [
 
 export function Features() {
   return (
-    <section className="bg-gray-50 py-16 md:py-32 dark:bg-transparent">
+    <section className="bg-transparent py-16 md:py-32">
       <div className="mx-auto max-w-3xl px-6 lg:max-w-5xl">
         <div className="mb-10 max-w-2xl">
           <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-muted-foreground">
@@ -36,31 +36,22 @@ export function Features() {
                       fill="currentColor"
                     />
                   </svg>
-                  <span className="mx-auto block w-fit text-5xl font-semibold">
-                    24/7
-                  </span>
+                  <span className="mx-auto block w-fit text-5xl font-semibold">24/7</span>
                 </div>
-                <h3 className="mt-6 text-center text-3xl font-semibold">
-                  Always on
-                </h3>
+                <h3 className="mt-6 text-center text-3xl font-semibold">Always on</h3>
               </CardContent>
             </Card>
 
             <Card className="relative col-span-full overflow-hidden sm:col-span-3 lg:col-span-2">
               <CardContent className="pt-6">
                 <div className="relative mx-auto flex aspect-square size-32 rounded-full border before:absolute before:-inset-2 before:rounded-full before:border dark:border-white/10 dark:before:border-white/5">
-                  <ShieldCheck
-                    className="m-auto size-16 text-primary"
-                    strokeWidth={1}
-                  />
+                  <ShieldCheck className="m-auto size-16 text-primary" strokeWidth={1} />
                 </div>
                 <div className="relative z-10 mt-6 space-y-2 text-center">
-                  <h3 className="text-lg font-medium transition dark:text-white">
-                    Triage-ready
-                  </h3>
+                  <h3 className="text-lg font-medium transition dark:text-white">Triage-ready</h3>
                   <p className="text-foreground">
-                    Spot emergencies, collect the right context, and route
-                    serious calls to your team.
+                    Spot emergencies, collect the right context, and route serious calls to your
+                    team.
                   </p>
                 </div>
               </CardContent>
@@ -73,9 +64,7 @@ export function Features() {
                     <div className="mb-5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Clock3 className="size-4 text-primary" />
-                        <span className="text-sm font-medium">
-                          Live call flow
-                        </span>
+                        <span className="text-sm font-medium">Live call flow</span>
                       </div>
                       <span className="rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
                         02:18
@@ -93,12 +82,9 @@ export function Features() {
                   </div>
                 </div>
                 <div className="relative z-10 mt-14 space-y-2 text-center">
-                  <h3 className="text-lg font-medium transition">
-                    Instant summaries
-                  </h3>
+                  <h3 className="text-lg font-medium transition">Instant summaries</h3>
                   <p className="text-foreground">
-                    Every call ends with intent, urgency, outcome, and next
-                    action.
+                    Every call ends with intent, urgency, outcome, and next action.
                   </p>
                 </div>
               </CardContent>
@@ -115,8 +101,7 @@ export function Features() {
                       Booking handoff
                     </h3>
                     <p className="text-foreground">
-                      Capture preferred times, services, and patient details
-                      before staff follow up.
+                      Capture preferred times, services, and patient details before staff follow up.
                     </p>
                   </div>
                 </div>
@@ -127,19 +112,15 @@ export function Features() {
                     <span className="block size-2 rounded-full border dark:border-white/10 dark:bg-white/10" />
                   </div>
                   <div className="mt-4 space-y-3">
-                    {['Dental exam', 'Emergency crown', 'Hygiene visit'].map(
-                      (item) => (
-                        <div
-                          key={item}
-                          className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm"
-                        >
-                          <span>{item}</span>
-                          <span className="text-xs text-muted-foreground">
-                            queued
-                          </span>
-                        </div>
-                      )
-                    )}
+                    {['Dental exam', 'Emergency crown', 'Hygiene visit'].map((item) => (
+                      <div
+                        key={item}
+                        className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm"
+                      >
+                        <span>{item}</span>
+                        <span className="text-xs text-muted-foreground">queued</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -152,12 +133,10 @@ export function Features() {
                     <Users className="m-auto size-6" strokeWidth={1} />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-lg font-medium transition">
-                      Team-aware routing
-                    </h3>
+                    <h3 className="text-lg font-medium transition">Team-aware routing</h3>
                     <p className="text-foreground">
-                      Send the right calls to reception, clinicians, or the next
-                      available follow-up queue.
+                      Send the right calls to reception, clinicians, or the next available follow-up
+                      queue.
                     </p>
                   </div>
                 </div>

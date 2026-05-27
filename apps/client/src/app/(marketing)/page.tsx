@@ -394,7 +394,7 @@ function LiveFeedSection() {
                   <span
                     className={cn(
                       'rounded-full px-2.5 py-1 text-xs font-medium',
-                      TYPE_STYLE[e.type] ?? 'bg-gray-100 text-[#c7d0d9]/70',
+                      TYPE_STYLE[e.type] ?? 'bg-white/8 text-[#c7d0d9]/70',
                     )}
                   >
                     {e.type}
