@@ -52,7 +52,7 @@ const nodePositions = [
   [288, 337, 4.8],
 ];
 
-const placements = [{ x: 260, y: 40, scale: 2.8, rotate: 0, opacity: 0.12 }];
+const placements = [{ x: 260, y: 40, scale: 2.8, rotate: 0, opacity: 0.18 }];
 
 function ToothShape() {
   return (
@@ -95,9 +95,9 @@ export function ShatteredToothBg() {
       >
         <defs>
           <linearGradient id="tooth-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: 'var(--brand-highlight)' }} />
-            <stop offset="50%" style={{ stopColor: 'var(--brand-primary)' }} />
-            <stop offset="100%" style={{ stopColor: 'var(--brand-secondary)' }} />
+            <stop offset="0%" style={{ stopColor: 'var(--brand-primary)' }} />
+            <stop offset="50%" style={{ stopColor: 'var(--brand-secondary)' }} />
+            <stop offset="100%" style={{ stopColor: 'var(--brand-primary)' }} />
           </linearGradient>
         </defs>
 
