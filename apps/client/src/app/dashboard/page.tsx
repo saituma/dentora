@@ -62,6 +62,7 @@ import { useGetIntegrationsQuery } from '@/features/integrations/integrationsApi
 import { useGetUpcomingAppointmentsQuery } from '@/features/appointments/appointmentsApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
 import { cn } from '@/lib/utils';
+import { PageHeader } from '@/components/page-header';
 
 const performanceChartConfig = {
   calls: { label: 'Calls', color: 'var(--chart-1)' },
@@ -366,34 +367,32 @@ export default function DashboardOverviewPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
-          <p className="text-sm text-muted-foreground">
-            Here&apos;s how {clinicName} is performing
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {statsFetching && !statsLoading && (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <WifiIcon className="size-3 animate-pulse" />
-              Updating…
-            </span>
-          )}
-          <Select value={period} onValueChange={(v) => setPeriod((v as PeriodPreset) ?? '7d')}>
-            <SelectTrigger className="w-[180px]" size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIOD_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <PageHeader
+        title={greeting}
+        subtitle={`Here's how ${clinicName} is performing`}
+        actions={
+          <div className="flex items-center gap-2">
+            {statsFetching && !statsLoading && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <WifiIcon className="size-3 animate-pulse" />
+                Updating…
+              </span>
+            )}
+            <Select value={period} onValueChange={(v) => setPeriod((v as PeriodPreset) ?? '7d')}>
+              <SelectTrigger className="w-[180px]" size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      />
 
       {/* KPI Stats Row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

@@ -201,35 +201,35 @@
 .dark {
   --background: var(--brand-bg);
   --foreground: var(--brand-text);
-  --card: color-mix(in srgb, var(--brand-bg) 60%, transparent);
+  --card: #111827;
   --card-foreground: var(--brand-text);
-  --popover: color-mix(in srgb, var(--brand-bg) 86%, var(--brand-highlight));
+  --popover: #1a2235;
   --popover-foreground: var(--brand-text);
   --primary: var(--brand-primary);
   --primary-foreground: var(--brand-bg);
-  --secondary: color-mix(in srgb, var(--brand-bg) 78%, var(--brand-secondary));
-  --secondary-foreground: var(--brand-highlight);
-  --muted: color-mix(in srgb, var(--brand-bg) 84%, var(--brand-highlight));
-  --muted-foreground: color-mix(in srgb, var(--brand-text) 75%, var(--brand-highlight));
-  --accent: color-mix(in srgb, var(--brand-bg) 72%, var(--brand-secondary));
-  --accent-foreground: var(--brand-highlight);
+  --secondary: color-mix(in srgb, var(--brand-primary) 12%, #111827);
+  --secondary-foreground: var(--brand-primary);
+  --muted: #0f1624;
+  --muted-foreground: color-mix(in srgb, var(--brand-text) 55%, transparent);
+  --accent: color-mix(in srgb, var(--brand-primary) 10%, #111827);
+  --accent-foreground: var(--brand-primary);
   --destructive: #f87171;
-  --border: color-mix(in srgb, var(--brand-bg) 70%, var(--brand-text));
-  --input: color-mix(in srgb, var(--brand-bg) 65%, var(--brand-text));
+  --border: rgba(199, 208, 217, 0.09);
+  --input: #111827;
   --ring: var(--brand-primary);
   --chart-1: var(--brand-primary);
   --chart-2: var(--brand-secondary);
   --chart-3: color-mix(in srgb, var(--brand-primary) 60%, var(--brand-secondary));
   --chart-4: color-mix(in srgb, var(--brand-secondary) 35%, var(--brand-highlight));
   --chart-5: color-mix(in srgb, var(--brand-primary) 65%, var(--brand-bg));
-  --sidebar: color-mix(in srgb, var(--brand-bg) 55%, transparent);
+  --sidebar: #0d1220;
   --sidebar-foreground: var(--brand-text);
   --sidebar-primary: var(--brand-primary);
   --sidebar-primary-foreground: var(--brand-bg);
-  --sidebar-accent: color-mix(in srgb, var(--brand-bg) 75%, var(--brand-secondary));
-  --sidebar-accent-foreground: var(--brand-highlight);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar-accent: color-mix(in srgb, var(--brand-primary) 8%, #111827);
+  --sidebar-accent-foreground: var(--brand-text);
+  --sidebar-border: rgba(199, 208, 217, 0.07);
+  --sidebar-ring: var(--brand-primary);
   --destructive-foreground: var(--color-red-400);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-400);
@@ -237,9 +237,9 @@
   --success-foreground: var(--color-emerald-400);
   --warning: var(--color-amber-500);
   --warning-foreground: var(--color-amber-400);
-  --code: color-mix(in srgb, var(--brand-bg) 88%, var(--brand-highlight));
+  --code: #0f1624;
   --code-foreground: var(--foreground);
-  --code-highlight: color-mix(in srgb, var(--brand-text) 4%, transparent);
+  --code-highlight: color-mix(in srgb, var(--brand-primary) 5%, transparent);
 }
 
 @layer base {
@@ -301,6 +301,22 @@
     transition-property: color, background-color, border-color, box-shadow, opacity, transform;
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Branded card elevation in dark mode */
+  .dark .card,
+  .dark [data-slot='card'] {
+    border-color: rgba(199, 208, 217, 0.09);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(79, 195, 247, 0.04);
+  }
+
+  /* Primary button glow */
+  .dark [data-slot='button'][data-variant='default']:hover,
+  .dark button.bg-primary:hover,
+  .dark a.bg-primary:hover {
+    box-shadow: 0 0 16px color-mix(in srgb, var(--brand-primary) 35%, transparent);
   }
 }
 

@@ -52,15 +52,22 @@ const nodePositions = [
   [288, 337, 4.8],
 ];
 
-const placements = [{ x: 260, y: 40, scale: 2.8, rotate: 0, opacity: 0.35 }];
+const placements = [
+  // Main — centre, large
+  { x: 260, y: 40, scale: 2.8, rotate: 0, opacity: 0.32 },
+  // Bottom-right — medium, rotated
+  { x: 1100, y: 580, scale: 1.6, rotate: 35, opacity: 0.14 },
+  // Top-left — small, flipped
+  { x: -80, y: -20, scale: 1.1, rotate: 160, opacity: 0.1 },
+];
 
-function ToothShape() {
+function ToothShape({ gradientId }: { gradientId: string }) {
   return (
     <>
       <path
         d={toothOutline}
         fill="none"
-        stroke="url(#tooth-stroke)"
+        stroke={`url(#${gradientId})`}
         strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -72,7 +79,7 @@ function ToothShape() {
           y1={y1}
           x2={x2}
           y2={y2}
-          stroke="url(#tooth-stroke)"
+          stroke={`url(#${gradientId})`}
           strokeWidth="2"
           strokeLinecap="round"
         />
@@ -94,10 +101,12 @@ export function ShatteredToothBg() {
         preserveAspectRatio="xMidYMid slice"
       >
         <defs>
-          <linearGradient id="tooth-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: 'var(--brand-primary)' }} />
-            <stop offset="100%" style={{ stopColor: 'var(--brand-secondary)' }} />
-          </linearGradient>
+          {placements.map((_, i) => (
+            <linearGradient key={i} id={`tooth-stroke-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{ stopColor: 'var(--brand-primary)' }} />
+              <stop offset="100%" style={{ stopColor: 'var(--brand-secondary)' }} />
+            </linearGradient>
+          ))}
         </defs>
 
         {placements.map((p, i) => (
@@ -106,7 +115,7 @@ export function ShatteredToothBg() {
             opacity={p.opacity}
             transform={`translate(${p.x} ${p.y}) scale(${p.scale}) rotate(${p.rotate} 340 210)`}
           >
-            <ToothShape />
+            <ToothShape gradientId={`tooth-stroke-${i}`} />
           </g>
         ))}
       </svg>
