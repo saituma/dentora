@@ -27,13 +27,38 @@ export function SignupForm() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const codeInputId = 'signup-otp-code';
+
+  const startCooldown = () => {
+    setResendCooldown(30);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      await sendEmailOtp({ email }).unwrap();
+      toast.success(`New code sent to ${email}.`);
+      startCooldown();
+    } catch (err: unknown) {
+      toast.error(getUserFriendlyApiError(err));
+    }
+  };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await sendEmailOtp({ email }).unwrap();
       setOtpSent(true);
+      startCooldown();
       toast.success(`Code sent to ${email} — check your inbox and spam folder.`);
     } catch (err: unknown) {
       toast.error(getUserFriendlyApiError(err));
@@ -134,8 +159,17 @@ export function SignupForm() {
                 className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
               />
               <p className="mt-2 text-xs text-[#c7d0d9]/60">
-                Code sent to <span className="font-medium text-[#c7d0d9]/80">{email}</span>. Not
-                received? Check your spam folder.{' '}
+                Code sent to <span className="font-medium text-[#c7d0d9]/80">{email}</span>. Check
+                spam.{' '}
+                <button
+                  type="button"
+                  className="text-[#4fc3f7] hover:underline disabled:opacity-40"
+                  onClick={handleResendOtp}
+                  disabled={resendCooldown > 0 || sendingOtp}
+                >
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                </button>
+                {' · '}
                 <button
                   type="button"
                   className="text-[#4fc3f7] hover:underline"
@@ -170,7 +204,7 @@ export function SignupForm() {
               <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-[#c7d0d9]/50">or continue with</span>
+              <span className="bg-[#0b0f1a] px-3 text-[#c7d0d9]/50">or continue with</span>
             </div>
           </div>
 
