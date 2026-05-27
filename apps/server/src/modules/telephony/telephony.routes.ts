@@ -56,7 +56,7 @@ function isOnboardingNotPublishedError(error: unknown): boolean {
 
 const FALLBACK_TWIML = twimlXml([
   '<Response>',
-  '<Say voice="alice">We are having trouble connecting your call right now. Please try again shortly.</Say>',
+  '<Say voice="alice" language="en-GB">We are having trouble connecting your call right now. Please try again shortly.</Say>',
   '<Hangup/>',
   '</Response>',
 ]);
@@ -314,15 +314,15 @@ telephonyRouter.post(
       const fallbackTwiml = isOnboardingNotPublishedError(err)
         ? twimlXml([
             '<Response>',
-            '<Say voice="alice">Test call succeeded.</Say>',
-            '<Say voice="alice">Please finish onboarding and publish your setup to enable the AI receptionist.</Say>',
+            '<Say voice="alice" language="en-GB">Test call succeeded.</Say>',
+            '<Say voice="alice" language="en-GB">Please finish onboarding and publish your setup to enable the AI receptionist.</Say>',
             '<Hangup/>',
             '</Response>',
           ])
         : twimlXml([
             '<Response>',
-            '<Say voice="alice">We are having trouble connecting your call right now. Please try again shortly.</Say>',
-            `<Say voice="alice">Reference ${twimlEscape(correlationId)}</Say>`,
+            '<Say voice="alice" language="en-GB">We are having trouble connecting your call right now. Please try again shortly.</Say>',
+            `<Say voice="alice" language="en-GB">Reference ${twimlEscape(correlationId)}</Say>`,
             '<Hangup/>',
             '</Response>',
           ]);
@@ -369,9 +369,9 @@ telephonyRouter.post(
         const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
         const afterHoursTwiml = twimlXml([
           '<Response>',
-          `<Say voice="alice">${twimlEscape(afterHours.message)}</Say>`,
+          `<Say voice="alice" language="en-GB">${twimlEscape(afterHours.message)}</Say>`,
           '<Pause length="1"/>',
-          '<Say voice="alice">Please leave a message after the tone.</Say>',
+          '<Say voice="alice" language="en-GB">Please leave a message after the tone.</Say>',
           `<Record maxLength="180" action="${baseUrl}/api/telephony/webhook/voicemail?tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
           '</Response>',
         ]);
@@ -387,7 +387,7 @@ telephonyRouter.post(
         );
         const busyTwiml = twimlXml([
           '<Response>',
-          '<Say voice="alice">All of our lines are currently busy. Please try again in a few minutes or leave a message after the tone.</Say>',
+          '<Say voice="alice" language="en-GB">All of our lines are currently busy. Please try again in a few minutes or leave a message after the tone.</Say>',
           `<Record maxLength="120" action="${env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '')}/api/telephony/webhook/voicemail?tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
           '</Response>',
         ]);
@@ -403,7 +403,7 @@ telephonyRouter.post(
         );
         const costCapTwiml = twimlXml([
           '<Response>',
-          '<Say voice="alice">Thanks for calling. Our reception line is unavailable right now. Please leave a message after the tone and the team will call you back.</Say>',
+          '<Say voice="alice" language="en-GB">Thanks for calling. Our reception line is unavailable right now. Please leave a message after the tone and the team will call you back.</Say>',
           `<Record maxLength="180" action="${env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '')}/api/telephony/webhook/voicemail?tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
           '</Response>',
         ]);
@@ -474,15 +474,15 @@ telephonyRouter.post(
       const fallbackTwiml = isOnboardingNotPublishedError(err)
         ? twimlXml([
             '<Response>',
-            '<Say voice="alice">Test call succeeded.</Say>',
-            '<Say voice="alice">Please finish onboarding and publish your setup to enable the AI receptionist.</Say>',
+            '<Say voice="alice" language="en-GB">Test call succeeded.</Say>',
+            '<Say voice="alice" language="en-GB">Please finish onboarding and publish your setup to enable the AI receptionist.</Say>',
             '<Hangup/>',
             '</Response>',
           ])
         : twimlXml([
             '<Response>',
-            '<Say voice="alice">We are having trouble connecting your call right now. Please try again shortly.</Say>',
-            `<Say voice="alice">Reference ${twimlEscape(correlationId)}</Say>`,
+            '<Say voice="alice" language="en-GB">We are having trouble connecting your call right now. Please try again shortly.</Say>',
+            `<Say voice="alice" language="en-GB">Reference ${twimlEscape(correlationId)}</Say>`,
             '<Hangup/>',
             '</Response>',
           ]);
@@ -590,7 +590,7 @@ telephonyRouter.post(
         const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
         const voicemailTwiml = twimlXml([
           '<Response>',
-          '<Say voice="alice">The person you are trying to reach is not available. Please leave a message after the tone.</Say>',
+          '<Say voice="alice" language="en-GB">The person you are trying to reach is not available. Please leave a message after the tone.</Say>',
           `<Record maxLength="120" action="${baseUrl}/api/telephony/webhook/voicemail?callSessionId=${encodeURIComponent(callSessionId)}&amp;tenantId=${encodeURIComponent(tenantId)}" transcribe="true" />`,
           '</Response>',
         ]);

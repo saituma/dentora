@@ -758,11 +758,11 @@ export async function forwardCallToHuman(input: {
 
     const forwardTwiml = [
       '<Response>',
-      '<Say voice="alice">Please hold while I connect you to a team member.</Say>',
+      '<Say voice="alice" language="en-GB">Please hold while I connect you to a team member.</Say>',
       `<Dial timeout="30" action="${baseUrl}/api/telephony/webhook/forward-status?callSessionId=${encodeURIComponent(input.callSessionId)}&amp;tenantId=${encodeURIComponent(input.tenantId)}">`,
       `<Number>${twimlEscape(input.targetNumber)}</Number>`,
       '</Dial>',
-      '<Say voice="alice">I\'m sorry, no one is available right now. Please leave a message after the tone.</Say>',
+      '<Say voice="alice" language="en-GB">I\'m sorry, no one is available right now. Please leave a message after the tone.</Say>',
       `<Record maxLength="120" action="${baseUrl}/api/telephony/webhook/voicemail?callSessionId=${encodeURIComponent(input.callSessionId)}&amp;tenantId=${encodeURIComponent(input.tenantId)}" transcribe="true" />`,
       '</Response>',
     ].join('');
