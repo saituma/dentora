@@ -548,36 +548,36 @@ function CTASection() {
     <section className="px-6 pb-24 pt-8 lg:px-8">
       <motion.div
         {...inView}
-        className="mx-auto max-w-4xl overflow-hidden rounded-3xl bg-[#4fc3f7] p-12 text-center"
+        className="mx-auto max-w-4xl overflow-hidden rounded-3xl bg-gradient-to-br from-[#4fc3f7] to-[#0284c7] p-12 text-center shadow-2xl shadow-[#4fc3f7]/20"
       >
         <h2 className="font-display text-4xl font-extrabold text-white md:text-5xl">
           Let Dentora answer.
           <br />
           You focus on smiles.
         </h2>
-        <p className="mx-auto mt-4 max-w-md text-lg text-white/75">
+        <p className="mx-auto mt-4 max-w-md text-lg text-white/80">
           Works with your existing calendar and phone number. No hardware. First 14 days free.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/contact"
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-[#81d4fa] px-8 text-[15px] font-semibold text-[#c7d0d9] transition hover:bg-[#d4f030]"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-8 text-[15px] font-semibold text-[#0b0f1a] transition hover:bg-[#e3f2fd]"
           >
             Book a Free Demo <ArrowRight className="size-4" />
           </Link>
           <Link
             href="/pricing"
-            className="inline-flex h-12 items-center gap-2 rounded-full border border-white/30 px-8 text-[15px] font-medium text-white transition hover:bg-white/10"
+            className="inline-flex h-12 items-center gap-2 rounded-full border-2 border-white/50 px-8 text-[15px] font-medium text-white transition hover:bg-white/15 hover:border-white/80"
           >
             View pricing
           </Link>
         </div>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-white/60">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-white/90">
           {['No credit card', 'Setup in 15 min', 'Cancel anytime'].map((t) => (
             <span key={t} className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-[#81d4fa]" />
+              <CheckCircle2 className="size-4 text-white" />
               {t}
             </span>
           ))}
