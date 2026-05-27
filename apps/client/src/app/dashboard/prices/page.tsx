@@ -22,6 +22,7 @@ import {
 } from '@/features/aiConfig/aiConfigApi';
 import type { Service } from '@/features/aiConfig/types';
 import { PlusIcon, Trash2Icon, CheckIcon, XIcon, PencilIcon } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 
 interface EditingRow {
   id: string;
@@ -117,13 +118,10 @@ export default function PricesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Prices</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Services and prices your clinic offers. The AI receptionist uses this list to answer cost
-          questions and guide appointment bookings.
-        </p>
-      </div>
+      <PageHeader
+        title="Prices"
+        subtitle="Services and prices your clinic offers. The AI receptionist uses this list to answer cost questions and guide appointment bookings."
+      />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">

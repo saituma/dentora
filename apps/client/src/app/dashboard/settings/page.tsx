@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { toast } from 'sonner';
 import { API_BASE_URL } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -187,15 +188,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Settings</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage your clinic profile and preferences
-          </p>
-        </div>
-        <Button onClick={handleSave}>Save changes</Button>
-      </div>
+      <PageHeader
+        title="Settings"
+        subtitle="Manage your clinic profile and preferences"
+        actions={<Button onClick={handleSave}>Save changes</Button>}
+      />
 
       <Tabs defaultValue="profile">
         <TabsList>

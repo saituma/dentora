@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PhoneMissed, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { PageHeader } from '@/components/page-header';
 import { useGetCallsQuery } from '@/features/calls/callsApi';
 import type { CallSession } from '@/features/calls/types';
 
@@ -57,19 +58,17 @@ export default function MissedCallsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">Missed Calls</h1>
-          {!isLoading && count > 0 && <Badge variant="destructive">{count}</Badge>}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {isLoading
+      <PageHeader
+        title="Missed Calls"
+        subtitle={
+          isLoading
             ? 'Loading calls…'
             : count === 0
               ? 'No calls need follow-up right now.'
-              : `${count} call${count === 1 ? '' : 's'} that may need a follow-up from your team.`}
-        </p>
-      </div>
+              : `${count} call${count === 1 ? '' : 's'} that may need a follow-up from your team.`
+        }
+        actions={!isLoading && count > 0 ? <Badge variant="destructive">{count}</Badge> : undefined}
+      />
 
       <Card>
         <CardHeader>

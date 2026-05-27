@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { CalendarIcon } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -92,12 +93,13 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Appointments"
+        subtitle="Upcoming bookings synced from your connected Google Calendar."
+      />
       <Card>
         <CardHeader>
-          <CardTitle>Appointments</CardTitle>
-          <CardDescription>
-            Upcoming bookings synced from your connected Google Calendar.
-          </CardDescription>
+          <CardTitle>Connection Status</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
           <Badge variant={calendarIntegration?.status === 'active' ? 'default' : 'secondary'}>

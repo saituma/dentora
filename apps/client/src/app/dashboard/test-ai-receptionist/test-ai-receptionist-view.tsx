@@ -5,65 +5,65 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MicrophoneDiagnosticsPanel } from '@/components/microphone-diagnostics-panel';
+import { PageHeader } from '@/components/page-header';
 import type { UseTestAiReceptionistResult } from './use-test-ai-receptionist';
 
 export function TestAiReceptionistView({ model }: { model: UseTestAiReceptionistResult }) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Test AI Receptionist</h2>
-          <p className="text-sm text-muted-foreground">
-            Simulate a live phone call using your microphone and hear the receptionist reply with configured voice settings.
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Configured onboarding voice: {model.selectedVoice?.name ?? model.selectedVoiceId}
-            {model.voiceProfile?.greetingMessage ? ' · greeting synced' : ''}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Live call voice: {model.liveVoiceName ?? model.liveVoice?.name ?? model.selectedVoice?.name ?? model.selectedVoiceId}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Audio source: {model.audioSource === 'elevenlabs'
-              ? 'ElevenLabs live voice'
-              : model.audioSource === 'configured-preview'
-                ? 'Configured ElevenLabs voice preview'
-                : model.audioSource === 'browser-fallback'
-                  ? 'Browser fallback voice'
-                  : model.audioSource === 'unavailable'
-                    ? 'No live voice available for selected ElevenLabs voice'
-                    : 'Waiting for call audio'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={model.isCallActive ? 'default' : 'secondary'}>
-            {model.isCallActive ? 'Call Active' : 'Call Inactive'}
-          </Badge>
-          <Badge variant={model.micDiagnostics.permission === 'granted' ? 'default' : model.micDiagnostics.permission === 'denied' ? 'destructive' : 'outline'}>
-            Mic: {model.micDiagnostics.permission}
-          </Badge>
-          <Badge variant={model.isListening ? 'default' : 'outline'}>
-            {model.isListening ? 'Listening' : 'Idle'}
-          </Badge>
-        </div>
-      </div>
+      <PageHeader
+        title="Test AI Receptionist"
+        subtitle="Simulate a live phone call using your microphone and hear the receptionist reply."
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge variant={model.isCallActive ? 'default' : 'secondary'}>
+              {model.isCallActive ? 'Call Active' : 'Call Inactive'}
+            </Badge>
+            <Badge
+              variant={
+                model.micDiagnostics.permission === 'granted'
+                  ? 'default'
+                  : model.micDiagnostics.permission === 'denied'
+                    ? 'destructive'
+                    : 'outline'
+              }
+            >
+              Mic: {model.micDiagnostics.permission}
+            </Badge>
+            <Badge variant={model.isListening ? 'default' : 'outline'}>
+              {model.isListening ? 'Listening' : 'Idle'}
+            </Badge>
+          </div>
+        }
+      />
 
       <Card>
         <CardHeader>
           <CardTitle>Configured voice</CardTitle>
-          <CardDescription>This is the voice selected during onboarding for test replies.</CardDescription>
+          <CardDescription>
+            This is the voice selected during onboarding for test replies.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="default">{model.selectedVoice?.name ?? model.selectedVoiceId}</Badge>
-            {model.selectedVoice?.gender ? <Badge variant="outline">{model.selectedVoice.gender}</Badge> : null}
-            {model.selectedVoice?.accent ? <Badge variant="outline">{model.selectedVoice.accent}</Badge> : null}
-            {model.selectedVoice?.locale ? <Badge variant="outline">{model.selectedVoice.locale}</Badge> : null}
+            {model.selectedVoice?.gender ? (
+              <Badge variant="outline">{model.selectedVoice.gender}</Badge>
+            ) : null}
+            {model.selectedVoice?.accent ? (
+              <Badge variant="outline">{model.selectedVoice.accent}</Badge>
+            ) : null}
+            {model.selectedVoice?.locale ? (
+              <Badge variant="outline">{model.selectedVoice.locale}</Badge>
+            ) : null}
           </div>
-          <p className="text-sm text-muted-foreground">Voice ID: {model.selectedVoice?.voiceId ?? model.selectedVoiceId}</p>
+          <p className="text-sm text-muted-foreground">
+            Voice ID: {model.selectedVoice?.voiceId ?? model.selectedVoiceId}
+          </p>
           {model.liveVoiceId && model.liveVoiceId !== model.selectedVoiceId ? (
             <p className="text-sm text-muted-foreground">
-              Live call fallback voice: {model.liveVoiceName ?? model.liveVoice?.name ?? model.liveVoiceId}
+              Live call fallback voice:{' '}
+              {model.liveVoiceName ?? model.liveVoice?.name ?? model.liveVoiceId}
             </p>
           ) : null}
           {model.voiceWarning ? (
@@ -96,7 +96,9 @@ export function TestAiReceptionistView({ model }: { model: UseTestAiReceptionist
       <Card>
         <CardHeader>
           <CardTitle>Live Call Controls</CardTitle>
-          <CardDescription>Start a test call, speak naturally, and review live transcript in real time.</CardDescription>
+          <CardDescription>
+            Start a test call, speak naturally, and review live transcript in real time.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3">
@@ -104,7 +106,12 @@ export function TestAiReceptionistView({ model }: { model: UseTestAiReceptionist
               <PhoneCallIcon className="size-4" />
               Start Test Call
             </Button>
-            <Button variant="destructive" onClick={model.endCall} disabled={!model.isCallActive} className="gap-2">
+            <Button
+              variant="destructive"
+              onClick={model.endCall}
+              disabled={!model.isCallActive}
+              className="gap-2"
+            >
               <PhoneOffIcon className="size-4" />
               End Call
             </Button>
@@ -132,7 +139,8 @@ export function TestAiReceptionistView({ model }: { model: UseTestAiReceptionist
                   ...prev,
                   selectedDeviceId: deviceId,
                   selectedDeviceLabel:
-                    prev.devices.find((device) => device.deviceId === deviceId)?.label ?? prev.selectedDeviceLabel,
+                    prev.devices.find((device) => device.deviceId === deviceId)?.label ??
+                    prev.selectedDeviceLabel,
                 }));
               }}
             />
@@ -146,10 +154,20 @@ export function TestAiReceptionistView({ model }: { model: UseTestAiReceptionist
           )}
 
           <div className="flex gap-2">
-            <Input value={model.manualInput} onChange={(event) => model.setManualInput(event.target.value)} placeholder="Type as fallback if microphone is unavailable" />
+            <Input
+              value={model.manualInput}
+              onChange={(event) => model.setManualInput(event.target.value)}
+              placeholder="Type as fallback if microphone is unavailable"
+            />
             <Button
               onClick={model.sendManualMessage}
-              disabled={!model.isCallActive || model.isStreamingResponse || model.isSpeaking || model.isTranscribing || !model.manualInput.trim()}
+              disabled={
+                !model.isCallActive ||
+                model.isStreamingResponse ||
+                model.isSpeaking ||
+                model.isTranscribing ||
+                !model.manualInput.trim()
+              }
               className="gap-2"
             >
               <MicIcon className="size-4" />
@@ -162,7 +180,9 @@ export function TestAiReceptionistView({ model }: { model: UseTestAiReceptionist
       <Card>
         <CardHeader>
           <CardTitle>Live Transcript</CardTitle>
-          <CardDescription>Real-time conversation transcript between caller and AI receptionist.</CardDescription>
+          <CardDescription>
+            Real-time conversation transcript between caller and AI receptionist.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="max-h-[28rem] space-y-3 overflow-y-auto rounded-md border bg-muted/20 p-3">

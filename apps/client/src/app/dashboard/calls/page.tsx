@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/empty-state';
 import { PhoneIcon } from 'lucide-react';
 import { useGetCallsQuery } from '@/features/calls/callsApi';
+import { PageHeader } from '@/components/page-header';
 import {
   formatDate,
   formatDuration,
@@ -59,43 +60,41 @@ export default function CallsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Call history</h2>
-          <p className="text-sm text-muted-foreground">
-            Real-time view of your AI receptionist call activity
-          </p>
-        </div>
-        {!callsLoading && summaryStats.total > 0 && (
-          <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5 text-xs text-emerald-500">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+      <PageHeader
+        title="Call History"
+        subtitle="Real-time view of your AI receptionist call activity"
+        actions={
+          !callsLoading && summaryStats.total > 0 ? (
+            <div className="flex items-center gap-4 text-sm">
+              <span className="flex items-center gap-1.5 text-xs text-emerald-500">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                </span>
+                Live
               </span>
-              Live
-            </span>
-            <span className="text-muted-foreground">
-              <span className="font-semibold tabular-nums text-foreground">
-                {summaryStats.total}
-              </span>{' '}
-              calls
-            </span>
-            <span className="text-muted-foreground">
-              <span className="font-semibold tabular-nums text-foreground">
-                {summaryStats.completed}
-              </span>{' '}
-              completed
-            </span>
-            <span className="text-muted-foreground">
-              <span className="font-semibold tabular-nums text-foreground">
-                {summaryStats.totalMins}
-              </span>{' '}
-              min total
-            </span>
-          </div>
-        )}
-      </div>
+              <span className="text-muted-foreground">
+                <span className="font-semibold tabular-nums text-foreground">
+                  {summaryStats.total}
+                </span>{' '}
+                calls
+              </span>
+              <span className="text-muted-foreground">
+                <span className="font-semibold tabular-nums text-foreground">
+                  {summaryStats.completed}
+                </span>{' '}
+                completed
+              </span>
+              <span className="text-muted-foreground">
+                <span className="font-semibold tabular-nums text-foreground">
+                  {summaryStats.totalMins}
+                </span>{' '}
+                min total
+              </span>
+            </div>
+          ) : undefined
+        }
+      />
 
       <Card>
         <CardHeader>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,13 +124,10 @@ export default function StaffPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Doctors and team members the AI receptionist can name when patients ask for a specific
-          provider. Set working days so the AI knows who is available on any given day.
-        </p>
-      </div>
+      <PageHeader
+        title="Staff"
+        subtitle="Team members the AI receptionist can name and route calls to."
+      />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">

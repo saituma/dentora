@@ -2,14 +2,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquare, Zap, Inbox } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 
 export default function MessagesPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Messages</h1>
-        <p className="text-sm text-muted-foreground">SMS confirmations sent to patients.</p>
-      </div>
+      <PageHeader title="Messages" subtitle="SMS confirmations sent to patients." />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card>

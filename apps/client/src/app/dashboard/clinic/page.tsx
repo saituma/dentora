@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -272,18 +273,15 @@ export default function ClinicPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clinic Details</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Everything the AI receptionist needs to answer patient questions — from parking to NHS
-            status.
-          </p>
-        </div>
-        <Button onClick={handleSave} disabled={isLoading}>
-          Save changes
-        </Button>
-      </div>
+      <PageHeader
+        title="Clinic Details"
+        subtitle="Everything the AI receptionist needs to answer patient questions."
+        actions={
+          <Button onClick={handleSave} disabled={isLoading}>
+            Save changes
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-6">

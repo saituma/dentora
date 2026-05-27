@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getUserFriendlyApiError } from '@/lib/api-error';
@@ -40,12 +41,11 @@ import { ClinicSetupTab } from '@/app/dashboard/ai-receptionist/clinic-setup-tab
 import { ClinicInfoTab } from '@/app/dashboard/ai-receptionist/clinic-info-tab';
 import { VoiceTab } from '@/app/dashboard/ai-receptionist/voice-tab';
 import { DocumentsTab } from '@/app/dashboard/ai-receptionist/documents-tab';
+import { FaqsTab, PoliciesTab, ServicesTab } from '@/app/dashboard/ai-receptionist/resource-tabs';
 import {
-  FaqsTab,
-  PoliciesTab,
-  ServicesTab,
-} from '@/app/dashboard/ai-receptionist/resource-tabs';
-import { useSaveContextDocumentsMutation, useUploadContextDocumentsMutation } from '@/features/onboarding/onboardingApi';
+  useSaveContextDocumentsMutation,
+  useUploadContextDocumentsMutation,
+} from '@/features/onboarding/onboardingApi';
 
 export default function AiReceptionistPage() {
   const { data: clinic, isLoading: clinicLoading } = useGetClinicQuery();
@@ -57,8 +57,10 @@ export default function AiReceptionistPage() {
   const [updateClinic, { isLoading: clinicSaving }] = useUpdateClinicMutation();
   const [updateRules, { isLoading: rulesSaving }] = useUpdateBookingRulesMutation();
   const [updateVoice, { isLoading: voiceSaving }] = useUpdateVoiceProfileMutation();
-  const [generateVoicePreview, { isLoading: previewGenerating }] = useGenerateVoicePreviewMutation();
-  const [startGoogleCalendarOAuth, { isLoading: connectingCalendar }] = useStartGoogleCalendarOAuthMutation();
+  const [generateVoicePreview, { isLoading: previewGenerating }] =
+    useGenerateVoicePreviewMutation();
+  const [startGoogleCalendarOAuth, { isLoading: connectingCalendar }] =
+    useStartGoogleCalendarOAuthMutation();
 
   const { data: servicesData, isLoading: servicesLoading } = useGetServicesQuery();
   const services = servicesData?.data ?? [];
@@ -75,7 +77,8 @@ export default function AiReceptionistPage() {
   const [addPolicy, { isLoading: addingPolicy }] = useAddPolicyMutation();
   const [deletePolicy] = useDeletePolicyMutation();
   const [saveContextDocuments, { isLoading: savingContext }] = useSaveContextDocumentsMutation();
-  const [uploadContextDocuments, { isLoading: uploadingDocuments }] = useUploadContextDocumentsMutation();
+  const [uploadContextDocuments, { isLoading: uploadingDocuments }] =
+    useUploadContextDocumentsMutation();
 
   const [clinicName, setClinicName] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
@@ -90,7 +93,9 @@ export default function AiReceptionistPage() {
   const [afterHoursMessage, setAfterHoursMessage] = useState('');
   const [voiceId, setVoiceId] = useState('professional');
   const [agentId, setAgentId] = useState('agent_5401kkemwc0sf23tw2km4ct4qpm9');
-  const [tone, setTone] = useState<'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'>('professional');
+  const [tone, setTone] = useState<
+    'friendly' | 'professional' | 'formal' | 'casual' | 'warm' | 'calm'
+  >('professional');
   const [language, setLanguage] = useState('en-US');
   const [speechSpeed, setSpeechSpeed] = useState(1.0);
 
@@ -105,14 +110,18 @@ export default function AiReceptionistPage() {
 
   const availableVoices = voicesData?.data ?? [];
   const selectedVoice = availableVoices.find((voice) => voice.voiceId === voiceId) ?? null;
-  const calendarIntegration = useMemo(() => (
-    integrationsData?.data?.find((integration) => (
-      integration.integrationType === 'calendar' && integration.provider === 'google_calendar'
-    )) ?? null
-  ), [integrationsData?.data]);
+  const calendarIntegration = useMemo(
+    () =>
+      integrationsData?.data?.find(
+        (integration) =>
+          integration.integrationType === 'calendar' && integration.provider === 'google_calendar',
+      ) ?? null,
+    [integrationsData?.data],
+  );
 
   useEffect(() => {
     if (clinic) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClinicName(clinic.clinicName ?? '');
       setTimezone(clinic.timezone ?? 'America/New_York');
       setSchedule(toScheduleForm(clinic.businessHours, bookingRules?.operatingSchedule));
@@ -121,17 +130,21 @@ export default function AiReceptionistPage() {
 
   useEffect(() => {
     if (bookingRules) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDefaultDuration(String(bookingRules.defaultAppointmentDurationMinutes ?? 30));
       setBufferMinutes(String(bookingRules.bufferBetweenAppointmentsMinutes ?? 0));
       setMinNotice(String(bookingRules.minNoticePeriodHours ?? 2));
       setMaxAdvance(String(bookingRules.maxAdvanceBookingDays ?? 90));
       setClosedDatesText((bookingRules.closedDates ?? []).join('\n'));
-      setSchedule((current) => toScheduleForm(clinic?.businessHours, bookingRules.operatingSchedule, current));
+      setSchedule((current) =>
+        toScheduleForm(clinic?.businessHours, bookingRules.operatingSchedule, current),
+      );
     }
   }, [bookingRules, clinic?.businessHours]);
 
   useEffect(() => {
     if (voiceProfile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGreeting(voiceProfile.greetingMessage ?? '');
       setAfterHoursMessage(voiceProfile.afterHoursMessage ?? '');
       setVoiceId(voiceProfile.voiceId ?? 'professional');
@@ -152,6 +165,7 @@ export default function AiReceptionistPage() {
       }));
     const staffDoc = contextDocs.find((doc) => doc.title === 'Staff Directory');
     const notesDoc = contextDocs.find((doc) => doc.title === 'Clinic Notes');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (staffDoc && !staffDirectory) setStaffDirectory(staffDoc.content);
     if (notesDoc && !clinicNotes) setClinicNotes(notesDoc.content);
   }, [policiesData?.data, staffDirectory, clinicNotes]);
@@ -197,7 +211,9 @@ export default function AiReceptionistPage() {
     try {
       const audioUrl = await generateVoicePreview({
         voiceId,
-        text: greeting.trim() || `Hi, welcome to ${clinicName || 'our clinic'}, what can I help you with today?`,
+        text:
+          greeting.trim() ||
+          `Hi, welcome to ${clinicName || 'our clinic'}, what can I help you with today?`,
         speed: speechSpeed || 1,
         language,
       }).unwrap();
@@ -212,7 +228,9 @@ export default function AiReceptionistPage() {
   const handleSaveVoice = async () => {
     try {
       if (selectedVoice?.requiresPaidPlan) {
-        toast.error('Choose a live-supported voice. This library voice needs a paid ElevenLabs plan for live call speech.');
+        toast.error(
+          'Choose a live-supported voice. This library voice needs a paid ElevenLabs plan for live call speech.',
+        );
         return;
       }
 
@@ -280,7 +298,9 @@ export default function AiReceptionistPage() {
         content: String(topic.content ?? ''),
         mimeType: String(topic.mimeType ?? 'text/plain'),
       }));
-    const retained = existingDocs.filter((doc) => doc.name !== 'Staff Directory' && doc.name !== 'Clinic Notes');
+    const retained = existingDocs.filter(
+      (doc) => doc.name !== 'Staff Directory' && doc.name !== 'Clinic Notes',
+    );
 
     const documents = [
       ...retained,
@@ -313,12 +333,10 @@ export default function AiReceptionistPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold">AI Receptionist Setup</h2>
-        <p className="text-sm text-muted-foreground">
-          Configure booking rules, calendar connection, and ElevenLabs voice selection for your clinic receptionist.
-        </p>
-      </div>
+      <PageHeader
+        title="AI Receptionist"
+        subtitle="Configure booking rules, calendar connection, and voice for your clinic receptionist."
+      />
 
       <Tabs defaultValue="clinic" className="space-y-6">
         <TabsList>
@@ -372,10 +390,7 @@ export default function AiReceptionistPage() {
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-6">
-          <DocumentsTab
-            onUpload={handleSaveDocuments}
-            saving={uploadingDocuments}
-          />
+          <DocumentsTab onUpload={handleSaveDocuments} saving={uploadingDocuments} />
         </TabsContent>
 
         <TabsContent value="voice" className="space-y-6">

@@ -31,6 +31,7 @@ import {
   useGetBookingRulesQuery,
 } from '@/features/aiConfig/aiConfigApi';
 import { AGENT_OPTIONS } from '@/features/aiConfig/agent-options';
+import { PageHeader } from '@/components/page-header';
 
 const DEFAULT_AGENT_NAME = 'Receptionist';
 
@@ -711,12 +712,15 @@ function ElevenLabsAgentPageInner() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="ElevenLabs Agent"
+        subtitle={`Live voice session with the ${agentNameVar.trim() || DEFAULT_AGENT_NAME} agent using ElevenLabs WebRTC.`}
+      />
       <Card>
         <CardHeader>
-          <CardTitle>ElevenLabs Conversational Agent</CardTitle>
+          <CardTitle>Session Controls</CardTitle>
           <CardDescription>
-            Live voice session with the {agentNameVar.trim() || DEFAULT_AGENT_NAME} agent using
-            ElevenLabs WebRTC.
+            Configure and start a voice conversation with the AI agent.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">

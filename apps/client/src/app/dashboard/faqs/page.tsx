@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -128,12 +129,10 @@ export default function FaqsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">FAQs</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Questions and answers the AI will use to respond to common patient enquiries.
-        </p>
-      </div>
+      <PageHeader
+        title="FAQs"
+        subtitle="Questions and answers the AI will use to respond to common patient enquiries."
+      />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">

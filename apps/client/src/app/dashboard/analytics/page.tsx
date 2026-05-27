@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -54,12 +55,10 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Analytics</h2>
-          <p className="text-sm text-muted-foreground">Performance metrics and insights</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        title="Analytics"
+        subtitle="Performance metrics and insights"
+        actions={
           <Select value={dateRange} onValueChange={(value) => setDateRange(value ?? '30d')}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
@@ -70,8 +69,8 @@ export default function AnalyticsPage() {
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+        }
+      />
 
       {noData ? (
         <Card>

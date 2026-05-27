@@ -1,16 +1,14 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { CreditCard, BarChart2, FileText, Mail } from 'lucide-react';
 
 export default function BillingPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Billing</h1>
-        <p className="text-sm text-muted-foreground">Manage your subscription and view usage.</p>
-      </div>
+      <PageHeader title="Billing" subtitle="Manage your subscription and view usage." />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>

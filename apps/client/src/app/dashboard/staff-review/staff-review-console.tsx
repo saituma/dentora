@@ -8,6 +8,7 @@ import {
   XCircleIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -256,18 +257,15 @@ export function StaffReviewConsole({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Staff Review</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Triage safety, reconciliation, and appointment-change requests for staff-supervised AI
-            receptionist operations.
-          </p>
-        </div>
-        <Button onClick={onRefresh} size="sm" variant="outline">
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        title="Staff Review"
+        subtitle="Triage safety, reconciliation, and appointment-change requests for staff-supervised AI receptionist operations."
+        actions={
+          <Button onClick={onRefresh} size="sm" variant="outline">
+            Refresh
+          </Button>
+        }
+      />
 
       {errorMessage ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-foreground">

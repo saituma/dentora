@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGetClinicQuery, useUpdateClinicMutation } from '@/features/clinic/clinicApi';
+import { PageHeader } from '@/components/page-header';
 
 const DAYS = [
   { key: 'monday', label: 'Monday' },
@@ -107,13 +108,15 @@ export default function OpeningHoursPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Opening Hours</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Set when the clinic is open. The AI uses these to check if the clinic is open when
-          patients call and to offer bookings.
-        </p>
-      </div>
+      <PageHeader
+        title="Opening Hours"
+        subtitle="Set when the clinic is open. The AI uses these to check if the clinic is open when patients call and to offer bookings."
+        actions={
+          <Button type="button" onClick={handleSave} disabled={isLoading}>
+            Save
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
@@ -210,12 +213,6 @@ export default function OpeningHoursPage() {
           )}
         </CardContent>
       </Card>
-
-      <div className="flex justify-end">
-        <Button type="button" onClick={handleSave} disabled={isLoading}>
-          Save
-        </Button>
-      </div>
     </div>
   );
 }
