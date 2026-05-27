@@ -44,11 +44,11 @@ export function LiveTicker() {
         <div className="tick whitespace-nowrap font-mono">
           <span className="text-[#4fc3f7]">[LIVE]</span>
           <span className="mx-4 text-[#c7d0d9]/20">·</span>
-          <span className="text-black/50">{text}</span>
+          <span className="text-[#c7d0d9]/50">{text}</span>
           <span className="mx-8 text-[#c7d0d9]/20">·</span>
           <span className="text-[#4fc3f7]">[LIVE]</span>
           <span className="mx-4 text-[#c7d0d9]/20">·</span>
-          <span className="text-black/50">{text}</span>
+          <span className="text-[#c7d0d9]/50">{text}</span>
           <span className="mx-8 text-[#c7d0d9]/20">·</span>
         </div>
       </div>

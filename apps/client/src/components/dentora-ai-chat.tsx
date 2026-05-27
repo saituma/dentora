@@ -373,14 +373,14 @@ export function DentoraAiChat() {
                     <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-black">Dentora AI</h3>
-                    <span className="text-[10px] text-gray-400">{screenCtx.subtitle}</span>
+                    <h3 className="text-sm font-semibold text-[#c7d0d9]">Dentora AI</h3>
+                    <span className="text-[10px] text-[#c7d0d9]/50">{screenCtx.subtitle}</span>
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-full text-gray-400 hover:bg-black/[0.05] hover:text-black"
+                  className="h-8 w-8 rounded-full text-[#c7d0d9]/50 hover:bg-white/5 hover:text-[#c7d0d9]"
                   onClick={() => setIsOpen(false)}
                 >
                   <X className="h-4 w-4" />
@@ -406,7 +406,7 @@ export function DentoraAiChat() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="w-full max-w-[85%] rounded-2xl rounded-tl-none border border-white/10 bg-white p-3 shadow-sm">
-                        <p className="mb-2.5 text-xs font-medium text-gray-500">
+                        <p className="mb-2.5 text-xs font-medium text-[#c7d0d9]/60">
                           {msg.confirmed ? 'Fields applied' : 'Review & confirm'}
                         </p>
                         <div className="space-y-2">
@@ -414,7 +414,7 @@ export function DentoraAiChat() {
                             const meta = getFieldMeta(key);
                             return (
                               <div key={key}>
-                                <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-gray-400">
+                                <label className="mb-0.5 block text-[10px] font-medium uppercase tracking-wider text-[#c7d0d9]/50">
                                   {meta?.label ?? key}
                                 </label>
                                 <input
@@ -432,7 +432,7 @@ export function DentoraAiChat() {
                                     'w-full rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors',
                                     msg.confirmed
                                       ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-700'
-                                      : 'border-black/10 bg-white text-black focus:border-[#4fc3f7]',
+                                      : 'border-white/10 bg-white text-[#c7d0d9] focus:border-[#4fc3f7]',
                                   )}
                                 />
                               </div>
@@ -489,14 +489,14 @@ export function DentoraAiChat() {
                       )}
                     >
                       {msg.role === 'assistant' && (
-                        <span className="text-xs font-medium text-gray-400">Dentora AI</span>
+                        <span className="text-xs font-medium text-[#c7d0d9]/50">Dentora AI</span>
                       )}
                       <div
                         className={cn(
                           'rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
                           msg.role === 'user'
                             ? 'rounded-tr-none bg-[#4fc3f7] text-white shadow-md'
-                            : 'rounded-tl-none border border-white/8 bg-white text-gray-700',
+                            : 'rounded-tl-none border border-white/8 bg-white text-[#c7d0d9]/80',
                         )}
                       >
                         {msg.role === 'assistant' ? (
@@ -505,7 +505,7 @@ export function DentoraAiChat() {
                             components={{
                               p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
                               strong: ({ children }) => (
-                                <strong className="font-semibold text-black">{children}</strong>
+                                <strong className="font-semibold text-[#c7d0d9]">{children}</strong>
                               ),
                               ul: ({ children }) => (
                                 <ul className="mb-1.5 ml-4 list-disc space-y-0.5 last:mb-0">
@@ -585,7 +585,7 @@ export function DentoraAiChat() {
                   placeholder={
                     screenCtx.isOnboarding ? 'Tell me your clinic details...' : 'Ask me anything...'
                   }
-                  className="flex-1 rounded-full border border-black/10 bg-[#111827] px-4 py-2.5 text-sm text-black outline-none transition-all placeholder:text-gray-400 focus:border-[#4fc3f7] focus:ring-2 focus:ring-[#4fc3f7]/10"
+                  className="flex-1 rounded-full border border-white/10 bg-[#111827] px-4 py-2.5 text-sm text-[#c7d0d9] outline-none transition-all placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7] focus:ring-2 focus:ring-[#4fc3f7]/10"
                 />
                 <Button
                   type="submit"

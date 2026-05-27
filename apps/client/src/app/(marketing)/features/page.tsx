@@ -66,7 +66,7 @@ export default function FeaturesPage() {
                     className={
                       booked
                         ? 'mt-1 rounded px-1 py-0.5 text-[8px] bg-[#4fc3f7]/15 text-[#4fc3f7]'
-                        : 'mt-1 rounded px-1 py-0.5 text-[8px] text-gray-300'
+                        : 'mt-1 rounded px-1 py-0.5 text-[8px] text-[#c7d0d9]/40'
                     }
                   >
                     {booked ? 'FULL' : 'OPEN'}
