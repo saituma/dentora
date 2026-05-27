@@ -904,6 +904,10 @@ export async function handleStreamStart(
     });
 
     elevenSocket.on('error', (err) => {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ECONNRESET' && !activeSessions.has(callSessionId)) {
+        return;
+      }
       logger.error({ err, callSessionId }, 'ElevenLabs WebSocket error');
     });
 
