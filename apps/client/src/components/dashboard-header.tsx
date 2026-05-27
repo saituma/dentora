@@ -127,7 +127,7 @@ export function DashboardHeader() {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/8 bg-white/80 px-4 backdrop-blur-xl transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 lg:px-6">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-white/8 bg-[#0b0f1a]/90 px-4 backdrop-blur-xl transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 lg:px-6">
       <SidebarTrigger className="-ms-1 opacity-60 hover:opacity-100 transition-opacity" />
       <Separator orientation="vertical" className="mr-2 h-4 opacity-20" />
       <HeaderBreadcrumb />
