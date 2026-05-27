@@ -133,6 +133,20 @@ export function SignupForm() {
                 required
                 className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
               />
+              <p className="mt-2 text-xs text-gray-500">
+                Code sent to <span className="font-medium text-gray-700">{email}</span>. Not
+                received? Check your spam folder.{' '}
+                <button
+                  type="button"
+                  className="text-[#b275ff] hover:underline"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setCode('');
+                  }}
+                >
+                  Wrong email?
+                </button>
+              </p>
             </Field>
           )}
           <Field>

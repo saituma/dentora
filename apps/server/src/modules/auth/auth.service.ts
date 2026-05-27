@@ -329,8 +329,8 @@ async function sendEmailOtp_Smtp(input: { email: string; code: string }): Promis
     from: env.SMTP_FROM,
     to: input.email,
     subject: 'Your Dentora verification code',
-    text: `Your Dentora verification code is ${input.code}. It expires in 10 minutes.`,
-    html: `<p>Your Dentora verification code is <strong>${input.code}</strong>.</p><p>It expires in 10 minutes.</p>`,
+    text: `Your Dentora verification code is ${input.code}. It expires in 10 minutes.\n\nIf you didn't request this, you can ignore this email.\n\nTip: if you don't see this email, check your spam or junk folder.`,
+    html: `<p>Your Dentora verification code is <strong style="font-size:24px;letter-spacing:4px">${input.code}</strong></p><p>It expires in 10 minutes.</p><p style="color:#888;font-size:13px">If you don't see this email in your inbox, check your <strong>spam or junk folder</strong>. If you didn't request this code, you can safely ignore this email.</p>`,
   });
 }
 
