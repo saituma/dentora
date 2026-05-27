@@ -34,7 +34,7 @@ export function SignupForm() {
     try {
       await sendEmailOtp({ email }).unwrap();
       setOtpSent(true);
-      toast.success('Verification code sent to your email.');
+      toast.success(`Code sent to ${email} — check your inbox and spam folder.`);
     } catch (err: unknown) {
       toast.error(getUserFriendlyApiError(err));
     }

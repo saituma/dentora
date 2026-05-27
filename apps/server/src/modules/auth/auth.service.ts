@@ -25,7 +25,7 @@ import { purchaseAndProvisionPhoneNumber } from '../telephony/telephony.service.
 import twilio from 'twilio';
 import { createHash, randomInt, randomBytes } from 'crypto';
 import nodemailer from 'nodemailer';
-import { lookup as dnsLookup } from 'node:dns/promises';
+import { lookup as dnsLookup, resolveMx } from 'node:dns/promises';
 import jwt from 'jsonwebtoken';
 import type { InferSelectModel } from 'drizzle-orm';
 import { getRedis } from '../../lib/cache.js';
@@ -404,10 +404,30 @@ export async function register(input: {
   return result;
 }
 
+async function validateEmailDomain(email: string): Promise<void> {
+  const domain = email.split('@')[1];
+  if (!domain) throw new ValidationError('Invalid email address');
+  try {
+    const records = await resolveMx(domain);
+    if (!records || records.length === 0) {
+      throw new ValidationError(
+        `No mail server found for ${domain}. Please check your email address.`,
+      );
+    }
+  } catch (err) {
+    if (err instanceof ValidationError) throw err;
+    throw new ValidationError(
+      `The email domain "${domain}" doesn't appear to accept mail. Please check your email address.`,
+    );
+  }
+}
+
 export async function sendEmailOtp(input: {
   email: string;
 }): Promise<{ challengeId: string; expiresInSeconds: number }> {
   const email = input.email.trim().toLowerCase();
+
+  await validateEmailDomain(email);
   const code = generateOtpCode();
   const codeHash = hashOtpCode(code);
   const expiresInSeconds = 10 * 60;
