@@ -77,15 +77,15 @@ export function SignupForm() {
   return (
     <div className="w-full">
       <div className="mb-7">
-        <h2 className="font-display text-2xl font-bold text-black">Create your account</h2>
-        <p className="mt-1 text-sm text-gray-500">
+        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Create your account</h2>
+        <p className="mt-1 text-sm text-[#c7d0d9]/60">
           Start your 14-day free trial with email verification.
         </p>
       </div>
       <form onSubmit={otpSent ? handleVerifyAndCreate : handleSendOtp} aria-label="Sign up form">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="clinicName" className="text-sm font-medium text-gray-700">
+            <FieldLabel htmlFor="clinicName" className="text-sm font-medium text-[#c7d0d9]/80">
               Clinic name
             </FieldLabel>
             <Input
@@ -96,11 +96,11 @@ export function SignupForm() {
               autoComplete="organization"
               aria-label="Clinic name"
               required
-              className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="email" className="text-sm font-medium text-gray-700">
+            <FieldLabel htmlFor="email" className="text-sm font-medium text-[#c7d0d9]/80">
               Email
             </FieldLabel>
             <Input
@@ -113,12 +113,12 @@ export function SignupForm() {
               inputMode="email"
               aria-label="Email address"
               required
-              className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
             />
           </Field>
           {otpSent && (
             <Field>
-              <FieldLabel htmlFor={codeInputId} className="text-sm font-medium text-gray-700">
+              <FieldLabel htmlFor={codeInputId} className="text-sm font-medium text-[#c7d0d9]/80">
                 Verification code
               </FieldLabel>
               <Input
@@ -131,14 +131,14 @@ export function SignupForm() {
                 pattern="[0-9]*"
                 aria-label="Verification code"
                 required
-                className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+                className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
               />
-              <p className="mt-2 text-xs text-gray-500">
-                Code sent to <span className="font-medium text-gray-700">{email}</span>. Not
+              <p className="mt-2 text-xs text-[#c7d0d9]/60">
+                Code sent to <span className="font-medium text-[#c7d0d9]/80">{email}</span>. Not
                 received? Check your spam folder.{' '}
                 <button
                   type="button"
-                  className="text-[#b275ff] hover:underline"
+                  className="text-[#4fc3f7] hover:underline"
                   onClick={() => {
                     setOtpSent(false);
                     setCode('');
@@ -152,7 +152,7 @@ export function SignupForm() {
           <Field>
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#b275ff] text-[15px] font-medium text-white hover:bg-[#a060f0]"
+              className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
               disabled={sendingOtp || verifyingOtp}
             >
               {otpSent
@@ -167,10 +167,10 @@ export function SignupForm() {
 
           <div className="relative my-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-black/[0.08]" />
+              <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-gray-400">or continue with</span>
+              <span className="bg-white px-3 text-[#c7d0d9]/50">or continue with</span>
             </div>
           </div>
 
@@ -178,7 +178,7 @@ export function SignupForm() {
             <Button
               type="button"
               variant="outline"
-              className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+              className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
               onClick={startGoogle}
               disabled={googleLoading}
               aria-label="Continue with Google"
@@ -192,9 +192,9 @@ export function SignupForm() {
               {googleLoading ? 'Redirecting...' : 'Continue with Google'}
             </Button>
           </Field>
-          <p className="text-gray-500 text-sm text-center">
+          <p className="text-[#c7d0d9]/60 text-sm text-center">
             Already have an account?{' '}
-            <Link href="/login" className="text-[#b275ff] underline-offset-2 hover:underline">
+            <Link href="/login" className="text-[#4fc3f7] underline-offset-2 hover:underline">
               Sign in
             </Link>
           </p>

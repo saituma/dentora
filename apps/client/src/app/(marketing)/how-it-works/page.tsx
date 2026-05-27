@@ -55,13 +55,13 @@ export default function HowItWorksPage() {
           <motion.div
             key={step.number}
             {...d(i * 0.12)}
-            className="overflow-hidden rounded-2xl border border-black/[0.08] bg-white shadow-sm"
+            className="overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-sm"
           >
             <div className="grid gap-0 md:grid-cols-2">
               {/* Output panel */}
-              <div className="border-b border-black/[0.06] bg-[#f4f2ee] p-6 md:border-b-0 md:border-r">
-                <p className="mb-1 text-xs font-medium text-[#b275ff]">Step {step.number}</p>
-                <p className="mb-4 font-display text-lg font-bold text-black">{step.title}</p>
+              <div className="border-b border-white/10 bg-[#111827] p-6 md:border-b-0 md:border-r">
+                <p className="mb-1 text-xs font-medium text-[#4fc3f7]">Step {step.number}</p>
+                <p className="mb-4 font-display text-lg font-bold text-[#c7d0d9]">{step.title}</p>
                 <div className="space-y-2">
                   {step.outputs.map((line, j) => (
                     <motion.div
@@ -70,9 +70,9 @@ export default function HowItWorksPage() {
                       whileInView={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 + j * 0.12 }}
                       viewport={{ once: true }}
-                      className="flex items-center gap-2 text-sm text-gray-600"
+                      className="flex items-center gap-2 text-sm text-[#c7d0d9]/70"
                     >
-                      <CheckCircle2 className="size-3.5 shrink-0 text-[#b275ff]" />
+                      <CheckCircle2 className="size-3.5 shrink-0 text-[#4fc3f7]" />
                       {line}
                     </motion.div>
                   ))}
@@ -81,7 +81,7 @@ export default function HowItWorksPage() {
 
               {/* Human explanation */}
               <div className="flex flex-col justify-center p-8">
-                <p className="text-sm leading-relaxed text-gray-500">{step.desc}</p>
+                <p className="text-sm leading-relaxed text-[#c7d0d9]/60">{step.desc}</p>
               </div>
             </div>
           </motion.div>
@@ -90,8 +90,8 @@ export default function HowItWorksPage() {
 
       {/* Integration note */}
       <motion.div {...inView} className="mt-10">
-        <div className="rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm">
-          <p className="mb-4 text-sm font-semibold text-black">
+        <div className="rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-sm">
+          <p className="mb-4 text-sm font-semibold text-[#c7d0d9]">
             Integrates with your existing tools
           </p>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
@@ -103,9 +103,9 @@ export default function HowItWorksPage() {
             ].map(({ name, status }) => (
               <div
                 key={name}
-                className="flex items-center justify-between rounded-xl border border-black/[0.06] bg-[#f4f2ee] px-3 py-2.5"
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-[#111827] px-3 py-2.5"
               >
-                <span className="text-xs font-medium text-black">{name}</span>
+                <span className="text-xs font-medium text-[#c7d0d9]">{name}</span>
                 <span className="flex items-center gap-1 text-[10px] text-emerald-600">
                   <span className="size-1.5 rounded-full bg-emerald-500" />
                   {status}
@@ -120,7 +120,7 @@ export default function HowItWorksPage() {
       <motion.div {...inView} className="mt-14 text-center">
         <Link
           href="/contact"
-          className="inline-flex h-12 items-center gap-2 rounded-full bg-[#b275ff] px-8 text-sm font-semibold text-white shadow-lg shadow-[#b275ff]/20 transition hover:bg-[#a060f0]"
+          className="inline-flex h-12 items-center gap-2 rounded-full bg-[#4fc3f7] px-8 text-sm font-semibold text-white shadow-lg shadow-[#4fc3f7]/20 transition hover:bg-[#38b2f0]"
         >
           Get Dentora for your practice <ArrowRight className="size-4" />
         </Link>

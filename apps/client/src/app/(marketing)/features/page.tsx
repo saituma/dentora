@@ -13,7 +13,7 @@ export default function FeaturesPage() {
           <>
             Everything your front desk does.
             <br />
-            <span className="text-[#b275ff]">Faster. 24/7. Never sick.</span>
+            <span className="text-[#4fc3f7]">Faster. 24/7. Never sick.</span>
           </>
         }
         subtitle="One AI receptionist that handles calls, bookings, and patient questions — so your team can focus on care."
@@ -28,7 +28,7 @@ export default function FeaturesPage() {
             accent="purple"
             description="Dentora picks up every call in under a second — 24/7, no hold music, no missed patients. Human voice, real intelligence."
           >
-            <div className="mt-4 space-y-2 rounded-xl border border-black/[0.06] bg-[#f4f2ee] p-3">
+            <div className="mt-4 space-y-2 rounded-xl border border-white/10 bg-[#111827] p-3">
               {[
                 { ai: true, t: 'Good morning, Pearl Dental. How can I help?' },
                 { ai: false, t: 'I need to book a filling — is Dr. Smith free?' },
@@ -59,13 +59,13 @@ export default function FeaturesPage() {
               ].map(({ day, booked }) => (
                 <div
                   key={day}
-                  className="rounded border border-black/[0.06] bg-[#f4f2ee] p-1.5 text-center"
+                  className="rounded border border-white/10 bg-[#111827] p-1.5 text-center"
                 >
-                  <p className="text-[8px] text-gray-400">{day}</p>
+                  <p className="text-[8px] text-[#c7d0d9]/50">{day}</p>
                   <div
                     className={
                       booked
-                        ? 'mt-1 rounded px-1 py-0.5 text-[8px] bg-[#b275ff]/15 text-[#b275ff]'
+                        ? 'mt-1 rounded px-1 py-0.5 text-[8px] bg-[#4fc3f7]/15 text-[#4fc3f7]'
                         : 'mt-1 rounded px-1 py-0.5 text-[8px] text-gray-300'
                     }
                   >
@@ -96,13 +96,13 @@ export default function FeaturesPage() {
             description="Track every call, booking, and conversion with live dashboards and staff review tools."
           >
             <div
-              className="mt-4 flex items-end gap-1 rounded-xl border border-black/[0.06] bg-[#f4f2ee] p-3"
+              className="mt-4 flex items-end gap-1 rounded-xl border border-white/10 bg-[#111827] p-3"
               style={{ height: 56 }}
             >
               {[38, 62, 44, 80, 54, 93, 68, 78, 52, 88].map((h, i) => (
                 <div
                   key={i}
-                  className="flex-1 rounded-sm bg-[#b275ff]/30"
+                  className="flex-1 rounded-sm bg-[#4fc3f7]/30"
                   style={{ height: `${h}%` }}
                 />
               ))}

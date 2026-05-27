@@ -181,8 +181,8 @@ export function LoginForm() {
   if (oauthLoading) {
     return (
       <div className="flex min-h-[320px] w-full flex-col items-center justify-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-black/10 border-t-[#b275ff]" />
-        <p className="text-sm text-gray-400">Signing you in…</p>
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-[#4fc3f7]" />
+        <p className="text-sm text-[#c7d0d9]/50">Signing you in…</p>
       </div>
     );
   }
@@ -190,13 +190,15 @@ export function LoginForm() {
   return (
     <div className="w-full">
       <div className="mb-7">
-        <h2 className="font-display text-2xl font-bold text-black">Welcome back</h2>
-        <p className="mt-1 text-sm text-gray-500">Sign in with password, email code, or Google.</p>
+        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Welcome back</h2>
+        <p className="mt-1 text-sm text-[#c7d0d9]/60">
+          Sign in with password, email code, or Google.
+        </p>
       </div>
       <form onSubmit={handlePasswordLogin} aria-label="Login form">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="email" className="text-sm font-medium text-gray-700">
+            <FieldLabel htmlFor="email" className="text-sm font-medium text-[#c7d0d9]/80">
               Email
             </FieldLabel>
             <Input
@@ -209,17 +211,17 @@ export function LoginForm() {
               inputMode="email"
               aria-label="Email address"
               required
-              className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
             />
           </Field>
           <Field>
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="password" className="text-sm font-medium text-gray-700">
+              <FieldLabel htmlFor="password" className="text-sm font-medium text-[#c7d0d9]/80">
                 Password
               </FieldLabel>
               <Link
                 href="/forgot-password"
-                className="text-sm text-[#b275ff] underline-offset-2 hover:underline"
+                className="text-sm text-[#4fc3f7] underline-offset-2 hover:underline"
               >
                 Forgot password?
               </Link>
@@ -232,13 +234,13 @@ export function LoginForm() {
               autoComplete="current-password"
               aria-label="Password"
               required
-              className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
             />
           </Field>
           <Field>
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#b275ff] text-[15px] font-medium text-white hover:bg-[#a060f0]"
+              className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
               disabled={isLoading}
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
@@ -247,10 +249,10 @@ export function LoginForm() {
 
           <div className="relative my-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-black/[0.08]" />
+              <div className="w-full border-t border-white/10" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-gray-400">or continue with</span>
+              <span className="bg-white px-3 text-[#c7d0d9]/50">or continue with</span>
             </div>
           </div>
 
@@ -258,7 +260,7 @@ export function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+              className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
               onClick={startGoogle}
               disabled={googleLoading}
               aria-label="Continue with Google"
@@ -277,7 +279,7 @@ export function LoginForm() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+                className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
                 onClick={handleSendOtp}
                 disabled={sendingOtp || !email}
                 aria-label="Send sign in code to email"
@@ -298,12 +300,12 @@ export function LoginForm() {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   aria-label="Email verification code"
-                  className="border-black/10 bg-white text-black placeholder:text-gray-400 focus:border-[#b275ff]"
+                  className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full rounded-full border-black/10 bg-white text-[15px] font-medium text-gray-700 hover:bg-gray-50"
+                  className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
                   onClick={handleOtpLogin}
                   disabled={verifyingOtp || otpCode.length !== 6}
                 >
@@ -312,9 +314,9 @@ export function LoginForm() {
               </div>
             )}
           </Field>
-          <p className="text-gray-500 text-sm text-center">
+          <p className="text-[#c7d0d9]/60 text-sm text-center">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-[#b275ff] underline-offset-2 hover:underline">
+            <Link href="/signup" className="text-[#4fc3f7] underline-offset-2 hover:underline">
               Sign up
             </Link>
           </p>

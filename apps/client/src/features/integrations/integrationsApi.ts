@@ -1,6 +1,16 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { baseQueryWithReauth } from '@/lib/api';
-import type { Integration } from './types';
+import type {
+  DentallyVerificationReport,
+  DentallyVerificationResult,
+  Integration,
+  IntegrationLogEvent,
+  IntegrationLogFilters,
+  ProviderDetail,
+  SchedulingConfig,
+  SchedulingProvider,
+  UpdateSchedulingConfigRequest,
+} from './types';
 
 interface CreateIntegrationRequest {
   integrationType: string;
@@ -23,6 +33,64 @@ export const integrationsApi = createApi({
   endpoints: (builder) => ({
     getIntegrations: builder.query<{ data: Integration[] }, void>({
       query: () => '/integrations',
+      providesTags: ['Integrations'],
+    }),
+    getProviderDetail: builder.query<ProviderDetail, SchedulingProvider>({
+      query: (provider) => `/pms/providers/${provider}`,
+      providesTags: ['Integrations'],
+    }),
+    getSchedulingConfig: builder.query<{ data: SchedulingConfig }, void>({
+      query: () => '/pms/scheduling-config',
+      providesTags: ['Integrations'],
+    }),
+    updateSchedulingConfig: builder.mutation<
+      { data: SchedulingConfig },
+      UpdateSchedulingConfigRequest
+    >({
+      query: (body) => ({
+        url: '/pms/scheduling-config',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Integrations'],
+    }),
+    runDentallyVerification: builder.mutation<
+      { data: DentallyVerificationResult },
+      { type: string; body?: Record<string, unknown> }
+    >({
+      query: ({ type, body }) => ({
+        url: `/pms/dentally/verify/${type}`,
+        method: 'POST',
+        body: body ?? {},
+      }),
+    }),
+    getDentallyVerificationReport: builder.query<
+      { data: DentallyVerificationReport },
+      { integrationId?: string } | void
+    >({
+      query: (input) => {
+        const integrationId = input?.integrationId;
+        return integrationId
+          ? `/pms/dentally/verify/report?integrationId=${encodeURIComponent(integrationId)}`
+          : '/pms/dentally/verify/report';
+      },
+      providesTags: ['Integrations'],
+    }),
+    getIntegrationLogs: builder.query<
+      { data: IntegrationLogEvent[] },
+      IntegrationLogFilters | void
+    >({
+      query: (filters) => {
+        const params = new URLSearchParams();
+        if (filters?.provider && filters.provider !== 'all')
+          params.set('provider', filters.provider);
+        if (filters?.status) params.set('status', filters.status);
+        if (filters?.eventType) params.set('eventType', filters.eventType);
+        if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom);
+        if (filters?.dateTo) params.set('dateTo', filters.dateTo);
+        const query = params.toString();
+        return query ? `/pms/integration-events?${query}` : '/pms/integration-events';
+      },
       providesTags: ['Integrations'],
     }),
     createIntegration: builder.mutation<Integration, CreateIntegrationRequest>({
@@ -68,6 +136,12 @@ export const integrationsApi = createApi({
 
 export const {
   useGetIntegrationsQuery,
+  useGetProviderDetailQuery,
+  useGetSchedulingConfigQuery,
+  useUpdateSchedulingConfigMutation,
+  useRunDentallyVerificationMutation,
+  useGetDentallyVerificationReportQuery,
+  useGetIntegrationLogsQuery,
   useCreateIntegrationMutation,
   useStartGoogleCalendarOAuthMutation,
   useActivateIntegrationMutation,

@@ -7,7 +7,7 @@ export default function FaqsLoading() {
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-4 w-96" />
       </div>
-      <div className="rounded-xl border border-black/[0.06] bg-black/[0.02] p-6 space-y-4">
+      <div className="rounded-xl border border-white/8 bg-black/[0.02] p-6 space-y-4">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <Skeleton className="h-5 w-48" />
@@ -16,7 +16,7 @@ export default function FaqsLoading() {
           <Skeleton className="h-9 w-24" />
         </div>
         <div className="space-y-2 pt-2">
-          <div className="flex gap-4 border-b border-black/[0.06] pb-2">
+          <div className="flex gap-4 border-b border-white/8 pb-2">
             <Skeleton className="h-4 w-[28%]" />
             <Skeleton className="h-4 w-[42%]" />
             <Skeleton className="h-4 w-[18%]" />

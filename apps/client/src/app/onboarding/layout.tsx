@@ -46,39 +46,39 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="relative min-h-svh overflow-hidden bg-[#f4f2ee]">
+    <div className="relative min-h-svh overflow-hidden bg-transparent">
       <DentoraAiChat />
       <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
         <motion.aside
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="relative w-full border-b border-black/[0.06] bg-[#f4f2ee] px-5 py-7 sm:px-7 lg:sticky lg:top-0 lg:h-svh lg:w-[40%] lg:border-b-0 lg:border-r lg:py-10"
+          className="relative w-full border-b border-white/10 bg-[#111827] px-5 py-7 sm:px-7 lg:sticky lg:top-0 lg:h-svh lg:w-[40%] lg:border-b-0 lg:border-r lg:py-10"
         >
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-[#b275ff]/10 blur-3xl" />
-            <div className="absolute bottom-20 right-10 h-40 w-40 rounded-full bg-[#b275ff]/5 blur-3xl" />
+            <div className="absolute -left-20 top-12 h-56 w-56 rounded-full bg-[#4fc3f7]/10 blur-3xl" />
+            <div className="absolute bottom-20 right-10 h-40 w-40 rounded-full bg-[#4fc3f7]/5 blur-3xl" />
           </div>
           <div className="relative space-y-8">
             <div>
-              <p className="text-xs font-medium text-[#b275ff]">Onboarding</p>
-              <h1 className="mt-3 font-display text-2xl font-bold text-black sm:text-3xl">
+              <p className="text-xs font-medium text-[#4fc3f7]">Onboarding</p>
+              <h1 className="mt-3 font-display text-2xl font-bold text-[#c7d0d9] sm:text-3xl">
                 Build your AI front desk
               </h1>
-              <p className="mt-2 max-w-md text-sm text-gray-500">
+              <p className="mt-2 max-w-md text-sm text-[#c7d0d9]/60">
                 Set up your Dentora AI receptionist in a few simple steps — calls, scheduling, and
                 patient communication on autopilot.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-black/[0.08] bg-white p-4">
-              <p className="text-xs text-gray-500">
+            <div className="rounded-2xl border border-white/10 bg-[#111827] p-4">
+              <p className="text-xs text-[#c7d0d9]/60">
                 Step {activeStepIndex + 1} of {totalSteps}
               </p>
-              <p className="mt-1 text-sm font-semibold text-black">{activeStep.label}</p>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-black/[0.06]">
+              <p className="mt-1 text-sm font-semibold text-[#c7d0d9]">{activeStep.label}</p>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
                 <div
-                  className="h-full rounded-full bg-[#b275ff] transition-all duration-500"
+                  className="h-full rounded-full bg-[#4fc3f7] transition-all duration-500"
                   style={{ width: `${((activeStepIndex + 1) / totalSteps) * 100}%` }}
                 />
               </div>
@@ -93,19 +93,19 @@ export default function OnboardingLayout({ children }: { children: React.ReactNo
                     key={step.id}
                     className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors ${
                       isActive
-                        ? 'border-[#b275ff]/30 bg-[#b275ff]/[0.08] font-medium text-black'
+                        ? 'border-[#4fc3f7]/30 bg-[#4fc3f7]/[0.08] font-medium text-[#c7d0d9]'
                         : isDone
-                          ? 'border-black/[0.06] bg-white/60 text-gray-500'
-                          : 'border-transparent bg-transparent text-gray-400'
+                          ? 'border-white/10 bg-[#111827]/60 text-[#c7d0d9]/60'
+                          : 'border-transparent bg-transparent text-[#c7d0d9]/50'
                     }`}
                   >
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] tabular-nums font-medium ${
                         isDone
-                          ? 'bg-[#b275ff] text-white'
+                          ? 'bg-[#4fc3f7] text-white'
                           : isActive
-                            ? 'bg-[#b275ff]/20 text-[#b275ff]'
-                            : 'bg-black/[0.06] text-gray-400'
+                            ? 'bg-[#4fc3f7]/20 text-[#4fc3f7]'
+                            : 'bg-white/5 text-[#c7d0d9]/50'
                       }`}
                     >
                       {isDone ? '✓' : String(index + 1)}

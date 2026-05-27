@@ -357,16 +357,16 @@ export function DentoraAiChat() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="w-[400px] overflow-hidden rounded-2xl border border-black/[0.08] bg-white shadow-2xl"
+            className="w-[400px] overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"
           >
             {/* Header */}
-            <div className="border-b border-black/[0.06] bg-[#f4f2ee] p-4">
+            <div className="border-b border-white/8 bg-[#111827] p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
                       <AvatarImage src="/dentora.png" alt="Dentora AI" />
-                      <AvatarFallback className="bg-[#b275ff]/15 text-[#b275ff]">
+                      <AvatarFallback className="bg-[#4fc3f7]/15 text-[#4fc3f7]">
                         <Sparkles className="h-4 w-4" />
                       </AvatarFallback>
                     </Avatar>
@@ -389,7 +389,7 @@ export function DentoraAiChat() {
             </div>
 
             {/* Messages */}
-            <div className="flex h-[420px] flex-col gap-3 overflow-y-auto bg-[#f4f2ee]/40 p-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/10">
+            <div className="flex h-[420px] flex-col gap-3 overflow-y-auto bg-[#111827]/40 p-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-black/10">
               {messages.map((msg) => {
                 if (msg.kind === 'field-card') {
                   return (
@@ -400,12 +400,12 @@ export function DentoraAiChat() {
                       animate="visible"
                       className="flex gap-3"
                     >
-                      <Avatar className="h-8 w-8 shrink-0 border border-black/[0.06] shadow-sm">
-                        <AvatarFallback className="bg-[#b275ff]/10 text-[#b275ff]">
+                      <Avatar className="h-8 w-8 shrink-0 border border-white/8 shadow-sm">
+                        <AvatarFallback className="bg-[#4fc3f7]/10 text-[#4fc3f7]">
                           <Sparkles className="h-3.5 w-3.5" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className="w-full max-w-[85%] rounded-2xl rounded-tl-none border border-black/[0.08] bg-white p-3 shadow-sm">
+                      <div className="w-full max-w-[85%] rounded-2xl rounded-tl-none border border-white/10 bg-white p-3 shadow-sm">
                         <p className="mb-2.5 text-xs font-medium text-gray-500">
                           {msg.confirmed ? 'Fields applied' : 'Review & confirm'}
                         </p>
@@ -432,7 +432,7 @@ export function DentoraAiChat() {
                                     'w-full rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors',
                                     msg.confirmed
                                       ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-700'
-                                      : 'border-black/10 bg-white text-black focus:border-[#b275ff]',
+                                      : 'border-black/10 bg-white text-black focus:border-[#4fc3f7]',
                                   )}
                                 />
                               </div>
@@ -442,7 +442,7 @@ export function DentoraAiChat() {
                         {!msg.confirmed && (
                           <Button
                             size="sm"
-                            className="mt-3 w-full gap-1.5 rounded-full bg-[#b275ff] text-xs font-medium text-white hover:bg-[#a060f0]"
+                            className="mt-3 w-full gap-1.5 rounded-full bg-[#4fc3f7] text-xs font-medium text-white hover:bg-[#38b2f0]"
                             onClick={() => confirmCard(msg.id)}
                           >
                             <Check className="h-3.5 w-3.5" />
@@ -469,15 +469,15 @@ export function DentoraAiChat() {
                     className={cn('flex gap-3', msg.role === 'user' && 'flex-row-reverse self-end')}
                   >
                     {msg.role === 'assistant' ? (
-                      <Avatar className="h-8 w-8 shrink-0 border border-black/[0.06] shadow-sm">
+                      <Avatar className="h-8 w-8 shrink-0 border border-white/8 shadow-sm">
                         <AvatarImage src="/dentora.png" />
-                        <AvatarFallback className="bg-[#b275ff]/10 text-[#b275ff]">
+                        <AvatarFallback className="bg-[#4fc3f7]/10 text-[#4fc3f7]">
                           <Sparkles className="h-3.5 w-3.5" />
                         </AvatarFallback>
                       </Avatar>
                     ) : (
-                      <Avatar className="h-8 w-8 shrink-0 border border-black/[0.06] shadow-sm">
-                        <AvatarFallback className="bg-[#b275ff] text-xs font-semibold text-white">
+                      <Avatar className="h-8 w-8 shrink-0 border border-white/8 shadow-sm">
+                        <AvatarFallback className="bg-[#4fc3f7] text-xs font-semibold text-white">
                           You
                         </AvatarFallback>
                       </Avatar>
@@ -495,8 +495,8 @@ export function DentoraAiChat() {
                         className={cn(
                           'rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm',
                           msg.role === 'user'
-                            ? 'rounded-tr-none bg-[#b275ff] text-white shadow-md'
-                            : 'rounded-tl-none border border-black/[0.06] bg-white text-gray-700',
+                            ? 'rounded-tr-none bg-[#4fc3f7] text-white shadow-md'
+                            : 'rounded-tl-none border border-white/8 bg-white text-gray-700',
                         )}
                       >
                         {msg.role === 'assistant' ? (
@@ -519,14 +519,14 @@ export function DentoraAiChat() {
                               ),
                               li: ({ children }) => <li>{children}</li>,
                               code: ({ children }) => (
-                                <code className="rounded bg-black/[0.06] px-1 py-0.5 text-xs text-[#b275ff]">
+                                <code className="rounded bg-white/5 px-1 py-0.5 text-xs text-[#4fc3f7]">
                                   {children}
                                 </code>
                               ),
                               a: ({ href, children }) => (
                                 <a
                                   href={href}
-                                  className="text-[#b275ff] underline underline-offset-2"
+                                  className="text-[#4fc3f7] underline underline-offset-2"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
@@ -552,15 +552,15 @@ export function DentoraAiChat() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex gap-3"
                 >
-                  <Avatar className="h-8 w-8 shrink-0 border border-black/[0.06] shadow-sm">
-                    <AvatarFallback className="bg-[#b275ff]/10 text-[#b275ff]">
+                  <Avatar className="h-8 w-8 shrink-0 border border-white/8 shadow-sm">
+                    <AvatarFallback className="bg-[#4fc3f7]/10 text-[#4fc3f7]">
                       <Sparkles className="h-3.5 w-3.5" />
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-tl-none border border-black/[0.06] bg-white px-4 py-3 shadow-sm">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b275ff]/60 [animation-delay:-0.3s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b275ff]/60 [animation-delay:-0.15s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b275ff]/60" />
+                  <div className="flex w-16 items-center justify-center gap-1 rounded-2xl rounded-tl-none border border-white/8 bg-white px-4 py-3 shadow-sm">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#4fc3f7]/60 [animation-delay:-0.3s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#4fc3f7]/60 [animation-delay:-0.15s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#4fc3f7]/60" />
                   </div>
                 </motion.div>
               )}
@@ -569,7 +569,7 @@ export function DentoraAiChat() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-black/[0.06] bg-white p-3">
+            <div className="border-t border-white/8 bg-white p-3">
               <form
                 className="relative flex items-center gap-2"
                 onSubmit={(e) => {
@@ -585,12 +585,12 @@ export function DentoraAiChat() {
                   placeholder={
                     screenCtx.isOnboarding ? 'Tell me your clinic details...' : 'Ask me anything...'
                   }
-                  className="flex-1 rounded-full border border-black/10 bg-[#f4f2ee] px-4 py-2.5 text-sm text-black outline-none transition-all placeholder:text-gray-400 focus:border-[#b275ff] focus:ring-2 focus:ring-[#b275ff]/10"
+                  className="flex-1 rounded-full border border-black/10 bg-[#111827] px-4 py-2.5 text-sm text-black outline-none transition-all placeholder:text-gray-400 focus:border-[#4fc3f7] focus:ring-2 focus:ring-[#4fc3f7]/10"
                 />
                 <Button
                   type="submit"
                   size="icon"
-                  className="h-10 w-10 rounded-full bg-[#b275ff] text-white shadow-lg transition-transform hover:scale-105 hover:bg-[#a060f0] disabled:opacity-40"
+                  className="h-10 w-10 rounded-full bg-[#4fc3f7] text-white shadow-lg transition-transform hover:scale-105 hover:bg-[#38b2f0] disabled:opacity-40"
                   disabled={!draft.trim() || isThinking}
                 >
                   <Send className="h-4 w-4" />
@@ -611,7 +611,7 @@ export function DentoraAiChat() {
           'group relative flex h-14 w-14 cursor-pointer items-center justify-center rounded-full shadow-2xl transition-all duration-300',
           isOpen
             ? 'rotate-90 bg-red-500 text-white'
-            : 'bg-[#b275ff] text-white hover:shadow-[#b275ff]/25',
+            : 'bg-[#4fc3f7] text-white hover:shadow-[#4fc3f7]/25',
         )}
       >
         <span className="absolute inset-0 -z-10 rounded-full bg-inherit opacity-20 blur-xl transition-opacity duration-300 group-hover:opacity-40" />

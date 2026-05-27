@@ -10,8 +10,8 @@ export default function AppointmentsLoading() {
           <Skeleton className="h-9 w-24" />
         </div>
       </div>
-      <div className="rounded-xl border border-black/[0.06] bg-black/[0.02] overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-black/[0.06]">
+      <div className="rounded-xl border border-white/8 bg-black/[0.02] overflow-hidden">
+        <div className="grid grid-cols-7 border-b border-white/8">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
             <div key={d} className="px-3 py-3 text-center">
               <Skeleton className="h-4 w-10 mx-auto" />

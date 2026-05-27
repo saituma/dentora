@@ -9,7 +9,7 @@ export default function SettingsLoading() {
           <Skeleton key={i} className="h-9 rounded-full" style={{ width: w }} />
         ))}
       </div>
-      <div className="rounded-xl border border-black/[0.06] bg-black/[0.02] p-6">
+      <div className="rounded-xl border border-white/8 bg-black/[0.02] p-6">
         <FormSkeleton fields={6} />
       </div>
     </div>

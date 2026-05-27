@@ -19,7 +19,7 @@ function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-black/[0.06] bg-[#f4f2ee]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#111827]/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
         <Link href="/" aria-label="Home" className="flex items-center gap-2">
           <Image
@@ -37,7 +37,7 @@ function Header() {
             <Link
               key={link.label}
               href={link.href}
-              className="px-4 py-2 text-[15px] text-gray-600 transition-colors hover:text-black"
+              className="px-4 py-2 text-[15px] text-[#c7d0d9]/70 transition-colors hover:text-white"
             >
               {link.label}
             </Link>
@@ -47,33 +47,33 @@ function Header() {
         <div className="hidden items-center gap-3 lg:flex">
           <Link
             href="/login"
-            className="px-5 py-2 text-[15px] font-medium text-gray-700 transition hover:text-black"
+            className="px-5 py-2 text-[15px] font-medium text-[#c7d0d9]/80 transition hover:text-white"
           >
             Login
           </Link>
           <Link
             href="/contact"
-            className="flex items-center gap-2 rounded-full bg-[#b275ff] px-6 py-2.5 text-[15px] font-medium text-white transition hover:bg-[#a060f0]"
+            className="flex items-center gap-2 rounded-full bg-[#4fc3f7] px-6 py-2.5 text-[15px] font-medium text-white transition hover:bg-[#38b2f0]"
           >
             Contact us
-            <span className="flex size-5 items-center justify-center rounded-full bg-white/20 text-xs">
+            <span className="flex size-5 items-center justify-center rounded-full bg-[#111827]/20 text-xs">
               →
             </span>
           </Link>
         </div>
 
-        <button className="lg:hidden text-gray-700" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button className="lg:hidden text-[#c7d0d9]/80" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-black/[0.06] bg-[#f4f2ee] px-5 py-4 lg:hidden">
+        <div className="border-t border-white/10 bg-[#111827] px-5 py-4 lg:hidden">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
-              className="block py-2.5 text-[15px] text-gray-600 hover:text-black"
+              className="block py-2.5 text-[15px] text-[#c7d0d9]/70 hover:text-white"
               onClick={() => setMobileOpen(false)}
             >
               {link.label}
@@ -82,13 +82,13 @@ function Header() {
           <div className="mt-4 flex flex-col gap-2">
             <Link
               href="/login"
-              className="rounded-full border border-black/10 px-5 py-2.5 text-center text-[15px] text-gray-700"
+              className="rounded-full border border-white/10 px-5 py-2.5 text-center text-[15px] text-[#c7d0d9]/80"
             >
               Login
             </Link>
             <Link
               href="/contact"
-              className="rounded-full bg-[#b275ff] px-5 py-2.5 text-center text-[15px] font-medium text-white"
+              className="rounded-full bg-[#4fc3f7] px-5 py-2.5 text-center text-[15px] font-medium text-white"
             >
               Contact us
             </Link>
@@ -101,20 +101,20 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="border-t border-black/[0.06] bg-[#f4f2ee]">
+    <footer className="border-t border-white/10 bg-[#111827]">
       <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
         <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 md:justify-start">
-            <Link href="/" className="hover:text-black transition-colors">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[#c7d0d9]/60 md:justify-start">
+            <Link href="/" className="hover:text-white transition-colors">
               Home
             </Link>
-            <Link href="/privacy" className="hover:text-black transition-colors">
+            <Link href="/privacy" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>
-            <Link href="/terms" className="hover:text-black transition-colors">
+            <Link href="/terms" className="hover:text-white transition-colors">
               Terms of Service
             </Link>
-            <Link href="/contact" className="hover:text-black transition-colors">
+            <Link href="/contact" className="hover:text-white transition-colors">
               Contact
             </Link>
           </div>
@@ -124,7 +124,7 @@ function Footer() {
               href="https://instagram.com"
               target="_blank"
               rel="noreferrer"
-              className="flex size-9 items-center justify-center rounded-full border border-black/10 text-gray-500 transition hover:border-[#b275ff] hover:text-[#b275ff]"
+              className="flex size-9 items-center justify-center rounded-full border border-white/10 text-[#c7d0d9]/60 transition hover:border-[#4fc3f7] hover:text-[#4fc3f7]"
               aria-label="Instagram"
             >
               <svg className="size-4" fill="currentColor" viewBox="0 0 24 24">
@@ -135,7 +135,7 @@ function Footer() {
               href="https://linkedin.com"
               target="_blank"
               rel="noreferrer"
-              className="flex size-9 items-center justify-center rounded-full border border-black/10 text-gray-500 transition hover:border-[#b275ff] hover:text-[#b275ff]"
+              className="flex size-9 items-center justify-center rounded-full border border-white/10 text-[#c7d0d9]/60 transition hover:border-[#4fc3f7] hover:text-[#4fc3f7]"
               aria-label="LinkedIn"
             >
               <svg className="size-4" fill="currentColor" viewBox="0 0 24 24">
@@ -144,14 +144,14 @@ function Footer() {
             </a>
             <a
               href="mailto:info@dentora.ai"
-              className="text-sm text-gray-500 hover:text-black transition-colors"
+              className="text-sm text-[#c7d0d9]/60 hover:text-white transition-colors"
             >
               info@dentora.ai
             </a>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-black/[0.06] pt-6 text-center text-xs text-gray-400">
+        <div className="mt-8 border-t border-white/10 pt-6 text-center text-xs text-[#c7d0d9]/50">
           © {new Date().getFullYear()} Dentora AI Receptionist. All rights reserved.
         </div>
       </div>
@@ -162,7 +162,7 @@ function Footer() {
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <MarketingGuard>
-      <div className="relative flex min-h-svh flex-col bg-[#f4f2ee] text-black">
+      <div className="relative flex min-h-svh flex-col bg-transparent text-[#c7d0d9]">
         <Header />
         <main className="flex-1">
           <ErrorBoundary>{children}</ErrorBoundary>

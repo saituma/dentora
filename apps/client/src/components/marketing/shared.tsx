@@ -39,17 +39,17 @@ const TICKER_EVENTS = [
 export function LiveTicker() {
   const text = TICKER_EVENTS.join('    ·    ');
   return (
-    <div className="relative overflow-hidden border-b border-black/[0.06] bg-[#f4f2ee] py-2 text-[11px]">
+    <div className="relative overflow-hidden border-b border-white/10 bg-[#111827] py-2 text-[11px]">
       <div className="flex">
         <div className="tick whitespace-nowrap font-mono">
-          <span className="text-[#b275ff]">[LIVE]</span>
-          <span className="mx-4 text-black/20">·</span>
+          <span className="text-[#4fc3f7]">[LIVE]</span>
+          <span className="mx-4 text-[#c7d0d9]/20">·</span>
           <span className="text-black/50">{text}</span>
-          <span className="mx-8 text-black/20">·</span>
-          <span className="text-[#b275ff]">[LIVE]</span>
-          <span className="mx-4 text-black/20">·</span>
+          <span className="mx-8 text-[#c7d0d9]/20">·</span>
+          <span className="text-[#4fc3f7]">[LIVE]</span>
+          <span className="mx-4 text-[#c7d0d9]/20">·</span>
           <span className="text-black/50">{text}</span>
-          <span className="mx-8 text-black/20">·</span>
+          <span className="mx-8 text-[#c7d0d9]/20">·</span>
         </div>
       </div>
     </div>
@@ -70,18 +70,18 @@ export function TerminalWindow({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border border-black/[0.08] bg-white shadow-sm',
+        'overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-sm',
         className,
       )}
     >
       {title && (
-        <div className="flex items-center gap-2 border-b border-black/[0.06] bg-[#f4f2ee] px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-white/10 bg-[#111827] px-4 py-3">
           <div className="flex gap-1.5">
             <div className="size-2.5 rounded-full bg-red-400/60" />
             <div className="size-2.5 rounded-full bg-yellow-400/60" />
             <div className="size-2.5 rounded-full bg-green-400/60" />
           </div>
-          <span className="flex-1 text-center text-[11px] text-black/40">{title}</span>
+          <span className="flex-1 text-center text-[11px] text-[#c7d0d9]/40">{title}</span>
         </div>
       )}
       <div className="relative">{children}</div>
@@ -94,14 +94,14 @@ export function Bubble({ ai, text }: { ai?: boolean; text: string }) {
   return (
     <div className={cn('flex gap-2 text-[11px]', !ai && 'justify-end')}>
       {ai && (
-        <div className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-[#b275ff] text-[7px] font-bold text-white">
+        <div className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-[#4fc3f7] text-[7px] font-bold text-white">
           D
         </div>
       )}
       <div
         className={cn(
           'max-w-[82%] rounded-lg px-2.5 py-1.5 leading-relaxed',
-          ai ? 'bg-[#b275ff]/10 text-gray-700' : 'bg-black/[0.06] text-gray-700',
+          ai ? 'bg-[#4fc3f7]/10 text-[#c7d0d9]/80' : 'bg-white/5 text-[#c7d0d9]/80',
         )}
       >
         {text}
@@ -125,18 +125,18 @@ export function FCard({
   children?: React.ReactNode;
 }) {
   const cls = {
-    blue: 'bg-[#b275ff]/10 text-[#b275ff]',
-    purple: 'bg-[#b275ff]/10 text-[#b275ff]',
+    blue: 'bg-[#4fc3f7]/10 text-[#4fc3f7]',
+    purple: 'bg-[#4fc3f7]/10 text-[#4fc3f7]',
     green: 'bg-emerald-500/10 text-emerald-600',
   }[accent];
 
   return (
-    <div className="group flex h-full flex-col rounded-2xl border border-black/[0.08] bg-white p-6 shadow-sm transition hover:border-[#b275ff]/30 hover:shadow-md">
+    <div className="group flex h-full flex-col rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-sm transition hover:border-[#4fc3f7]/30 hover:shadow-md">
       <div className={cn('mb-4 flex size-9 items-center justify-center rounded-xl', cls)}>
         <Icon className="size-4" />
       </div>
-      <h3 className="mb-2 text-sm font-semibold text-black">{title}</h3>
-      <p className="flex-1 text-sm leading-relaxed text-gray-500">{description}</p>
+      <h3 className="mb-2 text-sm font-semibold text-[#c7d0d9]">{title}</h3>
+      <p className="flex-1 text-sm leading-relaxed text-[#c7d0d9]/60">{description}</p>
       {children}
     </div>
   );
@@ -154,11 +154,11 @@ export function PageHeader({
 }) {
   return (
     <motion.div {...inView} className="mb-16 text-center">
-      <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#b275ff]">{eyebrow}</p>
-      <h1 className="font-display text-4xl font-bold tracking-tight text-black md:text-5xl">
+      <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#4fc3f7]">{eyebrow}</p>
+      <h1 className="font-display text-4xl font-bold tracking-tight text-[#c7d0d9] md:text-5xl">
         {title}
       </h1>
-      {subtitle && <p className="mx-auto mt-4 max-w-xl text-gray-500">{subtitle}</p>}
+      {subtitle && <p className="mx-auto mt-4 max-w-xl text-[#c7d0d9]/60">{subtitle}</p>}
     </motion.div>
   );
 }
@@ -166,7 +166,7 @@ export function PageHeader({
 /* ─── ASCII Waveform (light version) ────────────────────────── */
 export function AsciiWaveform({ bars = 52, className }: { bars?: number; className?: string }) {
   return (
-    <div className={cn('select-none text-[#b275ff]/20', className)}>
+    <div className={cn('select-none text-[#4fc3f7]/20', className)}>
       {Array.from({ length: bars }, (_, i) => (
         <span key={i}>▁</span>
       ))}
