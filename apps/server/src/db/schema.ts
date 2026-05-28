@@ -10,6 +10,7 @@ import {
   jsonb,
   uniqueIndex,
   index,
+  foreignKey,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -67,6 +68,7 @@ export const faqCategoryEnum = pgEnum('faq_category', [
   'other',
 ]);
 export const integrationTypeEnum = pgEnum('integration_type', [
+  'scheduling',
   'pms',
   'calendar',
   'crm',
@@ -93,6 +95,31 @@ export const appointmentStatusEnum = pgEnum('appointment_status', [
   'completed',
   'cancelled',
   'no_show',
+]);
+export const schedulingProviderEnum = pgEnum('scheduling_provider', [
+  'google_calendar',
+  'dentally',
+  'soe_exact',
+  'cs_r4_plus',
+]);
+export const schedulingSourceOfTruthEnum = pgEnum('scheduling_source_of_truth', [
+  'google_calendar',
+  'pms',
+  'local_ledger',
+]);
+export const googleSyncModeEnum = pgEnum('google_sync_mode', [
+  'disabled',
+  'mirror_busy',
+  'mirror_full',
+  'fallback_only',
+]);
+export const externalEntityTypeEnum = pgEnum('external_entity_type', [
+  'appointment',
+  'patient',
+  'clinician',
+  'room',
+  'service',
+  'treatment_type',
 ]);
 export const appointmentHoldStatusEnum = pgEnum('appointment_hold_status', [
   'active',
@@ -443,7 +470,46 @@ export const integrations = pgTable(
       table.integrationType,
       table.provider,
     ),
+    uniqueIndex('integrations_tenant_id_idx').on(table.tenantId, table.id),
+    index('integrations_tenant_type_provider_idx').on(
+      table.tenantId,
+      table.integrationType,
+      table.provider,
+    ),
     index('integrations_tenant_health_idx').on(table.tenantId, table.healthStatus),
+  ],
+);
+
+export const tenantSchedulingConfig = pgTable(
+  'tenant_scheduling_config',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    primaryProvider: schedulingProviderEnum('primary_provider').notNull(),
+    primaryIntegrationId: uuid('primary_integration_id').notNull(),
+    fallbackProvider: schedulingProviderEnum('fallback_provider'),
+    fallbackIntegrationId: uuid('fallback_integration_id'),
+    sourceOfTruth: schedulingSourceOfTruthEnum('source_of_truth').notNull().default('local_ledger'),
+    googleSyncMode: googleSyncModeEnum('google_sync_mode').notNull().default('fallback_only'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('tenant_scheduling_config_tenant_idx').on(table.tenantId),
+    index('tenant_scheduling_config_primary_integration_idx').on(table.primaryIntegrationId),
+    index('tenant_scheduling_config_fallback_integration_idx').on(table.fallbackIntegrationId),
+    foreignKey({
+      columns: [table.tenantId, table.primaryIntegrationId],
+      foreignColumns: [integrations.tenantId, integrations.id],
+      name: 'tenant_scheduling_config_primary_integration_tenant_fk',
+    }),
+    foreignKey({
+      columns: [table.tenantId, table.fallbackIntegrationId],
+      foreignColumns: [integrations.tenantId, integrations.id],
+      name: 'tenant_scheduling_config_fallback_integration_tenant_fk',
+    }),
   ],
 );
 
@@ -464,6 +530,11 @@ export const appointments = pgTable(
     timezone: text('timezone').notNull(),
     calendarIntegrationId: uuid('calendar_integration_id').references(() => integrations.id),
     externalCalendarEventId: text('external_calendar_event_id'),
+    externalProvider: schedulingProviderEnum('external_provider'),
+    externalAppointmentId: text('external_appointment_id'),
+    externalPatientId: text('external_patient_id'),
+    externalClinicianId: text('external_clinician_id'),
+    externalRoomId: text('external_room_id'),
     idempotencyKey: text('idempotency_key').notNull(),
     metadata: jsonb('metadata').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -476,6 +547,151 @@ export const appointments = pgTable(
     index('appointments_tenant_external_event_idx').on(
       table.tenantId,
       table.externalCalendarEventId,
+    ),
+    index('appointments_tenant_external_appointment_idx').on(
+      table.tenantId,
+      table.externalProvider,
+      table.externalAppointmentId,
+    ),
+  ],
+);
+
+export const externalEntityMappings = pgTable(
+  'external_entity_mappings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    localEntityType: externalEntityTypeEnum('local_entity_type').notNull(),
+    localEntityId: text('local_entity_id').notNull(),
+    externalProvider: schedulingProviderEnum('external_provider').notNull(),
+    externalEntityType: externalEntityTypeEnum('external_entity_type').notNull(),
+    externalEntityId: text('external_entity_id').notNull(),
+    integrationId: uuid('integration_id').notNull(),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('external_entity_mappings_external_unique_idx').on(
+      table.tenantId,
+      table.integrationId,
+      table.externalProvider,
+      table.externalEntityType,
+      table.externalEntityId,
+    ),
+    uniqueIndex('external_entity_mappings_local_external_unique_idx').on(
+      table.tenantId,
+      table.localEntityType,
+      table.localEntityId,
+      table.integrationId,
+      table.externalProvider,
+      table.externalEntityType,
+    ),
+    index('external_entity_mappings_tenant_local_idx').on(
+      table.tenantId,
+      table.localEntityType,
+      table.localEntityId,
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.integrationId],
+      foreignColumns: [integrations.tenantId, integrations.id],
+      name: 'external_entity_mappings_integration_tenant_fk',
+    }),
+  ],
+);
+
+export const pmsWebhookEvents = pgTable(
+  'pms_webhook_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    provider: schedulingProviderEnum('provider').notNull(),
+    integrationId: uuid('integration_id').notNull(),
+    externalEventId: text('external_event_id').notNull(),
+    eventType: text('event_type').notNull(),
+    payloadHash: text('payload_hash').notNull(),
+    payload: jsonb('payload').notNull().default({}),
+    status: text('status').notNull().default('received'),
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('pms_webhook_events_external_unique_idx').on(
+      table.tenantId,
+      table.provider,
+      table.integrationId,
+      table.externalEventId,
+    ),
+    index('pms_webhook_events_tenant_type_received_idx').on(
+      table.tenantId,
+      table.eventType,
+      table.receivedAt,
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.integrationId],
+      foreignColumns: [integrations.tenantId, integrations.id],
+      name: 'pms_webhook_events_integration_tenant_fk',
+    }),
+  ],
+);
+
+export const dentallyVerificationRuns = pgTable(
+  'dentally_verification_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    integrationId: uuid('integration_id').notNull(),
+    verificationType: text('verification_type').notNull(),
+    status: text('status').notNull(),
+    requestMetadata: jsonb('request_metadata').notNull().default({}),
+    responseMetadata: jsonb('response_metadata').notNull().default({}),
+    durationMs: integer('duration_ms').notNull(),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('dentally_verification_runs_tenant_integration_type_idx').on(
+      table.tenantId,
+      table.integrationId,
+      table.verificationType,
+      table.createdAt,
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.integrationId],
+      foreignColumns: [integrations.tenantId, integrations.id],
+      name: 'dentally_verification_runs_integration_tenant_fk',
+    }),
+  ],
+);
+
+export const dentallyVerificationSnapshots = pgTable(
+  'dentally_verification_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    verificationRunId: uuid('verification_run_id')
+      .notNull()
+      .references(() => dentallyVerificationRuns.id),
+    verificationType: text('verification_type').notNull(),
+    requestSummary: jsonb('request_summary').notNull().default({}),
+    responseSummary: jsonb('response_summary').notNull().default({}),
+    status: text('status').notNull(),
+    durationMs: integer('duration_ms').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('dentally_verification_snapshots_run_type_idx').on(
+      table.verificationRunId,
+      table.verificationType,
+      table.createdAt,
     ),
   ],
 );

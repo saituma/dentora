@@ -3,33 +3,13 @@ import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-function looksLikeNeonPoolerHost(hostname: string): boolean {
-  return hostname.includes('-pooler.') && hostname.includes('.neon.tech');
-}
-
-function tryBuildDirectNeonUrl(rawUrl: string): string | null {
-  try {
-    const parsed = new URL(rawUrl);
-    if (!looksLikeNeonPoolerHost(parsed.hostname)) return null;
-    parsed.hostname = parsed.hostname.replace('-pooler.', '.');
-    return parsed.toString();
-  } catch {
-    return null;
-  }
-}
-
 function getRawMigrationUrl(): string {
-  const explicitRaw =
+  return (
     process.env.MIGRATION_DATABASE_URL ??
-    process.env.DATABASE_DIRECT_URL;
-  if (explicitRaw) {
-    const explicitDirect = tryBuildDirectNeonUrl(explicitRaw);
-    return explicitDirect ?? explicitRaw;
-  }
-
-  const fallback = process.env.DATABASE_URL ?? '';
-  const derivedDirect = tryBuildDirectNeonUrl(fallback);
-  return derivedDirect ?? fallback;
+    process.env.DATABASE_DIRECT_URL ??
+    process.env.DATABASE_URL ??
+    ''
+  );
 }
 
 function buildMigrationDatabaseUrl(rawUrl: string, sslMode?: string): string {
@@ -50,7 +30,9 @@ function buildMigrationDatabaseUrl(rawUrl: string, sslMode?: string): string {
   return parsedUrl.toString();
 }
 
-function resolvePgSsl(connectionString: string): boolean | { rejectUnauthorized: boolean } | undefined {
+function resolvePgSsl(
+  connectionString: string,
+): boolean | { rejectUnauthorized: boolean } | undefined {
   const url = new URL(connectionString);
   const mode = url.searchParams.get('sslmode') ?? 'require';
   if (mode === 'disable' || mode === 'allow' || mode === 'prefer') {
@@ -81,7 +63,7 @@ async function main(): Promise<void> {
   console.log(`Running migrations against: ${safeHost}`);
 
   const maxAttempts = Math.max(1, Number(process.env.MIGRATION_RETRY_ATTEMPTS ?? '3'));
-  const timeoutMs = Math.max(5000, Number(process.env.DATABASE_CONNECTION_TIMEOUT_MS ?? '15000'));
+  const timeoutMs = Math.max(5000, Number(process.env.DATABASE_CONNECTION_TIMEOUT_MS ?? '30000'));
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const pool = new Pool({
@@ -101,16 +83,22 @@ async function main(): Promise<void> {
       return;
     } catch (error) {
       await pool.end();
-      const message = error instanceof Error ? error.message : String(error);
+      const fullMessage = [error, (error as { cause?: unknown }).cause]
+        .map((e) => (e instanceof Error ? e.message : String(e ?? '')))
+        .join(' ');
       const isLastAttempt = attempt >= maxAttempts;
-      const shouldRetry = /ETIMEDOUT|timeout|ECONNRESET|ENETUNREACH|EHOSTUNREACH/i.test(message);
+      const shouldRetry = /ETIMEDOUT|timeout|ECONNRESET|ENETUNREACH|EHOSTUNREACH|terminated/i.test(
+        fullMessage,
+      );
 
       if (!shouldRetry || isLastAttempt) {
         throw error;
       }
 
       const delayMs = attempt * 1500;
-      console.warn(`Migration attempt ${attempt}/${maxAttempts} failed (${message}). Retrying in ${delayMs}ms...`);
+      console.warn(
+        `Migration attempt ${attempt}/${maxAttempts} failed (${fullMessage}). Retrying in ${delayMs}ms...`,
+      );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
