@@ -15,6 +15,7 @@
     "db:studio": "drizzle-kit studio",
     "simulate:twilio": "tsx scripts/simulate-twilio-webhooks.ts",
     "simulate:twilio:media": "tsx scripts/simulate-twilio-media-stream.ts",
+    "simulate:dentally": "tsx src/modules/pms/adapters/dentally/dentally-sandbox-simulator.ts",
     "test:sentry": "tsx scripts/test-sentry.ts",
     "test:load-voice": "tsx scripts/load-test-voice.ts",
     "lint": "eslint src/",

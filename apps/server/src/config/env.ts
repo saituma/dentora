@@ -91,7 +91,15 @@ const envSchema = z.object({
   GOOGLE_AUTH_REDIRECT_URI: z.string().default('http://localhost:4000/api/auth/google/callback'),
 
   ENABLE_DENTALLY: booleanFromString.default(false),
-  DENTALLY_API_BASE_URL: z.string().url().default('https://api.dentally.co'),
+  ENABLE_SOE_EXACT: booleanFromString.default(false),
+  ENABLE_CS_R4_PLUS: booleanFromString.default(false),
+  DENTALLY_API_BASE_URL: z.preprocess(
+    (value) =>
+      typeof value === 'string' && value.trim()
+        ? value
+        : process.env.DENTALLY_BASE_URL || undefined,
+    z.string().url().default('https://api.dentally.co'),
+  ),
   DENTALLY_SANDBOX_MODE: booleanFromString.default(true),
   DENTALLY_VERIFICATION_ENABLED: booleanFromString.default(false),
   DENTALLY_ALLOW_SANDBOX_WRITES: booleanFromString.default(false),
@@ -101,7 +109,7 @@ const envSchema = z.object({
   DENTALLY_APPOINTMENT_PATH: z.string().default('/appointments'),
   DENTALLY_PATIENT_PATH: z.string().default('/patients'),
   DENTALLY_CLINICIAN_PATH: z.string().default('/practitioners'),
-  DENTALLY_ROOM_PATH: z.string().default('/rooms'),
+  DENTALLY_ROOM_PATH: z.string().default('/sites'),
   DENTALLY_WEBHOOK_PATH: z.string().default('/webhooks'),
   DENTALLY_AUTH_PATH: z.string().default('/user'),
   DENTALLY_WEBHOOK_SIGNATURE_HEADER: z.string().default('x-dentally-signature'),

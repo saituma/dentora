@@ -204,6 +204,57 @@ export const appointmentReconciliationRetryScheduledTotal = new client.Counter({
   registers: [register],
 });
 
+export const dentallyVerificationDuration = new client.Histogram({
+  name: 'dentally_verification_duration_seconds',
+  help: 'Duration of Dentally verification steps',
+  labelNames: ['tenant_id', 'verification_type', 'status', 'mode'],
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+  registers: [register],
+});
+
+export const dentallyVerificationRunsTotal = new client.Counter({
+  name: 'dentally_verification_runs_total',
+  help: 'Total Dentally verification runs',
+  labelNames: ['tenant_id', 'verification_type', 'status', 'mode'],
+  registers: [register],
+});
+
+export const dentallyProviderRequestDuration = new client.Histogram({
+  name: 'dentally_provider_request_duration_seconds',
+  help: 'Duration of outbound Dentally provider requests',
+  labelNames: ['tenant_id', 'method', 'capability', 'status'],
+  buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+  registers: [register],
+});
+
+export const dentallyProviderRequestsTotal = new client.Counter({
+  name: 'dentally_provider_requests_total',
+  help: 'Total outbound Dentally provider requests',
+  labelNames: ['tenant_id', 'method', 'capability', 'status'],
+  registers: [register],
+});
+
+export const dentallyProviderRetriesTotal = new client.Counter({
+  name: 'dentally_provider_retries_total',
+  help: 'Total outbound Dentally provider request retries',
+  labelNames: ['tenant_id', 'method', 'capability', 'reason'],
+  registers: [register],
+});
+
+export const dentallyWebhookVerificationTotal = new client.Counter({
+  name: 'dentally_webhook_verification_total',
+  help: 'Total Dentally webhook verification outcomes',
+  labelNames: ['tenant_id', 'status', 'reason'],
+  registers: [register],
+});
+
+export const dentallyReadinessScoreGauge = new client.Gauge({
+  name: 'dentally_readiness_score',
+  help: 'Latest Dentally readiness score by tenant',
+  labelNames: ['tenant_id', 'recommendation'],
+  registers: [register],
+});
+
 export { register };
 
 export function getMetricsContentType(): string {
