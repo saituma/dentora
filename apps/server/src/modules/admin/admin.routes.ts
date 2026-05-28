@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as adminService from './admin.service.js';
 import { authenticateJwt, requirePlatformAdmin, validate } from '../../middleware/index.js';
+import { buyPoolNumber } from '../telephony/telephony.service.js';
 import { z } from 'zod';
 import { runDataRetention } from '../../lib/data-retention.js';
 import { rateLimiter } from '../../middleware/rateLimit.js';
@@ -649,3 +650,20 @@ adminRouter.get('/live-logs', (req, res) => {
     logEmitter.off('log', onLog);
   });
 });
+
+// ─── Phone number pool ────────────────────────────────────────────────
+
+adminRouter.post(
+  '/phone-pool/buy',
+  authenticateJwt,
+  requirePlatformAdmin,
+  validate({ body: z.object({ countryCode: z.string().length(2).optional() }) }),
+  async (req, res, next) => {
+    try {
+      const number = await buyPoolNumber(req.body.countryCode);
+      res.status(201).json({ number });
+    } catch (err) {
+      next(err);
+    }
+  },
+);

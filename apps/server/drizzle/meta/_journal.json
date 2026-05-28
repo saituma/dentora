@@ -106,6 +106,97 @@
       "when": 1778774400001,
       "tag": "0015_appointment_rls_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1778774400002,
+      "tag": "0016_staff_review_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1778774400003,
+      "tag": "0017_staff_review_operational_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1778774400004,
+      "tag": "0018_pilot_preflight_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778774400005,
+      "tag": "0019_operational_health",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778774400006,
+      "tag": "0020_calendar_phi_remediation_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778774400007,
+      "tag": "0021_patient_phone_hash_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778774400008,
+      "tag": "0022_user_avatar_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1778774400009,
+      "tag": "0023_clinic_history_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1779900000000,
+      "tag": "0024_provider_neutral_scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1779900000001,
+      "tag": "0025_dentally_webhook_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1779900000002,
+      "tag": "0026_dentally_verification_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1779900000003,
+      "tag": "0027_dentally_verification_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1779982100000,
+      "tag": "0028_twilio_number_pool",
+      "breakpoints": true
     }
   ]
 }

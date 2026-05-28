@@ -16,6 +16,7 @@ import { relations, sql } from 'drizzle-orm';
 
 export const tenantStatusEnum = pgEnum('tenant_status', ['active', 'suspended', 'archived']);
 export const twilioNumberStatusEnum = pgEnum('twilio_number_status', [
+  'available',
   'active',
   'pending',
   'released',
@@ -223,9 +224,7 @@ export const twilioNumbers = pgTable(
   'twilio_numbers',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    tenantId: uuid('tenant_id')
-      .notNull()
-      .references(() => tenantRegistry.id),
+    tenantId: uuid('tenant_id').references(() => tenantRegistry.id),
     phoneNumber: text('phone_number_e164').notNull().unique(),
     twilioSid: text('twilio_sid').notNull(),
     friendlyName: text('friendly_name'),

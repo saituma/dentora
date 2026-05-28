@@ -430,6 +430,53 @@ export async function purchaseAndProvisionPhoneNumber(tenantId: string): Promise
   return number;
 }
 
+/**
+ * Purchases a phone number from Twilio and parks it in the pool (status=available, no tenant).
+ * Onboarding flow lets clinics pick from available pool numbers.
+ */
+export async function buyPoolNumber(countryCode?: string): Promise<TwilioNumber> {
+  const client = createTwilioRestClient();
+  const { voiceUrl, statusCallback } = buildTwilioWebhookUrls();
+  const country = countryCode ?? env.TWILIO_NUMBER_COUNTRY ?? 'GB';
+
+  const available = await client.availablePhoneNumbers(country).local.list({ limit: 1 });
+
+  if (available.length === 0) {
+    throw new TelephonyError(`No available local phone numbers in country: ${country}`);
+  }
+
+  const purchased = await client.incomingPhoneNumbers.create({
+    phoneNumber: available[0].phoneNumber,
+    voiceUrl,
+    voiceMethod: 'POST',
+    statusCallback,
+    statusCallbackMethod: 'POST',
+  });
+
+  const [number] = await db
+    .insert(twilioNumbers)
+    .values({
+      id: generateId(),
+      tenantId: null,
+      phoneNumber: purchased.phoneNumber,
+      twilioSid: purchased.sid,
+      friendlyName: purchased.friendlyName ?? undefined,
+      capabilities: (purchased.capabilities as Record<string, boolean>) ?? {
+        voice: true,
+        sms: false,
+      },
+      status: 'available',
+    })
+    .returning();
+
+  logger.info(
+    { phoneNumber: purchased.phoneNumber, twilioSid: purchased.sid, country },
+    'Phone number purchased and added to pool',
+  );
+
+  return number;
+}
+
 export async function resolveTenantByPhone(phoneNumber: string): Promise<string> {
   logger.info({ phoneNumber }, 'Resolving tenant for phone number');
   const cached = await cache.getPhoneMapping(phoneNumber);
@@ -444,7 +491,7 @@ export async function resolveTenantByPhone(phoneNumber: string): Promise<string>
     .where(and(eq(twilioNumbers.phoneNumber, phoneNumber), eq(twilioNumbers.status, 'active')))
     .limit(1);
 
-  if (!number) {
+  if (!number || !number.tenantId) {
     logger.warn({ phoneNumber }, 'No active Twilio number found for phone mapping');
     throw new PhoneNumberNotMappedError(phoneNumber);
   }

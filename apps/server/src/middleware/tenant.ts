@@ -84,7 +84,7 @@ async function resolveFromPhoneNumber(phoneNumber: string, req: Request): Promis
     .where(and(eq(twilioNumbers.phoneNumber, phoneNumber), eq(twilioNumbers.status, 'active')))
     .limit(1);
 
-  if (!mapping) {
+  if (!mapping || !mapping.tenantId) {
     throw new TenantNotFoundError(phoneNumber, 'phone_number');
   }
 
