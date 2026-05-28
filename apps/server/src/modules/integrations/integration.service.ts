@@ -2,10 +2,13 @@ export {
   upsertIntegration,
   activateIntegration,
   getIntegrations,
+  getIntegrationByIdForTenant,
+  getIntegrationByProvider,
   deleteIntegration,
   testIntegration,
   getActiveGoogleCalendarIntegration,
 } from './integration-registry.js';
+export type { IntegrationTypeValue, IntegrationProviderLookup } from './integration-registry.js';
 export { startGoogleCalendarOAuth, completeGoogleCalendarOAuth } from './google-calendar.oauth.js';
 export { findAvailableCalendarSlots } from './google-calendar-availability.js';
 export {

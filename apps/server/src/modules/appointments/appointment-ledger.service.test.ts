@@ -5,6 +5,7 @@ import { AuthorizationError, ValidationError } from '../../lib/errors.js';
 import {
   beginAppointmentCancellationByExternalEventId,
   beginAppointmentRescheduleByExternalEventId,
+  attachExternalCalendarEvent,
   createAppointment,
   createAppointmentHold,
   confirmAppointmentHold,
@@ -63,6 +64,11 @@ const baseAppointment: Appointment = {
   timezone: 'America/New_York',
   calendarIntegrationId: 'integration-a',
   externalCalendarEventId: null,
+  externalProvider: null,
+  externalAppointmentId: null,
+  externalPatientId: null,
+  externalClinicianId: null,
+  externalRoomId: null,
   idempotencyKey: 'tenant-a:call-a:slot-1',
   metadata: {},
   createdAt: new Date('2026-05-13T00:00:00.000Z'),
@@ -582,6 +588,39 @@ describe('appointment ledger service', () => {
     };
     expect(updatePayload.status).toBe('confirmed');
     expect(updatePayload.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('attaches provider-neutral and legacy Google external appointment fields', async () => {
+    const updated = {
+      ...baseAppointment,
+      status: 'confirmed' as const,
+      externalCalendarEventId: 'google-event-a',
+      externalProvider: 'google_calendar' as const,
+      externalAppointmentId: 'google-event-a',
+    };
+    mockDb.select.mockReturnValueOnce(selectChain<Appointment>([baseAppointment]));
+    const update = updateChain<Appointment>([updated]);
+    mockDb.update.mockReturnValueOnce(update);
+
+    const appointment = await withTenant('tenant-a', () =>
+      attachExternalCalendarEvent({
+        tenantId: 'tenant-a',
+        appointmentId: baseAppointment.id,
+        externalCalendarEventId: 'google-event-a',
+        externalProvider: 'google_calendar',
+        externalAppointmentId: 'google-event-a',
+      }),
+    );
+
+    expect(appointment).toEqual(updated);
+    expect(update.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'confirmed',
+        externalCalendarEventId: 'google-event-a',
+        externalProvider: 'google_calendar',
+        externalAppointmentId: 'google-event-a',
+      }),
+    );
   });
 
   it('cancels scheduled or confirmed appointments by external calendar event id', async () => {

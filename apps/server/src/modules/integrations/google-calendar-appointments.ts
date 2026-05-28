@@ -9,9 +9,11 @@ import {
 } from './google-calendar.shared.js';
 import type {
   CalendarAppointmentMatch,
+  CalendarAppointmentListEvent,
   CalendarSlot,
   CreateCalendarAppointmentInput,
   FindCalendarAppointmentInput,
+  ListCalendarAppointmentsInput,
 } from './integration.types.js';
 
 function getCalendarId(config: Record<string, unknown>): string {
@@ -235,6 +237,67 @@ export async function findGoogleCalendarAppointment(
     startIso: best.startIso,
     endIso: best.endIso,
     label: best.label,
+  };
+}
+
+export async function listUpcomingGoogleCalendarAppointments(
+  input: ListCalendarAppointmentsInput,
+): Promise<{ calendarId: string; events: CalendarAppointmentListEvent[] }> {
+  const integration = await getActiveGoogleCalendarIntegration(input.tenantId);
+  if (!integration) {
+    throw new ValidationError('Google Calendar is not connected for this clinic');
+  }
+
+  const { accessToken } = await resolveValidGoogleAccessToken(integration);
+  const calendarId = getCalendarId((integration.config ?? {}) as Record<string, unknown>);
+  const lookAheadDays = Number(input.days ?? 7);
+  const maxResults = Math.max(1, Math.min(Number(input.maxResults ?? 50), 250));
+  const now = input.now ?? new Date();
+  const timeMin = now.toISOString();
+  const timeMax = new Date(now.getTime() + lookAheadDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+  );
+  url.searchParams.set('timeMin', timeMin);
+  url.searchParams.set('timeMax', timeMax);
+  url.searchParams.set('singleEvents', 'true');
+  url.searchParams.set('orderBy', 'startTime');
+  url.searchParams.set('maxResults', String(maxResults));
+
+  const response = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new ValidationError(`Failed to load calendar events: ${errorBody.slice(0, 300)}`);
+  }
+
+  const payload = (await response.json()) as {
+    items?: Array<{
+      id?: string;
+      summary?: string;
+      description?: string;
+      htmlLink?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+      status?: string;
+    }>;
+  };
+
+  return {
+    calendarId,
+    events: (payload.items ?? []).map((event) => ({
+      eventId: event.id ?? '',
+      summary: event.summary ?? 'Appointment',
+      description: event.description ?? '',
+      htmlLink: event.htmlLink,
+      startIso: event.start?.dateTime ?? event.start?.date ?? '',
+      endIso: event.end?.dateTime ?? event.end?.date ?? '',
+      status: event.status ?? 'confirmed',
+    })),
   };
 }
 

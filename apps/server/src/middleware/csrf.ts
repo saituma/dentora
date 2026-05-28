@@ -7,7 +7,12 @@ import { env } from '../config/env.js';
 const CSRF_COOKIE = 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-const CSRF_SKIP_PREFIXES = ['/api/webhooks', '/api/telephony/webhook', '/api/admin/seed'];
+const CSRF_SKIP_PREFIXES = [
+  '/api/webhooks',
+  '/api/telephony/webhook',
+  '/api/pms/webhooks',
+  '/api/admin/seed',
+];
 const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
   '/api/auth/email/send-otp',
   '/api/auth/email/verify-otp',

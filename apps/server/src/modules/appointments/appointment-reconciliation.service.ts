@@ -2,10 +2,6 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { appointments } from '../../db/schema.js';
 import { assertTenantAccess } from '../../db/tenant-context.js';
-import {
-  cancelGoogleCalendarAppointment,
-  rescheduleGoogleCalendarAppointment,
-} from '../integrations/google-calendar-appointments.js';
 import { ValidationError } from '../../lib/errors.js';
 import {
   appointmentReconciliationFailedTotal,
@@ -17,6 +13,11 @@ import {
   type Appointment,
 } from './appointment-ledger.service.js';
 import { createStaffReviewItemSafely } from '../staff-review/staff-review.service.js';
+import {
+  resolveActiveSchedulingProvider,
+  resolveSchedulingProvider,
+} from '../pms/services/scheduling-provider-resolver.service.js';
+import type { SchedulingProviderKey } from '../pms/domain/appointment.types.js';
 
 export const SUPPORTED_RECONCILIATION_STATUSES = [
   'external_created_local_confirm_failed',
@@ -137,6 +138,48 @@ function externalCalendarEventIdFrom(appointment: Appointment): string | null {
   if (appointment.externalCalendarEventId?.trim()) return appointment.externalCalendarEventId;
   const reconciliation = reconciliationMetadata(appointment);
   return stringFrom(reconciliation.externalCalendarEventId);
+}
+
+function externalAppointmentIdFrom(appointment: Appointment): string | null {
+  if (appointment.externalAppointmentId?.trim()) return appointment.externalAppointmentId;
+  return externalCalendarEventIdFrom(appointment);
+}
+
+function externalProviderFrom(appointment: Appointment): SchedulingProviderKey | null {
+  if (appointment.externalProvider) return appointment.externalProvider;
+  const reconciliation = reconciliationMetadata(appointment);
+  const provider = stringFrom(reconciliation.externalProvider);
+  if (
+    provider === 'google_calendar' ||
+    provider === 'dentally' ||
+    provider === 'soe_exact' ||
+    provider === 'cs_r4_plus'
+  ) {
+    return provider;
+  }
+  return null;
+}
+
+async function resolveProviderForReconciliation(input: {
+  tenantId: string;
+  appointment: Appointment;
+}) {
+  const providerName = externalProviderFrom(input.appointment);
+  if (providerName) {
+    return {
+      providerName,
+      provider: resolveSchedulingProvider({
+        tenantId: input.tenantId,
+        providerName,
+        integrationId: input.appointment.calendarIntegrationId ?? undefined,
+      }),
+    };
+  }
+
+  return await resolveActiveSchedulingProvider({
+    tenantId: input.tenantId,
+    operation: 'write',
+  });
 }
 
 function retryDelayMs(retryCount: number, baseRetryDelayMs: number): number {
@@ -491,6 +534,9 @@ export async function processAppointmentReconciliationCandidate(
         tenantId: input.tenantId,
         appointmentId: input.appointment.id,
         externalCalendarEventId,
+        externalProvider: externalProviderFrom(input.appointment),
+        externalAppointmentId:
+          externalAppointmentIdFrom(input.appointment) ?? externalCalendarEventId,
       });
       await markAppointmentReconciliationResolved({
         tenantId: input.tenantId,
@@ -501,8 +547,8 @@ export async function processAppointmentReconciliationCandidate(
     }
 
     if (status === 'local_cancelled_external_cancel_failed') {
-      const externalCalendarEventId = externalCalendarEventIdFrom(input.appointment);
-      if (!externalCalendarEventId) {
+      const externalAppointmentId = externalAppointmentIdFrom(input.appointment);
+      if (!externalAppointmentId) {
         await markAppointmentReconciliationResolved({
           tenantId: input.tenantId,
           appointmentId: input.appointment.id,
@@ -511,10 +557,11 @@ export async function processAppointmentReconciliationCandidate(
         return { appointmentId: input.appointment.id, status: 'resolved' };
       }
 
-      await cancelGoogleCalendarAppointment({
+      const scheduling = await resolveProviderForReconciliation({
         tenantId: input.tenantId,
-        eventId: externalCalendarEventId,
+        appointment: input.appointment,
       });
+      await scheduling.provider.cancelAppointment(externalAppointmentId);
       await markAppointmentReconciliationResolved({
         tenantId: input.tenantId,
         appointmentId: input.appointment.id,
@@ -523,8 +570,8 @@ export async function processAppointmentReconciliationCandidate(
       return { appointmentId: input.appointment.id, status: 'resolved' };
     }
 
-    const externalCalendarEventId = externalCalendarEventIdFrom(input.appointment);
-    if (!externalCalendarEventId) {
+    const externalAppointmentId = externalAppointmentIdFrom(input.appointment);
+    if (!externalAppointmentId) {
       return await failReconciliation({
         tenantId: input.tenantId,
         appointmentId: input.appointment.id,
@@ -533,9 +580,12 @@ export async function processAppointmentReconciliationCandidate(
       });
     }
 
-    await rescheduleGoogleCalendarAppointment({
+    const scheduling = await resolveProviderForReconciliation({
       tenantId: input.tenantId,
-      eventId: externalCalendarEventId,
+      appointment: input.appointment,
+    });
+    await scheduling.provider.rescheduleAppointment(externalAppointmentId, {
+      tenantId: input.tenantId,
       appAppointmentId: input.appointment.id,
       timezone: input.appointment.timezone,
       slot: {

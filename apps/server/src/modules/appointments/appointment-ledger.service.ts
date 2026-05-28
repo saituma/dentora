@@ -12,6 +12,7 @@ import { createStaffReviewItemSafely } from '../staff-review/staff-review.servic
 import type { InferSelectModel } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type * as schema from '../../db/schema.js';
+import type { SchedulingProviderKey } from '../pms/domain/appointment.types.js';
 
 export type Appointment = InferSelectModel<typeof appointments>;
 export type AppointmentHold = InferSelectModel<typeof appointmentHolds>;
@@ -33,6 +34,11 @@ export interface CreateAppointmentInput {
   timezone: string;
   calendarIntegrationId?: string | null;
   externalCalendarEventId?: string | null;
+  externalProvider?: SchedulingProviderKey | null;
+  externalAppointmentId?: string | null;
+  externalPatientId?: string | null;
+  externalClinicianId?: string | null;
+  externalRoomId?: string | null;
   idempotencyKey: string;
   metadata?: Record<string, unknown>;
 }
@@ -63,12 +69,22 @@ export interface AttachExternalCalendarEventInput {
   tenantId: string;
   appointmentId: string;
   externalCalendarEventId: string;
+  externalProvider?: SchedulingProviderKey | null;
+  externalAppointmentId?: string | null;
+  externalPatientId?: string | null;
+  externalClinicianId?: string | null;
+  externalRoomId?: string | null;
 }
 
 export interface MarkAppointmentReconciliationNeededInput {
   tenantId: string;
   appointmentId: string;
   externalCalendarEventId: string;
+  externalProvider?: SchedulingProviderKey | null;
+  externalAppointmentId?: string | null;
+  externalPatientId?: string | null;
+  externalClinicianId?: string | null;
+  externalRoomId?: string | null;
   reason: string;
 }
 
@@ -304,6 +320,11 @@ export async function createAppointment(input: CreateAppointmentInput): Promise<
         timezone: input.timezone,
         calendarIntegrationId: input.calendarIntegrationId ?? null,
         externalCalendarEventId: input.externalCalendarEventId ?? null,
+        externalProvider: input.externalProvider ?? null,
+        externalAppointmentId: input.externalAppointmentId ?? null,
+        externalPatientId: input.externalPatientId ?? null,
+        externalClinicianId: input.externalClinicianId ?? null,
+        externalRoomId: input.externalRoomId ?? null,
         idempotencyKey: input.idempotencyKey,
         metadata: input.metadata ?? {},
       })
@@ -432,6 +453,11 @@ export async function attachExternalCalendarEvent(
       .set({
         status: 'confirmed',
         externalCalendarEventId: input.externalCalendarEventId,
+        externalProvider: input.externalProvider ?? 'google_calendar',
+        externalAppointmentId: input.externalAppointmentId ?? input.externalCalendarEventId,
+        externalPatientId: input.externalPatientId ?? current.externalPatientId,
+        externalClinicianId: input.externalClinicianId ?? current.externalClinicianId,
+        externalRoomId: input.externalRoomId ?? current.externalRoomId,
         updatedAt: new Date(),
       })
       .where(
@@ -470,6 +496,11 @@ export async function markAppointmentReconciliationNeeded(
           reconciliation: {
             status: 'external_created_local_confirm_failed',
             externalCalendarEventId: input.externalCalendarEventId,
+            externalProvider: input.externalProvider ?? 'google_calendar',
+            externalAppointmentId: input.externalAppointmentId ?? input.externalCalendarEventId,
+            externalPatientId: input.externalPatientId ?? current.externalPatientId,
+            externalClinicianId: input.externalClinicianId ?? current.externalClinicianId,
+            externalRoomId: input.externalRoomId ?? current.externalRoomId,
             reason: input.reason,
             detectedAt: new Date().toISOString(),
           },
@@ -490,6 +521,7 @@ export async function markAppointmentReconciliationNeeded(
     message: 'Booking created an external calendar event but local confirmation needs review.',
     metadata: {
       externalCalendarEventAttached: Boolean(input.externalCalendarEventId),
+      externalProvider: input.externalProvider ?? 'google_calendar',
     },
     dedupeKey: `booking_reconciliation_needed:${input.appointmentId}`,
   });
@@ -562,6 +594,8 @@ export async function beginAppointmentCancellationByExternalEventId(
             operation: 'cancel',
             previousStatus: current.status,
             externalCalendarEventId: current.externalCalendarEventId,
+            externalProvider: current.externalProvider,
+            externalAppointmentId: current.externalAppointmentId,
             detectedAt: new Date().toISOString(),
           },
         },
@@ -625,6 +659,8 @@ export async function beginAppointmentRescheduleByExternalEventId(
             previousStartAt: current.startAt.toISOString(),
             previousEndAt: current.endAt.toISOString(),
             externalCalendarEventId: current.externalCalendarEventId,
+            externalProvider: current.externalProvider,
+            externalAppointmentId: current.externalAppointmentId,
             detectedAt: new Date().toISOString(),
           },
         },
@@ -820,6 +856,11 @@ export async function confirmAppointmentHold(
         timezone: hold.timezone,
         calendarIntegrationId: hold.calendarIntegrationId,
         externalCalendarEventId: null,
+        externalProvider: null,
+        externalAppointmentId: null,
+        externalPatientId: null,
+        externalClinicianId: null,
+        externalRoomId: null,
         idempotencyKey: input.idempotencyKey,
         metadata: hold.metadata ?? {},
       })

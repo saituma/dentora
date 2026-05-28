@@ -6,8 +6,10 @@ import type { Appointment } from './appointment-ledger.service.js';
 
 const mockGetAppointment = vi.hoisted(() => vi.fn());
 const mockAttachExternalCalendarEvent = vi.hoisted(() => vi.fn());
-const mockCancelGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
-const mockRescheduleGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
+const mockResolveActiveSchedulingProvider = vi.hoisted(() => vi.fn());
+const mockResolveSchedulingProvider = vi.hoisted(() => vi.fn());
+const mockProviderCancelAppointment = vi.hoisted(() => vi.fn());
+const mockProviderRescheduleAppointment = vi.hoisted(() => vi.fn());
 const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
 
 vi.mock('./appointment-ledger.service.js', async () => {
@@ -21,9 +23,9 @@ vi.mock('./appointment-ledger.service.js', async () => {
   };
 });
 
-vi.mock('../integrations/google-calendar-appointments.js', () => ({
-  cancelGoogleCalendarAppointment: mockCancelGoogleCalendarAppointment,
-  rescheduleGoogleCalendarAppointment: mockRescheduleGoogleCalendarAppointment,
+vi.mock('../pms/services/scheduling-provider-resolver.service.js', () => ({
+  resolveActiveSchedulingProvider: mockResolveActiveSchedulingProvider,
+  resolveSchedulingProvider: mockResolveSchedulingProvider,
 }));
 
 vi.mock('../staff-review/staff-review.service.js', () => ({
@@ -95,6 +97,11 @@ function appointment(overrides: Partial<Appointment> = {}): Appointment {
     timezone: 'America/New_York',
     calendarIntegrationId: 'integration-a',
     externalCalendarEventId: null,
+    externalProvider: null,
+    externalAppointmentId: null,
+    externalPatientId: null,
+    externalClinicianId: null,
+    externalRoomId: null,
     idempotencyKey: 'tenant-a:call-a:slot-1',
     metadata: {
       reconciliation: {
@@ -116,8 +123,26 @@ beforeEach(() => {
   );
   mockDb.update.mockImplementation(() => updateChain<Appointment>());
   mockAttachExternalCalendarEvent.mockResolvedValue(undefined);
-  mockCancelGoogleCalendarAppointment.mockResolvedValue(undefined);
-  mockRescheduleGoogleCalendarAppointment.mockResolvedValue(undefined);
+  mockProviderCancelAppointment.mockResolvedValue(undefined);
+  mockProviderRescheduleAppointment.mockResolvedValue(undefined);
+  const provider = {
+    listAppointments: vi.fn(),
+    findAppointment: vi.fn(),
+    getAvailability: vi.fn(),
+    createAppointment: vi.fn(),
+    cancelAppointment: mockProviderCancelAppointment,
+    rescheduleAppointment: mockProviderRescheduleAppointment,
+    findPatient: vi.fn(),
+    upsertPatient: vi.fn(),
+    validateCredentials: vi.fn(),
+    healthCheck: vi.fn(),
+  };
+  mockResolveActiveSchedulingProvider.mockResolvedValue({
+    providerName: 'google_calendar',
+    integrationId: 'integration-a',
+    provider,
+  });
+  mockResolveSchedulingProvider.mockReturnValue(provider);
   mockGetAppointment.mockImplementation(async (_tenantId: string, appointmentId: string) =>
     appointment({ id: appointmentId }),
   );
@@ -136,6 +161,8 @@ describe('appointment reconciliation processor', () => {
       tenantId: 'tenant-a',
       appointmentId: 'appointment-a',
       externalCalendarEventId: 'google-event-a',
+      externalProvider: null,
+      externalAppointmentId: 'google-event-a',
     });
     expect(mockDb.update).toHaveBeenCalledTimes(2);
   });
@@ -170,7 +197,7 @@ describe('appointment reconciliation processor', () => {
     });
   });
 
-  it('calls Google delete for local_cancelled_external_cancel_failed', async () => {
+  it('cancels through the scheduling provider for local_cancelled_external_cancel_failed', async () => {
     const candidate = appointment({
       status: 'cancelled',
       externalCalendarEventId: 'google-event-a',
@@ -182,10 +209,11 @@ describe('appointment reconciliation processor', () => {
     );
 
     expect(result.status).toBe('resolved');
-    expect(mockCancelGoogleCalendarAppointment).toHaveBeenCalledWith({
+    expect(mockResolveActiveSchedulingProvider).toHaveBeenCalledWith({
       tenantId: 'tenant-a',
-      eventId: 'google-event-a',
+      operation: 'write',
     });
+    expect(mockProviderCancelAppointment).toHaveBeenCalledWith('google-event-a');
   });
 
   it('resolves local_cancelled_external_cancel_failed when no external event exists', async () => {
@@ -199,11 +227,11 @@ describe('appointment reconciliation processor', () => {
     );
 
     expect(result.status).toBe('resolved');
-    expect(mockCancelGoogleCalendarAppointment).not.toHaveBeenCalled();
+    expect(mockProviderCancelAppointment).not.toHaveBeenCalled();
   });
 
-  it('schedules retry on retryable Google cancellation failure', async () => {
-    mockCancelGoogleCalendarAppointment.mockRejectedValueOnce(new Error('google down'));
+  it('schedules retry on retryable provider cancellation failure', async () => {
+    mockProviderCancelAppointment.mockRejectedValueOnce(new Error('provider down'));
     mockGetAppointment.mockResolvedValue(
       appointment({
         status: 'cancelled',
@@ -239,11 +267,11 @@ describe('appointment reconciliation processor', () => {
     expect(result).toMatchObject({
       appointmentId: 'appointment-a',
       status: 'retry_scheduled',
-      reason: 'google down',
+      reason: 'provider down',
     });
   });
 
-  it('calls Google reschedule with local appointment times', async () => {
+  it('reschedules through the scheduling provider with local appointment times', async () => {
     const candidate = appointment({
       externalCalendarEventId: 'google-event-a',
       metadata: { reconciliation: { status: 'local_rescheduled_external_reschedule_failed' } },
@@ -254,9 +282,8 @@ describe('appointment reconciliation processor', () => {
     );
 
     expect(result.status).toBe('resolved');
-    expect(mockRescheduleGoogleCalendarAppointment).toHaveBeenCalledWith({
+    expect(mockProviderRescheduleAppointment).toHaveBeenCalledWith('google-event-a', {
       tenantId: 'tenant-a',
-      eventId: 'google-event-a',
       appAppointmentId: 'appointment-a',
       timezone: 'America/New_York',
       slot: {
@@ -266,8 +293,8 @@ describe('appointment reconciliation processor', () => {
     });
   });
 
-  it('schedules retry on retryable Google reschedule failure', async () => {
-    mockRescheduleGoogleCalendarAppointment.mockRejectedValueOnce(new Error('patch failed'));
+  it('schedules retry on retryable provider reschedule failure', async () => {
+    mockProviderRescheduleAppointment.mockRejectedValueOnce(new Error('patch failed'));
     const candidate = appointment({
       externalCalendarEventId: 'google-event-a',
       metadata: {
@@ -330,7 +357,7 @@ describe('appointment reconciliation processor', () => {
         relatedAppointmentId: 'appointment-a',
       }),
     );
-    expect(mockCancelGoogleCalendarAppointment).not.toHaveBeenCalled();
+    expect(mockProviderCancelAppointment).not.toHaveBeenCalled();
   });
 
   it('does not let one failed candidate stop the next candidate', async () => {

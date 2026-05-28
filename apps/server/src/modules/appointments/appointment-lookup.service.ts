@@ -4,8 +4,8 @@ import { appointments, patientProfiles } from '../../db/schema.js';
 import { assertTenantAccess } from '../../db/tenant-context.js';
 import { hashForSearch } from '../../lib/encrypted-column.js';
 import type { Appointment } from './appointment-ledger.service.js';
-import { makeDateInTimeZone } from '../integrations/google-calendar.shared.js';
 import { createStaffReviewItemSafely } from '../staff-review/staff-review.service.js';
+import { makeDateInTimeZone } from './appointment-timezone.js';
 
 export const APPOINTMENT_VERIFICATION_CLARIFICATION_MESSAGE =
   'For privacy and security, I need your confirmation number or your phone number, date of birth, and appointment date/time before I can help with that.';

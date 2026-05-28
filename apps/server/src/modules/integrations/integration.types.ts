@@ -82,3 +82,20 @@ export interface CalendarAppointmentMatch {
   endIso: string;
   label: string;
 }
+
+export interface ListCalendarAppointmentsInput {
+  tenantId: string;
+  days?: number;
+  maxResults?: number;
+  now?: Date;
+}
+
+export interface CalendarAppointmentListEvent {
+  eventId: string;
+  summary: string;
+  description: string;
+  htmlLink?: string;
+  startIso: string;
+  endIso: string;
+  status: string;
+}

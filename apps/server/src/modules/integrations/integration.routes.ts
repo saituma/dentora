@@ -106,7 +106,7 @@ integrationRouter.post(
   apiRateLimiter,
   validate({
     body: z.object({
-      integrationType: z.enum(['pms', 'calendar', 'crm', 'messaging']),
+      integrationType: z.enum(['scheduling', 'pms', 'calendar', 'crm', 'messaging']),
       provider: z.string().min(1).optional(),
       config: z.record(z.string(), z.unknown()),
       credentials: z.record(z.string(), z.unknown()).optional(),

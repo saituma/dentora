@@ -1,37 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
-import * as configService from '../config/config.service.js';
 import {
-  findAvailableCalendarSlots,
-  createGoogleCalendarAppointment,
-  getActiveGoogleCalendarIntegration,
-  cancelGoogleCalendarAppointment,
-  rescheduleGoogleCalendarAppointment,
-} from '../integrations/integration.service.js';
-import { upsertPatientProfile } from '../patients/patients.service.js';
-import {
-  resolveValidGoogleAccessToken,
-  makeDateInTimeZone,
-} from '../integrations/google-calendar.shared.js';
-import { ValidationError } from '../../lib/errors.js';
-import { hashForSearch } from '../../lib/encrypted-column.js';
-import {
-  attachExternalCalendarEvent,
-  beginAppointmentCancellationByExternalEventId,
-  beginAppointmentRescheduleByExternalEventId,
-  confirmAppointmentHold,
-  createAppointmentHold,
-  getAppointmentByExternalCalendarEventId,
-  markAppointmentExternalSyncState,
-  markAppointmentReconciliationNeeded,
-} from './appointment-ledger.service.js';
-import {
-  createAppointmentChangeReviewItem,
-  CANCEL_REVIEW_MESSAGE,
-  RESCHEDULE_REVIEW_MESSAGE,
-} from './appointment-change-review.service.js';
-import { features } from '../../config/features.js';
+  bookPublicAppointment,
+  cancelAppointmentFromRoute,
+  checkPublicAppointmentAvailability,
+  listUpcomingAppointments,
+  rescheduleAppointmentFromRoute,
+} from './appointment-application.service.js';
 
 const appointmentsRateLimiter = rateLimiter({
   maxRequests: 120,
@@ -85,66 +61,14 @@ appointmentsRouter.get(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
-      const integration = await getActiveGoogleCalendarIntegration(tenantId);
-      if (!integration) {
-        throw new ValidationError('Google Calendar is not connected for this clinic');
-      }
-
-      const { accessToken } = await resolveValidGoogleAccessToken(integration);
-      const config = (integration.config ?? {}) as Record<string, unknown>;
-      const calendarId =
-        typeof config.calendarId === 'string' && config.calendarId.trim()
-          ? config.calendarId
-          : 'primary';
-
       const lookAheadDays = Number(req.query.days ?? 7);
-      const now = new Date();
-      const timeMin = now.toISOString();
-      const timeMax = new Date(now.getTime() + lookAheadDays * 24 * 60 * 60 * 1000).toISOString();
-
-      const url = new URL(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-      );
-      url.searchParams.set('timeMin', timeMin);
-      url.searchParams.set('timeMax', timeMax);
-      url.searchParams.set('singleEvents', 'true');
-      url.searchParams.set('orderBy', 'startTime');
-      url.searchParams.set('maxResults', '50');
-
-      const response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const upcoming = await listUpcomingAppointments({
+        tenantId,
+        days: lookAheadDays,
       });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new ValidationError(`Failed to load calendar events: ${errorBody.slice(0, 300)}`);
-      }
-
-      const payload = (await response.json()) as {
-        items?: Array<{
-          id?: string;
-          summary?: string;
-          description?: string;
-          htmlLink?: string;
-          start?: { dateTime?: string; date?: string };
-          end?: { dateTime?: string; date?: string };
-          status?: string;
-        }>;
-      };
-
       res.json({
-        data: {
-          calendarId,
-          events: (payload.items ?? []).map((event) => ({
-            id: event.id ?? '',
-            summary: event.summary ?? 'Appointment',
-            description: event.description ?? '',
-            htmlLink: event.htmlLink,
-            start: event.start?.dateTime ?? event.start?.date ?? '',
-            end: event.end?.dateTime ?? event.end?.date ?? '',
-            status: event.status ?? 'confirmed',
-          })),
-        },
+        data: upcoming,
       });
     } catch (error) {
       next(error);
@@ -161,59 +85,12 @@ appointmentsRouter.post(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
-      const clinic = await configService.getClinicProfile(tenantId);
-      const rules = await configService.getBookingRules(tenantId);
-
-      if (!clinic?.timezone) {
-        throw new ValidationError('Clinic timezone is required to check availability');
-      }
-
-      const closedDates = Array.isArray(rules?.closedDates)
-        ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
-        : null;
-
-      // Mirror the same-day rule enforced by POST /book so the agent is never
-      // offered a slot it cannot actually book. After noon, same-day booking is
-      // closed entirely; before noon, same-day slots must be in the afternoon.
-      const tz = clinic.timezone;
-      const dateParts = new Intl.DateTimeFormat('en-CA', {
-        timeZone: tz,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-      const nowHour = Number(
-        new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hour12: false }).format(
-          new Date(),
-        ),
-      );
-      let minimumStartAt: Date;
-      if (nowHour >= 12) {
-        const [ty, tm, td] = dateParts
-          .format(new Date(Date.now() + 24 * 60 * 60 * 1000))
-          .split('-')
-          .map(Number);
-        minimumStartAt = makeDateInTimeZone(tz, ty, tm, td, 0, 0);
-      } else {
-        const [y, m, d] = dateParts.format(new Date()).split('-').map(Number);
-        minimumStartAt = makeDateInTimeZone(tz, y, m, d, 12, 0);
-      }
-
-      const availability = await findAvailableCalendarSlots({
+      const availability = await checkPublicAppointmentAvailability({
         tenantId,
-        timezone: clinic.timezone,
-        minimumStartAt,
         requestedDate: req.body.requestedDate,
         requestedTime: req.body.requestedTime ?? null,
         requestedPeriod: req.body.requestedPeriod ?? null,
-        appointmentDurationMinutes:
-          req.body.appointmentDurationMinutes ?? rules?.defaultAppointmentDurationMinutes ?? 30,
-        bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
-        operatingSchedule: (rules?.operatingSchedule ?? clinic.businessHours ?? null) as Record<
-          string,
-          unknown
-        > | null,
-        closedDates,
+        appointmentDurationMinutes: req.body.appointmentDurationMinutes,
         maxSlots: req.body.maxSlots ?? 5,
         lookAheadDays: req.body.lookAheadDays ?? 14,
       });
@@ -222,7 +99,7 @@ appointmentsRouter.post(
         data: {
           exactMatch: availability.exactMatch,
           suggestedSlots: availability.suggestedSlots,
-          timezone: clinic.timezone,
+          timezone: availability.timezone,
         },
       });
     } catch (error) {
@@ -240,192 +117,19 @@ appointmentsRouter.post(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
-      const clinic = await configService.getClinicProfile(tenantId);
-      const rules = await configService.getBookingRules(tenantId);
-
-      if (!clinic?.timezone) {
-        throw new ValidationError('Clinic timezone is required to book appointments');
-      }
-
-      const startAt = new Date(req.body.slot.startIso);
-      const endAt = new Date(req.body.slot.endIso);
-      if (
-        !Number.isFinite(startAt.getTime()) ||
-        !Number.isFinite(endAt.getTime()) ||
-        endAt <= startAt
-      ) {
-        throw new ValidationError('Appointment start/end times are invalid');
-      }
-
-      const now = Date.now();
-      const maxAdvanceDays = rules?.maxAdvanceBookingDays ?? 30;
-      const maxStart = now + maxAdvanceDays * 24 * 60 * 60 * 1000;
-
-      const dateFormatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: clinic.timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
-      const timeFormatter = new Intl.DateTimeFormat('en-GB', {
-        timeZone: clinic.timezone,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
-      const startDateLocal = dateFormatter.format(startAt);
-      const todayLocal = dateFormatter.format(new Date());
-      const tomorrowLocal = dateFormatter.format(new Date(Date.now() + 24 * 60 * 60 * 1000));
-      const isToday = startDateLocal === todayLocal;
-      const isTomorrow = startDateLocal === tomorrowLocal;
-
-      const nowHour = Number(
-        timeFormatter.formatToParts(new Date()).find((part) => part.type === 'hour')?.value ?? '0',
-      );
-      const startHour = Number(
-        timeFormatter.formatToParts(startAt).find((part) => part.type === 'hour')?.value ?? '0',
-      );
-
-      const reason = String(req.body.patient?.reasonForVisit ?? '').toLowerCase();
-      const isEmergency =
-        /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(
-          reason,
-        );
-
-      if (isEmergency) {
-        // Emergency bookings bypass same-day and min-notice restrictions.
-      } else if (isToday) {
-        if (nowHour >= 12) {
-          throw new ValidationError(
-            'Same-day appointments are only available when booked in the morning',
-          );
-        }
-        if (startHour < 12) {
-          throw new ValidationError('Same-day appointments must be scheduled in the afternoon');
-        }
-      } else if (!isTomorrow) {
-        // No min-notice enforcement
-      }
-      if (startAt.getTime() > maxStart) {
-        throw new ValidationError('Appointment time is too far in advance based on booking rules');
-      }
-
-      const closedDates = Array.isArray(rules?.closedDates)
-        ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
-        : null;
-      const integration = await getActiveGoogleCalendarIntegration(tenantId);
-      if (!integration) {
-        throw new ValidationError('Google Calendar is not connected for this clinic');
-      }
-
-      const recheckedAvailability = await findAvailableCalendarSlots({
+      const appointment = await bookPublicAppointment({
         tenantId,
-        timezone: clinic.timezone,
-        requestedDate: startDateLocal,
-        requestedTime: timeFormatter.format(startAt),
-        requestedPeriod: null,
-        appointmentDurationMinutes: Math.max(
-          5,
-          Math.round((endAt.getTime() - startAt.getTime()) / 60_000),
-        ),
-        bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
-        operatingSchedule: (rules?.operatingSchedule ?? clinic.businessHours ?? null) as Record<
-          string,
-          unknown
-        > | null,
-        closedDates,
-        maxSlots: 1,
-        lookAheadDays: 1,
-      });
-
-      const sameInstant = (a: string, b: string) => {
-        const ta = Date.parse(a);
-        const tb = Date.parse(b);
-        return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb;
-      };
-
-      const exactSlot = recheckedAvailability.exactMatch;
-      if (
-        !exactSlot ||
-        !sameInstant(exactSlot.startIso, req.body.slot.startIso) ||
-        !sameInstant(exactSlot.endIso, req.body.slot.endIso)
-      ) {
-        throw new ValidationError('Appointment slot is no longer available');
-      }
-
-      const patient = await upsertPatientProfile({
-        tenantId,
-        fullName: req.body.patient.fullName,
-        phoneNumber: req.body.patient.phoneNumber,
-        dateOfBirth: req.body.patient.dateOfBirth ?? null,
-        lastVisitAt: startAt,
-        notes: req.body.patient.reasonForVisit,
-      });
-
-      const baseIdempotencyKey =
-        req.body.idempotencyKey ??
-        `book:${hashForSearch(
-          [
-            tenantId,
-            req.body.slot.startIso,
-            req.body.slot.endIso,
-            req.body.patient.phoneNumber,
-          ].join('|'),
-        )}`;
-      const hold = await createAppointmentHold({
-        tenantId,
-        patientId: patient.id,
-        startAt,
-        endAt,
-        timezone: clinic.timezone,
-        calendarIntegrationId: integration.id,
-        idempotencyKey: `${baseIdempotencyKey}:hold`,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-        metadata: { source: 'appointments.book' },
-      });
-      const localAppointment = await confirmAppointmentHold({
-        tenantId,
-        holdId: hold.id,
-        idempotencyKey: `${baseIdempotencyKey}:confirm`,
-      });
-
-      if (localAppointment.externalCalendarEventId) {
-        res.json({
-          data: {
-            eventId: localAppointment.externalCalendarEventId,
-            slot: req.body.slot,
-          },
-        });
-        return;
-      }
-
-      const calendarAppointment = await createGoogleCalendarAppointment({
-        tenantId,
-        timezone: clinic.timezone,
-        appAppointmentId: localAppointment.id,
         slot: req.body.slot,
-        summary: `Dental appointment - ${req.body.patient.fullName}`,
         patient: req.body.patient,
+        idempotencyKey: req.body.idempotencyKey,
       });
-
-      try {
-        await attachExternalCalendarEvent({
-          tenantId,
-          appointmentId: localAppointment.id,
-          externalCalendarEventId: calendarAppointment.eventId,
-        });
-      } catch (error) {
-        await markAppointmentReconciliationNeeded({
-          tenantId,
-          appointmentId: localAppointment.id,
-          externalCalendarEventId: calendarAppointment.eventId,
-          reason: error instanceof Error ? error.message : 'Unknown local confirmation failure',
-        });
-        throw error;
-      }
 
       res.json({
-        data: calendarAppointment,
+        data: {
+          eventId: appointment.eventId,
+          htmlLink: appointment.htmlLink,
+          slot: appointment.slot,
+        },
       });
     } catch (error) {
       next(error);
@@ -443,44 +147,11 @@ appointmentsRouter.post(
     try {
       const tenantId = req.tenantContext!.tenantId;
 
-      if (features.aiAppointmentChangesRequireReview) {
-        const appt = await getAppointmentByExternalCalendarEventId(tenantId, req.body.eventId);
-        if (!appt) throw new ValidationError('Appointment not found');
-        await createAppointmentChangeReviewItem({
-          tenantId,
-          action: 'cancel',
-          appointment: appt,
-          verificationMethod: 'unknown',
-        });
-        res.json({ data: { success: true, message: CANCEL_REVIEW_MESSAGE } });
-        return;
-      }
-
-      const appointment = await beginAppointmentCancellationByExternalEventId({
+      const result = await cancelAppointmentFromRoute({
         tenantId,
-        externalCalendarEventId: req.body.eventId,
+        eventId: req.body.eventId,
       });
-
-      try {
-        await cancelGoogleCalendarAppointment({ tenantId, eventId: req.body.eventId });
-        await markAppointmentExternalSyncState({
-          tenantId,
-          appointmentId: appointment.id,
-          operation: 'cancel',
-          status: 'external_cancel_synced',
-        });
-      } catch (error) {
-        await markAppointmentExternalSyncState({
-          tenantId,
-          appointmentId: appointment.id,
-          operation: 'cancel',
-          status: 'local_cancelled_external_cancel_failed',
-          reason: error instanceof Error ? error.message : 'Unknown external cancellation failure',
-        });
-        throw error;
-      }
-
-      res.json({ data: { success: true, appointmentId: appointment.id } });
+      res.json({ data: result });
     } catch (error) {
       next(error);
     }
@@ -496,62 +167,12 @@ appointmentsRouter.post(
   async (req, res, next) => {
     try {
       const tenantId = req.tenantContext!.tenantId;
-      const clinic = await configService.getClinicProfile(tenantId);
-      if (!clinic?.timezone) {
-        throw new ValidationError('Clinic timezone is required to reschedule appointments');
-      }
-
-      if (features.aiAppointmentChangesRequireReview) {
-        const appt = await getAppointmentByExternalCalendarEventId(tenantId, req.body.eventId);
-        if (!appt) throw new ValidationError('Appointment not found');
-        await createAppointmentChangeReviewItem({
-          tenantId,
-          action: 'reschedule',
-          appointment: appt,
-          verificationMethod: 'unknown',
-          requestedStartAt: req.body.slot.startIso,
-          requestedEndAt: req.body.slot.endIso,
-        });
-        res.json({ data: { success: true, message: RESCHEDULE_REVIEW_MESSAGE } });
-        return;
-      }
-
-      const startAt = new Date(req.body.slot.startIso);
-      const endAt = new Date(req.body.slot.endIso);
-      const appointment = await beginAppointmentRescheduleByExternalEventId({
+      const result = await rescheduleAppointmentFromRoute({
         tenantId,
-        externalCalendarEventId: req.body.eventId,
-        startAt,
-        endAt,
-        timezone: clinic.timezone,
+        eventId: req.body.eventId,
+        slot: req.body.slot,
       });
-
-      try {
-        await rescheduleGoogleCalendarAppointment({
-          tenantId,
-          eventId: req.body.eventId,
-          appAppointmentId: appointment.id,
-          slot: req.body.slot,
-          timezone: clinic.timezone,
-        });
-        await markAppointmentExternalSyncState({
-          tenantId,
-          appointmentId: appointment.id,
-          operation: 'reschedule',
-          status: 'external_reschedule_synced',
-        });
-      } catch (error) {
-        await markAppointmentExternalSyncState({
-          tenantId,
-          appointmentId: appointment.id,
-          operation: 'reschedule',
-          status: 'local_rescheduled_external_reschedule_failed',
-          reason: error instanceof Error ? error.message : 'Unknown external reschedule failure',
-        });
-        throw error;
-      }
-
-      res.json({ data: appointment });
+      res.json({ data: result });
     } catch (error) {
       next(error);
     }

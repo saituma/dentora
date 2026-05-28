@@ -47,6 +47,11 @@ const baseAppointment: Appointment = {
   timezone: 'America/New_York',
   calendarIntegrationId: 'integration-a',
   externalCalendarEventId: 'google-event-a',
+  externalProvider: 'google_calendar',
+  externalAppointmentId: 'google-event-a',
+  externalPatientId: null,
+  externalClinicianId: null,
+  externalRoomId: null,
   idempotencyKey: 'tenant-a:call-a:slot-1',
   metadata: {
     source: 'appointments.cancel',
