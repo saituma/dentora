@@ -80,6 +80,7 @@ export const FaqCategory = {
 export type FaqCategory = (typeof FaqCategory)[keyof typeof FaqCategory];
 
 export const IntegrationType = {
+  SCHEDULING: 'scheduling',
   PMS: 'pms',
   CALENDAR: 'calendar',
   CRM: 'crm',
@@ -94,6 +95,40 @@ export const IntegrationStatus = {
   ERROR: 'error',
 } as const;
 export type IntegrationStatus = (typeof IntegrationStatus)[keyof typeof IntegrationStatus];
+
+export const SchedulingProvider = {
+  GOOGLE_CALENDAR: 'google_calendar',
+  DENTALLY: 'dentally',
+  SOE_EXACT: 'soe_exact',
+  CS_R4_PLUS: 'cs_r4_plus',
+} as const;
+export type SchedulingProvider = (typeof SchedulingProvider)[keyof typeof SchedulingProvider];
+
+export const SchedulingSourceOfTruth = {
+  GOOGLE_CALENDAR: 'google_calendar',
+  PMS: 'pms',
+  LOCAL_LEDGER: 'local_ledger',
+} as const;
+export type SchedulingSourceOfTruth =
+  (typeof SchedulingSourceOfTruth)[keyof typeof SchedulingSourceOfTruth];
+
+export const GoogleSyncMode = {
+  DISABLED: 'disabled',
+  MIRROR_BUSY: 'mirror_busy',
+  MIRROR_FULL: 'mirror_full',
+  FALLBACK_ONLY: 'fallback_only',
+} as const;
+export type GoogleSyncMode = (typeof GoogleSyncMode)[keyof typeof GoogleSyncMode];
+
+export const ExternalEntityType = {
+  APPOINTMENT: 'appointment',
+  PATIENT: 'patient',
+  CLINICIAN: 'clinician',
+  ROOM: 'room',
+  SERVICE: 'service',
+  TREATMENT_TYPE: 'treatment_type',
+} as const;
+export type ExternalEntityType = (typeof ExternalEntityType)[keyof typeof ExternalEntityType];
 
 export const HealthStatus = {
   HEALTHY: 'healthy',
