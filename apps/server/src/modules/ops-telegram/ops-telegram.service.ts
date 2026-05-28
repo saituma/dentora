@@ -3,7 +3,7 @@ import { db } from '../../db/index.js';
 import { callSessions } from '../../db/schema.js';
 import { checkDbHealth } from '../../db/index.js';
 import { getRedis } from '../../lib/cache.js';
-import { getCircuitBreakerStatus } from '../../lib/circuit-breaker.js';
+import { getCircuitBreakerStatusShared } from '../../lib/circuit-breaker.js';
 import { sendTelegramMessage, isTelegramConfigured } from '../../lib/telegram.js';
 import { logEmitter, getRecentLogs, type LogEntry } from '../admin/admin-log-stream.js';
 import {
@@ -11,6 +11,11 @@ import {
   APPOINTMENT_MAINTENANCE_COMPONENT,
 } from '../operational-health/operational-health.service.js';
 import { getQueue, QUEUE_NAMES } from '../../lib/queue.js';
+import {
+  getOpsDailyCost,
+  getOpsCostByProvider,
+  getOpsTopTenants,
+} from '../analytics/analytics.service.js';
 import { env } from '../../config/env.js';
 
 export type AlertCategory = 'ERROR' | 'AI' | 'TELEPHONY' | 'JOB' | 'HEALTH' | 'LIFECYCLE';
@@ -37,6 +42,22 @@ interface ProviderHealthSnapshot {
   sampleCount: number;
   lastErrorAt?: string;
   lastError?: string;
+}
+
+// ── Mute (silences auto-alerts only; manual commands always respond) ──────────
+let _mutedUntil = 0;
+
+export function setMute(minutes: number): number {
+  _mutedUntil = Date.now() + minutes * 60_000;
+  return _mutedUntil;
+}
+
+export function clearMute(): void {
+  _mutedUntil = 0;
+}
+
+export function isMuted(): boolean {
+  return Date.now() < _mutedUntil;
 }
 
 // ── Dedupe + rate-limit ──────────────────────────────────────────────────────
@@ -128,18 +149,19 @@ export async function notifyOps(opts: {
   meta?: Record<string, unknown>;
 }): Promise<void> {
   if (!isTelegramConfigured()) return;
+  if (isMuted()) return;
   if (!shouldSend(opts.category, opts.title)) return;
 
   const emoji = CATEGORY_EMOJI[opts.category];
   const envTag = env.NODE_ENV === 'production' ? 'prod' : env.NODE_ENV;
   const sep = '─'.repeat(28);
-  let text = `${emoji} <b>[${opts.category}]</b>  <i>${envTag}</i>\n${sep}\n${opts.title}`;
-  if (opts.detail) text += `\n\n<code>${opts.detail.slice(0, 300)}</code>`;
+  let text = `${emoji} <b>[${opts.category}]</b>  <i>${envTag}</i>\n${sep}\n${escapeHtml(opts.title)}`;
+  if (opts.detail) text += `\n\n<code>${escapeHtml(opts.detail.slice(0, 300))}</code>`;
   if (opts.meta) {
     const pairs = Object.entries(opts.meta)
       .filter(([, v]) => v !== undefined && v !== '')
       .slice(0, 6)
-      .map(([k, v]) => `▸ ${k}: <code>${String(v).slice(0, 80)}</code>`)
+      .map(([k, v]) => `▸ ${escapeHtml(k)}: <code>${escapeHtml(String(v).slice(0, 80))}</code>`)
       .join('\n');
     if (pairs) text += `\n\n${pairs}`;
   }
@@ -192,6 +214,106 @@ export function initTelegramDispatcher(): void {
   });
 }
 
+// ── Proactive health watch (edge-triggered) ──────────────────────────────────
+// Tracks last-known good/bad per subject so we alert once on degradation and
+// once on recovery — never every poll. Runs on the worker dyno.
+const _watchState = new Map<string, 'ok' | 'bad'>();
+const FAILED_JOBS_THRESHOLD = 10;
+const PROVIDER_MIN_SAMPLES = 20;
+const PROVIDER_MIN_SUCCESS = 0.5;
+
+function edge(key: string, isBad: boolean, badTitle: string, goodTitle: string): void {
+  const prev = _watchState.get(key);
+  const cur = isBad ? 'bad' : 'ok';
+  if (cur === prev) return;
+  _watchState.set(key, cur);
+  if (cur === 'bad') {
+    notifyOps({ category: 'HEALTH', title: badTitle }).catch(() => undefined);
+  } else if (prev === 'bad') {
+    notifyOps({ category: 'HEALTH', title: goodTitle }).catch(() => undefined);
+  }
+}
+
+export async function runHealthWatch(): Promise<void> {
+  if (!isTelegramConfigured()) return;
+
+  // Circuit breakers
+  try {
+    const breakers = await getCircuitBreakerStatusShared();
+    for (const [name, b] of Object.entries(breakers)) {
+      edge(
+        `breaker:${name}`,
+        b.state !== 'closed',
+        `⚡ Circuit breaker ${name} is ${b.state} (${b.failures} failures)`,
+        `✅ Circuit breaker ${name} recovered (closed)`,
+      );
+    }
+  } catch {
+    /* skip */
+  }
+
+  // Dead-letter queue backlog + per-queue failed jobs
+  try {
+    for (const name of Object.values(QUEUE_NAMES)) {
+      const q = getQueue(name as Parameters<typeof getQueue>[0]);
+      const counts = await q.getJobCounts('waiting', 'failed');
+      if (name === QUEUE_NAMES.DEAD_LETTER) {
+        const waiting = counts.waiting ?? 0;
+        edge(
+          'dlq',
+          waiting > 0,
+          `🪦 Dead-letter queue has ${waiting} job(s) needing manual intervention`,
+          `✅ Dead-letter queue drained`,
+        );
+      }
+      const failed = counts.failed ?? 0;
+      edge(
+        `failed:${name}`,
+        failed > FAILED_JOBS_THRESHOLD,
+        `📦 Queue ${name} has ${failed} failed jobs`,
+        `✅ Queue ${name} failed-job backlog cleared`,
+      );
+    }
+  } catch {
+    /* skip */
+  }
+
+  // AI provider degradation (global Redis snapshots)
+  try {
+    const redis = getRedis();
+    const keys = await redis.keys('global:provider-health:*');
+    for (const key of keys) {
+      const raw = await redis.get(key);
+      if (!raw) continue;
+      const d = JSON.parse(raw) as ProviderHealthSnapshot;
+      const name = key.replace('global:provider-health:', '');
+      const degraded =
+        d.sampleCount >= PROVIDER_MIN_SAMPLES && d.successRate < PROVIDER_MIN_SUCCESS;
+      edge(
+        `provider:${name}`,
+        degraded,
+        `🤖 Provider ${name} degraded — ${pct(d.successRate)} success over ${d.sampleCount} calls`,
+        `✅ Provider ${name} recovered`,
+      );
+    }
+  } catch {
+    /* skip */
+  }
+
+  // Infra
+  try {
+    const dbOk = await checkDbHealth().catch(() => false);
+    edge('db', !dbOk, `🔴 Database health check failing`, `✅ Database recovered`);
+    const redisOk = await getRedis()
+      .ping()
+      .then(() => true)
+      .catch(() => false);
+    edge('redis', !redisOk, `🔴 Redis not responding to ping`, `✅ Redis recovered`);
+  } catch {
+    /* skip */
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const _startedAt = Date.now();
 
@@ -200,7 +322,7 @@ function safeTime(raw: unknown): string {
   return isNaN(d.getTime()) ? 'unknown' : d.toISOString().replace('T', ' ').slice(0, 19);
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
@@ -229,6 +351,10 @@ function bar(rate: number, width = 8): string {
   return '█'.repeat(filled) + '░'.repeat(width - filled);
 }
 
+function usd(n: number): string {
+  return `$${n.toFixed(2)}`;
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────
 
 export async function buildQuickStatus(): Promise<string> {
@@ -238,7 +364,7 @@ export async function buildQuickStatus(): Promise<string> {
       .ping()
       .then(() => true)
       .catch(() => false),
-    Promise.resolve(getCircuitBreakerStatus()),
+    getCircuitBreakerStatusShared(),
   ]);
   const openBreakers = Object.entries(breakers).filter(([, b]) => b.state !== 'closed');
   const allOk = dbOk && redisOk && openBreakers.length === 0;
@@ -257,6 +383,21 @@ export async function buildQuickStatus(): Promise<string> {
   return msg;
 }
 
+export function buildVersionReport(): string {
+  const sep = '─'.repeat(28);
+  const release =
+    process.env.HEROKU_RELEASE_VERSION ??
+    process.env.SOURCE_VERSION ??
+    process.env.HEROKU_SLUG_COMMIT ??
+    'unknown';
+  const envTag = env.NODE_ENV === 'production' ? 'prod' : env.NODE_ENV;
+  let msg = `🏷 <b>Dentora Version</b> · <i>${envTag}</i>\n${sep}\n`;
+  msg += `Release: <code>${escapeHtml(String(release).slice(0, 40))}</code>\n`;
+  msg += `Node: <code>${escapeHtml(process.version)}</code>\n`;
+  msg += `Uptime: ${uptime()} <i>(this dyno)</i>`;
+  return msg;
+}
+
 export async function buildStatusReport(): Promise<string> {
   const [dbOk, redisOk, opHealth, breakers] = await Promise.all([
     checkDbHealth().catch(() => false),
@@ -267,7 +408,7 @@ export async function buildStatusReport(): Promise<string> {
     getOperationalHealthSnapshot({ component: APPOINTMENT_MAINTENANCE_COMPONENT }).catch(
       () => null,
     ),
-    Promise.resolve(getCircuitBreakerStatus()),
+    getCircuitBreakerStatusShared(),
   ]);
   const openBreakers = Object.entries(breakers).filter(([, b]) => b.state !== 'closed');
   const allOk = dbOk && redisOk && openBreakers.length === 0;
@@ -301,7 +442,7 @@ export async function buildStatusReport(): Promise<string> {
   } else {
     for (const [name, b] of Object.entries(breakers)) {
       const icon = b.state === 'closed' ? '✅' : b.state === 'open' ? '🔴' : '💛';
-      r += `  ${icon} <code>${name}</code>: ${b.state}`;
+      r += `  ${icon} <code>${escapeHtml(name)}</code>: ${b.state}`;
       if (b.failures > 0) r += ` (${b.failures} failures)`;
       r += '\n';
     }
@@ -323,7 +464,7 @@ export async function buildAiReport(): Promise<string> {
     return msg + 'No data yet — no calls since last deploy.';
   }
 
-  const breakers = getCircuitBreakerStatus();
+  const breakers = await getCircuitBreakerStatusShared();
   for (const key of keys.sort()) {
     const name = key.replace('global:provider-health:', '');
     try {
@@ -334,9 +475,9 @@ export async function buildAiReport(): Promise<string> {
       const icon = rate >= 0.9 ? '✅' : rate >= 0.7 ? '💛' : '🔴';
       const bState = breakers[name]?.state ?? 'closed';
       const bTag = bState !== 'closed' ? ` ⚡<i>${bState}</i>` : '';
-      msg += `${icon} <b>${name}</b>${bTag}\n`;
+      msg += `${icon} <b>${escapeHtml(name)}</b>${bTag}\n`;
       msg += `   ${bar(rate)} ${pct(rate)} · ${ms(d.avgLatencyMs)} avg · ${d.sampleCount} calls\n`;
-      if (d.lastError) msg += `   <i>Last err: ${d.lastError.slice(0, 80)}</i>\n`;
+      if (d.lastError) msg += `   <i>Last err: ${escapeHtml(d.lastError.slice(0, 80))}</i>\n`;
       msg += '\n';
     } catch {
       /* skip */
@@ -345,8 +486,8 @@ export async function buildAiReport(): Promise<string> {
   return msg.trimEnd();
 }
 
-export function buildBreakersReport(): string {
-  const breakers = Object.entries(getCircuitBreakerStatus());
+export async function buildBreakersReport(): Promise<string> {
+  const breakers = Object.entries(await getCircuitBreakerStatusShared());
   const sep = '─'.repeat(28);
   let msg = `⚡ <b>Circuit Breakers</b>\n${sep}\n`;
 
@@ -359,14 +500,14 @@ export function buildBreakersReport(): string {
     msg += `<b>⚠️ Open / Half-open</b>\n`;
     for (const [name, b] of open) {
       const icon = b.state === 'open' ? '🔴' : '💛';
-      msg += `  ${icon} <code>${name}</code>: <b>${b.state}</b> — ${b.failures} failures\n`;
+      msg += `  ${icon} <code>${escapeHtml(name)}</code>: <b>${b.state}</b> — ${b.failures} failures\n`;
     }
     msg += '\n';
   }
 
   msg += `<b>✅ Closed</b> (${closed.length})\n`;
   for (const [name, b] of closed) {
-    msg += `  ✅ <code>${name}</code>`;
+    msg += `  ✅ <code>${escapeHtml(name)}</code>`;
     if (b.failures > 0) msg += ` <i>(${b.failures} recent failures)</i>`;
     msg += '\n';
   }
@@ -411,7 +552,7 @@ export async function buildCallsReport(): Promise<string> {
       db
         .select({ n: count() })
         .from(callSessions)
-        .where(sql`${callSessions.status} = 'started'`),
+        .where(sql`${callSessions.status} IN ('started', 'in_progress')`),
     ]);
 
     const t = total[0]?.n ?? 0;
@@ -426,7 +567,7 @@ export async function buildCallsReport(): Promise<string> {
     msg += `🔵 Active now: <b>${a}</b>\n`;
     msg += `\n${bar(successRate)} ${pct(successRate)} success rate`;
   } catch (err) {
-    msg += `⚠️ Could not query call data: ${err instanceof Error ? err.message : String(err)}`;
+    msg += `⚠️ Could not query call data: ${escapeHtml(err instanceof Error ? err.message : String(err))}`;
   }
   return msg;
 }
@@ -447,6 +588,66 @@ export async function buildQueuesReport(): Promise<string> {
     } catch {
       msg += `⬜ <code>${name}</code> — unavailable\n`;
     }
+  }
+  return msg.trimEnd();
+}
+
+export async function buildCostReport(): Promise<string> {
+  const sep = '─'.repeat(28);
+  let msg = `💰 <b>Cost — All Tenants</b>\n${sep}\n`;
+
+  try {
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+    const [daily, byProvider] = await Promise.all([
+      getOpsDailyCost(7),
+      getOpsCostByProvider(startOfToday),
+    ]);
+
+    const todayKey = startOfToday.toISOString().slice(0, 10);
+    const today = daily.find((d) => d.day === todayKey)?.cost ?? 0;
+    msg += `Today: <b>${usd(today)}</b>\n\n`;
+
+    if (daily.length > 0) {
+      const max = Math.max(...daily.map((d) => d.cost), 0.01);
+      msg += `<b>Last 7 days</b>\n`;
+      for (const d of daily) {
+        msg += `<code>${d.day.slice(5)} ${bar(d.cost / max)} ${usd(d.cost)}</code>\n`;
+      }
+      msg += '\n';
+    }
+
+    msg += `<b>Today by provider</b>\n`;
+    if (byProvider.length === 0) {
+      msg += `  No spend yet today.`;
+    } else {
+      for (const p of byProvider) {
+        msg += `  ▸ ${escapeHtml(p.provider)}: <b>${usd(p.cost)}</b>\n`;
+      }
+      msg = msg.trimEnd();
+    }
+  } catch (err) {
+    msg += `⚠️ Could not query cost data: ${escapeHtml(err instanceof Error ? err.message : String(err))}`;
+  }
+  return msg;
+}
+
+export async function buildTenantsReport(): Promise<string> {
+  const sep = '─'.repeat(28);
+  let msg = `🏥 <b>Busiest Clinics — Last 24h</b>\n${sep}\n`;
+
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const tenants = await getOpsTopTenants(since, 10);
+    if (tenants.length === 0) return msg + 'No calls in the last 24h.';
+
+    let rank = 1;
+    for (const t of tenants) {
+      msg += `${rank}. <b>${escapeHtml(t.clinicName)}</b> — ${t.calls} calls · ${usd(t.cost)}\n`;
+      rank += 1;
+    }
+  } catch (err) {
+    msg += `⚠️ Could not query tenant data: ${escapeHtml(err instanceof Error ? err.message : String(err))}`;
   }
   return msg.trimEnd();
 }

@@ -18,6 +18,7 @@ import { logger } from './lib/logger.js';
 import { checkDbHealth, closeDb, runMigrations } from './db/index.js';
 import { initRedis, closeRedis, getRedis } from './lib/cache.js';
 import { getMetrics, getMetricsContentType } from './lib/metrics.js';
+import { registerTelegramWebhook } from './lib/telegram.js';
 
 import { requestId } from './middleware/requestId.js';
 import { auditMiddleware } from './middleware/audit.js';
@@ -234,6 +235,8 @@ async function start() {
     logger.info('Database connected');
 
     await runMigrations();
+
+    registerTelegramWebhook().catch(() => undefined);
 
     const server = app.listen(port, '0.0.0.0', () => {
       logger.info({ port, env: env.NODE_ENV }, `Dentora API listening on 0.0.0.0:${port}`);

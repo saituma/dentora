@@ -25,6 +25,7 @@ import {
   initTelegramDispatcher,
   notifyOps,
   buildStatusReport,
+  runHealthWatch,
 } from './modules/ops-telegram/index.js';
 import { sendTelegramMessage } from './lib/telegram.js';
 
@@ -196,6 +197,17 @@ async function start(): Promise<void> {
     setTimeout(scheduleHeartbeat, 6 * 60 * 60 * 1000);
   }
   scheduleHeartbeat().catch(() => undefined);
+
+  // Proactive health watch — edge-triggered alerts every 2 minutes
+  async function scheduleHealthWatch(): Promise<void> {
+    try {
+      await runHealthWatch();
+    } catch (err) {
+      logger.warn({ err }, 'Health watch failed');
+    }
+    setTimeout(scheduleHealthWatch, 2 * 60 * 1000);
+  }
+  scheduleHealthWatch().catch(() => undefined);
 
   logger.info({ queues: Object.values(QUEUE_NAMES) }, 'Worker process ready');
   notifyOps({ category: 'LIFECYCLE', title: '🚀 Worker process ready' }).catch(() => undefined);

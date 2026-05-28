@@ -3,10 +3,12 @@ import {
   callSessions,
   callEvents,
   callCosts,
+  callCostLineItems,
   callTranscripts,
   appointments,
+  tenantRegistry,
 } from '../../db/schema.js';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, desc } from 'drizzle-orm';
 import { tenantCacheGet, tenantCacheSet } from '../../lib/cache.js';
 
 export interface DashboardStats {
@@ -225,4 +227,58 @@ export async function getProviderPerformance(_input: {
     totalCalls: r.totalCalls,
     failureRate: 0,
   }));
+}
+
+// ── Global ops queries (cross-tenant; for the ops bot, not tenant dashboards) ──
+
+/** Total spend per day for the last N days, across all tenants. */
+export async function getOpsDailyCost(days: number): Promise<Array<{ day: string; cost: number }>> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select({
+      day: sql<string>`TO_CHAR(DATE_TRUNC('day', ${callCosts.createdAt}), 'YYYY-MM-DD')`,
+      cost: sql<number>`COALESCE(SUM(${callCosts.totalCost}::numeric), 0)::float8`,
+    })
+    .from(callCosts)
+    .where(gte(callCosts.createdAt, since))
+    .groupBy(sql`DATE_TRUNC('day', ${callCosts.createdAt})`)
+    .orderBy(sql`DATE_TRUNC('day', ${callCosts.createdAt})`);
+  return rows.map((r) => ({ day: r.day, cost: Number(r.cost) }));
+}
+
+/** Spend grouped by provider since a given time, across all tenants. */
+export async function getOpsCostByProvider(
+  since: Date,
+): Promise<Array<{ provider: string; cost: number }>> {
+  const rows = await db
+    .select({
+      provider: callCostLineItems.provider,
+      cost: sql<number>`COALESCE(SUM(${callCostLineItems.totalCost}::numeric), 0)::float8`,
+    })
+    .from(callCostLineItems)
+    .where(gte(callCostLineItems.createdAt, since))
+    .groupBy(callCostLineItems.provider)
+    .orderBy(desc(sql`SUM(${callCostLineItems.totalCost}::numeric)`));
+  return rows.map((r) => ({ provider: r.provider, cost: Number(r.cost) }));
+}
+
+/** Busiest clinics by call volume since a given time, with their spend. */
+export async function getOpsTopTenants(
+  since: Date,
+  limit: number,
+): Promise<Array<{ clinicName: string; calls: number; cost: number }>> {
+  const rows = await db
+    .select({
+      clinicName: tenantRegistry.clinicName,
+      calls: sql<number>`COUNT(${callSessions.id})::int`,
+      cost: sql<number>`COALESCE(SUM(${callCosts.totalCost}::numeric), 0)::float8`,
+    })
+    .from(callSessions)
+    .innerJoin(tenantRegistry, eq(tenantRegistry.id, callSessions.tenantId))
+    .leftJoin(callCosts, eq(callCosts.callSessionId, callSessions.id))
+    .where(gte(callSessions.startedAt, since))
+    .groupBy(tenantRegistry.clinicName)
+    .orderBy(desc(sql`COUNT(${callSessions.id})`))
+    .limit(limit);
+  return rows.map((r) => ({ clinicName: r.clinicName, calls: r.calls, cost: Number(r.cost) }));
 }

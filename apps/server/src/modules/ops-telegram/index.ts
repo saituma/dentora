@@ -11,4 +11,5 @@ export {
   buildQueuesReport,
   startLiveSession,
   stopLiveSession,
+  runHealthWatch,
 } from './ops-telegram.service.js';
