@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   getIntegrations: vi.fn(),
   getSchedulingConfig: vi.fn(),
   getProviderDetail: vi.fn(),
+  getVendorAccessPacket: vi.fn(),
+  configureProvider: vi.fn(),
   getDentallyReport: vi.fn(),
   runDentallyVerification: vi.fn(),
   getIntegrationLogs: vi.fn(),
@@ -19,6 +21,8 @@ vi.mock('@/features/integrations/integrationsApi', () => ({
   useGetIntegrationsQuery: mocks.getIntegrations,
   useGetSchedulingConfigQuery: mocks.getSchedulingConfig,
   useGetProviderDetailQuery: mocks.getProviderDetail,
+  useGetVendorAccessPacketQuery: mocks.getVendorAccessPacket,
+  useConfigureProviderMutation: mocks.configureProvider,
   useGetDentallyVerificationReportQuery: mocks.getDentallyReport,
   useRunDentallyVerificationMutation: mocks.runDentallyVerification,
   useGetIntegrationLogsQuery: mocks.getIntegrationLogs,
@@ -68,6 +72,25 @@ beforeEach(() => {
     isError: false,
   });
   mocks.getProviderDetail.mockReturnValue({ isError: true });
+  mocks.getVendorAccessPacket.mockReturnValue({
+    data: {
+      data: {
+        provider: 'soe_exact',
+        displayName: 'SOE / EXACT',
+        status: 'vendor_access_required',
+        subject: 'SOE/EXACT scheduling API and sandbox access request',
+        emailBody: 'Hello,\n\nWe need official API documentation.',
+        requiredEvidence: ['Official API documentation'],
+        acceptanceGate: ['Sandbox credentials are stored in the secret manager'],
+        readinessChecklist: [],
+        generatedAt: '2026-05-28T07:00:00.000Z',
+      },
+    },
+    isFetching: false,
+    isError: false,
+    refetch: vi.fn(),
+  });
+  mocks.configureProvider.mockReturnValue([vi.fn(), { isLoading: false }]);
   mocks.getDentallyReport.mockReturnValue({
     data: {
       data: {
@@ -114,6 +137,14 @@ describe('integrations dashboard pages', () => {
 
     expect(screen.getAllByText(/vendor access required/i).length).toBeGreaterThan(0);
     expect(screen.getByText('Official API docs')).toBeInTheDocument();
+    expect(screen.getByText('Vendor access packet')).toBeInTheDocument();
+    expect(
+      screen.getByText('SOE/EXACT scheduling API and sandbox access request'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copy email/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save readiness/i })).toBeInTheDocument();
+    expect(screen.getByText('Implementation readiness')).toBeInTheDocument();
+    expect(screen.getAllByPlaceholderText('Evidence link').length).toBeGreaterThan(0);
     expect(screen.queryByText('Sandbox verified')).not.toBeInTheDocument();
   });
 

@@ -6,10 +6,12 @@ import type {
   Integration,
   IntegrationLogEvent,
   IntegrationLogFilters,
+  ProviderConfigureRequest,
   ProviderDetail,
   SchedulingConfig,
   SchedulingProvider,
   UpdateSchedulingConfigRequest,
+  VendorAccessPacket,
 } from './types';
 
 interface CreateIntegrationRequest {
@@ -39,6 +41,13 @@ export const integrationsApi = createApi({
       query: (provider) => `/pms/providers/${provider}`,
       providesTags: ['Integrations'],
     }),
+    getVendorAccessPacket: builder.query<
+      { data: VendorAccessPacket },
+      Extract<SchedulingProvider, 'soe_exact' | 'cs_r4_plus'>
+    >({
+      query: (provider) => `/pms/providers/${provider}/vendor-access-packet`,
+      providesTags: ['Integrations'],
+    }),
     getSchedulingConfig: builder.query<{ data: SchedulingConfig }, void>({
       query: () => '/pms/scheduling-config',
       providesTags: ['Integrations'],
@@ -50,6 +59,17 @@ export const integrationsApi = createApi({
       query: (body) => ({
         url: '/pms/scheduling-config',
         method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Integrations'],
+    }),
+    configureProvider: builder.mutation<
+      ProviderDetail,
+      { provider: SchedulingProvider; body: ProviderConfigureRequest }
+    >({
+      query: ({ provider, body }) => ({
+        url: `/pms/providers/${provider}/configure`,
+        method: 'POST',
         body,
       }),
       invalidatesTags: ['Integrations'],
@@ -137,8 +157,10 @@ export const integrationsApi = createApi({
 export const {
   useGetIntegrationsQuery,
   useGetProviderDetailQuery,
+  useGetVendorAccessPacketQuery,
   useGetSchedulingConfigQuery,
   useUpdateSchedulingConfigMutation,
+  useConfigureProviderMutation,
   useRunDentallyVerificationMutation,
   useGetDentallyVerificationReportQuery,
   useGetIntegrationLogsQuery,

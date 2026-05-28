@@ -18,6 +18,7 @@ export type VerificationStatus =
   | 'warning'
   | 'sandbox_verified'
   | 'controlled_pilot_ready'
+  | 'verification_required'
   | 'vendor_access_required'
   | 'disabled';
 
@@ -61,14 +62,32 @@ export interface UpdateSchedulingConfigRequest {
   googleSyncMode?: GoogleSyncMode;
 }
 
+export type VendorReadinessStatus = 'unknown' | 'requested' | 'available' | 'blocked' | 'approved';
+
+export interface ProviderConfigureRequest {
+  config?: Record<string, unknown>;
+  credentials?: Record<string, unknown>;
+  vendorNotes?: string;
+  readinessChecklist?: Array<{
+    id: string;
+    status: VendorReadinessStatus;
+    note?: string;
+    evidenceUrl?: string;
+  }>;
+}
+
 export interface ProviderDetail {
   provider: SchedulingProvider;
+  displayName: string;
   connectionStatus: IntegrationStatus;
   credentialStatus: VerificationStatus;
   healthStatus: ProviderHealthStatus;
-  lastHealthCheck?: string | null;
   schedulingConfig?: SchedulingConfig | null;
+  readinessChecklist: VendorReadinessChecklistItem[];
+  recentVerificationRuns: IntegrationLogEvent[];
   recentEvents: IntegrationLogEvent[];
+  safeActions: SafeProviderAction[];
+  warnings: string[];
 }
 
 export interface IntegrationLogEvent {
@@ -110,12 +129,26 @@ export interface DentallyVerificationReport {
 export interface VendorReadinessChecklistItem {
   id: string;
   label: string;
-  status: 'unknown' | 'requested' | 'available' | 'blocked' | 'approved';
+  status: VendorReadinessStatus;
+  note?: string;
+  evidenceUrl?: string;
 }
 
 export interface VendorReadinessChecklist {
   provider: Extract<SchedulingProvider, 'soe_exact' | 'cs_r4_plus'>;
   items: VendorReadinessChecklistItem[];
+}
+
+export interface VendorAccessPacket {
+  provider: Extract<SchedulingProvider, 'soe_exact' | 'cs_r4_plus'>;
+  displayName: string;
+  status: 'vendor_access_required';
+  subject: string;
+  emailBody: string;
+  requiredEvidence: string[];
+  acceptanceGate: string[];
+  readinessChecklist: VendorReadinessChecklistItem[];
+  generatedAt: string;
 }
 
 export interface IntegrationLogFilters {
@@ -124,4 +157,11 @@ export interface IntegrationLogFilters {
   eventType?: string;
   dateFrom?: string;
   dateTo?: string;
+}
+
+export interface SafeProviderAction {
+  id: 'connect' | 'configure' | 'run_verification' | 'view_logs' | 'disconnect';
+  label: string;
+  enabled: boolean;
+  warning?: string;
 }

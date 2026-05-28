@@ -28,6 +28,8 @@ import type {
   Integration,
   IntegrationLogEvent,
   IntegrationStatus,
+  ProviderDetail,
+  SafeProviderAction,
   SchedulingConfig,
   SchedulingProvider,
   VendorReadinessChecklistItem,
@@ -274,16 +276,24 @@ export function DetailShell({
   definition,
   integration,
   schedulingConfig,
+  detail,
   detailError,
   children,
 }: {
   definition: ProviderDefinition;
   integration?: Integration;
   schedulingConfig?: SchedulingConfig | null;
+  detail?: ProviderDetail;
   detailError?: boolean;
   children?: React.ReactNode;
 }) {
-  const status = normalizeIntegrationStatus(definition.provider, integration);
+  const status =
+    detail?.connectionStatus ?? normalizeIntegrationStatus(definition.provider, integration);
+  const effectiveSchedulingConfig = detail?.schedulingConfig ?? schedulingConfig;
+  const recentEvents = [
+    ...(detail?.recentVerificationRuns ?? []),
+    ...(detail?.recentEvents ?? []),
+  ].slice(0, 5);
   return (
     <div className="space-y-6">
       <PageHeader
@@ -312,17 +322,28 @@ export function DetailShell({
           </AlertDescription>
         </Alert>
       ) : null}
+      {detail?.warnings.map((warning) => (
+        <Alert key={warning} variant="warning">
+          <AlertTriangleIcon />
+          <AlertTitle>Backend warning</AlertTitle>
+          <AlertDescription>{warning}</AlertDescription>
+        </Alert>
+      ))}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatusPanel icon={<PlugIcon />} title="Connection status" value={statusLabel(status)} />
         <StatusPanel
           icon={<KeyRoundIcon />}
           title="Credential status"
-          value={integration ? 'Stored' : 'Not connected'}
+          value={
+            detail ? statusLabel(detail.credentialStatus) : integration ? 'Stored' : 'Not connected'
+          }
         />
         <StatusPanel
           icon={<CheckCircle2Icon />}
           title="Provider health"
-          value={integration?.healthStatus ?? 'Unknown'}
+          value={
+            detail ? statusLabel(detail.healthStatus) : (integration?.healthStatus ?? 'Unknown')
+          }
         />
         <StatusPanel
           icon={<CalendarDaysIcon />}
@@ -339,7 +360,9 @@ export function DetailShell({
         <SidePanels
           definition={definition}
           integration={integration}
-          schedulingConfig={schedulingConfig}
+          schedulingConfig={effectiveSchedulingConfig}
+          actions={detail?.safeActions ?? []}
+          recentEvents={recentEvents}
         />
       </div>
     </div>
@@ -350,10 +373,14 @@ function SidePanels({
   definition,
   integration,
   schedulingConfig,
+  actions,
+  recentEvents,
 }: {
   definition: ProviderDefinition;
   integration?: Integration;
   schedulingConfig?: SchedulingConfig | null;
+  actions: SafeProviderAction[];
+  recentEvents: IntegrationLogEvent[];
 }) {
   return (
     <div className="space-y-4">
@@ -387,16 +414,63 @@ function SidePanels({
       </Card>
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Available actions</CardTitle>
+          <CardDescription>Backend-controlled operation safety.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {actions.length > 0 ? (
+            actions.map((action) => (
+              <div key={action.id} className="rounded-md border p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{action.label}</span>
+                  <StatusBadge status={action.enabled ? 'pass' : 'disabled'} />
+                </div>
+                {action.warning ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{action.warning}</p>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <EmptyState
+              icon={ClipboardListIcon}
+              title="No actions available"
+              description="Provider actions are not available from the backend yet."
+              className="p-6"
+            />
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Recent events</CardTitle>
           <CardDescription>Sync, webhook, and verification activity.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <EmptyState
-            icon={ClipboardListIcon}
-            title="No events available"
-            description="Event logging endpoints are not returning data yet."
-            className="p-6"
-          />
+        <CardContent className="space-y-2">
+          {recentEvents.length > 0 ? (
+            recentEvents.map((event) => (
+              <div key={event.id} className="rounded-md border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">{event.eventType}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(event.createdAt).toLocaleString('en-GB')}
+                    </div>
+                  </div>
+                  <StatusBadge status={event.status} />
+                </div>
+                {event.errorSummary ? (
+                  <p className="mt-1 text-xs text-destructive">{event.errorSummary}</p>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <EmptyState
+              icon={ClipboardListIcon}
+              title="No events available"
+              description="No provider events have been recorded yet."
+              className="p-6"
+            />
+          )}
         </CardContent>
       </Card>
       <Card className="border-destructive/20">
