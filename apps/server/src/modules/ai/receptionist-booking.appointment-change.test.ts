@@ -7,7 +7,7 @@ const mockResolveVerifiedAppointmentForCaller = vi.hoisted(() => vi.fn());
 const mockGetAppointmentToolReadinessFailure = vi.hoisted(() => vi.fn());
 const mockCancelLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleLedgerBackedAppointment = vi.hoisted(() => vi.fn());
-const mockFindAvailableCalendarSlots = vi.hoisted(() => vi.fn());
+const mockCheckAppointmentAvailability = vi.hoisted(() => vi.fn());
 const mockCreateStaffReviewItemSafely = vi.hoisted(() => vi.fn());
 const mockFeatures = vi.hoisted(() => ({
   aiAppointmentChangesRequireReview: false,
@@ -36,6 +36,7 @@ vi.mock('../appointments/appointment-tool-readiness.js', () => ({
 }));
 
 vi.mock('../appointments/appointment-application.service.js', () => ({
+  checkAppointmentAvailability: mockCheckAppointmentAvailability,
   cancelLedgerBackedAppointment: mockCancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment: mockRescheduleLedgerBackedAppointment,
 }));
@@ -46,13 +47,6 @@ vi.mock('../staff-review/staff-review.service.js', () => ({
 
 vi.mock('../../config/features.js', () => ({
   features: mockFeatures,
-}));
-
-vi.mock('../integrations/integration.service.js', () => ({
-  findAvailableCalendarSlots: mockFindAvailableCalendarSlots,
-  findGoogleCalendarAppointment: vi.fn(() => {
-    throw new Error('Google Calendar summary lookup should not be called');
-  }),
 }));
 
 vi.mock('../../lib/logger.js', () => ({
@@ -119,7 +113,7 @@ beforeEach(() => {
       endIso: '2026-06-02T15:30:00.000Z',
     },
   });
-  mockFindAvailableCalendarSlots.mockResolvedValue({
+  mockCheckAppointmentAvailability.mockResolvedValue({
     exactMatch: {
       startIso: '2026-06-02T15:00:00.000Z',
       endIso: '2026-06-02T15:30:00.000Z',
@@ -279,7 +273,7 @@ describe('AI appointment change verification', () => {
 
     expect(mockRescheduleLedgerBackedAppointment).not.toHaveBeenCalled();
     expect(mockCancelLedgerBackedAppointment).not.toHaveBeenCalled();
-    expect(mockFindAvailableCalendarSlots).toHaveBeenCalled();
+    expect(mockCheckAppointmentAvailability).toHaveBeenCalled();
     expect(mockCreateStaffReviewItemSafely).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-a',

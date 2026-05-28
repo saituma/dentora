@@ -1,4 +1,4 @@
-import type { CalendarSlot } from '../integrations/integration.service.js';
+import type { Slot } from '../pms/domain/appointment.types.js';
 import type { TenantAIContext } from './ai.service.js';
 import type { PatientBookingDetails } from './receptionist-booking.types.js';
 import { normalizeMessage } from './receptionist-booking.utils.js';
@@ -245,7 +245,7 @@ function joinWithOr(items: string[]): string {
   return `${items.slice(0, -1).join(', ')}, or ${items[items.length - 1]}`;
 }
 
-export function buildSlotOptionsText(slots: CalendarSlot[], timezone: string): string {
+export function buildSlotOptionsText(slots: Slot[], timezone: string): string {
   const topSlots = slots.slice(0, 3);
   if (topSlots.length === 0) return '';
 

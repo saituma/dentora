@@ -169,6 +169,7 @@ describe('pilot preflight report', () => {
     const report = await withTenant('tenant-a', () =>
       getPilotPreflightReport({
         tenantId: 'tenant-a',
+        now: new Date('2026-05-14T12:00:00.000Z'),
         calendarPhiScanReport: {
           totalEventsScanned: 1,
           riskyEventsCount: 1,
@@ -335,7 +336,11 @@ describe('pilot preflight report', () => {
     });
 
     const report = await withTenant('tenant-a', () =>
-      getPilotPreflightReport({ tenantId: 'tenant-a', calendarPhiScanReport: cleanCalendarReport }),
+      getPilotPreflightReport({
+        tenantId: 'tenant-a',
+        now: new Date('2026-05-14T12:00:00.000Z'),
+        calendarPhiScanReport: cleanCalendarReport,
+      }),
     );
 
     expect(report.readyForSupervisedPilot).toBe(true);
@@ -426,6 +431,7 @@ describe('pilot preflight report', () => {
   });
 
   it('go-live guard rejects when latest calendar PHI scan has risky events', async () => {
+    vi.useFakeTimers({ now: new Date('2026-05-14T12:00:00.000Z') });
     mockDb.select.mockReturnValueOnce(
       selectStatus([
         {
@@ -436,19 +442,24 @@ describe('pilot preflight report', () => {
       ]),
     );
 
-    await expect(
-      withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
-    ).rejects.toMatchObject({
-      details: {
-        errors: expect.arrayContaining([
-          expect.objectContaining({ code: 'PILOT_PREFLIGHT_NOT_CLEAN' }),
-          expect.objectContaining({ code: 'LEGACY_CALENDAR_PHI_FOUND' }),
-        ]),
-      },
-    });
+    try {
+      await expect(
+        withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
+      ).rejects.toMatchObject({
+        details: {
+          errors: expect.arrayContaining([
+            expect.objectContaining({ code: 'PILOT_PREFLIGHT_NOT_CLEAN' }),
+            expect.objectContaining({ code: 'LEGACY_CALENDAR_PHI_FOUND' }),
+          ]),
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('go-live guard succeeds when persisted preflight dependencies are clean', async () => {
+    vi.useFakeTimers({ now: new Date('2026-05-14T12:00:00.000Z') });
     mockDb.select.mockReturnValueOnce(
       selectStatus([
         {
@@ -459,11 +470,15 @@ describe('pilot preflight report', () => {
       ]),
     );
 
-    await expect(
-      withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
-    ).resolves.toMatchObject({
-      readyForSupervisedPilot: true,
-      blockingIssues: [],
-    });
+    try {
+      await expect(
+        withTenant('tenant-a', () => assertPilotPreflightCleanForGoLive('tenant-a')),
+      ).resolves.toMatchObject({
+        readyForSupervisedPilot: true,
+        blockingIssues: [],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

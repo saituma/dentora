@@ -1,6 +1,4 @@
 import * as configService from '../config/config.service.js';
-import { findAvailableCalendarSlots } from '../integrations/integration.service.js';
-import { makeDateInTimeZone } from '../integrations/google-calendar.shared.js';
 import { findPatientProfile } from '../patients/patients.service.js';
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
@@ -9,8 +7,10 @@ import { features } from '../../config/features.js';
 import {
   bookLedgerBackedAppointment,
   cancelLedgerBackedAppointment,
+  checkAppointmentAvailability,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
+import { makeDateInTimeZone } from '../appointments/appointment-timezone.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import { resolveVerifiedAppointmentForCaller } from '../appointments/appointment-lookup.service.js';
 import {
@@ -203,9 +203,8 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
   }
   const minimumStartAt = new Date(Math.max(minNoticeFloorMs, sameDayFloor.getTime()));
 
-  const availability = await findAvailableCalendarSlots({
+  return await checkAppointmentAvailability({
     tenantId,
-    timezone: clinic.timezone,
     minimumStartAt,
     requestedDate,
     requestedTime: params.requestedTime ? String(params.requestedTime) : null,
@@ -224,12 +223,6 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
     maxSlots: params.maxSlots ? Number(params.maxSlots) : 5,
     lookAheadDays: params.lookAheadDays ? Number(params.lookAheadDays) : 14,
   });
-
-  return {
-    exactMatch: availability.exactMatch,
-    suggestedSlots: availability.suggestedSlots,
-    timezone: clinic.timezone,
-  };
 }
 
 async function createAppointmentWithSms(tenantId: string, params: Record<string, unknown>) {

@@ -6,6 +6,9 @@ const mockGetBookingRules = vi.hoisted(() => vi.fn());
 const mockFindAvailableCalendarSlots = vi.hoisted(() => vi.fn());
 const mockGetActiveGoogleCalendarIntegration = vi.hoisted(() => vi.fn());
 const mockCreateGoogleCalendarAppointment = vi.hoisted(() => vi.fn());
+const mockResolveActiveSchedulingProvider = vi.hoisted(() => vi.fn());
+const mockResolveSchedulingProvider = vi.hoisted(() => vi.fn());
+const mockCreateExternalEntityMapping = vi.hoisted(() => vi.fn());
 const mockUpsertPatientProfile = vi.hoisted(() => vi.fn());
 const mockCreateAppointmentHold = vi.hoisted(() => vi.fn());
 const mockConfirmAppointmentHold = vi.hoisted(() => vi.fn());
@@ -33,6 +36,15 @@ vi.mock('../integrations/integration.service.js', () => ({
   findAvailableCalendarSlots: mockFindAvailableCalendarSlots,
   getActiveGoogleCalendarIntegration: mockGetActiveGoogleCalendarIntegration,
   createGoogleCalendarAppointment: mockCreateGoogleCalendarAppointment,
+}));
+
+vi.mock('../pms/services/scheduling-provider-resolver.service.js', () => ({
+  resolveActiveSchedulingProvider: mockResolveActiveSchedulingProvider,
+  resolveSchedulingProvider: mockResolveSchedulingProvider,
+}));
+
+vi.mock('../pms/services/external-entity-mapping.service.js', () => ({
+  createExternalEntityMapping: mockCreateExternalEntityMapping,
 }));
 
 vi.mock('../patients/patients.service.js', () => ({
@@ -268,7 +280,43 @@ beforeEach(() => {
   mockGetClinicProfile.mockResolvedValue(readyClinic);
   mockGetBookingRules.mockResolvedValue(readyBookingRules);
   mockGetActiveGoogleCalendarIntegration.mockResolvedValue(readyCalendarIntegration);
+  mockCreateExternalEntityMapping.mockResolvedValue({ id: 'mapping-a' });
   mockSendAppointmentSms.mockResolvedValue({ success: true });
+  const schedulingProvider = {
+    getAvailability: async (input: { tenantId: string }) => {
+      const availability = (await mockFindAvailableCalendarSlots(input)) as {
+        suggestedSlots: Array<{ startIso: string; endIso: string; label: string }>;
+      };
+      return availability.suggestedSlots;
+    },
+    createAppointment: async (input: { tenantId: string; appAppointmentId?: string }) => {
+      const created = (await mockCreateGoogleCalendarAppointment(input)) as {
+        eventId: string;
+        htmlLink?: string;
+        slot: { startIso: string; endIso: string; label: string };
+      };
+      return {
+        id: created.eventId,
+        tenantId: input.tenantId,
+        provider: 'google_calendar',
+        slot: created.slot,
+        htmlLink: created.htmlLink,
+        appAppointmentId: input.appAppointmentId,
+      };
+    },
+    cancelAppointment: vi.fn(),
+    rescheduleAppointment: vi.fn(),
+    findPatient: vi.fn(),
+    upsertPatient: vi.fn(),
+    validateCredentials: vi.fn(),
+    healthCheck: vi.fn(),
+  };
+  mockResolveActiveSchedulingProvider.mockResolvedValue({
+    providerName: 'google_calendar',
+    integrationId: readyCalendarIntegration.id,
+    provider: schedulingProvider,
+  });
+  mockResolveSchedulingProvider.mockReturnValue(schedulingProvider);
 
   mockFindAvailableCalendarSlots.mockImplementation((input: { tenantId: string }) => {
     assertTenantAccess(input.tenantId);
@@ -518,7 +566,10 @@ describe('AI receptionist booking simulation', () => {
   });
 
   it('uses the readiness guard to block go-live when required setup is missing', async () => {
-    queueReadinessRows({ phoneNumbers: [], requirePublishedConfig: false });
+    queueReadinessRows({
+      requirePublishedConfig: false,
+      integrations: [{ ...readyCalendarIntegration, credentials: {} }],
+    });
 
     await expect(withTenant(tenantId, () => assertTenantReadyForGoLive(tenantId))).rejects.toThrow(
       ValidationError,

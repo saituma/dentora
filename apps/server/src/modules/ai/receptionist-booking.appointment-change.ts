@@ -1,6 +1,6 @@
 import { logger } from '../../lib/logger.js';
-import { findAvailableCalendarSlots } from '../integrations/integration.service.js';
 import {
+  checkAppointmentAvailability,
   cancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
@@ -250,9 +250,8 @@ async function executeAppointmentChange(input: {
     return 'Done - I cancelled the appointment.';
   }
 
-  const availability = await findAvailableCalendarSlots({
+  const availability = await checkAppointmentAvailability({
     tenantId: input.tenantId,
-    timezone,
     requestedDate: input.state.preferredNewDate!,
     requestedTime: input.state.preferredNewTime ?? null,
     appointmentDurationMinutes: getAppointmentDuration(input.context),

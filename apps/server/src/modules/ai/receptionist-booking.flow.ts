@@ -1,10 +1,10 @@
-import {
-  findAvailableCalendarSlots,
-  getActiveGoogleCalendarIntegration,
-  type CalendarSlot,
-} from '../integrations/integration.service.js';
+import type { Slot } from '../pms/domain/appointment.types.js';
 import { findPatientProfileByPhone } from '../patients/patients.service.js';
-import { bookLedgerBackedAppointment } from '../appointments/appointment-application.service.js';
+import {
+  bookLedgerBackedAppointment,
+  checkAppointmentAvailability,
+  verifySchedulingProviderAvailable,
+} from '../appointments/appointment-application.service.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import { processConversationTurn, type TenantAIContext } from './ai.service.js';
 import {
@@ -45,7 +45,7 @@ import { buildDirectReceptionistResponse } from './receptionist-booking.direct-r
 function resolveSelectedSlot(
   bookingState: BookingConversationState,
   extraction: BookingTurnExtraction,
-): CalendarSlot | undefined {
+): Slot | undefined {
   if (extraction.selectedSlotStartIso) {
     return bookingState.offeredSlots.find(
       (slot) => slot.startIso === extraction.selectedSlotStartIso,
@@ -338,8 +338,9 @@ export async function processBookingTurn(input: {
     bookingState.status = 'collecting_patient';
   }
 
-  const calendarIntegration = await getActiveGoogleCalendarIntegration(input.tenantId);
-  if (!calendarIntegration) {
+  try {
+    await verifySchedulingProviderAvailable({ tenantId: input.tenantId, operation: 'read' });
+  } catch {
     bookingState.status = 'collecting_preference';
     return {
       response: `I can help gather the details, but ${clinicName(input.aiContext)} does not have a live calendar connected yet, so I cannot confirm an appointment in real time.`,
@@ -357,9 +358,8 @@ export async function processBookingTurn(input: {
       };
     }
 
-    const availability = await findAvailableCalendarSlots({
+    const availability = await checkAppointmentAvailability({
       tenantId: input.tenantId,
-      timezone,
       requestedDate: bookingState.requestedDate,
       requestedTime: bookingState.requestedTime,
       requestedPeriod: bookingState.requestedPeriod,
@@ -500,9 +500,8 @@ export async function processBookingTurn(input: {
     };
   }
 
-  const finalAvailability = await findAvailableCalendarSlots({
+  const finalAvailability = await checkAppointmentAvailability({
     tenantId: input.tenantId,
-    timezone,
     requestedDate: new Intl.DateTimeFormat('en-CA', {
       timeZone: timezone,
       year: 'numeric',

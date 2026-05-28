@@ -9,6 +9,7 @@ const mockFindPatientProfile = vi.hoisted(() => vi.fn());
 const mockSendAppointmentSms = vi.hoisted(() => vi.fn());
 const mockForwardCallToHuman = vi.hoisted(() => vi.fn());
 const mockBookLedgerBackedAppointment = vi.hoisted(() => vi.fn());
+const mockCheckAppointmentAvailability = vi.hoisted(() => vi.fn());
 const mockCancelLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockRescheduleLedgerBackedAppointment = vi.hoisted(() => vi.fn());
 const mockComputeOnboardingReadiness = vi.hoisted(() => vi.fn());
@@ -52,6 +53,7 @@ vi.mock('./telephony.service.js', () => ({
 
 vi.mock('../appointments/appointment-application.service.js', () => ({
   bookLedgerBackedAppointment: mockBookLedgerBackedAppointment,
+  checkAppointmentAvailability: mockCheckAppointmentAvailability,
   cancelLedgerBackedAppointment: mockCancelLedgerBackedAppointment,
   rescheduleLedgerBackedAppointment: mockRescheduleLedgerBackedAppointment,
 }));
@@ -139,7 +141,7 @@ beforeEach(() => {
     appointmentId: 'appointment-a',
     slot: { startIso, endIso },
   });
-  mockFindAvailableCalendarSlots.mockResolvedValue({
+  mockCheckAppointmentAvailability.mockResolvedValue({
     exactMatch: {
       startIso,
       endIso,
@@ -152,6 +154,7 @@ beforeEach(() => {
         label: 'June 1 at 2:00 PM',
       },
     ],
+    timezone: 'UTC',
   });
 });
 
@@ -274,10 +277,9 @@ describe('ConvAI appointment tools', () => {
       },
     });
 
-    expect(mockFindAvailableCalendarSlots).toHaveBeenCalledWith(
+    expect(mockCheckAppointmentAvailability).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-a',
-        timezone: 'UTC',
         requestedDate: '2026-06-01',
         requestedTime: '14:00',
       }),

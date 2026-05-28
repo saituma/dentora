@@ -1,4 +1,4 @@
-import type { CalendarSlot } from '../integrations/integration.service.js';
+import type { Slot } from '../pms/domain/appointment.types.js';
 
 export type BookingStatus =
   | 'idle'
@@ -34,8 +34,8 @@ export interface BookingConversationState {
   requestedDate?: string;
   requestedTime?: string;
   requestedPeriod?: RequestedPeriod;
-  offeredSlots: CalendarSlot[];
-  selectedSlot?: CalendarSlot;
+  offeredSlots: Slot[];
+  selectedSlot?: Slot;
   patient: PatientBookingDetails;
   nameConfirmationRequested?: boolean;
   namePronunciationRequested?: boolean;
