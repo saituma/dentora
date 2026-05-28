@@ -24,6 +24,7 @@ import { auditMiddleware } from './middleware/audit.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { metricsMiddleware } from './middleware/metrics.js';
 import { csrfProtection, csrfTokenRouter, cookieParser } from './middleware/csrf.js';
+import { captureRawBodyForPmsWebhooks } from './middleware/rawBody.js';
 
 import { tenantRouter } from './modules/tenants/index.js';
 import { authRouter } from './modules/auth/index.js';
@@ -49,6 +50,7 @@ import { appointmentsRouter } from './modules/appointments/index.js';
 import { patientsRouter } from './modules/patients/index.js';
 import { staffReviewRouter } from './modules/staff-review/index.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
+import { pmsDashboardRouter } from './modules/pms/index.js';
 
 const app = express();
 
@@ -101,8 +103,8 @@ app.use(
   }),
 );
 app.use(compression());
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb', verify: captureRawBodyForPmsWebhooks }));
+app.use(express.urlencoded({ extended: true, verify: captureRawBodyForPmsWebhooks }));
 app.use(cookieParser());
 app.use(requestId);
 app.use(auditMiddleware);
@@ -181,6 +183,7 @@ app.use('/api/appointments', appointmentsRouter);
 app.use('/api/patients', patientsRouter);
 app.use('/api/staff-review', staffReviewRouter);
 app.use('/api/uploads', uploadsRouter);
+app.use('/api/pms', pmsDashboardRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
