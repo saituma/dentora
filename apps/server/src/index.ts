@@ -51,6 +51,11 @@ import { patientsRouter } from './modules/patients/index.js';
 import { staffReviewRouter } from './modules/staff-review/index.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
 import { pmsDashboardRouter } from './modules/pms/index.js';
+import {
+  opsTelegramRouter,
+  initTelegramDispatcher,
+  notifyOps,
+} from './modules/ops-telegram/index.js';
 
 const app = express();
 
@@ -184,6 +189,7 @@ app.use('/api/patients', patientsRouter);
 app.use('/api/staff-review', staffReviewRouter);
 app.use('/api/uploads', uploadsRouter);
 app.use('/api/pms', pmsDashboardRouter);
+app.use('/api/telegram', opsTelegramRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -207,6 +213,8 @@ async function waitForDatabase(maxAttempts = 5, delayMs = 3000): Promise<boolean
 }
 
 async function start() {
+  initTelegramDispatcher();
+
   try {
     try {
       await initRedis();
@@ -229,6 +237,10 @@ async function start() {
 
     const server = app.listen(port, '0.0.0.0', () => {
       logger.info({ port, env: env.NODE_ENV }, `Dentora API listening on 0.0.0.0:${port}`);
+      notifyOps({
+        category: 'LIFECYCLE',
+        title: `🚀 Server started on port ${port} (${env.NODE_ENV})`,
+      }).catch(() => undefined);
     });
 
     attachMediaStreamWebSocket(server);
@@ -266,6 +278,9 @@ async function start() {
       }
       isShuttingDown = true;
       logger.info({ signal }, 'Shutdown signal received');
+      notifyOps({ category: 'LIFECYCLE', title: `🛑 Server shutting down (${signal})` }).catch(
+        () => undefined,
+      );
 
       clearInterval(dbKeepAlive);
       clearSessionTimeoutInterval();
@@ -296,6 +311,11 @@ async function start() {
         Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
       }
       logger.error({ err: reason }, 'Unhandled rejection');
+      notifyOps({
+        category: 'ERROR',
+        title: 'Unhandled rejection in API server',
+        detail: String(reason).slice(0, 300),
+      }).catch(() => undefined);
     });
 
     process.on('uncaughtException', (err) => {
@@ -303,6 +323,11 @@ async function start() {
         Sentry.captureException(err);
       }
       logger.fatal({ err }, 'Uncaught exception — shutting down');
+      notifyOps({
+        category: 'ERROR',
+        title: 'Uncaught exception — server exiting',
+        detail: err.message,
+      }).catch(() => undefined);
       process.exit(1);
     });
   } catch (err) {

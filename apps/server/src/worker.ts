@@ -21,10 +21,17 @@ import {
 import { processCostAttribution } from './workers/cost-attribution.worker.js';
 import { processAnalyticsEvent } from './workers/analytics-events.worker.js';
 import { processNotificationDelivery } from './workers/notification-delivery.worker.js';
+import {
+  initTelegramDispatcher,
+  notifyOps,
+  buildStatusReport,
+} from './modules/ops-telegram/index.js';
+import { sendTelegramMessage } from './lib/telegram.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
 async function start(): Promise<void> {
+  initTelegramDispatcher();
   logger.info('Worker process starting');
 
   try {
@@ -178,11 +185,27 @@ async function start(): Promise<void> {
   }
   scheduleStaffReviewDailyDigest().catch(() => undefined);
 
+  // Heartbeat — sends a status report every 6 hours so silence = something's wrong
+  async function scheduleHeartbeat(): Promise<void> {
+    try {
+      const report = await buildStatusReport();
+      await sendTelegramMessage(report);
+    } catch (err) {
+      logger.warn({ err }, 'Heartbeat failed');
+    }
+    setTimeout(scheduleHeartbeat, 6 * 60 * 60 * 1000);
+  }
+  scheduleHeartbeat().catch(() => undefined);
+
   logger.info({ queues: Object.values(QUEUE_NAMES) }, 'Worker process ready');
+  notifyOps({ category: 'LIFECYCLE', title: '🚀 Worker process ready' }).catch(() => undefined);
 }
 
 async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'Worker shutdown signal received');
+  notifyOps({ category: 'LIFECYCLE', title: `🛑 Worker shutting down (${signal})` }).catch(
+    () => undefined,
+  );
 
   await Promise.all(workers.map((w) => w.close().catch(() => undefined)));
   await closeAllQueues();
@@ -201,6 +224,11 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('unhandledRejection', (reason) => {
   logger.error({ err: reason }, 'Unhandled rejection in worker');
+  notifyOps({
+    category: 'ERROR',
+    title: 'Unhandled rejection in worker',
+    detail: String(reason).slice(0, 300),
+  }).catch(() => undefined);
 });
 
 start().catch((err) => {

@@ -134,6 +134,10 @@ const envSchema = z.object({
 
   RESEND_API_KEY: z.string().default(''),
 
+  TELEGRAM_BOT_TOKEN: z.string().default(''),
+  TELEGRAM_ALERT_CHAT_ID: z.string().default(''),
+  TELEGRAM_WEBHOOK_SECRET: z.string().default(''),
+
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   OTEL_EXPORTER_ENDPOINT: z.string().default(''),
   SENTRY_DSN: z.string().default(''),
@@ -321,6 +325,11 @@ function loadEnv() {
     }
     if (!result.data.SMTP_HOST) {
       console.warn('⚠️  SMTP_HOST is not set — transactional emails will fail in production');
+    }
+    if (!result.data.TELEGRAM_BOT_TOKEN || !result.data.TELEGRAM_ALERT_CHAT_ID) {
+      console.warn(
+        '⚠️  TELEGRAM_BOT_TOKEN / TELEGRAM_ALERT_CHAT_ID not set — ops alerts will be disabled',
+      );
     }
     const webhookUrl = result.data.TWILIO_WEBHOOK_BASE_URL.toLowerCase();
     if (
