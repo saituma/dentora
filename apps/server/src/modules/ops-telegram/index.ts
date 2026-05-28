@@ -7,4 +7,8 @@ export {
   buildBreakersReport,
   buildLogsReport,
   buildAiReport,
+  buildCallsReport,
+  buildQueuesReport,
+  startLiveSession,
+  stopLiveSession,
 } from './ops-telegram.service.js';

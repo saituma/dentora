@@ -8,6 +8,10 @@ import {
   buildBreakersReport,
   buildLogsReport,
   buildAiReport,
+  buildCallsReport,
+  buildQueuesReport,
+  startLiveSession,
+  stopLiveSession,
 } from './ops-telegram.service.js';
 
 export const opsTelegramRouter = Router();
@@ -24,14 +28,23 @@ function secretsMatch(a: string, b: string): boolean {
   }
 }
 
+const SEP = '─'.repeat(28);
 const HELP_TEXT =
-  '<b>Dentora Ops Bot — Commands</b>\n\n' +
-  '/status — Quick one-line summary\n' +
-  '/health — Full health report (DB, Redis, workers, breakers)\n' +
-  '/ai — AI provider success rates &amp; latency\n' +
-  '/breakers — Circuit breaker states\n' +
-  '/logs — Last 5 error &amp; fatal log lines\n' +
-  '/help — Show this message';
+  `🤖 <b>Dentora Ops Bot — Commands</b>\n${SEP}\n\n` +
+  '<b>System</b>\n' +
+  '  /status — Quick summary + uptime\n' +
+  '  /health — Full health report\n\n' +
+  '<b>Infrastructure</b>\n' +
+  '  /ai — AI provider success rates &amp; latency\n' +
+  '  /breakers — Circuit breaker states\n' +
+  '  /queues — BullMQ queue depths\n\n' +
+  '<b>Calls</b>\n' +
+  '  /calls — Call stats for last 24h\n\n' +
+  '<b>Logs</b>\n' +
+  '  /logs — Last 8 error/fatal log lines\n' +
+  '  /live — Tail logs live for 60s\n' +
+  '  /stop — Stop live log stream\n\n' +
+  '  /help — Show this message';
 
 opsTelegramRouter.post('/webhook/:secret', async (req: Request, res: Response) => {
   if (!isTelegramConfigured()) {
@@ -45,39 +58,66 @@ opsTelegramRouter.post('/webhook/:secret', async (req: Request, res: Response) =
     return;
   }
 
-  // Acknowledge immediately — Telegram retries if we take too long
   res.sendStatus(200);
 
   const body = req.body as Record<string, unknown>;
   const message = body?.message as Record<string, unknown> | undefined;
   if (!message) return;
 
-  const chatId = (message.chat as Record<string, unknown> | undefined)?.id;
-  if (String(chatId) !== env.TELEGRAM_ALERT_CHAT_ID) return;
+  const chatId = String((message.chat as Record<string, unknown> | undefined)?.id ?? '');
+  if (chatId !== env.TELEGRAM_ALERT_CHAT_ID) return;
 
-  const text = String((message.text as string | undefined) ?? '').trim();
-  // Strip bot username suffix if present (e.g. /status@dentroabot)
-  const lower = text.toLowerCase().replace(/@\S+$/, '').trim();
+  const rawText = String((message.text as string | undefined) ?? '').trim();
+  const lower = rawText.toLowerCase().replace(/@\S+$/, '').trim();
 
   try {
-    if (lower === '/status') {
-      await sendTelegramMessage(await buildQuickStatus());
-    } else if (lower === '/health') {
-      await sendTelegramMessage(await buildStatusReport());
-    } else if (lower === '/ai') {
-      await sendTelegramMessage(await buildAiReport());
-    } else if (lower === '/breakers') {
-      await sendTelegramMessage(buildBreakersReport());
-    } else if (lower === '/logs') {
-      await sendTelegramMessage(buildLogsReport());
-    } else if (lower === '/help') {
-      await sendTelegramMessage(HELP_TEXT);
-    } else {
-      await sendTelegramMessage(
-        `Unknown command: <code>${text.slice(0, 50)}</code>\n\n${HELP_TEXT}`,
-      );
+    switch (lower) {
+      case '/status':
+        await sendTelegramMessage(await buildQuickStatus());
+        break;
+      case '/health':
+        await sendTelegramMessage(await buildStatusReport());
+        break;
+      case '/ai':
+        await sendTelegramMessage(await buildAiReport());
+        break;
+      case '/breakers':
+        await sendTelegramMessage(buildBreakersReport());
+        break;
+      case '/logs':
+        await sendTelegramMessage(buildLogsReport());
+        break;
+      case '/calls':
+        await sendTelegramMessage(await buildCallsReport());
+        break;
+      case '/queues':
+        await sendTelegramMessage(await buildQueuesReport());
+        break;
+      case '/live':
+        if (startLiveSession(chatId) === 'already_running') {
+          await sendTelegramMessage('📺 Live log already running. Send /stop to end it.');
+        } else {
+          await sendTelegramMessage(
+            '📺 <b>Live log started</b> — streaming all logs for 60s.\nSend /stop to end early.',
+          );
+        }
+        break;
+      case '/stop':
+        if (stopLiveSession(chatId)) {
+          await sendTelegramMessage('📺 <b>Live log stopped.</b>');
+        } else {
+          await sendTelegramMessage('No live session running. Send /live to start one.');
+        }
+        break;
+      case '/help':
+        await sendTelegramMessage(HELP_TEXT);
+        break;
+      default:
+        await sendTelegramMessage(
+          `Unknown command: <code>${rawText.slice(0, 50)}</code>\n\n${HELP_TEXT}`,
+        );
     }
   } catch {
-    await sendTelegramMessage('⚠️ Command failed — check server logs').catch(() => undefined);
+    await sendTelegramMessage('⚠️ Command failed — check /logs').catch(() => undefined);
   }
 });
