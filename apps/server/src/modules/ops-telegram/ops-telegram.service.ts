@@ -87,8 +87,8 @@ export function startLiveSession(chatId: string): string {
             : entry.level >= 40
               ? 'WARN'
               : 'INFO';
-      const time = new Date(Number(entry.time)).toISOString().slice(11, 19);
-      const msg = String(entry.msg ?? '').slice(0, 100);
+      const time = safeTime(entry.time).slice(11, 19);
+      const msg = escapeHtml(String(entry.msg ?? '').slice(0, 100));
       session.buffer.push(`<code>[${time}] ${level} ${msg}</code>`);
     },
   };
@@ -194,6 +194,15 @@ export function initTelegramDispatcher(): void {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const _startedAt = Date.now();
+
+function safeTime(raw: unknown): string {
+  const d = typeof raw === 'number' ? new Date(raw) : new Date(String(raw ?? ''));
+  return isNaN(d.getTime()) ? 'unknown' : d.toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 function uptime(): string {
   const ms = Date.now() - _startedAt;
@@ -375,9 +384,9 @@ export function buildLogsReport(n = 8): string {
 
   for (const e of errors) {
     const level = e.level >= 60 ? '💀 FATAL' : '🔴 ERROR';
-    const time = new Date(Number(e.time)).toISOString().replace('T', ' ').slice(0, 19);
-    msg += `${level} <i>${time}</i>\n<code>${String(e.msg ?? '').slice(0, 150)}</code>\n`;
-    if (e.path) msg += `<i>path: ${String(e.path)}</i>\n`;
+    const time = safeTime(e.time);
+    msg += `${level} <i>${time}</i>\n<code>${escapeHtml(String(e.msg ?? '').slice(0, 150))}</code>\n`;
+    if (e.path) msg += `<i>path: ${escapeHtml(String(e.path))}</i>\n`;
     msg += '\n';
   }
   return msg.trimEnd();
