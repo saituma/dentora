@@ -12,6 +12,7 @@ const CSRF_SKIP_PREFIXES = [
   '/api/telephony/webhook',
   '/api/pms/webhooks',
   '/api/admin/seed',
+  '/api/telegram/webhook',
 ];
 const CSRF_PUBLIC_AUTH_POST_PATHS = new Set([
   '/api/auth/email/send-otp',
