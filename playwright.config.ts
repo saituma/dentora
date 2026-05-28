@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 // Load test credentials from .env.test if present (never committed)
 config({ path: '.env.test', override: false });
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3100';
 
 export default defineConfig({
   testDir: './e2e',
@@ -28,9 +28,9 @@ export default defineConfig({
   webServer: process.env.CI
     ? undefined
     : {
-        command: 'pnpm dev:client',
+        command: 'PORT=3100 pnpm dev:client',
         url: BASE_URL,
-        reuseExistingServer: true,
+        reuseExistingServer: false,
         timeout: 120_000,
       },
 });

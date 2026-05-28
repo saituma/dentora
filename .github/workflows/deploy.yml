@@ -14,6 +14,7 @@ env:
   REGISTRY: ghcr.io
   SERVER_IMAGE: ghcr.io/${{ github.repository }}/server
   CLIENT_IMAGE: ghcr.io/${{ github.repository }}/client
+  ADMIN_IMAGE: ghcr.io/${{ github.repository }}/admin
 
 jobs:
   deploy:
@@ -40,37 +41,46 @@ jobs:
           script: |
             set -e
 
-            cd /opt/dental-flow
+            cd /opt/dentora
 
             # Pull latest compose & config
             git pull origin master
 
-            # Set image tags
+            # Set image tags for this deploy
             export SERVER_IMAGE=${{ env.SERVER_IMAGE }}:${{ steps.sha.outputs.short }}
             export CLIENT_IMAGE=${{ env.CLIENT_IMAGE }}:${{ steps.sha.outputs.short }}
+            export ADMIN_IMAGE=${{ env.ADMIN_IMAGE }}:${{ steps.sha.outputs.short }}
+
+            # Load env (postgres/redis passwords, secrets)
+            set -a; source .env.production; set +a
+
+            # Re-export image tags (override any stale tags in .env.production)
+            export SERVER_IMAGE CLIENT_IMAGE ADMIN_IMAGE
+
+            # Log in to GHCR to pull private images
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USER }}" --password-stdin
 
             # Pull new images
-            docker compose -f docker-compose.prod.yaml pull server worker client
+            docker compose -f docker-compose.prod.yaml pull server worker client admin
 
-            # Capture current image tags for rollback
-            PREV_SERVER=$(docker inspect --format='{{index .RepoDigests 0}}' $(docker compose -f docker-compose.prod.yaml ps -q server) 2>/dev/null || echo "")
-
-            # Migrations run automatically at server startup via drizzle migrate()
-
-            # Rolling restart — server first (runs migrations), then worker, then client
+            # Rolling restart — server first (runs DB migrations on startup)
             docker compose -f docker-compose.prod.yaml up -d --no-deps server
-            sleep 15
+            sleep 20
 
-            # Health check after server restart
-            if ! curl -sf http://localhost:3001/api/health/ready; then
-              echo "Server health check failed after restart — rolling back"
-              docker compose -f docker-compose.prod.yaml up -d --no-deps server --scale server=0 || true
+            # Health check — abort and keep old server if unhealthy
+            if ! curl -sf http://localhost:3001/api/health; then
+              echo "Server health check failed — aborting deploy"
               exit 1
             fi
 
-            docker compose -f docker-compose.prod.yaml up -d --no-deps worker client nginx --remove-orphans
+            # Restart remaining services
+            docker compose -f docker-compose.prod.yaml up -d --no-deps worker client admin nginx --remove-orphans
 
-            # Final health check via nginx
+            # Final health check through nginx
             sleep 10
-            curl -sf https://localhost/api/health/ready || curl -sf http://localhost/api/health/ready || { echo "Final health check failed"; exit 1; }
+            curl -sf http://localhost/health || { echo "Nginx health check failed"; exit 1; }
+
+            # Clean up old images (keep last 3)
+            docker image prune -f --filter "until=72h"
+
             echo "Deploy successful: ${{ steps.sha.outputs.short }}"

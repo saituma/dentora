@@ -1,48 +1,61 @@
 #!/usr/bin/env bash
-# Obtain the initial Let's Encrypt certificate for a fresh VPS deploy.
+# Obtain initial Let's Encrypt certificates for a fresh server deploy.
 # Run ONCE before starting the full docker compose stack.
-# Usage: bash scripts/bootstrap-ssl.sh app.yoursite.com admin@yoursite.com
+# Usage: bash scripts/bootstrap-ssl.sh app.dentora.com admin.dentora.com admin@dentora.com
 
 set -euo pipefail
 
-DOMAIN="${1:?Usage: $0 DOMAIN EMAIL}"
-EMAIL="${2:?Usage: $0 DOMAIN EMAIL}"
-APP_DIR="${APP_DIR:-/opt/dental-flow}"
+APP_DOMAIN="${1:?Usage: $0 APP_DOMAIN ADMIN_DOMAIN EMAIL}"
+ADMIN_DOMAIN="${2:?Usage: $0 APP_DOMAIN ADMIN_DOMAIN EMAIL}"
+EMAIL="${3:?Usage: $0 APP_DOMAIN ADMIN_DOMAIN EMAIL}"
+APP_DIR="${APP_DIR:-/opt/dentora}"
 
-echo "==> Bootstrapping SSL for $DOMAIN"
+echo "==> Bootstrapping SSL"
+echo "    App domain  : $APP_DOMAIN"
+echo "    Admin domain: $ADMIN_DOMAIN"
+echo "    Email       : $EMAIL"
 
-# Update nginx.conf placeholder
-sed -i "s/YOURDOMAIN/$DOMAIN/g" "$APP_DIR/nginx/nginx.conf"
-echo "    Updated nginx.conf with domain: $DOMAIN"
+# Patch nginx.conf with real domain names
+sed -i "s/YOURDOMAIN/$APP_DOMAIN/g" "$APP_DIR/nginx/nginx.conf"
+sed -i "s/YOURADMINDOMAIN/$ADMIN_DOMAIN/g" "$APP_DIR/nginx/nginx.conf"
+echo "    Updated nginx.conf"
 
-# Start only the HTTP stack (nginx serves port 80 for ACME challenge)
-# Temporarily use self-signed certs so nginx can start with the HTTPS block
-mkdir -p /etc/letsencrypt/live/"$DOMAIN"
-if [ ! -f /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem ]; then
-  echo "    Generating temporary self-signed cert so nginx starts"
-  openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
-    -keyout /etc/letsencrypt/live/"$DOMAIN"/privkey.pem \
-    -out    /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem \
-    -subj "/CN=$DOMAIN" 2>/dev/null
-fi
+# Create temporary self-signed certs so nginx can start with HTTPS blocks
+for DOMAIN in "$APP_DOMAIN" "$ADMIN_DOMAIN"; do
+  mkdir -p /etc/letsencrypt/live/"$DOMAIN"
+  if [ ! -f /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem ]; then
+    echo "    Generating temporary self-signed cert for $DOMAIN"
+    openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+      -keyout /etc/letsencrypt/live/"$DOMAIN"/privkey.pem \
+      -out    /etc/letsencrypt/live/"$DOMAIN"/fullchain.pem \
+      -subj "/CN=$DOMAIN" 2>/dev/null
+  fi
+done
 
 echo "    Starting nginx for ACME challenge"
 docker compose -f "$APP_DIR/docker-compose.prod.yaml" up -d nginx
 
-echo "    Running certbot to obtain real certificate"
-docker compose -f "$APP_DIR/docker-compose.prod.yaml" run --rm certbot \
-  certbot certonly \
-    --webroot \
-    --webroot-path /var/www/certbot \
-    --email "$EMAIL" \
-    --agree-tos \
-    --no-eff-email \
-    -d "$DOMAIN"
+sleep 3
 
-echo "    Reloading nginx with real cert"
+# Issue real certificates
+for DOMAIN in "$APP_DOMAIN" "$ADMIN_DOMAIN"; do
+  echo "    Issuing certificate for $DOMAIN"
+  docker compose -f "$APP_DIR/docker-compose.prod.yaml" run --rm certbot \
+    certbot certonly \
+      --webroot \
+      --webroot-path /var/www/certbot \
+      --email "$EMAIL" \
+      --agree-tos \
+      --no-eff-email \
+      -d "$DOMAIN"
+done
+
+echo "    Reloading nginx with real certificates"
 docker compose -f "$APP_DIR/docker-compose.prod.yaml" exec nginx nginx -s reload
 
 echo ""
-echo "==> SSL certificate issued for $DOMAIN"
-echo "    Certbot auto-renews every 12h via the certbot service."
-echo "    Start the full stack now: docker compose -f docker-compose.prod.yaml up -d"
+echo "==> SSL certificates issued for $APP_DOMAIN and $ADMIN_DOMAIN"
+echo "    Certbot auto-renews every 12h."
+echo ""
+echo "    Start the full stack:"
+echo "    docker compose -f $APP_DIR/docker-compose.prod.yaml up -d"

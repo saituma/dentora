@@ -28,7 +28,7 @@ Full diagram and call flow in [ARCHITECTURE.md](ARCHITECTURE.md).
 | TTS            | ElevenLabs                                           |
 | Telephony      | Twilio                                               |
 | Observability  | OpenTelemetry → Datadog (EU), Sentry, Pino           |
-| Infrastructure | DigitalOcean LON1, Cloudflare, Docker Compose        |
+| Infrastructure | Hetzner (EU), Cloudflare, Docker Compose             |
 
 ## Monorepo Layout
 
@@ -154,13 +154,43 @@ The `ENCRYPTION_KEY` env var must be exactly 64 hex characters. Rotation procedu
 
 ## Deployment
 
-Production runs on DigitalOcean LON1 (UK data residency). Deployments trigger automatically when CI passes on `master`:
+Production runs on Hetzner (EU, UK data residency). Deployments trigger automatically when CI passes on `master`:
 
 ```
-git push master → GitHub Actions CI → SSH deploy → docker compose pull → rolling restart → health check
+git push master → GitHub Actions CI → build Docker images → push to GHCR → SSH deploy → docker compose pull → rolling restart → health check
 ```
 
-Rollback: the deploy script exits non-zero if the health check fails, leaving the previous containers running. To manually roll back, SSH and run `docker compose -f docker-compose.prod.yaml up -d --no-deps server worker client` with the previous image tag.
+Rollback: the deploy script exits non-zero if the health check fails, leaving the previous containers running. To manually roll back, SSH and run `docker compose -f docker-compose.prod.yaml up -d --no-deps server worker client admin` with the previous image tag.
+
+### First-time server setup
+
+```bash
+# 1. On the Hetzner server (as root)
+bash scripts/provision-server.sh
+
+# 2. Clone repo and fill in secrets
+git clone https://github.com/YOUR_ORG/dentora /opt/dentora
+cp /opt/dentora/.env.production.example /opt/dentora/.env.production
+nano /opt/dentora/.env.production
+
+# 3. Issue SSL certificates (app + admin domains)
+bash scripts/bootstrap-ssl.sh app.dentora.com admin.dentora.com admin@dentora.com
+
+# 4. Start everything
+docker compose -f docker-compose.prod.yaml up -d
+```
+
+After that, every `git push` to `master` builds new images in CI and auto-deploys via the deploy workflow. No manual steps needed.
+
+### GitHub secrets required
+
+| Secret           | Description                           |
+| ---------------- | ------------------------------------- |
+| `DEPLOY_HOST`    | Hetzner server IP                     |
+| `DEPLOY_USER`    | Deploy user (default: `dentora`)      |
+| `DEPLOY_SSH_KEY` | Private SSH key for deploy user       |
+| `GHCR_USER`      | GitHub username for GHCR image pull   |
+| `GHCR_TOKEN`     | GitHub PAT with `read:packages` scope |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for full deployment pipeline.
 
