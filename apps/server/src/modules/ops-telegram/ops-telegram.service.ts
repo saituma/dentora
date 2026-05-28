@@ -2,12 +2,20 @@ import { checkDbHealth } from '../../db/index.js';
 import { getRedis } from '../../lib/cache.js';
 import { getCircuitBreakerStatus } from '../../lib/circuit-breaker.js';
 import { sendTelegramMessage, isTelegramConfigured } from '../../lib/telegram.js';
-import { logEmitter, type LogEntry } from '../admin/admin-log-stream.js';
+import { logEmitter, getRecentLogs, type LogEntry } from '../admin/admin-log-stream.js';
 import {
   getOperationalHealthSnapshot,
   APPOINTMENT_MAINTENANCE_COMPONENT,
 } from '../operational-health/operational-health.service.js';
 import { env } from '../../config/env.js';
+
+interface ProviderHealthSnapshot {
+  avgLatencyMs: number;
+  successRate: number;
+  sampleCount: number;
+  lastErrorAt?: string;
+  lastError?: string;
+}
 
 export type AlertCategory = 'ERROR' | 'AI' | 'TELEPHONY' | 'JOB' | 'HEALTH' | 'LIFECYCLE';
 
@@ -173,4 +181,108 @@ export async function buildStatusReport(): Promise<string> {
 
   report += `\n${overallOk && openBreakers.length === 0 ? '💚 All systems nominal' : '⚠️ Issues detected — check logs'}`;
   return report;
+}
+
+/** One-line ping summary — used as the quick /status response. */
+export async function buildQuickStatus(): Promise<string> {
+  const [dbOk, redisOk, breakers] = await Promise.all([
+    checkDbHealth().catch(() => false),
+    getRedis()
+      .ping()
+      .then(() => true)
+      .catch(() => false),
+    Promise.resolve(getCircuitBreakerStatus()),
+  ]);
+
+  const openBreakers = Object.entries(breakers).filter(([, b]) => b.state !== 'closed');
+  const allOk = dbOk && redisOk && openBreakers.length === 0;
+  const icon = allOk ? '💚' : '⚠️';
+  const envTag = env.NODE_ENV === 'production' ? 'prod' : env.NODE_ENV;
+
+  let msg = `${icon} <b>Dentora</b> <i>${envTag}</i> — ${allOk ? 'all systems nominal' : 'issues detected'}\n`;
+  msg += `${dbOk ? '✅' : '❌'} DB  ${redisOk ? '✅' : '❌'} Redis`;
+  if (openBreakers.length > 0) {
+    msg += `\n⚡ ${openBreakers.length} circuit breaker(s) open: ${openBreakers.map(([n]) => n).join(', ')}`;
+  }
+  msg += `\n<i>Use /health for full report</i>`;
+  return msg;
+}
+
+/** Detailed circuit breaker report. */
+export function buildBreakersReport(): string {
+  const breakers = getCircuitBreakerStatus();
+  const entries = Object.entries(breakers);
+
+  if (entries.length === 0) {
+    return '⚡ <b>Circuit Breakers</b>\nNo breakers recorded yet — all services healthy.';
+  }
+
+  let msg = `⚡ <b>Circuit Breakers</b> (${entries.length} tracked)\n\n`;
+  for (const [name, b] of entries) {
+    const icon = b.state === 'closed' ? '✅' : b.state === 'open' ? '🔴' : '💛';
+    msg += `${icon} <code>${name}</code>: ${b.state}`;
+    if (b.failures > 0) msg += ` — ${b.failures} failure(s)`;
+    msg += '\n';
+  }
+  return msg.trimEnd();
+}
+
+/** Last N error/fatal log lines from the in-memory ring buffer. */
+export function buildLogsReport(n = 5): string {
+  const errors = getRecentLogs()
+    .filter((e) => e.level >= 50)
+    .slice(-n);
+
+  if (errors.length === 0) {
+    return '📋 <b>Recent Errors</b>\nNo errors in the last 100 log lines. 💚';
+  }
+
+  let msg = `📋 <b>Recent Errors</b> (last ${errors.length})\n\n`;
+  for (const e of errors) {
+    const level = e.level >= 60 ? 'FATAL' : 'ERROR';
+    const time = new Date(Number(e.time)).toISOString().replace('T', ' ').slice(0, 19);
+    msg += `<b>${level}</b> <i>${time}</i>\n<code>${String(e.msg ?? '').slice(0, 120)}</code>\n\n`;
+  }
+  return msg.trimEnd();
+}
+
+/** AI provider EWMA health scores from Redis. */
+export async function buildAiReport(): Promise<string> {
+  const redis = getRedis();
+  const keys = await redis.keys('global:provider-health:*').catch(() => null);
+  if (keys === null) {
+    return '🤖 <b>AI Providers</b>\nCould not read provider health from Redis.';
+  }
+
+  if (keys.length === 0) {
+    return '🤖 <b>AI Providers</b>\nNo provider health data yet — no calls made since last deploy.';
+  }
+
+  const entries: Array<{ name: string; data: ProviderHealthSnapshot }> = [];
+  for (const key of keys.sort()) {
+    const name = key.replace('global:provider-health:', '');
+    try {
+      const raw = await redis.get(key);
+      if (raw) entries.push({ name, data: JSON.parse(raw) as ProviderHealthSnapshot });
+    } catch {
+      /* skip */
+    }
+  }
+
+  const breakers = getCircuitBreakerStatus();
+  let msg = `🤖 <b>AI Providers</b>\n\n`;
+  for (const { name, data } of entries) {
+    const rate = Math.round(data.successRate * 100);
+    const latency = Math.round(data.avgLatencyMs);
+    const icon = rate >= 90 ? '✅' : rate >= 70 ? '💛' : '🔴';
+    const breakerState = breakers[name]?.state ?? 'closed';
+    const breakerTag = breakerState !== 'closed' ? ` ⚡${breakerState}` : '';
+    msg += `${icon} <code>${name}</code>${breakerTag}\n`;
+    msg += `   ${rate}% success · ${latency}ms avg · ${data.sampleCount} samples\n`;
+    if (data.lastError) {
+      msg += `   Last error: <i>${data.lastError.slice(0, 80)}</i>\n`;
+    }
+    msg += '\n';
+  }
+  return msg.trimEnd();
 }

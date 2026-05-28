@@ -2,7 +2,13 @@ import { Router, type Request, type Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { env } from '../../config/env.js';
 import { sendTelegramMessage, isTelegramConfigured } from '../../lib/telegram.js';
-import { buildStatusReport } from './ops-telegram.service.js';
+import {
+  buildStatusReport,
+  buildQuickStatus,
+  buildBreakersReport,
+  buildLogsReport,
+  buildAiReport,
+} from './ops-telegram.service.js';
 
 export const opsTelegramRouter = Router();
 
@@ -17,6 +23,15 @@ function secretsMatch(a: string, b: string): boolean {
     return false;
   }
 }
+
+const HELP_TEXT =
+  '<b>Dentora Ops Bot — Commands</b>\n\n' +
+  '/status — Quick one-line summary\n' +
+  '/health — Full health report (DB, Redis, workers, breakers)\n' +
+  '/ai — AI provider success rates &amp; latency\n' +
+  '/breakers — Circuit breaker states\n' +
+  '/logs — Last 5 error &amp; fatal log lines\n' +
+  '/help — Show this message';
 
 opsTelegramRouter.post('/webhook/:secret', async (req: Request, res: Response) => {
   if (!isTelegramConfigured()) {
@@ -41,23 +56,28 @@ opsTelegramRouter.post('/webhook/:secret', async (req: Request, res: Response) =
   if (String(chatId) !== env.TELEGRAM_ALERT_CHAT_ID) return;
 
   const text = String((message.text as string | undefined) ?? '').trim();
-  const lower = text.toLowerCase();
+  // Strip bot username suffix if present (e.g. /status@dentroabot)
+  const lower = text.toLowerCase().replace(/@\S+$/, '').trim();
 
-  if (lower === '/status' || lower === '/health') {
-    const report = await buildStatusReport().catch(() => '⚠️ Failed to build status report');
-    await sendTelegramMessage(report);
-    return;
+  try {
+    if (lower === '/status') {
+      await sendTelegramMessage(await buildQuickStatus());
+    } else if (lower === '/health') {
+      await sendTelegramMessage(await buildStatusReport());
+    } else if (lower === '/ai') {
+      await sendTelegramMessage(await buildAiReport());
+    } else if (lower === '/breakers') {
+      await sendTelegramMessage(buildBreakersReport());
+    } else if (lower === '/logs') {
+      await sendTelegramMessage(buildLogsReport());
+    } else if (lower === '/help') {
+      await sendTelegramMessage(HELP_TEXT);
+    } else {
+      await sendTelegramMessage(
+        `Unknown command: <code>${text.slice(0, 50)}</code>\n\n${HELP_TEXT}`,
+      );
+    }
+  } catch {
+    await sendTelegramMessage('⚠️ Command failed — check server logs').catch(() => undefined);
   }
-
-  if (lower === '/help') {
-    await sendTelegramMessage(
-      '<b>Dentora Ops Bot</b>\n\n' +
-        '/status — Live health report (DB, Redis, AI, circuit breakers)\n' +
-        '/health — Same as /status\n' +
-        '/help — Show this message',
-    );
-    return;
-  }
-
-  await sendTelegramMessage(`Unknown command: <code>${text.slice(0, 50)}</code>\nTry /help`);
 });
