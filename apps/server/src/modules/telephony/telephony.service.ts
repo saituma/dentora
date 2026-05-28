@@ -451,6 +451,8 @@ export async function buyPoolNumber(countryCode?: string): Promise<TwilioNumber>
     voiceMethod: 'POST',
     statusCallback,
     statusCallbackMethod: 'POST',
+    addressSid: env.TWILIO_ADDRESS_SID ?? undefined,
+    bundleSid: env.TWILIO_BUNDLE_SID ?? undefined,
   });
 
   const [number] = await db

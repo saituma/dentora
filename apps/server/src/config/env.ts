@@ -69,6 +69,10 @@ const envSchema = z.object({
   // ISO 3166-1 alpha-2 country code for auto-purchasing phone numbers on signup.
   // Defaults to GB (UK). Change to US, AU, etc. if you expand to other markets.
   TWILIO_NUMBER_COUNTRY: z.string().default('GB'),
+  // Twilio address SID required for purchasing numbers in countries that mandate a registered address (e.g. UK).
+  TWILIO_ADDRESS_SID: z.string().optional(),
+  // Twilio regulatory bundle SID required for purchasing numbers in countries that require compliance bundles (e.g. UK local numbers).
+  TWILIO_BUNDLE_SID: z.string().optional(),
 
   OPENAI_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),
