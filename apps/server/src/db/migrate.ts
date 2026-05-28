@@ -1,7 +1,14 @@
 import 'dotenv/config';
+import path from 'node:path';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+
+// Resolve the migrations folder relative to this compiled file, not the process
+// CWD. On Heroku the release command runs from the repo root (/app), so a bare
+// 'drizzle' would miss the real folder at apps/server/drizzle.
+// dist/db/migrate.js → ../../drizzle = apps/server/drizzle
+const MIGRATIONS_FOLDER = path.resolve(__dirname, '../../drizzle');
 
 function getRawMigrationUrl(): string {
   return (
@@ -76,7 +83,7 @@ async function main(): Promise<void> {
     const db = drizzle(pool);
 
     try {
-      await migrate(db, { migrationsFolder: 'drizzle' });
+      await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
       // eslint-disable-next-line no-console
       console.log('Migration completed');
       await pool.end();
