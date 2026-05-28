@@ -61,6 +61,7 @@ import { useGetCallsQuery } from '@/features/calls/callsApi';
 import { useGetIntegrationsQuery } from '@/features/integrations/integrationsApi';
 import { useGetUpcomingAppointmentsQuery } from '@/features/appointments/appointmentsApi';
 import { useGetClinicQuery } from '@/features/clinic/clinicApi';
+import { useGetTelephonyNumbersQuery } from '@/features/telephony/telephonyApi';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/page-header';
 
@@ -297,6 +298,8 @@ export default function DashboardOverviewPage() {
 
   const { data: clinic } = useGetClinicQuery();
   const { data: integrationData } = useGetIntegrationsQuery();
+  const { data: telephonyData } = useGetTelephonyNumbersQuery();
+  const activeNumber = telephonyData?.data?.find((n) => n.status === 'active');
   const integrations = integrationData?.data ?? [];
   const hasActiveCalendar = integrations.some(
     (i) =>
@@ -835,6 +838,18 @@ export default function DashboardOverviewPage() {
               </div>
             ) : (
               <div className="space-y-3">
+                {activeNumber && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="size-2 rounded-full bg-success" />
+                      <div>
+                        <p className="text-sm font-medium">{activeNumber.phoneNumber}</p>
+                        <p className="text-xs text-muted-foreground">AI receptionist number</p>
+                      </div>
+                    </div>
+                    <PhoneIcon className="size-3.5 text-muted-foreground" />
+                  </div>
+                )}
                 {integrationStatuses.map((int, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
