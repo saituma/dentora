@@ -1,7 +1,14 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, Building2, ExternalLink, Globe, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  ExternalLink,
+  Globe,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import type React from "react";
@@ -23,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  useGetCallsQuery,
+  useGetTenantCallsQuery,
   useGetTenantQuery,
   useUpdateTenantStatusMutation,
 } from "@/features/admin/adminApi";
@@ -99,10 +106,14 @@ function StatusActionDialog({
 export default function TenantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: tenant, isLoading } = useGetTenantQuery(id);
-  const { data: callsData } = useGetCallsQuery({ tenantId: id, limit: 5 });
+  const { data: callsData } = useGetTenantCallsQuery({
+    tenantId: id,
+    limit: 5,
+  });
   const [updateStatus] = useUpdateTenantStatusMutation();
 
   const recentCalls = callsData?.data ?? [];
+  const totalCalls = callsData?.total ?? 0;
 
   const handleStatusChange = async (status: string, label: string) => {
     try {
@@ -237,7 +248,7 @@ export default function TenantDetailPage() {
                   {tenant.status === "suspended" && (
                     <StatusActionDialog
                       triggerLabel="Reactivate clinic"
-                      triggerClassName="text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/5"
+                      triggerClassName="text-primary border-primary/20 hover:bg-primary/5"
                       title="Reactivate this clinic?"
                       description="The clinic will regain full access to the platform."
                       actionLabel="Reactivate"
@@ -273,6 +284,99 @@ export default function TenantDetailPage() {
               </Card>
             </div>
 
+            {/* Readiness — config completeness + preflight + PHI */}
+            {(tenant.latestConfigVersion || tenant.preflight) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <ShieldCheck size={14} className="text-muted-foreground" />
+                    Readiness
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {tenant.latestConfigVersion && (
+                      <>
+                        <InfoItem
+                          label="Config version"
+                          value={
+                            <span className="tabular-nums">
+                              v{tenant.latestConfigVersion.version}{" "}
+                              <StatusBadge
+                                value={tenant.latestConfigVersion.status}
+                              />
+                            </span>
+                          }
+                        />
+                        <InfoItem
+                          label="Completeness"
+                          value={
+                            <span className="tabular-nums">
+                              {Math.round(
+                                Number(
+                                  tenant.latestConfigVersion
+                                    .completenessScore ?? 0,
+                                ),
+                              )}
+                              %
+                            </span>
+                          }
+                        />
+                      </>
+                    )}
+                    {tenant.preflight && (
+                      <>
+                        <InfoItem
+                          label="Preflight"
+                          value={
+                            <StatusBadge
+                              value={
+                                tenant.preflight.lastPreflightReady
+                                  ? "healthy"
+                                  : "down"
+                              }
+                              label={
+                                tenant.preflight.lastPreflightReady
+                                  ? "ready"
+                                  : "blocked"
+                              }
+                            />
+                          }
+                        />
+                        <InfoItem
+                          label="Calendar PHI risk"
+                          value={
+                            <span
+                              className={cn(
+                                "tabular-nums",
+                                (tenant.preflight
+                                  .latestCalendarPhiRiskyEvents ?? 0) > 0 &&
+                                  "text-rose-500 font-semibold",
+                              )}
+                            >
+                              {tenant.preflight.latestCalendarPhiRiskyEvents ??
+                                0}
+                              {" / "}
+                              {tenant.preflight.latestCalendarPhiTotalEvents ??
+                                0}
+                            </span>
+                          }
+                        />
+                      </>
+                    )}
+                  </div>
+                  {tenant.preflight?.lastBlockingIssueCodes &&
+                    tenant.preflight.lastBlockingIssueCodes.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {tenant.preflight.lastBlockingIssueCodes.map((code) => (
+                          <StatusBadge key={code} value="down" label={code} />
+                        ))}
+                      </div>
+                    )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Members */}
             {tenant.users && tenant.users.length > 0 && (
               <Card>
@@ -283,8 +387,8 @@ export default function TenantDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-hidden rounded-xl border border-border">
-                    <table className="w-full text-sm">
+                  <div className="overflow-x-auto rounded-xl border border-border">
+                    <table className="w-full min-w-[480px] text-sm">
                       <thead className="bg-muted/50 text-xs font-medium text-muted-foreground">
                         <tr>
                           <th className="px-4 py-2.5 text-left">Email</th>
@@ -302,7 +406,7 @@ export default function TenantDetailPage() {
                             <td className="px-4 py-3">
                               <Link
                                 href={`/users/${user.id}`}
-                                className="font-medium hover:text-emerald-500 transition-colors"
+                                className="font-medium hover:text-primary transition-colors"
                               >
                                 {user.email}
                               </Link>
@@ -363,6 +467,11 @@ export default function TenantDetailPage() {
                 <CardHeader>
                   <CardTitle className="text-sm font-semibold">
                     Recent Calls
+                    {totalCalls > 0 && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground tabular-nums">
+                        {totalCalls.toLocaleString()} total
+                      </span>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -390,7 +499,7 @@ export default function TenantDetailPage() {
                           </span>
                           <Link
                             href={`/calls/${call.id}`}
-                            className="text-muted-foreground hover:text-emerald-500 transition-colors"
+                            className="text-muted-foreground hover:text-primary transition-colors"
                           >
                             <ExternalLink size={12} />
                           </Link>
@@ -401,7 +510,7 @@ export default function TenantDetailPage() {
                   <div className="mt-3 text-right">
                     <Link
                       href={`/calls?tenantId=${tenant.id}`}
-                      className="text-xs text-muted-foreground hover:text-emerald-500 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-primary transition-colors"
                     >
                       View all calls →
                     </Link>

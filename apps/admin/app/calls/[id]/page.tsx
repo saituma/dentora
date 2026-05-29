@@ -116,7 +116,7 @@ export default function CallDetailPage() {
                         call.tenantId ? (
                           <Link
                             href={`/tenants/${call.tenantId}`}
-                            className="text-emerald-500 hover:underline"
+                            className="text-primary hover:underline"
                           >
                             {call.clinicName || call.tenantId.slice(0, 8)}
                           </Link>

@@ -1,9 +1,7 @@
 "use client";
 
-import { ChevronsUpDown, LogOut, Moon, Sun } from "lucide-react";
+import { ChevronsUpDown, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { ThemeSelector } from "@/components/theme-selector";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -25,7 +23,6 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
@@ -55,7 +52,7 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="size-8 rounded-lg">
-                <AvatarFallback className="rounded-lg bg-emerald-500 text-white text-xs font-semibold">
+                <AvatarFallback className="rounded-lg bg-primary text-primary-foreground text-xs font-semibold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -79,7 +76,7 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-emerald-500 text-white text-xs font-semibold">
+                  <AvatarFallback className="rounded-lg bg-primary text-primary-foreground text-xs font-semibold">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -93,19 +90,6 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? (
-                <Sun className="size-4" />
-              ) : (
-                <Moon className="size-4" />
-              )}
-              {theme === "dark" ? "Light mode" : "Dark mode"}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <ThemeSelector />
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}

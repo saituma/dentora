@@ -14,6 +14,9 @@ export const adminApi = createApi({
     "AuditLog",
     "Health",
     "Config",
+    "Ops",
+    "Analytics",
+    "PhonePool",
   ],
   endpoints: (builder) => ({
     // ── Platform ───────────────────────────────────────────────────────
@@ -90,6 +93,64 @@ export const adminApi = createApi({
       query: (params) => ({ url: "/admin/audit-log", params }),
       providesTags: ["AuditLog"],
     }),
+
+    // ── Ops (cost / breakers / queues / providers) ──────────────────────
+    getOpsCost: builder.query<OpsCostResponse, { days?: number } | void>({
+      query: (params) => ({ url: "/admin/ops/cost", params: params ?? {} }),
+      providesTags: ["Ops"],
+    }),
+    getOpsBreakers: builder.query<OpsBreakersResponse, void>({
+      query: () => "/admin/ops/breakers",
+      providesTags: ["Ops"],
+    }),
+    getOpsQueues: builder.query<OpsQueuesResponse, void>({
+      query: () => "/admin/ops/queues",
+      providesTags: ["Ops"],
+    }),
+    getOpsProviders: builder.query<OpsProvidersResponse, void>({
+      query: () => "/admin/ops/providers",
+      providesTags: ["Ops"],
+    }),
+
+    // ── Analytics (platform-wide) ───────────────────────────────────────
+    getAnalyticsDashboard: builder.query<
+      DashboardStats,
+      { days?: number } | void
+    >({
+      query: (params) => ({
+        url: "/admin/analytics/dashboard",
+        params: params ?? {},
+      }),
+      providesTags: ["Analytics"],
+    }),
+    getAnalyticsHourly: builder.query<
+      { data: HourlyVolumePoint[] },
+      { days?: number } | void
+    >({
+      query: (params) => ({
+        url: "/admin/analytics/hourly",
+        params: params ?? {},
+      }),
+      providesTags: ["Analytics"],
+    }),
+
+    // ── Phone pool ──────────────────────────────────────────────────────
+    getPhonePool: builder.query<PaginatedResponse<PhoneNumber>, void>({
+      query: () => "/admin/phone-pool",
+      providesTags: ["PhonePool"],
+    }),
+
+    // ── Tenant calls ────────────────────────────────────────────────────
+    getTenantCalls: builder.query<
+      PaginatedResponse<CallSession>,
+      { tenantId: string; limit?: number; offset?: number }
+    >({
+      query: ({ tenantId, ...params }) => ({
+        url: `/admin/tenants/${tenantId}/calls`,
+        params,
+      }),
+      providesTags: (_r, _e, { tenantId }) => [{ type: "Calls", id: tenantId }],
+    }),
   }),
 });
 
@@ -107,6 +168,14 @@ export const {
   useGetUsersQuery,
   useGetUserQuery,
   useGetAuditLogQuery,
+  useGetOpsCostQuery,
+  useGetOpsBreakersQuery,
+  useGetOpsQueuesQuery,
+  useGetOpsProvidersQuery,
+  useGetAnalyticsDashboardQuery,
+  useGetAnalyticsHourlyQuery,
+  useGetPhonePoolQuery,
+  useGetTenantCallsQuery,
 } = adminApi;
 
 // ── Query param types ───────────────────────────────────────────────────
@@ -178,6 +247,8 @@ export interface TenantDetail extends Tenant {
   clinicProfile?: Record<string, unknown>[];
   integrations?: Integration[];
   users?: TenantUser[];
+  latestConfigVersion?: ConfigVersion | null;
+  preflight?: PreflightStatus | null;
 }
 
 export interface TenantUser {
@@ -324,5 +395,80 @@ export interface AuditEntry {
   beforeState?: Record<string, unknown>;
   afterState?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+// ── Ops / analytics / phone-pool types ──────────────────────────────────
+
+export interface OpsCostResponse {
+  daily: Array<{ day: string; cost: number }>;
+  byProvider: Array<{ provider: string; cost: number }>;
+  topTenants: Array<{ clinicName: string; calls: number; cost: number }>;
+  todayCost: number;
+  totalCost: number;
+  days: number;
+}
+
+export type CircuitBreakerState = "closed" | "open" | "half-open";
+
+export interface OpsBreakersResponse {
+  breakers: Record<
+    string,
+    { state: CircuitBreakerState; failures: number; dyno?: string }
+  >;
+}
+
+export interface QueueDepth {
+  name: string;
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  available: boolean;
+}
+
+export interface OpsQueuesResponse {
+  queues: QueueDepth[];
+}
+
+export interface ProviderPerformance {
+  provider: string;
+  avgLatencyMs: number;
+  totalCalls: number;
+  failureRate: number;
+}
+
+export interface OpsProvidersResponse {
+  providers: ProviderPerformance[];
+}
+
+export interface DashboardStats {
+  totalCalls: number;
+  averageDurationSeconds: number;
+  completionRate: number;
+  bookingRate: number;
+  bookedCalls: number;
+  hangupCount: number;
+  totalCost: string;
+  sentimentBreakdown: Record<string, number>;
+  topIntents: Array<{ intent: string; count: number }>;
+  callsByStatus: Record<string, number>;
+  averageLatencyMs: number;
+}
+
+export interface HourlyVolumePoint {
+  hour: string;
+  calls: number;
+}
+
+export interface PhoneNumber {
+  id: string;
+  phoneNumber: string;
+  friendlyName?: string | null;
+  status: string;
+  capabilities?: { voice?: boolean; sms?: boolean };
+  tenantId?: string | null;
+  clinicName?: string | null;
   createdAt: string;
 }

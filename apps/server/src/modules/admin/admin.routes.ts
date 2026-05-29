@@ -19,9 +19,20 @@ import {
   auditLog,
   tenantConfigVersions,
   pilotPreflightStatus,
+  twilioNumbers,
 } from '../../db/schema.js';
 import { sql, eq, and, ilike, desc } from 'drizzle-orm';
 import { logEmitter, getRecentLogs, type LogEntry } from './admin-log-stream.js';
+import {
+  getOpsDailyCost,
+  getOpsCostByProvider,
+  getOpsTopTenants,
+  getProviderPerformance,
+  getPlatformDashboardStats,
+  getPlatformHourlyCallVolume,
+} from '../analytics/analytics.service.js';
+import { getCircuitBreakerStatusShared } from '../../lib/circuit-breaker.js';
+import { getQueue, QUEUE_NAMES } from '../../lib/queue.js';
 
 export const adminRouter = Router();
 
@@ -248,12 +259,41 @@ adminRouter.get('/tenants/:tenantId', async (req, res, next) => {
       .innerJoin(users, eq(tenantUsers.userId, users.id))
       .where(eq(tenantUsers.tenantId, tenantId));
 
+    const [latestConfigVersion] = await db
+      .select({
+        version: tenantConfigVersions.version,
+        status: tenantConfigVersions.status,
+        completenessScore: tenantConfigVersions.completenessScore,
+        publishedAt: tenantConfigVersions.publishedAt,
+        createdAt: tenantConfigVersions.createdAt,
+      })
+      .from(tenantConfigVersions)
+      .where(eq(tenantConfigVersions.tenantId, tenantId))
+      .orderBy(desc(tenantConfigVersions.version))
+      .limit(1);
+
+    const [preflight] = await db
+      .select({
+        lastPreflightReady: pilotPreflightStatus.lastPreflightReady,
+        lastPreflightCheckedAt: pilotPreflightStatus.lastPreflightCheckedAt,
+        lastBlockingIssueCodes: pilotPreflightStatus.lastBlockingIssueCodes,
+        lastWarningCodes: pilotPreflightStatus.lastWarningCodes,
+        latestCalendarPhiScanAt: pilotPreflightStatus.latestCalendarPhiScanAt,
+        latestCalendarPhiTotalEvents: pilotPreflightStatus.latestCalendarPhiTotalEvents,
+        latestCalendarPhiRiskyEvents: pilotPreflightStatus.latestCalendarPhiRiskyEvents,
+      })
+      .from(pilotPreflightStatus)
+      .where(eq(pilotPreflightStatus.tenantId, tenantId))
+      .limit(1);
+
     res.json({
       data: {
         ...tenant,
         clinicProfile: profile,
         integrations: tenantIntegrations,
         users: tenantUserRows,
+        latestConfigVersion: latestConfigVersion ?? null,
+        preflight: preflight ?? null,
       },
     });
   } catch (err) {
@@ -650,6 +690,198 @@ adminRouter.get('/live-logs', (req, res) => {
     logEmitter.off('log', onLog);
   });
 });
+
+// ─── Ops: cost (cross-tenant) ────────────────────────────────────────
+
+adminRouter.get(
+  '/ops/cost',
+  validate({ query: z.object({ days: z.coerce.number().int().min(1).max(90).default(7) }) }),
+  async (req, res, next) => {
+    try {
+      const { days } = req.query as unknown as { days: number };
+      const startOfToday = new Date();
+      startOfToday.setUTCHours(0, 0, 0, 0);
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const [daily, byProvider, topTenants] = await Promise.all([
+        getOpsDailyCost(days),
+        getOpsCostByProvider(since),
+        getOpsTopTenants(since, 10),
+      ]);
+      const todayKey = startOfToday.toISOString().slice(0, 10);
+      const { todayCost, totalCost } = adminService.summarizeDailyCost(daily, todayKey);
+      res.json({ daily, byProvider, topTenants, todayCost, totalCost, days });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ─── Ops: circuit breakers (cross-dyno) ──────────────────────────────
+
+adminRouter.get('/ops/breakers', async (_req, res, next) => {
+  try {
+    const breakers = await getCircuitBreakerStatusShared();
+    res.json({ breakers });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Ops: BullMQ queue depths ────────────────────────────────────────
+
+adminRouter.get('/ops/queues', async (_req, res, next) => {
+  try {
+    const queues = await Promise.all(
+      Object.values(QUEUE_NAMES).map(async (name) => {
+        try {
+          const counts = await getQueue(name).getJobCounts(
+            'waiting',
+            'active',
+            'completed',
+            'failed',
+            'delayed',
+          );
+          return {
+            name,
+            waiting: counts.waiting ?? 0,
+            active: counts.active ?? 0,
+            completed: counts.completed ?? 0,
+            failed: counts.failed ?? 0,
+            delayed: counts.delayed ?? 0,
+            available: true,
+          };
+        } catch {
+          return {
+            name,
+            waiting: 0,
+            active: 0,
+            completed: 0,
+            failed: 0,
+            delayed: 0,
+            available: false,
+          };
+        }
+      }),
+    );
+    res.json({ queues });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Ops: AI/STT/TTS provider performance ────────────────────────────
+
+adminRouter.get('/ops/providers', async (_req, res, next) => {
+  try {
+    const endDate = new Date();
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const providers = await getProviderPerformance({ startDate, endDate });
+    res.json({ providers });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── Analytics: platform-wide dashboard ──────────────────────────────
+
+adminRouter.get(
+  '/analytics/dashboard',
+  validate({ query: z.object({ days: z.coerce.number().int().min(1).max(90).default(30) }) }),
+  async (req, res, next) => {
+    try {
+      const { days } = req.query as unknown as { days: number };
+      const endDate = new Date();
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const stats = await getPlatformDashboardStats({ startDate, endDate });
+      res.json(stats);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+adminRouter.get(
+  '/analytics/hourly',
+  validate({ query: z.object({ days: z.coerce.number().int().min(1).max(30).default(7) }) }),
+  async (req, res, next) => {
+    try {
+      const { days } = req.query as unknown as { days: number };
+      const endDate = new Date();
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const data = await getPlatformHourlyCallVolume({ startDate, endDate });
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ─── Phone pool inventory ────────────────────────────────────────────
+
+adminRouter.get('/phone-pool', async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select({
+        id: twilioNumbers.id,
+        phoneNumber: twilioNumbers.phoneNumber,
+        friendlyName: twilioNumbers.friendlyName,
+        status: twilioNumbers.status,
+        capabilities: twilioNumbers.capabilities,
+        tenantId: twilioNumbers.tenantId,
+        clinicName: tenantRegistry.clinicName,
+        createdAt: twilioNumbers.createdAt,
+      })
+      .from(twilioNumbers)
+      .leftJoin(tenantRegistry, eq(twilioNumbers.tenantId, tenantRegistry.id))
+      .orderBy(desc(twilioNumbers.createdAt));
+    res.json({ data: rows, total: rows.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── GET /api/admin/tenants/:tenantId/calls ──────────────────────────
+
+adminRouter.get(
+  '/tenants/:tenantId/calls',
+  validate({
+    query: z.object({
+      limit: z.coerce.number().int().min(1).max(100).default(25),
+      offset: z.coerce.number().int().min(0).default(0),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const tenantId = req.params.tenantId as string;
+      const { limit, offset } = req.query as unknown as { limit: number; offset: number };
+
+      const rows = await db
+        .select({
+          id: callSessions.id,
+          status: callSessions.status,
+          callerNumber: callSessions.callerNumber,
+          intentSummary: callSessions.intentSummary,
+          durationSeconds: callSessions.durationSeconds,
+          costEstimate: callSessions.costEstimate,
+          startedAt: callSessions.startedAt,
+        })
+        .from(callSessions)
+        .where(eq(callSessions.tenantId, tenantId))
+        .orderBy(desc(callSessions.startedAt))
+        .limit(limit)
+        .offset(offset);
+
+      const [{ count }] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(callSessions)
+        .where(eq(callSessions.tenantId, tenantId));
+
+      res.json({ data: rows, total: count });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // ─── Phone number pool ────────────────────────────────────────────────
 

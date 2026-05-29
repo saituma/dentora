@@ -81,7 +81,7 @@ function ClinicSection({ tenant }: { tenant: TenantSummary }) {
             Clinic
             <Link
               href={`/tenants/${tenant.id}`}
-              className="ml-auto text-xs text-emerald-500 hover:underline font-normal"
+              className="ml-auto text-xs text-primary hover:underline font-normal"
             >
               View tenant →
             </Link>
@@ -619,7 +619,7 @@ export default function UserDetailPage() {
                       <div className="mt-3 text-right">
                         <Link
                           href={`/audit?actorId=${userData.id}`}
-                          className="text-xs text-muted-foreground hover:text-emerald-500 transition-colors"
+                          className="text-xs text-muted-foreground hover:text-primary transition-colors"
                         >
                           View full audit log →
                         </Link>

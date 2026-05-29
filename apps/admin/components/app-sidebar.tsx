@@ -2,12 +2,15 @@
 
 import {
   Activity,
+  BarChart3,
   Building2,
+  HeartPulse,
   LayoutDashboard,
   Phone,
+  PhoneCall,
+  PoundSterling,
   ScrollText,
   Settings,
-  ShieldCheck,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -32,12 +35,15 @@ const navMain = [
   { title: "Clinics", href: "/tenants", icon: Building2 },
   { title: "Calls", href: "/calls", icon: Phone },
   { title: "Users", href: "/users", icon: Users },
+  { title: "Analytics", href: "/analytics", icon: BarChart3 },
+  { title: "Cost", href: "/cost", icon: PoundSterling },
 ];
 
 const navSecondary = [
+  { title: "System Health", href: "/system", icon: HeartPulse },
+  { title: "Phone Pool", href: "/phone-pool", icon: PhoneCall },
   { title: "Audit Log", href: "/audit", icon: ScrollText },
   { title: "Live Logs", href: "/logs", icon: Activity },
-  { title: "Providers", href: "/providers", icon: ShieldCheck },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -54,7 +60,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Activity className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -93,7 +99,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
+          <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navSecondary.map((item) => (

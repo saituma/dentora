@@ -1,4 +1,3 @@
-
 import { db, checkDbHealth } from '../../db/index.js';
 import { tenantRegistry, callSessions, providerRegistry, platformConfig } from '../../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
@@ -72,16 +71,16 @@ export async function getPlatformStats(): Promise<{
 }
 
 export async function getPlatformConfig(key: string): Promise<string | null> {
-  const [row] = await db
-    .select()
-    .from(platformConfig)
-    .where(eq(platformConfig.key, key))
-    .limit(1);
+  const [row] = await db.select().from(platformConfig).where(eq(platformConfig.key, key)).limit(1);
 
   return (row?.value as string) ?? null;
 }
 
-export async function setPlatformConfig(key: string, value: string, description?: string): Promise<void> {
+export async function setPlatformConfig(
+  key: string,
+  value: string,
+  description?: string,
+): Promise<void> {
   await db
     .insert(platformConfig)
     .values({ key, value, description })
@@ -89,4 +88,17 @@ export async function setPlatformConfig(key: string, value: string, description?
       target: platformConfig.key,
       set: { value, updatedAt: new Date() },
     });
+}
+
+/**
+ * Summarise a daily-cost series for the admin cost dashboard.
+ * Pure function (no DB) so it is unit-testable in isolation.
+ */
+export function summarizeDailyCost(
+  daily: Array<{ day: string; cost: number }>,
+  todayKey: string,
+): { todayCost: number; totalCost: number } {
+  const todayCost = daily.find((d) => d.day === todayKey)?.cost ?? 0;
+  const totalCost = daily.reduce((sum, d) => sum + d.cost, 0);
+  return { todayCost, totalCost };
 }

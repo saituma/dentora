@@ -74,7 +74,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <Card>
           <CardHeader className="flex flex-col items-center gap-3 pb-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-[0_2px_12px_rgba(16,185,129,0.25)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-[0_2px_12px_rgba(79,195,247,0.25)]">
               <Activity size={22} />
             </div>
             <div className="text-center">

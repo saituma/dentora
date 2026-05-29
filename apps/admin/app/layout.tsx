@@ -1,15 +1,31 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter, Manrope, Syne } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const manrope = Manrope({
   subsets: ["latin"],
+  variable: "--font-ui",
+  display: "swap",
+});
+const syne = Syne({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-display",
+  display: "swap",
+});
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
+});
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -24,20 +40,12 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      className={`${manrope.variable} ${syne.variable} ${inter.variable} ${geistMono.variable} antialiased`}
     >
-      {/* Restore color theme before first paint to avoid flash */}
-      <script
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: inline script for theme persistence, no user input
-        dangerouslySetInnerHTML={{
-          __html: `(function(){try{var t=localStorage.getItem('dentora-admin-color-theme');if(t&&t!=='default')document.documentElement.setAttribute('data-theme',t);}catch(e){}})()`,
-        }}
-      />
-      <body className="min-h-[100dvh] flex flex-col font-sans selection:bg-emerald-500/20">
-        <div className="grain-overlay" />
+      <body className="min-h-[100dvh] flex flex-col font-sans selection:bg-primary/20">
         <Providers>
           {children}
-          <Toaster position="top-right" richColors />
+          <Toaster position="top-right" richColors theme="dark" />
         </Providers>
       </body>
     </html>

@@ -262,6 +262,117 @@ export async function getOpsCostByProvider(
   return rows.map((r) => ({ provider: r.provider, cost: Number(r.cost) }));
 }
 
+/**
+ * Platform-wide dashboard stats (cross-tenant) for the admin portal.
+ * Mirrors getDashboardStats but omits the tenant filter; gated by
+ * requirePlatformAdmin at the route layer. Not cached (admin traffic is low).
+ */
+export async function getPlatformDashboardStats(input: {
+  startDate: Date;
+  endDate: Date;
+}): Promise<DashboardStats> {
+  const { startDate, endDate } = input;
+  const range = and(gte(callSessions.startedAt, startDate), lte(callSessions.startedAt, endDate));
+
+  const [callStats] = await db
+    .select({
+      totalCalls: sql<number>`COUNT(*)::int`,
+      avgDuration: sql<number>`COALESCE(AVG(${callSessions.durationSeconds}), 0)::int`,
+      completed: sql<number>`COUNT(*) FILTER (WHERE ${callSessions.status} = 'completed')::int`,
+    })
+    .from(callSessions)
+    .where(range);
+
+  const [costStats] = await db
+    .select({
+      totalCost: sql<string>`COALESCE(SUM(${callCosts.totalCost}::numeric), 0)::text`,
+    })
+    .from(callCosts)
+    .where(and(gte(callCosts.createdAt, startDate), lte(callCosts.createdAt, endDate)));
+
+  const statusBreakdown = await db
+    .select({ status: callSessions.status, count: sql<number>`COUNT(*)::int` })
+    .from(callSessions)
+    .where(range)
+    .groupBy(callSessions.status);
+
+  const callsByStatus: Record<string, number> = {};
+  for (const row of statusBreakdown) callsByStatus[row.status] = row.count;
+
+  const sentimentRows = await db
+    .select({ sentiment: callTranscripts.sentiment, count: sql<number>`COUNT(*)::int` })
+    .from(callTranscripts)
+    .groupBy(callTranscripts.sentiment);
+
+  const sentimentBreakdown: Record<string, number> = {};
+  for (const row of sentimentRows) {
+    if (row.sentiment) sentimentBreakdown[row.sentiment] = row.count;
+  }
+
+  const intentRows = await db
+    .select({ intent: callTranscripts.intentDetected, count: sql<number>`COUNT(*)::int` })
+    .from(callTranscripts)
+    .where(sql`${callTranscripts.intentDetected} IS NOT NULL`)
+    .groupBy(callTranscripts.intentDetected)
+    .orderBy(sql`COUNT(*) DESC`)
+    .limit(10);
+
+  const topIntents = intentRows.map((r) => ({ intent: r.intent!, count: r.count }));
+
+  const [latencyStats] = await db
+    .select({ avgLatency: sql<number>`COALESCE(AVG(${callEvents.latencyMs}), 0)::int` })
+    .from(callEvents)
+    .where(sql`${callEvents.latencyMs} IS NOT NULL`);
+
+  const [bookingStats] = await db
+    .select({ bookedCalls: sql<number>`COUNT(DISTINCT ${appointments.callSessionId})::int` })
+    .from(appointments)
+    .innerJoin(callSessions, eq(appointments.callSessionId, callSessions.id))
+    .where(range);
+
+  const [hangupStats] = await db
+    .select({ hangupCount: sql<number>`COUNT(*)::int` })
+    .from(callSessions)
+    .where(and(range, eq(callSessions.endReason, 'caller_hangup')));
+
+  const completionRate =
+    callStats.totalCalls > 0 ? (callStats.completed / callStats.totalCalls) * 100 : 0;
+  const bookedCalls = bookingStats.bookedCalls ?? 0;
+  const bookingRate = callStats.totalCalls > 0 ? (bookedCalls / callStats.totalCalls) * 100 : 0;
+
+  return {
+    totalCalls: callStats.totalCalls,
+    averageDurationSeconds: callStats.avgDuration,
+    completionRate: Math.round(completionRate * 100) / 100,
+    bookingRate: Math.round(bookingRate * 100) / 100,
+    bookedCalls,
+    hangupCount: hangupStats.hangupCount ?? 0,
+    totalCost: costStats.totalCost,
+    sentimentBreakdown,
+    topIntents,
+    callsByStatus,
+    averageLatencyMs: latencyStats.avgLatency,
+  };
+}
+
+/** Platform-wide hourly call volume (cross-tenant) for the admin portal. */
+export async function getPlatformHourlyCallVolume(input: {
+  startDate: Date;
+  endDate: Date;
+}): Promise<Array<{ hour: string; calls: number }>> {
+  return db
+    .select({
+      hour: sql<string>`DATE_TRUNC('hour', ${callSessions.startedAt})::text`,
+      calls: sql<number>`COUNT(*)::int`,
+    })
+    .from(callSessions)
+    .where(
+      and(gte(callSessions.startedAt, input.startDate), lte(callSessions.startedAt, input.endDate)),
+    )
+    .groupBy(sql`DATE_TRUNC('hour', ${callSessions.startedAt})`)
+    .orderBy(sql`DATE_TRUNC('hour', ${callSessions.startedAt})`);
+}
+
 /** Busiest clinics by call volume since a given time, with their spend. */
 export async function getOpsTopTenants(
   since: Date,
