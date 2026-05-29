@@ -164,6 +164,8 @@ async function markReminder(
 export async function sendDueReminder(input: {
   tenantId: string;
   reminderId: string;
+  /** True on the worker's last retry — record a terminal `failed` status instead of `pending`. */
+  isFinalAttempt?: boolean;
 }): Promise<void> {
   assertTenantAccess(input.tenantId);
 
@@ -268,9 +270,11 @@ export async function sendDueReminder(input: {
     return;
   }
 
-  // Transient failure — record and rethrow so BullMQ retries with backoff.
+  // Transient failure — keep `pending` so a retry reprocesses it, but on the final attempt record
+  // a terminal `failed` status so the dashboard doesn't show it as forever-pending. Rethrow either
+  // way so BullMQ retries / forwards to the dead-letter queue.
   await markReminder(input.tenantId, reminder.id, {
-    status: 'pending',
+    status: input.isFinalAttempt ? 'failed' : 'pending',
     failureReason: result.reason,
   });
   throw new Error(`Reminder send failed: ${result.reason}`);

@@ -27,7 +27,7 @@ import {
   makeDateInTimeZone,
 } from './appointment-timezone.js';
 import { scheduleAppointmentReminders } from '../reminders/reminder.service.js';
-import { createAndSendDeposit } from '../deposits/deposit.service.js';
+import { scheduleDepositCreation } from '../deposits/deposit.service.js';
 
 export interface LedgerBackedAppointmentPatientInput {
   fullName: string;
@@ -451,9 +451,9 @@ export async function bookLedgerBackedAppointment(
     startAt,
   });
 
-  // Best-effort: creates a Stripe deposit + texts the payment link (no-op unless
-  // FF_DEPOSIT_COLLECTION is on and the tenant has Stripe configured). Never throws into booking.
-  await createAndSendDeposit({
+  // Best-effort: enqueues deposit creation (no-op unless FF_DEPOSIT_COLLECTION is on and the
+  // tenant has Stripe configured). Queued so transient failures retry; never throws into booking.
+  await scheduleDepositCreation({
     tenantId: input.tenantId,
     appointmentId: localAppointment.id,
     patientId: patient.id,

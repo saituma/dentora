@@ -132,11 +132,23 @@ describe('createAndSendDeposit', () => {
     expect(body).toContain('£50.00');
   });
 
-  it('does not re-create a deposit that already exists for the appointment', async () => {
-    mockSelectLimit.mockResolvedValueOnce([depositConfig()]);
+  it('skips when an existing deposit is already past pending', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([depositConfig()]) // config
+      .mockResolvedValueOnce([{ id: 'dep-a', status: 'link_sent' }]); // existing, already sent
     mockInsertReturning.mockResolvedValue([]); // onConflictDoNothing → no row
     await createAndSendDeposit(args);
     expect(mockCreateCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('resumes a still-pending deposit on retry and creates the checkout', async () => {
+    mockSelectLimit
+      .mockResolvedValueOnce([depositConfig()]) // config
+      .mockResolvedValueOnce([{ id: 'dep-a', status: 'pending' }]); // existing, not yet sent
+    mockInsertReturning.mockResolvedValue([]); // onConflictDoNothing → no row
+    await createAndSendDeposit(args);
+    expect(mockCreateCheckoutSession).toHaveBeenCalled();
+    expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ status: 'link_sent' }));
   });
 });
 
