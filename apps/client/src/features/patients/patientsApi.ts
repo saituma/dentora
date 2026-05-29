@@ -8,6 +8,8 @@ export type ImportResult = {
   errors: Array<{ row: number; message: string }>;
 };
 
+export type ReminderChannelPreference = 'sms' | 'whatsapp' | 'both' | 'none';
+
 export type PatientProfile = {
   id: string;
   tenantId: string;
@@ -16,6 +18,10 @@ export type PatientProfile = {
   phoneNumber: string;
   lastVisitAt: string | null;
   notes: string | null;
+  messagingConsent: boolean;
+  messagingConsentAt: string | null;
+  messagingOptedOutAt: string | null;
+  preferredReminderChannel: ReminderChannelPreference;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,6 +35,7 @@ export const patientsApi = createApi({
   reducerPath: 'patientsApi',
   baseQuery: baseQueryWithReauth,
   keepUnusedDataFor: 120,
+  tagTypes: ['Patient'],
   endpoints: (builder) => ({
     getPatients: builder.query<{ data: PatientProfile[] }, { search?: string } | void>({
       query: (params) => ({
@@ -61,6 +68,18 @@ export const patientsApi = createApi({
     }),
     getPatientById: builder.query<{ data: PatientProfile }, string>({
       query: (patientId) => `/patients/${patientId}`,
+      providesTags: (_result, _error, patientId) => [{ type: 'Patient', id: patientId }],
+    }),
+    setPatientConsent: builder.mutation<
+      { data: PatientProfile },
+      { patientId: string; consent: boolean; preferredChannel?: ReminderChannelPreference }
+    >({
+      query: ({ patientId, consent, preferredChannel }) => ({
+        url: `/patients/${patientId}/consent`,
+        method: 'POST',
+        body: { consent, ...(preferredChannel ? { preferredChannel } : {}) },
+      }),
+      invalidatesTags: (_result, _error, { patientId }) => [{ type: 'Patient', id: patientId }],
     }),
     getPatientCalls: builder.query<{ data: PatientCall[] }, { patientId: string; limit?: number }>({
       query: ({ patientId, limit }) => ({
@@ -76,5 +95,6 @@ export const {
   useUpsertPatientMutation,
   useImportPatientsMutation,
   useGetPatientByIdQuery,
+  useSetPatientConsentMutation,
   useGetPatientCallsQuery,
 } = patientsApi;

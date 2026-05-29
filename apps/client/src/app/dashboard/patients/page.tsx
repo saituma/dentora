@@ -42,6 +42,10 @@ const blankPatient: PatientProfile = {
   phoneNumber: '',
   lastVisitAt: null,
   notes: '',
+  messagingConsent: false,
+  messagingConsentAt: null,
+  messagingOptedOutAt: null,
+  preferredReminderChannel: 'sms',
   createdAt: '',
   updatedAt: '',
 };

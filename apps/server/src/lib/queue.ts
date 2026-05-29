@@ -31,6 +31,7 @@ export const QUEUE_NAMES = {
   RECORDING_PROCESSING: 'recording-processing',
   DAILY_AGGREGATION: 'daily-aggregation',
   APPOINTMENT_MAINTENANCE: 'appointment-maintenance',
+  APPOINTMENT_REMINDERS: 'appointment-reminders',
   DEAD_LETTER: 'dead-letter',
 } as const;
 

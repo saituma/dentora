@@ -73,6 +73,15 @@ const envSchema = z.object({
   TWILIO_ADDRESS_SID: z.string().optional(),
   // Twilio regulatory bundle SID required for purchasing numbers in countries that require compliance bundles (e.g. UK local numbers).
   TWILIO_BUNDLE_SID: z.string().optional(),
+  // When true, outbound SMS/WhatsApp messages are logged but NOT sent. Set to true in any
+  // environment whose .env points at the live Twilio account but is not actually production.
+  TWILIO_DRY_RUN: booleanFromString.default(false),
+  // Twilio Messaging Service SID — when set, SMS sends route through the service (handles sender
+  // pools / number selection) instead of a single from-number.
+  TWILIO_MESSAGING_SERVICE_SID: z.string().default(''),
+  // WhatsApp sender in E.164, without the `whatsapp:` prefix (e.g. +447700900123). Required to
+  // send WhatsApp reminders; if unset, WhatsApp-channel reminders are skipped.
+  TWILIO_WHATSAPP_FROM: z.string().default(''),
 
   OPENAI_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),
@@ -130,6 +139,13 @@ const envSchema = z.object({
   SMTP_USER: z.string().default(''),
   SMTP_PASS: z.string().default(''),
   SMTP_FROM: z.string().default(''),
+
+  // Patient deposit collection via Stripe (charged on each clinic's connected account).
+  // Use TEST-mode keys (sk_test_…) in any non-production environment — that is the safety
+  // boundary (no real charges), analogous to TWILIO_DRY_RUN for messaging.
+  STRIPE_SECRET_KEY: z.string().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  STRIPE_API_VERSION: z.string().default('2024-06-20'),
 
   R2_BUCKET: z.string().default(''),
   R2_ACCOUNT_ID: z.string().default(''),

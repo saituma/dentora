@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V10';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V11';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -71,7 +71,16 @@ STEP 3 — SORT OUT THE REQUEST
 • Cancel / reschedule → confirm the appointment details, then make the change.
 • A question → answer from the clinic info below; if you don't have it, say you'll pass a note to the team.
 
-Once booked: "Brilliant — you're booked in for [date] at [time]. Is there anything else I can help with?"
+Once booked: "Brilliant — you're booked in for [date] at [time]." Then go to the REMINDERS step below before asking if there's anything else.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REMINDERS (only after a booking is confirmed)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+After confirming a booking, ask once: "Would you like a text reminder before your appointment?"
+• Whatever they answer, call the set_reminder_consent tool with their phone number ({{caller_phone_number}} if you have it) and consent true or false. Don't read anything back — just call it quietly.
+• If they say WhatsApp specifically, pass channel "whatsapp"; otherwise leave channel as "sms".
+• Then continue: "Is there anything else I can help with?"
+Never send or promise a reminder yourself — the tool handles it. Only ask this once per call.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OUR DENTISTS & STAFF
@@ -147,7 +156,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v11', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v12', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -183,7 +192,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v11', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v12', agentId, true, 3600);
       return;
     }
 
@@ -246,7 +255,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       logger.warn({ tuneErr, agentId }, 'Agent latency tuning patch threw (non-blocking)');
     }
 
-    await globalCacheSet('elevenlabs-patched-v11', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v12', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }

@@ -1,5 +1,9 @@
 import * as configService from '../config/config.service.js';
-import { findPatientProfile } from '../patients/patients.service.js';
+import {
+  findPatientProfile,
+  findPatientProfileByPhone,
+  setPatientMessagingConsent,
+} from '../patients/patients.service.js';
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
@@ -110,6 +114,8 @@ export async function handleConvaiToolCall(input: {
       return listAppointments(tenantId);
     case 'lookup_patient':
       return lookupPatient(tenantId, params);
+    case 'set_reminder_consent':
+      return setReminderConsent(tenantId, params);
     case 'check_availability':
       return checkAvailability(tenantId, params);
     case 'create_appointment':
@@ -151,6 +157,47 @@ async function lookupPatient(tenantId: string, params: Record<string, unknown>) 
     message: profile
       ? 'Patient verification matched.'
       : "I couldn't verify that patient. Please check the details or contact the front desk.",
+  };
+}
+
+/**
+ * Records (or withdraws) the caller's consent to receive SMS/WhatsApp appointment reminders.
+ * The agent should call this after explicitly asking the patient. Looks the patient up by phone —
+ * works only once a profile exists (e.g. after booking).
+ */
+async function setReminderConsent(tenantId: string, params: Record<string, unknown>) {
+  const phoneNumber = String(params.phoneNumber ?? '').trim();
+  const consent = params.consent === true || params.consent === 'true' || params.consent === 'yes';
+  const channelRaw = String(params.channel ?? '').trim();
+  const preferredChannel = (['sms', 'whatsapp', 'both', 'none'] as const).find(
+    (c) => c === channelRaw,
+  );
+
+  if (!phoneNumber) {
+    throw new ValidationError('phoneNumber is required');
+  }
+
+  const profile = await findPatientProfileByPhone({ tenantId, phoneNumber });
+  if (!profile) {
+    return {
+      success: false,
+      message:
+        "I couldn't find your record to update your messaging preferences. The front desk can set this up for you.",
+    };
+  }
+
+  await setPatientMessagingConsent({
+    tenantId,
+    patientId: profile.id,
+    consent,
+    preferredChannel,
+  });
+
+  return {
+    success: true,
+    message: consent
+      ? "Great — I've noted that we can send you appointment reminders."
+      : "No problem — I've noted that you'd prefer not to receive reminders.",
   };
 }
 

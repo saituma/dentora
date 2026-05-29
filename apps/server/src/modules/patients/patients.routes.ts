@@ -9,6 +9,7 @@ import {
   upsertPatientProfile,
   getPatientProfileById,
   bulkImportPatients,
+  setPatientMessagingConsent,
 } from './patients.service.js';
 import { listCallSessionsByCaller } from '../calls/call.service.js';
 import { deletePatientAndAllData } from './patient.deletion.js';
@@ -47,6 +48,11 @@ const csvUpload = multer({
 const lookupSchema = z.object({
   phoneNumber: z.string().min(7),
   dateOfBirth: z.string().min(4),
+});
+
+const consentSchema = z.object({
+  consent: z.boolean(),
+  preferredChannel: z.enum(['sms', 'whatsapp', 'both', 'none']).optional(),
 });
 
 const upsertSchema = z.object({
@@ -165,6 +171,39 @@ patientsRouter.post(
       });
 
       res.json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+patientsRouter.post(
+  '/:patientId/consent',
+  authenticateJwt,
+  resolveTenant,
+  patientsRateLimiter,
+  validate({ body: consentSchema }),
+  async (req, res, next) => {
+    try {
+      const tenantId = req.tenantContext!.tenantId;
+      const profile = await setPatientMessagingConsent({
+        tenantId,
+        patientId: String(req.params.patientId),
+        consent: req.body.consent,
+        preferredChannel: req.body.preferredChannel,
+      });
+
+      if (!profile) {
+        res.status(404).json({ error: 'Patient not found' });
+        return;
+      }
+
+      req.audit?.({
+        action: req.body.consent ? 'patient.consent.grant' : 'patient.consent.withdraw',
+        entityType: 'patient_profile',
+        entityId: profile.id,
+      });
+      res.json({ data: profile });
     } catch (error) {
       next(error);
     }

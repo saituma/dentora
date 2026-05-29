@@ -21,6 +21,7 @@ import {
 import { processCostAttribution } from './workers/cost-attribution.worker.js';
 import { processAnalyticsEvent } from './workers/analytics-events.worker.js';
 import { processNotificationDelivery } from './workers/notification-delivery.worker.js';
+import { processAppointmentReminder } from './workers/appointment-reminder.worker.js';
 import {
   initTelegramDispatcher,
   notifyOps,
@@ -50,6 +51,9 @@ async function start(): Promise<void> {
     createWorker(QUEUE_NAMES.COST_ATTRIBUTION, processCostAttribution, { concurrency: 10 }),
     createWorker(QUEUE_NAMES.ANALYTICS_EVENTS, processAnalyticsEvent, { concurrency: 20 }),
     createWorker(QUEUE_NAMES.NOTIFICATION_DELIVERY, processNotificationDelivery, {
+      concurrency: 5,
+    }),
+    createWorker(QUEUE_NAMES.APPOINTMENT_REMINDERS, processAppointmentReminder, {
       concurrency: 5,
     }),
   );

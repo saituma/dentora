@@ -2,8 +2,18 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   ChartContainer,
   ChartLegend,
@@ -20,7 +30,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useGetPatientByIdQuery, useGetPatientCallsQuery } from '@/features/patients/patientsApi';
+import {
+  useGetPatientByIdQuery,
+  useGetPatientCallsQuery,
+  useSetPatientConsentMutation,
+  type ReminderChannelPreference,
+} from '@/features/patients/patientsApi';
 import { formatDate, formatDateTime } from '../patient-utils';
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from 'recharts';
 
@@ -49,8 +64,25 @@ export default function PatientDetailPage() {
     { skip: !patientId },
   );
 
+  const [setConsent, { isLoading: consentSaving }] = useSetPatientConsentMutation();
+
   const patient = patientData?.data ?? null;
   const calls = callsData?.data ?? [];
+
+  const consentGranted = Boolean(patient?.messagingConsent && !patient?.messagingOptedOutAt);
+
+  async function saveConsent(next: {
+    consent: boolean;
+    preferredChannel?: ReminderChannelPreference;
+  }) {
+    if (!patientId) return;
+    try {
+      await setConsent({ patientId, ...next }).unwrap();
+      toast.success('Reminder preferences updated.');
+    } catch {
+      toast.error('Could not update reminder preferences.');
+    }
+  }
 
   const statusCounts = calls.reduce((acc, call) => {
     const key = call.status ?? 'unknown';
@@ -96,7 +128,10 @@ export default function PatientDetailPage() {
     return (
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">Patient not found.</p>
-        <Link href="/dashboard/patients" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/dashboard/patients"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
           Back to patients
         </Link>
       </div>
@@ -106,13 +141,18 @@ export default function PatientDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Link href="/dashboard/patients" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/dashboard/patients"
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
           Back to patients
         </Link>
         <div>
           <h2 className="text-lg font-semibold">Patient details</h2>
           <p className="text-sm text-muted-foreground">
-            {patientLoading ? 'Loading patient…' : `${patient?.fullName ?? 'Unknown'} · ${patient ? patient.phoneNumber : ''}`}
+            {patientLoading
+              ? 'Loading patient…'
+              : `${patient?.fullName ?? 'Unknown'} · ${patient ? patient.phoneNumber : ''}`}
           </p>
         </div>
       </div>
@@ -131,23 +171,33 @@ export default function PatientDetailPage() {
             </div>
             <div>
               <p className="text-sm font-medium">Date of birth</p>
-              <p className="text-sm text-muted-foreground">{formatDate(patient?.dateOfBirth ?? null)}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatDate(patient?.dateOfBirth ?? null)}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium">Last visit</p>
-              <p className="text-sm text-muted-foreground">{formatDateTime(patient?.lastVisitAt ?? null)}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatDateTime(patient?.lastVisitAt ?? null)}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium">Profile created</p>
-              <p className="text-sm text-muted-foreground">{formatDateTime(patient?.createdAt ?? null)}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatDateTime(patient?.createdAt ?? null)}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium">Last updated</p>
-              <p className="text-sm text-muted-foreground">{formatDateTime(patient?.updatedAt ?? null)}</p>
+              <p className="text-sm text-muted-foreground">
+                {formatDateTime(patient?.updatedAt ?? null)}
+              </p>
             </div>
             <div className="md:col-span-2">
               <p className="text-sm font-medium">Notes</p>
-              <p className="text-sm text-muted-foreground">{patient?.notes || 'No notes recorded.'}</p>
+              <p className="text-sm text-muted-foreground">
+                {patient?.notes || 'No notes recorded.'}
+              </p>
             </div>
             <div>
               <p className="text-sm font-medium">Total calls</p>
@@ -156,9 +206,68 @@ export default function PatientDetailPage() {
             <div>
               <p className="text-sm font-medium">Last call</p>
               <p className="text-sm text-muted-foreground">
-                {lastCall ? `${formatDateTime(lastCall.startedAt)} · ${formatStatusLabel(lastCall.status)}` : '—'}
+                {lastCall
+                  ? `${formatDateTime(lastCall.startedAt)} · ${formatStatusLabel(lastCall.status)}`
+                  : '—'}
               </p>
             </div>
+          </div>
+
+          <div className="rounded-lg border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">Appointment reminders</p>
+                <p className="text-sm text-muted-foreground">
+                  Consent to send this patient SMS/WhatsApp reminders. Required under UK GDPR —
+                  reminders are never sent without it.
+                </p>
+              </div>
+              <Switch
+                id="messaging-consent"
+                checked={consentGranted}
+                disabled={!patient || consentSaving}
+                onCheckedChange={(checked) =>
+                  saveConsent({
+                    consent: checked,
+                    preferredChannel: patient?.preferredReminderChannel,
+                  })
+                }
+              />
+            </div>
+            {consentGranted && (
+              <div className="mt-4 flex items-center gap-3">
+                <Label htmlFor="reminder-channel" className="text-sm font-medium">
+                  Channel
+                </Label>
+                <Select
+                  value={patient?.preferredReminderChannel ?? 'sms'}
+                  disabled={consentSaving}
+                  onValueChange={(value) =>
+                    saveConsent({
+                      consent: true,
+                      preferredChannel: value as ReminderChannelPreference,
+                    })
+                  }
+                >
+                  <SelectTrigger id="reminder-channel" className="w-[160px]" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sms">SMS</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                    <SelectItem value="both">SMS + WhatsApp</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              {patient?.messagingConsentAt
+                ? `Consent recorded ${formatDateTime(patient.messagingConsentAt)}.`
+                : patient?.messagingOptedOutAt
+                  ? `Opted out ${formatDateTime(patient.messagingOptedOutAt)}.`
+                  : 'No consent recorded yet.'}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -170,7 +279,13 @@ export default function PatientDetailPage() {
                 <ChartContainer config={statusChartConfig} className="h-[220px] w-full">
                   <PieChart>
                     <ChartTooltip content={<ChartTooltipContent nameKey="status" />} />
-                    <Pie data={statusChartData} dataKey="count" nameKey="status" innerRadius={55} outerRadius={85} />
+                    <Pie
+                      data={statusChartData}
+                      dataKey="count"
+                      nameKey="status"
+                      innerRadius={55}
+                      outerRadius={85}
+                    />
                     <ChartLegend content={<ChartLegendContent nameKey="status" />} />
                   </PieChart>
                 </ChartContainer>

@@ -13,6 +13,10 @@ export type PatientProfileRecord = {
   phoneNumberHash: string | null;
   lastVisitAt: Date | null;
   notes: string | null;
+  messagingConsent: boolean;
+  messagingConsentAt: Date | null;
+  messagingOptedOutAt: Date | null;
+  preferredReminderChannel: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -87,6 +91,34 @@ export async function getPatientProfileById(input: {
     )
     .limit(1);
 
+  return row ? decryptRow(row) : null;
+}
+
+/**
+ * Records (or withdraws) a patient's consent to receive proactive SMS/WhatsApp messages.
+ * GDPR: reminders are never sent unless messagingConsent is true and optOut is not set.
+ */
+export async function setPatientMessagingConsent(input: {
+  tenantId: string;
+  patientId: string;
+  consent: boolean;
+  preferredChannel?: 'sms' | 'whatsapp' | 'both' | 'none';
+}): Promise<PatientProfileRecord | null> {
+  assertTenantAccess(input.tenantId);
+  const now = new Date();
+  const [row] = await db
+    .update(patientProfiles)
+    .set({
+      messagingConsent: input.consent,
+      messagingConsentAt: input.consent ? now : null,
+      messagingOptedOutAt: input.consent ? null : now,
+      ...(input.preferredChannel ? { preferredReminderChannel: input.preferredChannel } : {}),
+      updatedAt: now,
+    })
+    .where(
+      and(eq(patientProfiles.tenantId, input.tenantId), eq(patientProfiles.id, input.patientId)),
+    )
+    .returning();
   return row ? decryptRow(row) : null;
 }
 

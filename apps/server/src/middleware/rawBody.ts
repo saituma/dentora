@@ -13,6 +13,7 @@ export function captureRawBodyForPmsWebhooks(
 ): void {
   const request = req as RawBodyRequest;
   const path = request.originalUrl ?? request.url ?? '';
-  if (!path.startsWith('/api/pms/webhooks')) return;
+  // Webhook endpoints verify their own signatures against the exact bytes received.
+  if (!path.startsWith('/api/pms/webhooks') && !path.startsWith('/api/webhooks')) return;
   request.rawBody = buf.toString(encoding || 'utf8');
 }

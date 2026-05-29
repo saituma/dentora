@@ -692,6 +692,30 @@ async function createConvaiWebSocket(
           },
         },
         {
+          name: 'set_reminder_consent',
+          description:
+            'Record whether the patient agrees to receive SMS/WhatsApp appointment reminders. Call this only after explicitly asking them, and after the patient record exists (e.g. once booked).',
+          parameters: {
+            type: 'object',
+            properties: {
+              phoneNumber: {
+                type: 'string',
+                description:
+                  "The patient's phone number in E.164. Use the caller's number if you already have it.",
+              },
+              consent: {
+                type: 'boolean',
+                description: 'true if the patient agreed to reminders, false if they declined.',
+              },
+              channel: {
+                type: 'string',
+                description: 'Preferred channel if stated: sms, whatsapp, both, or none.',
+              },
+            },
+            required: ['phoneNumber', 'consent'],
+          },
+        },
+        {
           name: 'get_clinic_info',
           description: 'Get clinic contact details, address, and general information.',
           parameters: { type: 'object', properties: {}, required: [] },

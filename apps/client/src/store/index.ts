@@ -39,6 +39,7 @@ import { appointmentsApi } from '@/features/appointments/appointmentsApi';
 import { patientsApi } from '@/features/patients/patientsApi';
 import { telephonyApi } from '@/features/telephony/telephonyApi';
 import { staffReviewApi } from '@/features/staffReview/staffReviewApi';
+import { remindersApi } from '@/features/reminders/remindersApi';
 
 export const store = configureStore({
   preloadedState: getPreloadedAuthState(),
@@ -63,6 +64,7 @@ export const store = configureStore({
     [patientsApi.reducerPath]: patientsApi.reducer,
     [telephonyApi.reducerPath]: telephonyApi.reducer,
     [staffReviewApi.reducerPath]: staffReviewApi.reducer,
+    [remindersApi.reducerPath]: remindersApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -81,6 +83,7 @@ export const store = configureStore({
       patientsApi.middleware,
       telephonyApi.middleware,
       staffReviewApi.middleware,
+      remindersApi.middleware,
     ),
 });
 

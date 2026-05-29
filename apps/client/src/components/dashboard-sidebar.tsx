@@ -46,6 +46,7 @@ import {
   HelpCircleIcon,
   PhoneMissedIcon,
   MessageSquareIcon,
+  BellIcon,
   CreditCardIcon,
 } from 'lucide-react';
 
@@ -61,6 +62,7 @@ const navMain = [
   { title: 'FAQs', url: '/dashboard/faqs', icon: HelpCircleIcon },
   { title: 'Calls', url: '/dashboard/calls', icon: PhoneIcon },
   { title: 'Missed Calls', url: '/dashboard/missed-calls', icon: PhoneMissedIcon },
+  { title: 'Reminders', url: '/dashboard/reminders', icon: BellIcon },
   { title: 'Analytics', url: '/dashboard/analytics', icon: BarChart3Icon },
 ];
 

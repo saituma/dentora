@@ -97,6 +97,22 @@ export const appointmentStatusEnum = pgEnum('appointment_status', [
   'cancelled',
   'no_show',
 ]);
+export const reminderChannelEnum = pgEnum('reminder_channel', ['sms', 'whatsapp']);
+export const reminderStatusEnum = pgEnum('reminder_status', [
+  'pending',
+  'sent',
+  'failed',
+  'skipped',
+  'cancelled',
+]);
+export const depositStatusEnum = pgEnum('deposit_status', [
+  'pending', // row created, no payment link yet
+  'link_sent', // checkout link generated and sent to patient
+  'paid', // patient completed payment
+  'expired', // checkout session expired unpaid
+  'cancelled', // deposit voided (e.g. appointment cancelled)
+  'refunded', // paid then refunded
+]);
 export const schedulingProviderEnum = pgEnum('scheduling_provider', [
   'google_calendar',
   'dentally',
@@ -214,6 +230,12 @@ export const tenantRegistry = pgTable(
     stripeCustomerId: text('stripe_customer_id'),
     stripeSubscriptionId: text('stripe_subscription_id'),
     stripePriceId: text('stripe_price_id'),
+    // Patient deposit collection (separate from the clinic's own SaaS subscription above).
+    // Deposits are charged on the clinic's OWN connected Stripe account, not the platform's.
+    stripeConnectAccountId: text('stripe_connect_account_id'),
+    depositEnabled: boolean('deposit_enabled').notNull().default(false),
+    depositAmount: numeric('deposit_amount', { precision: 10, scale: 2 }),
+    depositCurrency: text('deposit_currency').notNull().default('gbp'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -289,6 +311,12 @@ export const patientProfiles = pgTable(
     phoneNumberHash: text('phone_number_hash'), // HMAC-SHA256 for deterministic lookups
     lastVisitAt: timestamp('last_visit_at', { withTimezone: true }),
     notes: text('notes'), // AES-256-GCM encrypted
+    // GDPR: proactive SMS/WhatsApp messaging requires recorded opt-in. Defaults to false —
+    // no reminder is ever sent until consent is captured. optedOutAt overrides consent.
+    messagingConsent: boolean('messaging_consent').notNull().default(false),
+    messagingConsentAt: timestamp('messaging_consent_at', { withTimezone: true }),
+    messagingOptedOutAt: timestamp('messaging_opted_out_at', { withTimezone: true }),
+    preferredReminderChannel: text('preferred_reminder_channel').notNull().default('sms'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -552,6 +580,79 @@ export const appointments = pgTable(
       table.externalProvider,
       table.externalAppointmentId,
     ),
+  ],
+);
+
+export const appointmentReminders = pgTable(
+  'appointment_reminders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    appointmentId: uuid('appointment_id')
+      .notNull()
+      .references(() => appointments.id),
+    patientId: uuid('patient_id')
+      .notNull()
+      .references(() => patientProfiles.id),
+    channel: reminderChannelEnum('channel').notNull(),
+    // Hours before the appointment this reminder fires (e.g. 24).
+    offsetHours: integer('offset_hours').notNull(),
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+    status: reminderStatusEnum('status').notNull().default('pending'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    twilioMessageSid: text('twilio_message_sid'),
+    failureReason: text('failure_reason'),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('appointment_reminders_due_idx').on(table.tenantId, table.status, table.scheduledAt),
+    index('appointment_reminders_appointment_idx').on(table.tenantId, table.appointmentId),
+    // One reminder per (appointment, channel, offset) — guards against double-scheduling on retries.
+    uniqueIndex('appointment_reminders_dedup_idx').on(
+      table.tenantId,
+      table.appointmentId,
+      table.channel,
+      table.offsetHours,
+    ),
+  ],
+);
+
+export const deposits = pgTable(
+  'deposits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenantRegistry.id),
+    appointmentId: uuid('appointment_id')
+      .notNull()
+      .references(() => appointments.id),
+    patientId: uuid('patient_id')
+      .notNull()
+      .references(() => patientProfiles.id),
+    amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+    currency: text('currency').notNull().default('gbp'),
+    status: depositStatusEnum('status').notNull().default('pending'),
+    // IDs on the clinic's connected Stripe account.
+    stripeCheckoutSessionId: text('stripe_checkout_session_id'),
+    stripePaymentIntentId: text('stripe_payment_intent_id'),
+    checkoutUrl: text('checkout_url'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('deposits_tenant_status_idx').on(table.tenantId, table.status),
+    // One deposit per appointment.
+    uniqueIndex('deposits_tenant_appointment_idx').on(table.tenantId, table.appointmentId),
+    // Webhook lookups arrive by Stripe session id (no tenant context).
+    index('deposits_checkout_session_idx').on(table.stripeCheckoutSessionId),
   ],
 );
 
@@ -1366,6 +1467,33 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
   calendarIntegration: one(integrations, {
     fields: [appointments.calendarIntegrationId],
     references: [integrations.id],
+  }),
+}));
+
+export const appointmentRemindersRelations = relations(appointmentReminders, ({ one }) => ({
+  tenant: one(tenantRegistry, {
+    fields: [appointmentReminders.tenantId],
+    references: [tenantRegistry.id],
+  }),
+  appointment: one(appointments, {
+    fields: [appointmentReminders.appointmentId],
+    references: [appointments.id],
+  }),
+  patient: one(patientProfiles, {
+    fields: [appointmentReminders.patientId],
+    references: [patientProfiles.id],
+  }),
+}));
+
+export const depositsRelations = relations(deposits, ({ one }) => ({
+  tenant: one(tenantRegistry, { fields: [deposits.tenantId], references: [tenantRegistry.id] }),
+  appointment: one(appointments, {
+    fields: [deposits.appointmentId],
+    references: [appointments.id],
+  }),
+  patient: one(patientProfiles, {
+    fields: [deposits.patientId],
+    references: [patientProfiles.id],
   }),
 }));
 
