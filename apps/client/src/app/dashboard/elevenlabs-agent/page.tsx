@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { playSound, preloadSounds, startLoadingSound, stopLoadingSound } from '@/lib/sounds';
 import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,38 +115,6 @@ const formatEscalationInfo = (
     })
     .filter(Boolean);
   return truncate(lines.join(' | '), 800);
-};
-
-const playToolCallSound = () => {
-  try {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const now = context.currentTime;
-    const beep = (offset: number) => {
-      const osc = context.createOscillator();
-      const gain = context.createGain();
-      osc.type = 'square';
-      osc.frequency.value = 720;
-      gain.gain.setValueAtTime(0.0001, now + offset);
-      gain.gain.exponentialRampToValueAtTime(0.08, now + offset + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.08);
-      osc.connect(gain);
-      gain.connect(context.destination);
-      osc.start(now + offset);
-      osc.stop(now + offset + 0.1);
-    };
-    beep(0);
-    beep(0.12);
-    beep(0.24);
-    setTimeout(() => {
-      context.close().catch(() => undefined);
-    }, 500);
-  } catch {
-    // Ignore audio errors (autoplay restrictions, unsupported context, etc.)
-  }
 };
 
 const formatBookingRules = (
@@ -276,6 +245,10 @@ function ElevenLabsAgentPageInner() {
     .join(' | ');
 
   useEffect(() => {
+    preloadSounds();
+  }, []);
+
+  useEffect(() => {
     if (clinic?.clinicName && clinicNameVar === 'Your Clinic') {
       setClinicNameVar(clinic.clinicName);
     }
@@ -350,7 +323,7 @@ function ElevenLabsAgentPageInner() {
     textOnly,
     clientTools: {
       list_appointments: async () => {
-        playToolCallSound();
+        void playSound('tool-call');
         try {
           const response = await callBackendGet<{ data: unknown }>('/appointments/upcoming');
           appendLog({ role: 'event', text: 'Loaded upcoming appointments from calendar.' });
@@ -364,7 +337,7 @@ function ElevenLabsAgentPageInner() {
         }
       },
       lookup_patient: async (params: { phoneNumber: string; dateOfBirth: string }) => {
-        playToolCallSound();
+        void playSound('tool-call');
         try {
           const response = await callBackend<{ data: unknown }>('/patients/lookup', params);
           appendLog({ role: 'event', text: 'Patient profile lookup completed.' });
@@ -380,7 +353,7 @@ function ElevenLabsAgentPageInner() {
         requestedPeriod?: 'morning' | 'afternoon' | 'evening' | null;
         appointmentDurationMinutes?: number;
       }) => {
-        playToolCallSound();
+        void playSound('tool-call');
         try {
           const response = await callBackend<{ data: unknown }>(
             '/appointments/availability',
@@ -402,7 +375,7 @@ function ElevenLabsAgentPageInner() {
         dateOfBirth?: string | null;
         reasonForVisit: string;
       }) => {
-        playToolCallSound();
+        void playSound('tool-call');
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/book', {
             slot: {
@@ -428,7 +401,7 @@ function ElevenLabsAgentPageInner() {
         }
       },
       cancel_appointment: async (params: { eventId: string }) => {
-        playToolCallSound();
+        void playSound('tool-call');
         try {
           const response = await callBackend<{ data: { success: boolean } }>(
             '/appointments/cancel',
@@ -451,7 +424,7 @@ function ElevenLabsAgentPageInner() {
         startIso: string;
         endIso: string;
       }) => {
-        playToolCallSound();
+        void playSound('tool-call');
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/reschedule', {
             eventId: params.eventId,
@@ -472,6 +445,7 @@ function ElevenLabsAgentPageInner() {
       },
     },
     onConnect: () => {
+      void playSound('connecting');
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
     },
     onDisconnect: () => {
@@ -510,8 +484,12 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'error', text: formatMessage(error) });
       toast.error('ElevenLabs conversation failed. Check your API key and agent.');
     },
-    onModeChange: (mode) =>
-      appendLog({ role: 'event', text: `Mode changed: ${formatMessage(mode)}` }),
+    onModeChange: (mode) => {
+      const m = mode as { mode?: string };
+      if (m?.mode === 'speaking') void playSound('speaking', 0.5);
+      if (m?.mode === 'listening') void playSound('listening', 0.5);
+      appendLog({ role: 'event', text: `Mode changed: ${formatMessage(mode)}` });
+    },
     onStatusChange: (status) =>
       appendLog({ role: 'event', text: `Status: ${formatMessage(status)}` }),
     onDebug: (event) => appendLog({ role: 'event', text: `Debug: ${formatMessage(event)}` }),
@@ -528,6 +506,7 @@ function ElevenLabsAgentPageInner() {
   }, [conversation.status]);
 
   const startConversation = async () => {
+    void playSound('click');
     if (!agentId) {
       toast.error('Select an agent voice below before starting.');
       return;
@@ -593,6 +572,7 @@ function ElevenLabsAgentPageInner() {
     };
 
     try {
+      void startLoadingSound();
       if (connectionType === 'websocket') {
         const response = await createSignedUrl({ agentId }).unwrap();
         if (!response?.data?.signedUrl) {
@@ -648,11 +628,13 @@ function ElevenLabsAgentPageInner() {
           }),
         );
       }
+      stopLoadingSound();
       appendLog({
         role: 'system',
         text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME}.`,
       });
     } catch (error) {
+      stopLoadingSound();
       if (connectionType === 'webrtc') {
         appendLog({ role: 'event', text: 'WebRTC failed, retrying with WebSocket.' });
         try {
@@ -665,6 +647,7 @@ function ElevenLabsAgentPageInner() {
             connectionType: 'websocket',
             dynamicVariables: { ...dynamicVariables, ...(response.data.dynamicVariables ?? {}) },
           });
+          stopLoadingSound();
           setConnectionType('websocket');
           appendLog({
             role: 'system',
@@ -694,6 +677,7 @@ function ElevenLabsAgentPageInner() {
   };
 
   const stopConversation = async () => {
+    void playSound('click');
     try {
       await conversation.endSession();
       appendLog({ role: 'system', text: 'Session ended.' });
