@@ -130,8 +130,6 @@ export async function handleConvaiToolCall(input: {
       return getClinicInfo(tenantId);
     case 'get_business_hours':
       return getBusinessHours(tenantId);
-    case 'acknowledge_input':
-      return { status: 'recorded' };
     default:
       throw new ValidationError(`Unknown tool: ${toolName}`);
   }
