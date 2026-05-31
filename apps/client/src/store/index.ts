@@ -7,6 +7,7 @@ import analyticsReducer from '@/features/analytics/analyticsSlice';
 import integrationsReducer from '@/features/integrations/integrationsSlice';
 import uiReducer from '@/features/ui/uiSlice';
 import { loadAuthSession } from '@/features/auth/session';
+import { soundMiddleware } from './soundMiddleware';
 import type { AuthState } from '@/features/auth/types';
 
 // Synchronously read the persisted auth session so isHydrated=true before the
@@ -84,6 +85,7 @@ export const store = configureStore({
       telephonyApi.middleware,
       staffReviewApi.middleware,
       remindersApi.middleware,
+      soundMiddleware,
     ),
 });
 
