@@ -1,0 +1,200 @@
+- generic [ref=e6]:
+    - navigation [ref=e7]:
+        - generic [ref=e9]:
+            - generic [ref=e10]: PRFlow
+            - generic [ref=e11]: Beta
+        - generic [ref=e12]:
+            - link "How it works" [ref=e13] [cursor=pointer]:
+                - /url: '#how'
+            - link "Pricing" [ref=e14] [cursor=pointer]:
+                - /url: '#pricing'
+            - link "Sign in" [ref=e15] [cursor=pointer]:
+                - /url: /sign-in
+            - link "Get started" [ref=e16] [cursor=pointer]:
+                - /url: /sign-up
+    - generic [ref=e18]:
+        - generic [ref=e21]: Code Review SLA · GitHub App
+        - heading "Stop chasing" [level=1] [ref=e24]
+        - heading "reviews." [level=1] [ref=e26]
+        - paragraph [ref=e27]: Auto-assign reviewers. Set SLA deadlines. Get Slack alerts before any PR goes cold. Your team ships — without the chasing.
+        - generic [ref=e28]:
+            - link "Install GitHub App — free" [ref=e29] [cursor=pointer]:
+                - /url: /sign-up
+                - text: Install GitHub App — free
+            - link "See how it works ↓" [ref=e30] [cursor=pointer]:
+                - /url: '#how'
+        - paragraph [ref=e31]: No credit card · 1 repo free · Teams from $15/user
+    - generic [ref=e36]:
+        - generic [ref=e37]:
+            - generic [ref=e39]: 0%
+            - paragraph [ref=e40]: of developers wait 24+ hours for a code review
+            - paragraph [ref=e41]: — Graphite Survey
+        - generic [ref=e42]:
+            - generic [ref=e44]: 0min
+            - paragraph [ref=e45]: lost to context-switching per review interrupt
+            - paragraph [ref=e46]: — Atlassian
+        - generic [ref=e47]:
+            - generic [ref=e49]: 0×
+            - paragraph [ref=e50]: more PRs from AI-assisted coding in 2024
+            - paragraph [ref=e51]: — Stack Overflow
+    - generic [ref=e53]:
+        - generic [ref=e54]:
+            - paragraph [ref=e55]: How it works
+            - heading "Three steps. That's it." [level=2] [ref=e56]:
+                - text: Three steps.
+                - emphasis [ref=e57]: That's it.
+        - generic [ref=e58]:
+            - generic [ref=e60]:
+                - generic [ref=e61]: '01'
+                - generic [ref=e62]:
+                    - heading "Install in one click" [level=3] [ref=e63]
+                    - paragraph [ref=e64]: Connect your GitHub repos via the GitHub App. PRFlow reads your CODEOWNERS and team. No YAML, no config files. Running in under five minutes.
+                - generic [ref=e65]: →
+            - generic [ref=e67]:
+                - generic [ref=e68]: '02'
+                - generic [ref=e69]:
+                    - heading "Auto-assign on open" [level=3] [ref=e70]
+                    - paragraph [ref=e71]: Every PR gets a reviewer the moment it opens. Round-robin weighted by load — whoever has the fewest open reviews gets it.
+                - generic [ref=e72]: →
+            - generic [ref=e74]:
+                - generic [ref=e75]: '03'
+                - generic [ref=e76]:
+                    - heading "SLA tracking + Slack alerts" [level=3] [ref=e77]
+                    - paragraph [ref=e78]: Each PR gets a deadline. PRFlow pings Slack on assignment and again before breach. Nothing falls through the cracks silently.
+                - generic [ref=e79]: →
+    - generic [ref=e82]:
+        - generic [ref=e83]:
+            - paragraph [ref=e84]: The dashboard
+            - heading "Every PR. One view." [level=2] [ref=e85]:
+                - text: Every PR.
+                - emphasis [ref=e86]: One view.
+        - generic [ref=e88]:
+            - generic [ref=e93]: prflow.dev/dashboard
+            - generic [ref=e94]:
+                - generic [ref=e95]: SLA
+                - generic [ref=e96]: Pull Request
+                - generic [ref=e97]: Author
+                - generic [ref=e98]: Reviewer
+                - generic [ref=e99]: Opened
+            - generic [ref=e100]:
+                - generic [ref=e101]: 2h 14m
+                - generic [ref=e103]:
+                    - paragraph [ref=e104]: 'feat: add stripe webhook handler'
+                    - paragraph [ref=e105]: api#247
+                - generic [ref=e106]: sam
+                - generic [ref=e107]: alex
+                - generic [ref=e108]: 2h ago
+            - generic [ref=e109]:
+                - generic [ref=e110]: 18h
+                - generic [ref=e112]:
+                    - paragraph [ref=e113]: 'fix: resolve race condition in queue'
+                    - paragraph [ref=e114]: core#248
+                - generic [ref=e115]: alex
+                - generic [ref=e116]: jordan
+                - generic [ref=e117]: 2h ago
+            - generic [ref=e118]:
+                - generic [ref=e119]: 4h overdue
+                - generic [ref=e121]:
+                    - paragraph [ref=e122]: 'chore: bump dependencies'
+                    - paragraph [ref=e123]: frontend#246
+                - generic [ref=e124]: jordan
+                - generic [ref=e125]: Unassigned
+                - generic [ref=e126]: 2h ago
+            - generic [ref=e127]:
+                - generic [ref=e128]: 1d 6h
+                - generic [ref=e130]:
+                    - paragraph [ref=e131]: 'refactor: extract auth middleware'
+                    - paragraph [ref=e132]: api#245
+                - generic [ref=e133]: riley
+                - generic [ref=e134]: sam
+                - generic [ref=e135]: 2h ago
+    - generic [ref=e137]:
+        - generic [ref=e138]:
+            - paragraph [ref=e139]: Pricing
+            - heading "Simple. No surprises." [level=2] [ref=e140]:
+                - text: Simple.
+                - emphasis [ref=e141]: No surprises.
+        - generic [ref=e142]:
+            - generic [ref=e144]:
+                - generic [ref=e145]:
+                    - paragraph [ref=e146]: Starter
+                    - generic [ref=e147]:
+                        - generic [ref=e148]: $0
+                        - generic [ref=e149]: forever
+                - list [ref=e150]:
+                    - listitem [ref=e151]:
+                        - generic [ref=e152]: —
+                        - text: 1 repo
+                    - listitem [ref=e153]:
+                        - generic [ref=e154]: —
+                        - text: Up to 5 reviewers
+                    - listitem [ref=e155]:
+                        - generic [ref=e156]: —
+                        - text: Round-robin assignment
+                    - listitem [ref=e157]:
+                        - generic [ref=e158]: —
+                        - text: PR queue dashboard
+                - link "Start free" [ref=e159] [cursor=pointer]:
+                    - /url: /sign-up
+            - generic [ref=e161]:
+                - generic [ref=e162]: Most popular
+                - generic [ref=e163]:
+                    - paragraph [ref=e164]: Team
+                    - generic [ref=e165]:
+                        - generic [ref=e166]: $15
+                        - generic [ref=e167]: /user/month
+                - list [ref=e168]:
+                    - listitem [ref=e169]:
+                        - generic [ref=e170]: —
+                        - text: Unlimited repos
+                    - listitem [ref=e171]:
+                        - generic [ref=e172]: —
+                        - text: Workload-weighted assignment
+                    - listitem [ref=e173]:
+                        - generic [ref=e174]: —
+                        - text: SLA tracking + alerts
+                    - listitem [ref=e175]:
+                        - generic [ref=e176]: —
+                        - text: Slack notifications
+                    - listitem [ref=e177]:
+                        - generic [ref=e178]: —
+                        - text: 30-day analytics
+                - link "Start free trial" [ref=e179] [cursor=pointer]:
+                    - /url: /sign-up
+            - generic [ref=e181]:
+                - generic [ref=e182]:
+                    - paragraph [ref=e183]: Business
+                    - generic [ref=e184]:
+                        - generic [ref=e185]: $22
+                        - generic [ref=e186]: /user/month
+                - list [ref=e187]:
+                    - listitem [ref=e188]:
+                        - generic [ref=e189]: —
+                        - text: Everything in Team
+                    - listitem [ref=e190]:
+                        - generic [ref=e191]: —
+                        - text: 90-day analytics + CSV
+                    - listitem [ref=e192]:
+                        - generic [ref=e193]: —
+                        - text: Custom SLA per repo
+                    - listitem [ref=e194]:
+                        - generic [ref=e195]: —
+                        - text: Priority support
+                - link "Contact us" [ref=e196] [cursor=pointer]:
+                    - /url: /sign-up
+    - generic [ref=e198]:
+        - heading "Ship without the waiting." [level=2] [ref=e199]:
+            - text: Ship without
+            - emphasis [ref=e200]: the waiting.
+        - paragraph [ref=e201]: Install in 5 minutes. Your first PR auto-assigned before lunch.
+        - link "Install the GitHub App — free" [ref=e202] [cursor=pointer]:
+            - /url: /sign-up
+            - text: Install the GitHub App — free
+    - contentinfo [ref=e203]:
+        - generic [ref=e204]: PRFlow
+        - generic [ref=e205]:
+            - link "Privacy" [ref=e206] [cursor=pointer]:
+                - /url: /privacy
+            - link "Terms" [ref=e207] [cursor=pointer]:
+                - /url: /terms
+            - generic [ref=e208]: © 2026

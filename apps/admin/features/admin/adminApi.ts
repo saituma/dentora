@@ -151,6 +151,169 @@ export const adminApi = createApi({
       }),
       providesTags: (_r, _e, { tenantId }) => [{ type: "Calls", id: tenantId }],
     }),
+
+    // ── ACTIONS: tenant ─────────────────────────────────────────────────
+    updateTenantPlan: builder.mutation<
+      { message: string; plan: string },
+      { tenantId: string; plan: string }
+    >({
+      query: ({ tenantId, plan }) => ({
+        url: `/admin/tenants/${tenantId}/plan`,
+        method: "PATCH",
+        body: { plan },
+      }),
+      invalidatesTags: (_r, _e, { tenantId }) => [
+        { type: "Tenant", id: tenantId },
+        "Tenants",
+      ],
+    }),
+    invalidateTenantConfigCache: builder.mutation<
+      { message: string; keysCleared: number },
+      string
+    >({
+      query: (tenantId) => ({
+        url: `/admin/tenants/${tenantId}/invalidate-config-cache`,
+        method: "POST",
+      }),
+    }),
+    runPhiDryRun: builder.mutation<{ data: unknown }, string>({
+      query: (tenantId) => ({
+        url: `/admin/tenants/${tenantId}/phi-remediation/dry-run`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, tenantId) => [{ type: "Tenant", id: tenantId }],
+    }),
+
+    // ── ACTIONS: users ──────────────────────────────────────────────────
+    updateUserRole: builder.mutation<
+      { message: string; role: string },
+      { userId: string; tenantId: string; role: string }
+    >({
+      query: ({ userId, tenantId, role }) => ({
+        url: `/admin/users/${userId}/role`,
+        method: "PATCH",
+        body: { tenantId, role },
+      }),
+      invalidatesTags: (_r, _e, { userId }) => [{ type: "Users", id: userId }],
+    }),
+    resetUserMfa: builder.mutation<{ message: string }, string>({
+      query: (userId) => ({
+        url: `/admin/users/${userId}/reset-mfa`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, userId) => [{ type: "Users", id: userId }],
+    }),
+    verifyUserEmail: builder.mutation<{ message: string }, string>({
+      query: (userId) => ({
+        url: `/admin/users/${userId}/verify-email`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, userId) => [{ type: "Users", id: userId }],
+    }),
+    revokeUserSessions: builder.mutation<
+      { message: string; revoked: number },
+      string
+    >({
+      query: (userId) => ({
+        url: `/admin/users/${userId}/revoke-sessions`,
+        method: "POST",
+      }),
+    }),
+    sendPasswordReset: builder.mutation<{ message: string }, string>({
+      query: (userId) => ({
+        url: `/admin/users/${userId}/password-reset`,
+        method: "POST",
+      }),
+    }),
+    impersonateUser: builder.mutation<
+      { token: string; tenantId: string; email: string },
+      string
+    >({
+      query: (userId) => ({
+        url: `/admin/users/${userId}/impersonate`,
+        method: "POST",
+      }),
+    }),
+    deleteUser: builder.mutation<{ message: string }, string>({
+      query: (userId) => ({ url: `/admin/users/${userId}`, method: "DELETE" }),
+      invalidatesTags: ["Users"],
+    }),
+
+    // ── ACTIONS: ops ────────────────────────────────────────────────────
+    retryQueue: builder.mutation<
+      { message: string; retried: number },
+      { name: string; limit?: number }
+    >({
+      query: ({ name, limit }) => ({
+        url: `/admin/ops/queues/${name}/retry`,
+        method: "POST",
+        body: { limit },
+      }),
+      invalidatesTags: ["Ops"],
+    }),
+    cleanQueue: builder.mutation<
+      { message: string; removed: number },
+      { name: string; status?: "failed" | "completed" }
+    >({
+      query: ({ name, status }) => ({
+        url: `/admin/ops/queues/${name}/clean`,
+        method: "POST",
+        body: { status },
+      }),
+      invalidatesTags: ["Ops"],
+    }),
+    resetBreaker: builder.mutation<
+      { message: string; existed: boolean },
+      string
+    >({
+      query: (name) => ({
+        url: `/admin/ops/breakers/${name}/reset`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Ops"],
+    }),
+    getAlertsMute: builder.query<{ muted: boolean }, void>({
+      query: () => "/admin/ops/alerts/mute",
+      providesTags: ["Ops"],
+    }),
+    muteAlerts: builder.mutation<
+      { message: string; muted: boolean },
+      { minutes: number }
+    >({
+      query: (body) => ({
+        url: "/admin/ops/alerts/mute",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Ops"],
+    }),
+
+    // ── ACTIONS: phone pool ─────────────────────────────────────────────
+    buyPhoneNumber: builder.mutation<
+      { number: unknown },
+      { countryCode?: string }
+    >({
+      query: (body) => ({ url: "/admin/phone-pool/buy", method: "POST", body }),
+      invalidatesTags: ["PhonePool"],
+    }),
+    assignPhoneNumber: builder.mutation<
+      { data: unknown },
+      { numberId: string; tenantId: string }
+    >({
+      query: ({ numberId, tenantId }) => ({
+        url: `/admin/phone-pool/${numberId}/assign`,
+        method: "POST",
+        body: { tenantId },
+      }),
+      invalidatesTags: ["PhonePool"],
+    }),
+    releasePhoneNumber: builder.mutation<{ message: string }, string>({
+      query: (numberId) => ({
+        url: `/admin/phone-pool/${numberId}/release`,
+        method: "POST",
+      }),
+      invalidatesTags: ["PhonePool"],
+    }),
   }),
 });
 
@@ -176,6 +339,24 @@ export const {
   useGetAnalyticsHourlyQuery,
   useGetPhonePoolQuery,
   useGetTenantCallsQuery,
+  useUpdateTenantPlanMutation,
+  useInvalidateTenantConfigCacheMutation,
+  useRunPhiDryRunMutation,
+  useUpdateUserRoleMutation,
+  useResetUserMfaMutation,
+  useVerifyUserEmailMutation,
+  useRevokeUserSessionsMutation,
+  useSendPasswordResetMutation,
+  useImpersonateUserMutation,
+  useDeleteUserMutation,
+  useRetryQueueMutation,
+  useCleanQueueMutation,
+  useResetBreakerMutation,
+  useGetAlertsMuteQuery,
+  useMuteAlertsMutation,
+  useBuyPhoneNumberMutation,
+  useAssignPhoneNumberMutation,
+  useReleasePhoneNumberMutation,
 } = adminApi;
 
 // ── Query param types ───────────────────────────────────────────────────

@@ -1,0 +1,645 @@
+- generic [ref=e2]:
+    - generic [ref=e4]:
+        - banner [ref=e6]:
+            - generic [ref=e7]:
+                - link "Dentina.Ai home" [ref=e8] [cursor=pointer]:
+                    - /url: '#'
+                    - img "Dentina.Ai" [ref=e9]
+                - navigation "Primary" [ref=e10]:
+                    - link "Features & Integrations" [ref=e11] [cursor=pointer]:
+                        - /url: '#features'
+                    - link "Pricing" [ref=e12] [cursor=pointer]:
+                        - /url: '#pricing'
+                    - link "FAQ" [ref=e13] [cursor=pointer]:
+                        - /url: '#faq'
+                    - link "Articles" [ref=e14] [cursor=pointer]:
+                        - /url: https://dentina.ai/articles/
+                - generic [ref=e15]:
+                    - link "Log in" [ref=e16] [cursor=pointer]:
+                        - /url: /login
+                    - link "Book a Free Demo →" [ref=e17] [cursor=pointer]:
+                        - /url: /book-a-demo-v2
+                        - text: Book a Free Demo
+                        - generic [ref=e18]: →
+        - main [ref=e19]:
+            - generic [ref=e20]:
+                - generic [ref=e22]:
+                    - generic [ref=e23]:
+                        - heading "Stop losing patients to voicemail." [level=1] [ref=e24]:
+                            - text: Stop losing
+                            - text: patients to
+                            - emphasis [ref=e25]: voicemail
+                            - text: .
+                        - paragraph [ref=e27]:
+                            - text: Dentina is the
+                            - strong [ref=e28]: leading AI dental receptionist
+                            - text: built by a dentist — she answers calls, makes calls, and books directly into your PMS, 24/7.
+                        - link "Book a Free Demo →" [ref=e30] [cursor=pointer]:
+                            - /url: /book-a-demo-v2
+                            - text: Book a Free Demo
+                            - generic [ref=e31]: →
+                        - paragraph [ref=e32]:
+                            - text: 30-day Free trial · Cancel anytime · No setup fee
+                            - text: Works with Dentrix, Eaglesoft, Open Dental, Curve, Denticon & more
+                    - generic [ref=e33]:
+                        - generic [ref=e34]:
+                            - generic [ref=e35]:
+                                - iframe [ref=e36]:
+                                    - img [ref=f37e1]
+                                - button "Play demo video" [ref=e37] [cursor=pointer]:
+                                    - img [ref=e38]
+                                    - img [ref=e40]
+                            - generic [ref=e42]:
+                                - generic [ref=e43]: Watch Now
+                                - generic [ref=e44]: See how Dentina answers a real call.
+                        - link "Call Dentina at seven oh seven three three six eight four six two" [ref=e45] [cursor=pointer]:
+                            - /url: tel:+17073368462
+                            - img [ref=e46]
+                            - generic [ref=e48]: Tap to call Dentina live
+                            - generic [ref=e49]: (707) 336-8462
+                - generic [ref=e51]:
+                    - status [ref=e52]:
+                        - generic [ref=e53]:
+                            - generic [ref=e54]: Live
+                            - generic [ref=e55]: 2,345,550
+                            - generic [ref=e56]: Calls handled
+                            - generic [ref=e57]: Right now, in real time
+                        - generic [ref=e58]:
+                            - generic [ref=e59]: Scale
+                            - generic [ref=e60]:
+                                - text: 2,000
+                                - generic [ref=e61]: +
+                            - generic [ref=e62]: Dentists & DSOs
+                            - generic [ref=e63]: Across the US & Canada
+                        - generic [ref=e64]:
+                            - generic [ref=e65]: Always on
+                            - generic [ref=e66]:
+                                - text: '24'
+                                - generic [ref=e67]: /
+                                - text: '7'
+                            - generic [ref=e68]: Built for dental
+                            - generic [ref=e69]: By a dentist, in California
+                    - generic "Client practices" [ref=e70]:
+                        - generic [ref=e71]:
+                            - img "Modern Family Dental Care" [ref=e73]
+                            - img "All Star Pediatric Dentistry" [ref=e75]
+                            - img "Ganger Family Dentistry" [ref=e77]
+                            - img "Downtown SJ Dental" [ref=e79]
+                            - img "Central Avenue Dental" [ref=e81]
+                            - img "Dentistry For Children and Adults" [ref=e83]
+                            - generic [ref=e85]: Dentistry At Its Finest
+                            - generic [ref=e93]: Dentistry At Its Finest
+            - generic [ref=e96]:
+                - generic [ref=e98]:
+                    - generic [ref=e99]: Results & ROI
+                    - heading "Turn missed calls into booked appointments." [level=2] [ref=e100]:
+                        - text: Turn missed calls into
+                        - emphasis [ref=e101]: booked
+                        - text: appointments.
+                - generic [ref=e102]:
+                    - generic [ref=e103]:
+                        - emphasis [ref=e105]: 100%
+                        - generic [ref=e106]: Call answer rate
+                        - generic [ref=e107]:
+                            - text: Median across 1,000+ practices
+                            - text: Trailing 90 days
+                    - generic [ref=e108]:
+                        - emphasis [ref=e110]: '21'
+                        - generic [ref=e111]: Appointments booked per month
+                        - generic [ref=e112]:
+                            - text: Avg. per location
+                            - text: From would-be voicemail calls
+                    - generic [ref=e113]:
+                        - emphasis [ref=e115]: $10K+
+                        - generic [ref=e116]: Additional monthly production
+                        - generic [ref=e117]:
+                            - text: Avg. per location · estimate
+                            - text: Based on estimated production value of scheduled appointments
+                - generic [ref=e118]:
+                    - generic [ref=e119]:
+                        - heading "What are missed calls costing your practice?" [level=3] [ref=e120]:
+                            - text: What are missed calls costing your
+                            - emphasis [ref=e121]: practice
+                            - text: '?'
+                        - group "Calculator mode" [ref=e123]:
+                            - button "Inbound" [pressed] [ref=e124] [cursor=pointer]
+                            - button "Outbound" [ref=e125] [cursor=pointer]
+                        - generic [ref=e126]:
+                            - generic [ref=e127]:
+                                - generic [ref=e128]:
+                                    - text: New patient calls / month
+                                    - generic [ref=e129]: Inbound new-patient inquiries
+                                - spinbutton "New patient calls / month. Inbound new-patient inquiries" [ref=e130]: '40'
+                            - generic [ref=e131]:
+                                - generic [ref=e132]:
+                                    - text: '% missed'
+                                    - generic [ref=e133]: Industry avg. ~33%
+                                - spinbutton "% missed. Industry avg. ~33%" [ref=e134]: '33'
+                            - generic [ref=e135]:
+                                - generic [ref=e136]:
+                                    - text: New patient value
+                                    - generic [ref=e137]: First-year production · avg. $4,200
+                                - spinbutton "New patient value. First-year production · avg. $4,200" [ref=e138]: '4200'
+                    - generic [ref=e139]:
+                        - generic [ref=e140]:
+                            - generic [ref=e141]: You're leaving on the table
+                            - generic [ref=e142]:
+                                - text: ~$
+                                - emphasis [ref=e143]: 55,440
+                                - text: / month
+                            - paragraph [ref=e144]:
+                                - text: Dentina typically recovers
+                                - strong [ref=e145]: $16,632+/mo
+                                - text: for practices like yours — many multiples over the cost of the service.
+                            - link "Book a Free Demo →" [ref=e146] [cursor=pointer]:
+                                - /url: /book-a-demo-v2
+                                - text: Book a Free Demo
+                                - generic [ref=e147]: →
+                        - text: ▾
+                - paragraph [ref=e148]:
+                    - text: Dentina
+                    - emphasis [ref=e149]: pays for itself
+                    - text: with just one recovered patient per month.
+            - generic [ref=e151]:
+                - generic [ref=e152]:
+                    - generic [ref=e153]:
+                        - generic [ref=e154]: FEATURES
+                        - heading "Inbound + outbound. One AI receptionist." [level=2] [ref=e155]:
+                            - text: Inbound + outbound.
+                            - emphasis [ref=e156]: One AI receptionist.
+                    - paragraph [ref=e157]: Built on the dental scheduling rules other AI just doesn't understand.
+                - generic [ref=e158]:
+                    - generic [ref=e159]:
+                        - text: THE DIFFERENCE
+                        - heading "✦ Advanced Scheduling" [level=3] [ref=e160]:
+                            - text: ✦
+                            - emphasis [ref=e161]: Advanced Scheduling
+                        - paragraph [ref=e162]:
+                            - text: Other AI books appointments like a calendar. Dentina books them like your front desk does. Before she confirms anything, she reads
+                            - strong [ref=e163]: YOUR
+                            - text: 'rules:'
+                    - generic [ref=e164]:
+                        - list [ref=e165]:
+                            - listitem [ref=e166]: Provider restrictions
+                            - listitem [ref=e167]: Operatory constraints
+                            - listitem [ref=e168]: Appointment-type rules
+                            - listitem [ref=e169]: Procedure-specific blocks
+                            - listitem [ref=e170]: Provider hours / lunches
+                            - listitem [ref=e171]: Family booking
+                            - listitem [ref=e172]: Same-provider rescheduling
+                            - listitem [ref=e173]: Age-based appointment types
+                            - listitem [ref=e174]: Existing-patient matching
+                            - listitem [ref=e175]: No duplicate records
+                        - generic [ref=e176]:
+                            - generic [ref=e177]:
+                                - generic [ref=e178]:
+                                    - generic [ref=e179]: Schedule
+                                    - generic [ref=e180]: Patients
+                                    - generic [ref=e181]: Treatment
+                                - generic [ref=e182]: ● Live · PMS write-back
+                            - generic [ref=e183]:
+                                - generic [ref=e184]:
+                                    - generic [ref=e185]: 9:00
+                                    - generic [ref=e186]: 10:00
+                                    - generic [ref=e187]: 11:00
+                                - generic [ref=e188]:
+                                    - generic [ref=e189]: Dr. Sosa · Op 1
+                                    - generic [ref=e190]: Treatment · Kim
+                                    - generic [ref=e191]: New Pt · Maria R. NEW
+                                - generic [ref=e192]:
+                                    - generic [ref=e193]: Dr. Patel · Op 2
+                                    - generic [ref=e194]: Emergency · Lee
+                                - generic [ref=e195]:
+                                    - generic [ref=e196]: Hyg · Op 3
+                                    - generic [ref=e197]: Prophy · Ruiz
+                                    - generic [ref=e198]: Prophy · Chen
+                - generic [ref=e199]: AND ON EVERY CHANNEL
+                - generic [ref=e200]:
+                    - generic [ref=e201]:
+                        - generic [ref=e202]: '01'
+                        - strong [ref=e203]: Inbound
+                        - generic [ref=e204]: patients reach you
+                    - generic [ref=e205]:
+                        - generic [ref=e206]:
+                            - img [ref=e208]
+                            - heading "Voice" [level=4] [ref=e211]
+                            - paragraph [ref=e212]: Answers 24/7 — after hours, overflow, lunch, emergencies.
+                            - paragraph [ref=e213]: Uses your rules
+                        - generic [ref=e215]:
+                            - img [ref=e217]
+                            - heading "SMS" [level=4] [ref=e220]
+                            - paragraph [ref=e221]: Texts back the moment a call drops or rings out. Books in the thread.
+                            - paragraph [ref=e222]: Uses your rules
+                        - generic [ref=e224]:
+                            - img [ref=e226]
+                            - heading "Webchat" [level=4] [ref=e231]
+                            - paragraph [ref=e232]: Books patients from any page on your site. Same brain as voice.
+                            - paragraph [ref=e233]: Uses your rules
+                - generic [ref=e235]:
+                    - generic [ref=e236]:
+                        - generic [ref=e237]: '02'
+                        - strong [ref=e238]: Outbound
+                        - generic [ref=e239]: she reaches patients
+                    - generic [ref=e240]:
+                        - generic [ref=e241]:
+                            - img [ref=e243]
+                            - heading "Voice" [level=4] [ref=e246]
+                            - list [ref=e247]:
+                                - listitem [ref=e248]: Recalls — pulled directly from your PMS
+                                - listitem [ref=e249]: Confirmations — family-aware
+                                - listitem [ref=e250]: Reactivations — 18+ months lapsed
+                                - listitem [ref=e251]:
+                                    - text: Treatment follow-up
+                                    - generic [ref=e252]: Q2 2026
+                            - paragraph [ref=e253]: Uses your rules
+                        - generic [ref=e255]:
+                            - img [ref=e257]
+                            - heading "SMS" [level=4] [ref=e260]
+                            - list [ref=e261]:
+                                - listitem [ref=e262]: 24-hour reminders
+                                - listitem [ref=e263]: Family-wide confirmations
+                                - listitem [ref=e264]: Reschedule in the thread
+                            - paragraph [ref=e265]: Uses your rules
+                - generic [ref=e267]:
+                    - generic [ref=e268]: EVERYTHING WRITES BACK TO YOUR PMS
+                    - generic [ref=e269]: Dentrix · Dentrix Ascend · Open Dental · Eaglesoft · Curve · Denticon
+                    - generic [ref=e270]: also Cloud9 · Dentrix Enterprise · Dolphin · OrthoTrac · PracticeWorks
+                    - generic [ref=e271]: + 57 languages (Premium)
+            - region "Books patients — without increasing front desk work load." [ref=e273]:
+                - generic [ref=e274]:
+                    - generic [ref=e275]:
+                        - generic [ref=e276]: Why dentists pick Dentina.Ai
+                        - heading "Books patients — without increasing front desk work load." [level=2] [ref=e277]:
+                            - text: Books patients — without increasing
+                            - emphasis [ref=e278]: front desk work load
+                            - text: .
+                    - generic [ref=e279]:
+                        - article [ref=e280]:
+                            - generic [ref=e281]:
+                                - generic [ref=e282]: Made by a dentist
+                                - heading "Dentina.Ai" [level=3] [ref=e283]:
+                                    - img "Dentina.Ai" [ref=e284]
+                            - list [ref=e285]:
+                                - listitem [ref=e286]:
+                                    - img [ref=e288]
+                                    - generic [ref=e290]:
+                                        - strong [ref=e291]: Trusted by thousands of dentists
+                                        - generic [ref=e292]: Millions of calls handled across solo practices and DSOs.
+                                - listitem [ref=e293]:
+                                    - img [ref=e295]
+                                    - generic [ref=e297]:
+                                        - strong [ref=e298]: Books appointments directly in your PMS
+                                        - generic [ref=e299]: Real bookings — not tasks for your front desk to chase.
+                                - listitem [ref=e300]:
+                                    - img [ref=e302]
+                                    - generic [ref=e304]:
+                                        - strong [ref=e305]: Answers calls AND makes them
+                                        - generic [ref=e306]: Confirmations, recalls, treatment follow-ups, and reactivations — automated.
+                                - listitem [ref=e307]:
+                                    - img [ref=e309]
+                                    - generic [ref=e311]:
+                                        - strong [ref=e312]: Books the whole family in one call
+                                        - generic [ref=e313]: Right providers. Right operatories. Back-to-back.
+                                - listitem [ref=e314]:
+                                    - img [ref=e316]
+                                    - generic [ref=e318]:
+                                        - strong [ref=e319]: Fits into your office's workflows
+                                        - generic [ref=e320]: No new scheduling rules. No special columns. No new way of handling data. Dentina adapts to your team.
+                                - listitem [ref=e321]:
+                                    - img [ref=e323]
+                                    - generic [ref=e325]:
+                                        - strong [ref=e326]: Analytics and revenue metrics
+                                        - generic [ref=e327]: See exactly which calls became patients. Drill into any office or roll up the group.
+                                - listitem [ref=e328]:
+                                    - img [ref=e330]
+                                    - generic [ref=e332]:
+                                        - strong [ref=e333]: Unlimited calls. Flat pricing.
+                                        - generic [ref=e334]: Per-location subscription. Take every call without watching the meter.
+                                - listitem [ref=e335]:
+                                    - img [ref=e337]
+                                    - generic [ref=e339]:
+                                        - strong [ref=e340]: Live in ~3 days
+                                        - generic [ref=e341]: Keep your phone system. No new hardware. No VoIP switch.
+                        - generic [ref=e343]: vs
+                        - article [ref=e344]:
+                            - generic [ref=e345]:
+                                - generic [ref=e346]: MINIMAL DENTAL KNOWLEDGE
+                                - heading "Other AI Receptionists" [level=3] [ref=e347]
+                            - list [ref=e348]:
+                                - listitem [ref=e349]:
+                                    - img [ref=e351]
+                                    - generic [ref=e353]:
+                                        - strong [ref=e354]: Early-stage or unproven at scale
+                                        - generic [ref=e355]: Limited dental deployments. You're the pilot.
+                                - listitem [ref=e356]:
+                                    - img [ref=e358]
+                                    - generic [ref=e360]:
+                                        - strong [ref=e361]: Drafts a task or texts a booking link
+                                        - generic [ref=e362]: Then hopes the patient clicks it — or your team chases it.
+                                - listitem [ref=e363]:
+                                    - img [ref=e365]
+                                    - generic [ref=e367]:
+                                        - strong [ref=e368]: Answers calls only
+                                        - generic [ref=e369]: Confirmations, recalls, and reactivations stay on your team's plate.
+                                - listitem [ref=e370]:
+                                    - img [ref=e372]
+                                    - generic [ref=e374]:
+                                        - strong [ref=e375]: One patient at a time
+                                        - generic [ref=e376]: Family calls break or get bounced back to your front desk.
+                                - listitem [ref=e377]:
+                                    - img [ref=e379]
+                                    - generic [ref=e381]:
+                                        - strong [ref=e382]: Asks your team to adapt
+                                        - generic [ref=e383]: New scheduling rules, new processes, and dedicated columns to clean up.
+                                - listitem [ref=e384]:
+                                    - img [ref=e386]
+                                    - generic [ref=e388]:
+                                        - strong [ref=e389]: Minimal or no analytics
+                                        - generic [ref=e390]: Call counts at best. No view into which calls became patients.
+                                - listitem [ref=e391]:
+                                    - img [ref=e393]
+                                    - generic [ref=e395]:
+                                        - strong [ref=e396]: Per-minute & call-cap pricing
+                                        - generic [ref=e397]: Surprise overages mid-month when call volume spikes.
+                                - listitem [ref=e398]:
+                                    - img [ref=e400]
+                                    - generic [ref=e402]:
+                                        - strong [ref=e403]: 2+ weeks to onboard
+                                        - generic [ref=e404]: Heavy manual configuration. Long training periods. Even a required phone-system switch.
+                    - link "Book a Free Demo →" [ref=e406] [cursor=pointer]:
+                        - /url: /book-a-demo-v2
+                        - text: Book a Free Demo
+                        - generic [ref=e407]: →
+            - generic [ref=e409]:
+                - generic [ref=e411]:
+                    - generic [ref=e412]: From dentist to dentist
+                    - heading "Built by a dentist, trusted by dentists." [level=2] [ref=e413]:
+                        - text: Built by a dentist,
+                        - emphasis [ref=e414]: trusted by dentists.
+                - generic [ref=e415]:
+                    - img "Peter Gabbay, DDS — founder of Dentina" [ref=e417]
+                    - blockquote [ref=e418]:
+                        - paragraph [ref=e419]:
+                            - generic: “
+                            - text: After COVID, staffing issues were causing us to miss
+                            - emphasis [ref=e420]: 40% of our calls
+                            - text: . Something had to be done. So I created Dentina.Ai.
+                        - paragraph [ref=e421]: I wanted to focus entirely on the unique rhythm and realities of dentistry — that’s what’s made it stand out and lead the market.
+                        - generic [ref=e422]:
+                            - generic [ref=e423]: Peter Gabbay, DDS
+                            - generic [ref=e424]: Dentist · Engineer · 20+ years clinical experience
+                - generic [ref=e425]: Dentists who use her every day
+                - generic [ref=e426]:
+                    - link "Dr. Taj Haynes, Modern Family Dental Care Taj Haynes, DMD Modern Family Dental Care Concord, NC It’s like having an extra person available 24/7. Our staff stress levels have dropped, and we no longer worry about peak-hour call volume." [ref=e427] [cursor=pointer]:
+                        - /url: https://modernfamilydentalcare.com/
+                        - generic [ref=e428]:
+                            - img "Dr. Taj Haynes, Modern Family Dental Care" [ref=e429]
+                            - generic [ref=e430]:
+                                - generic [ref=e431]: Taj Haynes, DMD
+                                - generic [ref=e432]: Modern Family Dental Care
+                                - generic [ref=e433]: Concord, NC
+                        - paragraph [ref=e434]:
+                            - text: It’s like having an extra person available
+                            - emphasis [ref=e435]: 24/7
+                            - text: . Our staff stress levels have dropped, and we no longer worry about peak-hour call volume.
+                    - link "Dr. Alexander Akbari, All Star Pediatric Dentistry Alexander Akbari, DDS All Star Pediatric Dentistry Atlanta, GA Dentina has been instrumental in my startup practice’s growth and success. The system handles routine calls seamlessly, giving our team more time to focus on patient care." [ref=e436] [cursor=pointer]:
+                        - /url: https://allstarpd.com/
+                        - generic [ref=e437]:
+                            - img "Dr. Alexander Akbari, All Star Pediatric Dentistry" [ref=e438]
+                            - generic [ref=e439]:
+                                - generic [ref=e440]: Alexander Akbari, DDS
+                                - generic [ref=e441]: All Star Pediatric Dentistry
+                                - generic [ref=e442]: Atlanta, GA
+                        - paragraph [ref=e443]:
+                            - text: Dentina has been
+                            - emphasis [ref=e444]: instrumental
+                            - text: in my startup practice’s growth and success. The system handles routine calls seamlessly, giving our team more time to focus on patient care.
+                    - link "Dr. Saleh Elahwal, Dental Art Care Saleh Elahwal, DDS Dental Art Care Brooklyn, NY Greater efficiency at the front desk and improved patient satisfaction. Calls requiring immediate attention are easily identified, so our team can address critical concerns promptly." [ref=e445] [cursor=pointer]:
+                        - /url: https://www.dentalartcare.com/
+                        - generic [ref=e446]:
+                            - img "Dr. Saleh Elahwal, Dental Art Care" [ref=e447]
+                            - generic [ref=e448]:
+                                - generic [ref=e449]: Saleh Elahwal, DDS
+                                - generic [ref=e450]: Dental Art Care
+                                - generic [ref=e451]: Brooklyn, NY
+                        - paragraph [ref=e452]:
+                            - text: Greater efficiency at the front desk and improved
+                            - emphasis [ref=e453]: patient satisfaction
+                            - text: . Calls requiring immediate attention are easily identified, so our team can address critical concerns promptly.
+            - generic [ref=e456]:
+                - generic [ref=e457]:
+                    - generic [ref=e458]:
+                        - generic [ref=e459]: Pricing
+                        - heading "Simple, transparent pricing." [level=2] [ref=e460]:
+                            - text: Simple, transparent
+                            - emphasis [ref=e461]: pricing
+                            - text: .
+                    - paragraph [ref=e462]:
+                        - text: Choose an inbound plan. Add outbound campaigns when you want Dentina to
+                        - strong [ref=e463]: proactively call patients and fill chairs
+                        - text: .
+                - generic [ref=e465]:
+                    - button "Monthly" [ref=e466] [cursor=pointer]
+                    - button "Annual Save 20%" [ref=e467] [cursor=pointer]:
+                        - text: Annual
+                        - generic [ref=e468]: Save 20%
+                - generic [ref=e469]:
+                    - generic [ref=e470] [cursor=pointer]:
+                        - heading "Standard Inbound" [level=3] [ref=e471]:
+                            - text: Standard
+                            - generic [ref=e472]: Inbound
+                        - generic [ref=e473]:
+                            - generic [ref=e474]: Starting at
+                            - text: $299 / mo
+                        - generic [ref=e476]:
+                            - text: Billed annually · per location, up to 3 providers
+                            - generic [ref=e477]:
+                                - text: · cancel anytime with refund
+                                - button "Refund policy" [ref=e478]: i
+                        - list [ref=e479]:
+                            - listitem [ref=e480]: 30-day free trial
+                            - listitem [ref=e481]: 24/7 inbound call handling for after-hours and overflow
+                            - listitem [ref=e482]: Appointment scheduling & rescheduling
+                            - listitem [ref=e483]: Unlimited calls & minutes
+                            - listitem [ref=e484]: Books directly into Open Dental, Dentrix, Eaglesoft, Curve, Denticon + more
+                            - listitem [ref=e485]: Call recording & analytics
+                            - listitem [ref=e486]: English + Spanish
+                            - listitem [ref=e487]: Standard screening questions
+                            - listitem [ref=e488]: Up to 6 appointment types
+                            - listitem [ref=e489]: One-way SMS confirmations & follow-up
+                            - listitem [ref=e490]: Custom greeting & name
+                            - listitem [ref=e491]: Support via phone, email, and chat
+                        - link "Book a Free Demo →" [ref=e492]:
+                            - /url: /book-a-demo-v2?plan=standard
+                            - text: Book a Free Demo
+                            - generic [ref=e493]: →
+                    - generic [ref=e494] [cursor=pointer]:
+                        - generic: Most Popular
+                        - heading "Premium Inbound" [level=3] [ref=e495]:
+                            - text: Premium
+                            - generic [ref=e496]: Inbound
+                        - generic [ref=e497]:
+                            - generic [ref=e498]: Starting at
+                            - text: $399 / mo
+                        - generic [ref=e500]:
+                            - text: Billed annually · per location, up to 3 providers
+                            - generic [ref=e501]:
+                                - text: · cancel anytime with refund
+                                - button "Refund policy" [ref=e502]: i
+                        - list [ref=e503]:
+                            - listitem [ref=e504]: 'Everything in Standard, plus:'
+                            - listitem [ref=e505]: AI Web chat with Scheduling
+                            - listitem [ref=e506]: Two-way AI SMS conversations
+                            - listitem [ref=e507]: Warm transfer with AI briefing
+                            - listitem [ref=e508]: Route to live representative upon request
+                            - listitem [ref=e509]: Advanced scheduling
+                            - listitem [ref=e510]: Custom screening questions
+                            - listitem [ref=e511]: Emergency & after-hours call forwarding
+                            - listitem [ref=e512]: Advanced analytics
+                            - listitem [ref=e513]: Up to 10 appointment types
+                            - listitem [ref=e514]: Up to 57 languages
+                        - link "Book a Free Demo →" [ref=e515]:
+                            - /url: /book-a-demo-v2?plan=premium
+                            - text: Book a Free Demo
+                            - generic [ref=e516]: →
+                - generic [ref=e517]:
+                    - generic [ref=e518]:
+                        - generic [ref=e519]: Want Dentina to call patients too?
+                        - heading "Add outbound campaigns for recalls, confirmations, reactivations, and unscheduled-treatment follow-up." [level=3] [ref=e520]:
+                            - text: Add
+                            - emphasis [ref=e521]: outbound campaigns
+                            - text: for recalls, confirmations, reactivations, and unscheduled-treatment follow-up.
+                        - paragraph [ref=e522]: Custom pricing · Bundle discussed on your demo
+                    - link "Book demo for Outbound Calling →" [ref=e524] [cursor=pointer]:
+                        - /url: /book-a-demo-v2?plan=outbound
+                        - text: Book demo for Outbound Calling
+                        - generic [ref=e525]: →
+                - generic [ref=e526]:
+                    - generic [ref=e527]:
+                        - generic [ref=e528]: DSO or 10+ locations?
+                        - paragraph [ref=e529]: Multi-location dashboard · RBAC · audit logs · API/webhooks · dedicated success manager · cross-office routing.
+                    - link "Book a DSO Demo →" [ref=e531] [cursor=pointer]:
+                        - /url: /book-a-demo-v2?plan=dso
+                        - text: Book a DSO Demo
+                        - generic [ref=e532]: →
+            - generic [ref=e535]:
+                - heading "Join 1,000+ dentists already using Dentina." [level=2] [ref=e536]:
+                    - text: Join
+                    - emphasis [ref=e537]: 1,000+
+                    - text: dentists
+                    - text: already using Dentina.
+                - paragraph [ref=e538]:
+                    - text: Book a demo to start your 30-day free trial.
+                    - text: Built by a dentist. Proven by 1,000+ dentists.
+                - generic [ref=e539]:
+                    - link "Book a Free Demo →" [ref=e540] [cursor=pointer]:
+                        - /url: /book-a-demo-v2
+                        - text: Book a Free Demo
+                        - generic [ref=e541]: →
+                    - 'link "Or try the AI live: (707) 336-8462" [ref=e542] [cursor=pointer]':
+                        - /url: tel:+17073368462
+                        - text: 'Or try the AI live:'
+                        - strong [ref=e544]: (707) 336-8462
+                - generic [ref=e545]:
+                    - generic [ref=e546]:
+                        - generic [ref=e547]: ●
+                        - text: HIPAA compliant
+                    - generic [ref=e548]:
+                        - generic [ref=e549]: ●
+                        - text: 2M+ calls handled
+                    - generic [ref=e550]:
+                        - generic [ref=e551]: ●
+                        - text: 30-day free trial
+            - generic [ref=e553]:
+                - generic [ref=e555]:
+                    - generic [ref=e556]: FAQ
+                    - heading "Frequently asked questions." [level=2] [ref=e557]:
+                        - text: Frequently asked
+                        - emphasis [ref=e558]: questions
+                        - text: .
+                - generic [ref=e559]:
+                    - group [ref=e560]:
+                        - generic "How is Dentina different from a human staff member?" [ref=e561] [cursor=pointer]:
+                            - text: How is Dentina different from a human staff member?
+                            - img [ref=e563]
+                        - generic [ref=e565]:
+                            - text: She never misses a call, never has a bad day, works
+                            - strong [ref=e566]: 24/7
+                            - text: ', and handles'
+                            - strong [ref=e567]: unlimited concurrent calls
+                            - text: '— no hold music, no voicemail. Unlike a human, she reads your full PMS in real time, so every booking respects your provider rules, operatory blocks, and appointment-type constraints. She doesn’t replace your team — she covers what they can’t: lunch breaks, after-hours, and peak-volume spikes.'
+                    - group [ref=e568]:
+                        - generic "What telephone providers does Dentina integrate with?" [ref=e569] [cursor=pointer]:
+                            - text: What telephone providers does Dentina integrate with?
+                            - img [ref=e571]
+                    - group [ref=e573]:
+                        - generic "What Practice Management Systems does Dentina integrate with?" [ref=e574] [cursor=pointer]:
+                            - text: What Practice Management Systems does Dentina integrate with?
+                            - img [ref=e576]
+                    - group [ref=e578]:
+                        - generic "Can I have Dentina answer all of my calls?" [ref=e579] [cursor=pointer]:
+                            - text: Can I have Dentina answer all of my calls?
+                            - img [ref=e581]
+                    - group [ref=e583]:
+                        - generic "How can Dentina help my practice?" [ref=e584] [cursor=pointer]:
+                            - text: How can Dentina help my practice?
+                            - img [ref=e586]
+                    - group [ref=e588]:
+                        - generic "How is Dentina different from a virtual receptionist?" [ref=e589] [cursor=pointer]:
+                            - text: How is Dentina different from a virtual receptionist?
+                            - img [ref=e591]
+                    - group [ref=e593]:
+                        - generic "Can Dentina transfer calls to my staff?" [ref=e594] [cursor=pointer]:
+                            - text: Can Dentina transfer calls to my staff?
+                            - img [ref=e596]
+                - group [ref=e598]:
+                    - generic "Show 3 more questions" [ref=e599] [cursor=pointer]:
+                        - generic [ref=e600]: Show 3 more questions
+                        - generic [ref=e601]: ▾
+        - contentinfo [ref=e603]:
+            - generic [ref=e604]:
+                - generic [ref=e605]:
+                    - generic [ref=e606]:
+                        - link "Dentina.Ai home" [ref=e607] [cursor=pointer]:
+                            - /url: /
+                            - img "Dentina.Ai" [ref=e608]
+                        - paragraph [ref=e609]: The AI dental receptionist built by a dentist.
+                        - generic [ref=e610]:
+                            - link "LinkedIn" [ref=e611] [cursor=pointer]:
+                                - /url: https://www.linkedin.com/company/dentina-ai
+                                - img [ref=e612]
+                            - link "Facebook" [ref=e614] [cursor=pointer]:
+                                - /url: https://www.facebook.com/profile.php?id=61560995627201
+                                - img [ref=e615]
+                    - generic [ref=e617]:
+                        - heading "Product" [level=3] [ref=e618]
+                        - link "Features" [ref=e619] [cursor=pointer]:
+                            - /url: '#features'
+                        - link "Pricing" [ref=e620] [cursor=pointer]:
+                            - /url: '#pricing'
+                        - link "Integrations" [ref=e621] [cursor=pointer]:
+                            - /url: '#integrations'
+                        - link "Book a demo" [ref=e622] [cursor=pointer]:
+                            - /url: /book-a-demo-v2
+                        - link "Articles" [ref=e623] [cursor=pointer]:
+                            - /url: https://dentina.ai/articles/
+                    - generic [ref=e624]:
+                        - heading "Contact" [level=3] [ref=e625]
+                        - link "Sales · (424) 234-2885" [ref=e626] [cursor=pointer]:
+                            - /url: tel:+14242342885
+                        - link "hello@dentina.ai" [ref=e627] [cursor=pointer]:
+                            - /url: mailto:hello@dentina.ai
+                        - link "Support · (323) 283-8368" [ref=e628] [cursor=pointer]:
+                            - /url: tel:+13232838368
+                        - link "support@dentina.ai" [ref=e629] [cursor=pointer]:
+                            - /url: mailto:support@dentina.ai
+                    - generic [ref=e630]:
+                        - heading "Legal" [level=3] [ref=e631]
+                        - link "Privacy" [ref=e632] [cursor=pointer]:
+                            - /url: https://dentina.ai/articles/privacy-policy/
+                        - link "Terms" [ref=e633] [cursor=pointer]:
+                            - /url: https://dentina.ai/articles/terms-of-use/
+                - generic [ref=e634]:
+                    - generic [ref=e635]: © 2026 Dentina.Ai · All rights reserved
+                    - generic [ref=e636]: Made in Los Angeles · Built by a dentist
+    - region "Notifications Alt+T"

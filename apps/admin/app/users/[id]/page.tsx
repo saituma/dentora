@@ -14,19 +14,208 @@ import {
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import type React from "react";
+import { toast } from "sonner";
+import { ConfirmAction } from "@/components/confirm-action";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  type AdminUserDetail,
   type TenantSummary,
+  useDeleteUserMutation,
   useGetAuditLogQuery,
   useGetUserQuery,
+  useImpersonateUserMutation,
+  useResetUserMfaMutation,
+  useRevokeUserSessionsMutation,
+  useSendPasswordResetMutation,
+  useUpdateUserRoleMutation,
+  useVerifyUserEmailMutation,
 } from "@/features/admin/adminApi";
+
+const TENANT_ROLES = ["owner", "admin", "manager", "viewer"] as const;
+
+function UserActions({ user }: { user: AdminUserDetail }) {
+  const router = useRouter();
+  const tenant = user.tenant;
+  const [updateRole, { isLoading: roleBusy }] = useUpdateUserRoleMutation();
+  const [resetMfa] = useResetUserMfaMutation();
+  const [verifyEmail] = useVerifyUserEmailMutation();
+  const [revokeSessions] = useRevokeUserSessionsMutation();
+  const [sendReset] = useSendPasswordResetMutation();
+  const [impersonate] = useImpersonateUserMutation();
+  const [deleteUser] = useDeleteUserMutation();
+
+  const changeRole = async (role: string) => {
+    if (!tenant || role === tenant.tenantRole) return;
+    try {
+      await updateRole({ userId: user.id, tenantId: tenant.id, role }).unwrap();
+      toast.success(`Role changed to ${role}`);
+    } catch {
+      toast.error("Failed to change role");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm font-semibold">Actions</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {tenant && (
+          <div className="space-y-1">
+            <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+              Clinic role
+            </div>
+            <Select
+              value={tenant.tenantRole}
+              onValueChange={changeRole}
+              disabled={roleBusy}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TENANT_ROLES.map((r) => (
+                  <SelectItem key={r} value={r} className="capitalize">
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {!user.emailVerified && (
+          <ConfirmAction
+            trigger={
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                Verify email
+              </Button>
+            }
+            title="Mark email as verified?"
+            description="Manually verifies this user's email without the OTP flow."
+            confirmLabel="Verify"
+            successMessage="Email verified"
+            onConfirm={async () => {
+              await verifyEmail(user.id).unwrap();
+            }}
+          />
+        )}
+
+        {user.mfaEnabled && (
+          <ConfirmAction
+            trigger={
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                Reset MFA
+              </Button>
+            }
+            title="Reset this user's MFA?"
+            description="Clears their authenticator and recovery codes so they can re-enrol. Use when staff are locked out."
+            confirmLabel="Reset MFA"
+            successMessage="MFA reset"
+            onConfirm={async () => {
+              await resetMfa(user.id).unwrap();
+            }}
+          />
+        )}
+
+        <ConfirmAction
+          trigger={
+            <Button variant="outline" size="sm" className="w-full text-xs">
+              Send password reset
+            </Button>
+          }
+          title="Send a password-reset email?"
+          description={`Emails a reset link to ${user.email} (valid 1 hour).`}
+          confirmLabel="Send"
+          successMessage="Reset email sent"
+          onConfirm={async () => {
+            await sendReset(user.id).unwrap();
+          }}
+        />
+
+        <ConfirmAction
+          trigger={
+            <Button variant="outline" size="sm" className="w-full text-xs">
+              Force logout
+            </Button>
+          }
+          title="Revoke all sessions?"
+          description="Logs this user out everywhere by deleting their refresh sessions. They'll need to log in again."
+          confirmLabel="Force logout"
+          successMessage="Sessions revoked"
+          onConfirm={async () => {
+            await revokeSessions(user.id).unwrap();
+          }}
+        />
+
+        {tenant && (
+          <ConfirmAction
+            trigger={
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                Impersonate
+              </Button>
+            }
+            title="Impersonate this user?"
+            description="Generates a short-lived token to view the app as this clinic user (you'll see their patient data). This is logged to the audit trail."
+            confirmLabel="Generate token"
+            onConfirm={async () => {
+              const res = await impersonate(user.id).unwrap();
+              await navigator.clipboard?.writeText(res.token).catch(() => {});
+              toast.success("Impersonation token copied to clipboard", {
+                description:
+                  "Short-lived. Use it in the client app to view as this user.",
+              });
+            }}
+          />
+        )}
+
+        <ConfirmAction
+          trigger={
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs text-rose-500 border-rose-500/30 hover:bg-rose-500/5"
+            >
+              Delete account
+            </Button>
+          }
+          title="Permanently delete this user?"
+          description={
+            <>
+              This GDPR-erases <span className="font-medium">{user.email}</span>{" "}
+              — sessions, logins, API keys and memberships are removed. This{" "}
+              <span className="font-semibold text-foreground">
+                cannot be undone.
+              </span>
+            </>
+          }
+          confirmLabel="Delete account"
+          destructive
+          confirmText={user.email}
+          successMessage="User deleted"
+          onConfirm={async () => {
+            await deleteUser(user.id).unwrap();
+            router.push("/users");
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 function timeAgo(dateStr?: string | null) {
   if (!dateStr) return "—";
@@ -390,24 +579,12 @@ export default function UserDetailPage() {
             </div>
             {userData && <StatusBadge value={userData.role} />}
           </div>
-          <div className="flex items-center gap-2">
-            {userData && !userData.tenant && (
-              <Button
-                variant="destructive"
-                size="sm"
-                className="text-xs"
-                disabled
-              >
-                Remove User
-              </Button>
-            )}
-            <Link href="/users">
-              <Button variant="ghost" size="sm" className="gap-1.5">
-                <ArrowLeft size={13} />
-                Back
-              </Button>
-            </Link>
-          </div>
+          <Link href="/users">
+            <Button variant="ghost" size="sm" className="gap-1.5">
+              <ArrowLeft size={13} />
+              Back
+            </Button>
+          </Link>
         </div>
 
         {isLoading ? (
@@ -544,6 +721,9 @@ export default function UserDetailPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Actions */}
+            <UserActions user={userData} />
 
             {/* Clinic section (if in a clinic) */}
             {userData.tenant && <ClinicSection tenant={userData.tenant} />}

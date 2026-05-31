@@ -162,3 +162,19 @@ export async function getCircuitBreakerStatusShared(): Promise<
 
   return out;
 }
+
+/**
+ * Force a breaker back to closed: clears this dyno's in-memory state and the
+ * shared Redis snapshot. Other dynos re-converge on their next transition.
+ * Returns true if a local breaker existed. Admin/ops use only.
+ */
+export async function resetCircuitBreaker(name: string): Promise<boolean> {
+  const existed = breakers.delete(name);
+  try {
+    await getRedis().del(`global:${SHARED_DOMAIN}:${name}`);
+  } catch {
+    /* Redis unavailable — local reset still applied */
+  }
+  logger.warn({ breaker: name }, 'Circuit breaker manually reset');
+  return existed;
+}

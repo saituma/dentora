@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import * as authService from './auth.service.js';
 import * as mfaService from './mfa.service.js';
 import { authenticateJwt, validate } from '../../middleware/index.js';
-import { authRateLimiter } from '../../middleware/rateLimit.js';
+import { authRateLimiter, loginRateLimiter } from '../../middleware/rateLimit.js';
 import { z } from 'zod';
 import { env } from '../../config/env.js';
 import { AuthenticationError } from '../../lib/errors.js';
@@ -76,7 +76,7 @@ function getSafeOauthRedirectBase(returnTo?: string | null): string {
 
 authRouter.post(
   '/email/send-otp',
-  authRateLimiter,
+  loginRateLimiter,
   validate({
     body: z.object({
       email: z.string().email(),
@@ -185,7 +185,7 @@ authRouter.post(
 
 authRouter.post(
   '/phone/send-otp',
-  authRateLimiter,
+  loginRateLimiter,
   validate({
     body: z.object({
       phoneNumber: z.string().regex(/^\+[1-9]\d{1,14}$/),
@@ -224,7 +224,7 @@ authRouter.post(
 
 authRouter.post(
   '/register',
-  authRateLimiter,
+  loginRateLimiter,
   validate({
     body: z.object({
       email: z.string().email(),
@@ -245,7 +245,7 @@ authRouter.post(
 
 authRouter.post(
   '/login',
-  authRateLimiter,
+  loginRateLimiter,
   validate({
     body: z.object({
       email: z.string().email(),
@@ -307,7 +307,7 @@ authRouter.post(
 
 authRouter.post(
   '/forgot-password',
-  authRateLimiter,
+  loginRateLimiter,
   validate({
     body: z.object({
       email: z.string().email(),

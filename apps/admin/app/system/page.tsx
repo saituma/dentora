@@ -1,7 +1,9 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Activity, RefreshCw } from "lucide-react";
+import { Activity, BellOff, BellRing, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { ConfirmAction } from "@/components/confirm-action";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { DataTable } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
@@ -13,9 +15,14 @@ import {
   type CircuitBreakerState,
   type ProviderPerformance,
   type QueueDepth,
+  useCleanQueueMutation,
+  useGetAlertsMuteQuery,
   useGetOpsBreakersQuery,
   useGetOpsProvidersQuery,
   useGetOpsQueuesQuery,
+  useMuteAlertsMutation,
+  useResetBreakerMutation,
+  useRetryQueueMutation,
 } from "@/features/admin/adminApi";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +40,7 @@ function BreakersTab() {
     undefined,
     { pollingInterval: POLL },
   );
+  const [resetBreaker] = useResetBreakerMutation();
   const entries = Object.entries(data?.breakers ?? {});
 
   return (
@@ -92,6 +100,24 @@ function BreakersTab() {
                     {b.dyno}
                   </p>
                 )}
+                <ConfirmAction
+                  trigger={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 h-7 w-full text-xs"
+                    >
+                      Reset breaker
+                    </Button>
+                  }
+                  title={`Reset "${name}"?`}
+                  description="Forces the breaker back to closed across the fleet. Calls will resume immediately — only do this if you believe the provider has recovered."
+                  confirmLabel="Reset"
+                  successMessage="Breaker reset"
+                  onConfirm={async () => {
+                    await resetBreaker(name).unwrap();
+                  }}
+                />
               </CardContent>
             </Card>
           ))}
@@ -166,7 +192,61 @@ const queueColumns: ColumnDef<QueueDepth>[] = [
       ),
     size: 110,
   },
+  {
+    id: "actions",
+    enableHiding: false,
+    size: 160,
+    cell: ({ row }) => <QueueActions queue={row.original} />,
+  },
 ];
+
+function QueueActions({ queue }: { queue: QueueDepth }) {
+  const [retry] = useRetryQueueMutation();
+  const [clean] = useCleanQueueMutation();
+  return (
+    <div className="flex gap-1.5">
+      <ConfirmAction
+        trigger={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={queue.failed === 0}
+          >
+            Retry
+          </Button>
+        }
+        title={`Retry failed jobs in "${queue.name}"?`}
+        description={`Re-enqueues up to 100 failed jobs. They will run again — make sure the underlying cause is fixed, since retrying can repeat side effects.`}
+        confirmLabel="Retry failed"
+        successMessage="Failed jobs re-enqueued"
+        onConfirm={async () => {
+          await retry({ name: queue.name }).unwrap();
+        }}
+      />
+      <ConfirmAction
+        trigger={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-rose-500"
+            disabled={queue.failed === 0}
+          >
+            Clean
+          </Button>
+        }
+        title={`Clear failed jobs in "${queue.name}"?`}
+        description="Permanently removes failed jobs from this queue. They cannot be retried afterwards."
+        confirmLabel="Clear failed"
+        destructive
+        successMessage="Failed jobs cleared"
+        onConfirm={async () => {
+          await clean({ name: queue.name, status: "failed" }).unwrap();
+        }}
+      />
+    </div>
+  );
+}
 
 function QueuesTab() {
   const { data, isLoading, isFetching } = useGetOpsQueuesQuery(undefined, {
@@ -261,19 +341,56 @@ function ProvidersTab() {
   );
 }
 
+function MuteControl() {
+  const { data } = useGetAlertsMuteQuery(undefined, { pollingInterval: POLL });
+  const [mute, { isLoading }] = useMuteAlertsMutation();
+  const muted = data?.muted ?? false;
+
+  const toggle = async () => {
+    try {
+      const res = await mute({ minutes: muted ? 0 : 60 }).unwrap();
+      toast.success(res.message);
+    } catch {
+      toast.error("Failed to update alert mute");
+    }
+  };
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className={cn("gap-1.5", muted && "text-amber-500 border-amber-500/30")}
+      onClick={toggle}
+      disabled={isLoading}
+    >
+      {muted ? (
+        <BellOff className="size-3.5" />
+      ) : (
+        <BellRing className="size-3.5" />
+      )}
+      {muted ? "Alerts muted" : "Mute alerts 60m"}
+    </Button>
+  );
+}
+
 export default function SystemPage() {
   return (
     <DashboardShell>
       <div className="space-y-6 animate-fade-up">
-        <div className="flex items-center gap-2">
-          <Activity className="size-5 text-primary" />
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">System Health</h1>
-            <p className="text-sm text-muted-foreground">
-              Circuit breakers, job queues, and provider performance —
-              auto-refreshing.
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Activity className="size-5 text-primary" />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">
+                System Health
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Circuit breakers, job queues, and provider performance —
+                auto-refreshing.
+              </p>
+            </div>
           </div>
+          <MuteControl />
         </div>
 
         <Tabs defaultValue="breakers">

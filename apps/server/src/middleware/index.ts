@@ -16,6 +16,7 @@ export {
   rateLimiter as createRateLimiter,
   apiRateLimiter,
   authRateLimiter,
+  loginRateLimiter,
   webhookRateLimiter,
   configWriteRateLimiter,
   analyticsRateLimiter,

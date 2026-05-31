@@ -1,0 +1,573 @@
+- generic [active] [ref=e1]:
+    - link "Skip to content" [ref=e2] [cursor=pointer]:
+        - /url: '#content'
+    - generic [ref=e3]:
+        - generic [ref=e6]:
+            - link [ref=e9] [cursor=pointer]:
+                - /url: https://www.getviva.ai
+            - navigation "Menu" [ref=e12]:
+                - list [ref=e13]:
+                    - listitem [ref=e14]:
+                        - link "Pricing" [ref=e15] [cursor=pointer]:
+                            - /url: /#pricing
+                    - listitem [ref=e16]:
+                        - link "Features" [ref=e17] [cursor=pointer]:
+                            - /url: /#features
+                    - listitem [ref=e18]:
+                        - link "FAQ" [ref=e19] [cursor=pointer]:
+                            - /url: /#faq
+                    - listitem [ref=e20]:
+                        - link "Blog" [ref=e21] [cursor=pointer]:
+                            - /url: https://www.getviva.ai/blog/
+                    - listitem [ref=e22]:
+                        - link "DSO" [ref=e23] [cursor=pointer]:
+                            - /url: /dso
+            - generic [ref=e24]:
+                - link "Login" [ref=e26] [cursor=pointer]:
+                    - /url: https://app.getviva.ai/
+                    - generic [ref=e28]: Login
+                - link "Sign Up" [ref=e30] [cursor=pointer]:
+                    - /url: https://app.getviva.ai/signup
+                    - generic [ref=e32]: Sign Up
+        - generic [ref=e38]:
+            - generic [ref=e43]:
+                - generic [ref=e44]:
+                    - generic [ref=e45]: Trusted by Dental Practices Across The US
+                    - heading "AI Dental Receptionist & Office Automation" [level=1] [ref=e47]
+                    - heading "Your Front Desk Can't Keep Up. Your AI Can." [level=2] [ref=e48]:
+                        - text: Your Front Desk Can't Keep Up.
+                        - text: Your AI Can.
+                    - paragraph [ref=e49]:
+                        - text: The all-in-one platform that answers calls, responds to texts, fills your schedule, collects payments, and manages your front office —
+                        - strong [ref=e50]: 24/7, in over 100 languages
+                        - text: .
+                    - generic [ref=e51]:
+                        - link "Book Automation Demo " [ref=e53] [cursor=pointer]:
+                            - /url: https://app.getviva.ai/signup
+                            - generic [ref=e54]: Book Automation Demo
+                            - generic [ref=e55]: 
+                        - generic [ref=e56]:
+                            - link " (866)944-8482" [ref=e57] [cursor=pointer]:
+                                - /url: tel:8669448482
+                                - generic [ref=e58]: 
+                                - generic [ref=e59]: (866)944-8482
+                            - generic [ref=e60]: Call or Text the AI
+                    - paragraph [ref=e61]:
+                        - generic [ref=e62]:
+                            - generic [ref=e63]: 
+                            - text: Integrates with Your PMS
+                        - generic [ref=e64]:
+                            - generic [ref=e65]: 
+                            - text: HIPAA Compliant
+                        - generic [ref=e66]:
+                            - generic [ref=e67]: 
+                            - text: SOC 2 Type II
+                        - generic [ref=e68]:
+                            - generic [ref=e69]: 
+                            - text: 30-Day Risk-Free Trial
+                - generic [ref=e73]:
+                    - generic [ref=e74]:
+                        - generic [ref=e75]:
+                            - generic [ref=e77]: 
+                            - generic [ref=e78]:
+                                - generic [ref=e79]: Viva AI
+                                - generic [ref=e80]: Live conversation
+                        - generic [ref=e82]: 0:42
+                    - generic [ref=e83]:
+                        - generic [ref=e84]:
+                            - generic [ref=e86]: 
+                            - generic [ref=e87]: Hi, I need to reschedule my cleaning appointment. I think it's next Tuesday?
+                        - generic [ref=e88]:
+                            - generic [ref=e89]: I found your appointment, Maria! You have a cleaning on Tuesday, April 8th at 2:30 PM with Dr. Chen. When would you like to move it to?
+                            - generic [ref=e91]: 
+                        - generic [ref=e92]:
+                            - generic [ref=e94]: 
+                            - generic [ref=e95]: Hay algo el jueves por la tarde?
+                        - generic [ref=e96]:
+                            - generic [ref=e97]: Claro, Maria! Tenemos disponibilidad el jueves 10 de abril a las 3:00 PM con la Dra. Chen. Le reservo esa cita?
+                            - generic [ref=e99]: 
+                    - generic [ref=e100]:
+                        - generic [ref=e101]:
+                            - generic [ref=e102]: 
+                            - text: 'Auto-detected: English → Spanish'
+                        - generic [ref=e103]:
+                            - generic [ref=e104]: 
+                            - text: Booked in PMS
+            - generic [ref=e106]:
+                - paragraph [ref=e107]: Trusted by top-tier dental practices
+                - generic [ref=e108]:
+                    - generic [ref=e110]: Soothing Dental
+                    - generic [ref=e112]: Kalorama Dental Arts
+                    - generic [ref=e113]:
+                        - generic [ref=e114]: Dental Arts
+                        - generic [ref=e115]: of Irvine
+                    - generic [ref=e116]:
+                        - generic [ref=e117]: Lé
+                        - generic [ref=e118]: Dental Care
+            - generic [ref=e123]:
+                - generic [ref=e124]:
+                    - text: Real Results from Real Practices
+                    - heading "What happens in the first 30 days" [level=2] [ref=e125]
+                - generic [ref=e126]:
+                    - generic [ref=e127]:
+                        - generic [ref=e128]: $30K+
+                        - generic [ref=e129]: Production Generated
+                    - generic [ref=e130]:
+                        - generic [ref=e131]: '0'
+                        - generic [ref=e132]: Missed Calls
+                    - generic [ref=e133]:
+                        - generic [ref=e134]: 90%+
+                        - generic [ref=e135]: Patient Satisfaction
+                    - generic [ref=e136]:
+                        - generic [ref=e137]: 30hrs
+                        - generic [ref=e138]: Staff Time Saved/Month
+                - paragraph [ref=e139]:
+                    - text: Based on a 30-day case study at a single-location general practice in San Francisco.
+                    - link "Read the full case study →" [ref=e140] [cursor=pointer]:
+                        - /url: https://www.getviva.ai/how-soothing-dental-generated-30877-in-production-in-30-days-with-vivas-ai-dental-receptionist-case-study/
+            - generic [ref=e142]:
+                - generic [ref=e143]:
+                    - text: The AI That Patients Love
+                    - heading "Not a phone tree. A real conversation." [level=2] [ref=e144]
+                    - paragraph [ref=e145]: Viva AI speaks naturally with human-like pauses, understands emotions and context, switches languages mid-sentence, and books directly into your PMS. Most patients never realize they're talking to AI.
+                - generic [ref=e146]:
+                    - generic [ref=e147]:
+                        - generic [ref=e149]: 
+                        - heading "Human-Like Voice" [level=3] [ref=e150]
+                        - paragraph [ref=e151]: Natural cadence with pauses, filler words, and empathy. Responds in under a second — no awkward robotic delays. Patients feel heard, not handled.
+                    - generic [ref=e152]:
+                        - generic [ref=e154]: 
+                        - heading "100+ Languages" [level=3] [ref=e155]
+                        - paragraph [ref=e156]: Auto-detects the patient's language and switches instantly, even mid-conversation. All follow-ups, reminders, and forms are sent in their preferred language.
+                    - generic [ref=e157]:
+                        - generic [ref=e159]: 
+                        - heading "Understands Emotion" [level=3] [ref=e160]
+                        - paragraph [ref=e161]: Detects frustration, urgency, and anxiety. A patient in pain gets fast-tracked. A nervous caller gets reassurance. An angry caller gets transferred to staff.
+                    - generic [ref=e162]:
+                        - generic [ref=e164]: 
+                        - heading "Inbound Calls 24/7" [level=3] [ref=e165]
+                        - paragraph [ref=e166]: Answers unlimited simultaneous calls. Handles scheduling, rescheduling, cancellations, and general questions. Transfers to staff when needed.
+                    - generic [ref=e167]:
+                        - generic [ref=e169]: 
+                        - heading "Text, Email & Webchat" [level=3] [ref=e170]
+                        - paragraph [ref=e171]: Same AI across every written channel. Responds to patient texts at 11pm, answers website chat questions, and drafts email replies automatically.
+                    - generic [ref=e172]:
+                        - generic [ref=e174]: 
+                        - heading "Direct PMS Write-Back" [level=3] [ref=e175]
+                        - paragraph [ref=e176]: Appointments appear in your schedule instantly. New patient charts are created. Complete integration with all major dental PMS platforms — not partial or limited.
+            - generic [ref=e181]:
+                - generic [ref=e182]:
+                    - generic [ref=e184]: 
+                    - generic [ref=e185]: 11PM
+                - generic [ref=e186]:
+                    - heading "A patient texts \"can't make it tomorrow\" at 11pm." [level=3] [ref=e187]
+                    - paragraph [ref=e188]: By the time your staff arrives Monday morning, the AI has already rescheduled them into an open slot, sent a confirmation, and updated your PMS. No missed revenue. No phone tag.
+            - generic [ref=e191]:
+                - generic [ref=e192]:
+                    - text: Outbound AI Calls
+                    - heading "Your AI doesn't just answer. It calls patients for you." [level=2] [ref=e193]
+                    - paragraph [ref=e194]: Viva proactively calls patients to fill your schedule, confirm appointments, and reactivate patients who haven't been in for months. No scripts. No call center. Just natural conversations that sound like your best receptionist.
+                    - generic [ref=e195]:
+                        - generic [ref=e196]:
+                            - generic [ref=e198]: 
+                            - generic [ref=e199]:
+                                - heading "Recall & Reactivation" [level=4] [ref=e200]
+                                - paragraph [ref=e201]: Automatically calls patients overdue for cleanings, follow-ups, or unscheduled treatment. Books directly into the PMS.
+                        - generic [ref=e202]:
+                            - generic [ref=e204]: 
+                            - generic [ref=e205]:
+                                - heading "Appointment Confirmations" [level=4] [ref=e206]
+                                - paragraph [ref=e207]: Calls, texts, and emails patients on a customizable schedule. If they text "can't make it" at midnight, the AI reschedules them automatically.
+                        - generic [ref=e208]:
+                            - generic [ref=e210]: 
+                            - generic [ref=e211]:
+                                - heading "Office Optimizer Campaigns" [level=4] [ref=e212]
+                                - paragraph [ref=e213]: 'Ask: "Who has an incomplete root canal?" Get a list. Say: "Go schedule all of them." The AI calls every one and books them.'
+                - generic [ref=e215]:
+                    - generic [ref=e216]:
+                        - generic [ref=e217]:
+                            - generic [ref=e218]: 
+                            - generic [ref=e219]: Office Optimizer
+                        - generic [ref=e220]: 3 results
+                    - generic [ref=e221]:
+                        - generic [ref=e222]:
+                            - paragraph [ref=e223]: 'You asked:'
+                            - paragraph [ref=e224]: '"Show me patients overdue for a cleaning by more than 6 months"'
+                        - generic [ref=e225]:
+                            - paragraph [ref=e226]: 'Found 47 patients. Top 3:'
+                            - generic [ref=e227]:
+                                - generic [ref=e228]:
+                                    - generic [ref=e229]: Sarah Johnson
+                                    - generic [ref=e230]: 'Last visit: 9 months ago'
+                                - generic [ref=e231]:
+                                    - generic [ref=e232]: Michael Torres
+                                    - generic [ref=e233]: 'Last visit: 11 months ago'
+                                - generic [ref=e234]:
+                                    - generic [ref=e235]: Lisa Chen
+                                    - generic [ref=e236]: 'Last visit: 14 months ago'
+                        - generic [ref=e237]:
+                            - generic [ref=e238]:
+                                - generic [ref=e239]: 
+                                - text: '"Go schedule all 47"'
+                            - generic [ref=e240]: Campaign launched
+            - generic [ref=e242]:
+                - generic [ref=e243]:
+                    - text: Complete Platform
+                    - heading "Everything your front office needs. One platform." [level=2] [ref=e244]
+                    - paragraph [ref=e245]: Replace 3-4 separate tools with one platform that handles AI, phones, forms, payments, and analytics.
+                - generic [ref=e246]:
+                    - generic [ref=e247]:
+                        - generic [ref=e250]: 
+                        - heading "Full Phone Service" [level=3] [ref=e251]
+                        - paragraph [ref=e252]: Viva becomes your phone company. Keep your number, add extensions, make outbound calls showing the office number. Works even when your internet goes down.
+                    - generic [ref=e253]:
+                        - generic [ref=e256]: 
+                        - heading "Payment Collection" [level=3] [ref=e257]
+                        - paragraph [ref=e258]: Send payment links via text, set up installment plans, or collect payments securely over the phone. Integrated with Stripe for fast, secure processing.
+                    - generic [ref=e259]:
+                        - generic [ref=e262]: 
+                        - heading "Digital Forms" [level=3] [ref=e263]
+                        - paragraph [ref=e264]: Consent forms, health history, and intake forms sent automatically before appointments. Signed and uploaded directly to the patient's PMS chart. Unlimited forms.
+                    - generic [ref=e265]:
+                        - generic [ref=e268]: 
+                        - heading "Appointment Reminders" [level=3] [ref=e269]
+                        - paragraph [ref=e270]: Automated calls, texts, and emails on a customizable schedule. If a patient cancels via text at midnight, the AI reschedules them instantly.
+                    - generic [ref=e271]:
+                        - generic [ref=e274]: 
+                        - heading "Patient Portal" [level=3] [ref=e275]
+                        - paragraph [ref=e276]: Patients view appointments, complete forms, see outstanding treatments, and manage communication preferences. No app download required.
+                    - generic [ref=e277]:
+                        - generic [ref=e280]: 
+                        - heading "Dashboard & Analytics" [level=3] [ref=e281]
+                        - paragraph [ref=e282]: See every call, text, and booking. Track AI performance, patient satisfaction scores, production, and collection data. Listen to recordings and read transcripts.
+            - generic [ref=e284]:
+                - generic [ref=e285]:
+                    - text: Explore Each Capability
+                    - heading "One platform. Six problems solved." [level=2] [ref=e286]
+                    - paragraph [ref=e287]: Dive deeper into how Viva handles each piece of your front office operation.
+                - generic [ref=e288]:
+                    - link " Dental Answering Service 24/7 AI call handling that books appointments, answers questions, and routes emergencies — at a fraction of traditional answering service costs. Learn more " [ref=e289] [cursor=pointer]:
+                        - /url: /dental-answering-service/
+                        - generic [ref=e291]: 
+                        - heading "Dental Answering Service" [level=3] [ref=e292]
+                        - paragraph [ref=e293]: 24/7 AI call handling that books appointments, answers questions, and routes emergencies — at a fraction of traditional answering service costs.
+                        - generic [ref=e294]:
+                            - text: Learn more
+                            - generic [ref=e295]: 
+                    - link " Scheduling Software Automated appointment booking across phone, text, and web with real-time PMS sync, waitlist management, and no-show reduction. Learn more " [ref=e296] [cursor=pointer]:
+                        - /url: /dental-scheduling-software/
+                        - generic [ref=e298]: 
+                        - heading "Scheduling Software" [level=3] [ref=e299]
+                        - paragraph [ref=e300]: Automated appointment booking across phone, text, and web with real-time PMS sync, waitlist management, and no-show reduction.
+                        - generic [ref=e301]:
+                            - text: Learn more
+                            - generic [ref=e302]: 
+                    - link " Recall & Reactivation Outbound AI campaigns that call, text, and email overdue patients — then book them back onto your schedule automatically. Learn more " [ref=e303] [cursor=pointer]:
+                        - /url: /dental-recall-system/
+                        - generic [ref=e305]: 
+                        - heading "Recall & Reactivation" [level=3] [ref=e306]
+                        - paragraph [ref=e307]: Outbound AI campaigns that call, text, and email overdue patients — then book them back onto your schedule automatically.
+                        - generic [ref=e308]:
+                            - text: Learn more
+                            - generic [ref=e309]: 
+                    - link " Patient Communication Unified phone, text, email, and webchat in one inbox — with multilingual AI that handles 100+ languages automatically. Learn more " [ref=e310] [cursor=pointer]:
+                        - /url: /patient-communication-dental/
+                        - generic [ref=e312]: 
+                        - heading "Patient Communication" [level=3] [ref=e313]
+                        - paragraph [ref=e314]: Unified phone, text, email, and webchat in one inbox — with multilingual AI that handles 100+ languages automatically.
+                        - generic [ref=e315]:
+                            - text: Learn more
+                            - generic [ref=e316]: 
+                    - link " Payment Automation Text-to-pay, automated billing reminders, insurance verification, and payment plans that shrink your AR on autopilot. Learn more " [ref=e317] [cursor=pointer]:
+                        - /url: /dental-payment-automation/
+                        - generic [ref=e319]: 
+                        - heading "Payment Automation" [level=3] [ref=e320]
+                        - paragraph [ref=e321]: Text-to-pay, automated billing reminders, insurance verification, and payment plans that shrink your AR on autopilot.
+                        - generic [ref=e322]:
+                            - text: Learn more
+                            - generic [ref=e323]: 
+                    - link " Front Desk Software Your complete virtual front office — all tasks automated, all channels covered, all locations managed from one dashboard. Learn more " [ref=e324] [cursor=pointer]:
+                        - /url: /dental-front-desk-software/
+                        - generic [ref=e326]: 
+                        - heading "Front Desk Software" [level=3] [ref=e327]
+                        - paragraph [ref=e328]: Your complete virtual front office — all tasks automated, all channels covered, all locations managed from one dashboard.
+                        - generic [ref=e329]:
+                            - text: Learn more
+                            - generic [ref=e330]: 
+            - generic [ref=e332]:
+                - generic [ref=e333]:
+                    - text: The All-In-One Advantage
+                    - heading "Stop paying for 3 different tools." [level=2] [ref=e334]
+                    - paragraph [ref=e335]: Most competitors handle one channel or take messages. Viva automates your entire front office.
+                - generic [ref=e336]:
+                    - generic [ref=e337]:
+                        - generic [ref=e338]: Capabilities
+                        - generic [ref=e339]: Other Solutions
+                        - generic [ref=e340]:
+                            - generic [ref=e341]: 
+                            - text: Viva AI
+                    - generic [ref=e342]:
+                        - generic [ref=e343]: AI Voice Receptionist (24/7)
+                        - generic [ref=e344]: Some
+                        - generic [ref=e346]: 
+                    - generic [ref=e347]:
+                        - generic [ref=e348]: AI Text, Email & Webchat
+                        - generic [ref=e350]: 
+                        - generic [ref=e352]: 
+                    - generic [ref=e353]:
+                        - generic [ref=e354]: Outbound AI Calls & Campaigns
+                        - generic [ref=e356]: 
+                        - generic [ref=e358]: 
+                    - generic [ref=e359]:
+                        - generic [ref=e360]: 100+ Languages (Voice & Text)
+                        - generic [ref=e362]: 
+                        - generic [ref=e364]: 
+                    - generic [ref=e365]:
+                        - generic [ref=e366]: Office Optimizer (AI Analytics)
+                        - generic [ref=e368]: 
+                        - generic [ref=e370]: 
+                    - generic [ref=e371]:
+                        - generic [ref=e372]: Payments, Forms & Patient Portal
+                        - generic [ref=e373]: Partial
+                        - generic [ref=e375]: 
+                    - generic [ref=e376]:
+                        - generic [ref=e377]: Direct PMS Write-Back
+                        - generic [ref=e378]: Incomplete
+                        - generic [ref=e379]: Full Integration
+            - generic [ref=e384]:
+                - generic [ref=e386]: 
+                - heading "Don't just read about it. Talk to it." [level=2] [ref=e387]
+                - paragraph [ref=e388]: Experience the speed, empathy, and intelligence of Viva AI right now. No salesperson. No scripts. Just you and the AI.
+                - generic [ref=e389]:
+                    - paragraph [ref=e390]: Call our Demo Line 24/7
+                    - link "(866)944-8482" [ref=e391] [cursor=pointer]:
+                        - /url: tel:8669448482
+                    - paragraph [ref=e392]:
+                        - generic [ref=e393]: 
+                        - text: 'Try asking: "I need to reschedule", "Do you take Delta Dental?", or "I have a toothache"'
+                - generic [ref=e394]:
+                    - paragraph [ref=e395]: Impressed? Let's set this up for your practice.
+                    - link "Book your demo " [ref=e396] [cursor=pointer]:
+                        - /url: https://app.getviva.ai/signup
+                        - text: Book your demo
+                        - generic [ref=e397]: 
+            - generic [ref=e399]:
+                - generic [ref=e400]:
+                    - heading "Simple, Transparent Pricing" [level=2] [ref=e401]
+                    - generic [ref=e402]:
+                        - generic [ref=e403]: 
+                        - text: 30-Day Risk-Free Trial — cancel anytime, no questions asked
+                - generic [ref=e404]:
+                    - generic [ref=e405]:
+                        - heading "Gold" [level=3] [ref=e406]
+                        - paragraph [ref=e407]: After hours & Overflow
+                        - generic [ref=e408]: $349 /mo
+                        - generic [ref=e409]:
+                            - generic [ref=e410]: 4,000 Credits
+                            - text: 'Additional: $0.10/credit'
+                        - list [ref=e411]:
+                            - listitem [ref=e412]:
+                                - generic [ref=e413]: 
+                                - text: After-hours Call Handling
+                            - listitem [ref=e414]:
+                                - generic [ref=e415]: 
+                                - text: HIPAA & SOC 2 Compliant
+                            - listitem [ref=e416]:
+                                - generic [ref=e417]: 
+                                - text: Call Recording & Transcription
+                            - listitem [ref=e418]:
+                                - generic [ref=e419]: 
+                                - text: Basic Voicemail Handling
+                        - link "Book a Demo" [ref=e420] [cursor=pointer]:
+                            - /url: https://app.getviva.ai/signup
+                    - generic [ref=e421]:
+                        - generic [ref=e422]: MOST POPULAR
+                        - heading "Platinum" [level=3] [ref=e423]
+                        - paragraph [ref=e424]: Full automation for small offices
+                        - generic [ref=e425]: $899 /mo
+                        - generic [ref=e426]:
+                            - generic [ref=e427]: 7,000 Credits
+                            - text: 'Additional: $0.09/credit'
+                        - list [ref=e428]:
+                            - listitem [ref=e429]:
+                                - generic [ref=e430]: 
+                                - strong [ref=e431]: Answers Every Call (24/7)
+                            - listitem [ref=e432]:
+                                - generic [ref=e433]: 
+                                - text: Complete Phone Service + Texting
+                            - listitem [ref=e434]:
+                                - generic [ref=e435]: 
+                                - text: AI Messaging (Webchat/Email/SMS)
+                            - listitem [ref=e436]:
+                                - generic [ref=e437]: 
+                                - text: Digital Forms & Online Booking
+                            - listitem [ref=e438]:
+                                - generic [ref=e439]: 
+                                - text: Smart Patient Outreach
+                            - listitem [ref=e440]:
+                                - generic [ref=e441]: 
+                                - text: Live Call Transfer
+                        - link "Book a Demo" [ref=e442] [cursor=pointer]:
+                            - /url: https://app.getviva.ai/signup
+                    - generic [ref=e443]:
+                        - heading "Diamond" [level=3] [ref=e444]
+                        - paragraph [ref=e445]: Full automation for large offices
+                        - generic [ref=e446]: $1199 /mo
+                        - generic [ref=e447]:
+                            - generic [ref=e448]: 12,000 Credits
+                            - text: 'Additional: $0.08/credit'
+                        - list [ref=e449]:
+                            - listitem [ref=e450]:
+                                - generic [ref=e451]: 
+                                - strong [ref=e452]: Everything in Platinum
+                            - listitem [ref=e453]:
+                                - generic [ref=e454]: 
+                                - text: Designed for High Volume
+                            - listitem [ref=e455]:
+                                - generic [ref=e456]: 
+                                - text: AI Office Optimizer
+                            - listitem [ref=e457]:
+                                - generic [ref=e458]: 
+                                - text: Advanced Financial Management
+                            - listitem [ref=e459]:
+                                - generic [ref=e460]: 
+                                - text: Priority Support
+                        - link "Book a Demo" [ref=e461] [cursor=pointer]:
+                            - /url: https://app.getviva.ai/signup
+                - generic [ref=e463]:
+                    - heading "How Credits Are Used" [level=3] [ref=e464]
+                    - generic [ref=e465]:
+                        - generic [ref=e466]:
+                            - generic [ref=e468]: 
+                            - paragraph [ref=e469]: Answering calls with AI
+                            - paragraph [ref=e470]: 10 credits per minute
+                        - generic [ref=e471]:
+                            - generic [ref=e473]: 
+                            - paragraph [ref=e474]: Answering messages with AI
+                            - paragraph [ref=e475]: 5 credits per message
+                        - generic [ref=e476]:
+                            - generic [ref=e478]: 
+                            - paragraph [ref=e479]: Office Optimizer questions
+                            - paragraph [ref=e480]: 1 credit per question
+                    - paragraph [ref=e481]:
+                        - text: Staff phone calls, texting, reminders, form sending, and campaigns are
+                        - strong [ref=e482]: unlimited
+                        - text: and do not consume credits. 95% of offices never exceed their allotment.
+                - generic [ref=e486]:
+                    - generic [ref=e487]:
+                        - generic [ref=e488]: 
+                        - text: DSO & Multi-Location
+                    - heading "Custom Pricing for DSOs & Group Practices" [level=3] [ref=e489]
+                    - paragraph [ref=e490]: Volume-based pricing, centralized management portal, per-location analytics, and dedicated onboarding for organizations with multiple locations.
+                    - link "Contact Sales" [ref=e491] [cursor=pointer]:
+                        - /url: mailto:sales@getviva.ai
+            - generic [ref=e493]:
+                - heading "Frequently Asked Questions" [level=2] [ref=e494]
+                - generic [ref=e495]:
+                    - group [ref=e496]:
+                        - generic "Will my patients know they are talking to AI? " [ref=e497] [cursor=pointer]:
+                            - generic [ref=e498]: Will my patients know they are talking to AI?
+                            - generic [ref=e500]: 
+                    - group [ref=e501]:
+                        - generic "Is Viva HIPAA compliant? " [ref=e502] [cursor=pointer]:
+                            - generic [ref=e503]: Is Viva HIPAA compliant?
+                            - generic [ref=e505]: 
+                    - group [ref=e506]:
+                        - generic "Does it integrate with my PMS? " [ref=e507] [cursor=pointer]:
+                            - generic [ref=e508]: Does it integrate with my PMS?
+                            - generic [ref=e510]: 
+                    - group [ref=e511]:
+                        - generic "What happens if the AI can't answer a question? " [ref=e512] [cursor=pointer]:
+                            - generic [ref=e513]: What happens if the AI can't answer a question?
+                            - generic [ref=e515]: 
+                    - group [ref=e516]:
+                        - generic "How long does setup take? " [ref=e517] [cursor=pointer]:
+                            - generic [ref=e518]: How long does setup take?
+                            - generic [ref=e520]: 
+                    - group [ref=e521]:
+                        - generic "What languages does it support? " [ref=e522] [cursor=pointer]:
+                            - generic [ref=e523]: What languages does it support?
+                            - generic [ref=e525]: 
+            - generic [ref=e527]:
+                - heading "Ready to automate your front office?" [level=2] [ref=e528]
+                - paragraph [ref=e529]: See exactly how much revenue you're losing to missed calls, unscheduled treatments, and manual tasks.
+                - link "Book Your Demo" [ref=e530] [cursor=pointer]:
+                    - /url: https://app.getviva.ai/signup
+                - paragraph [ref=e531]: No credit card required. 30-day risk-free trial available.
+        - generic [ref=e534]:
+            - generic [ref=e535]:
+                - paragraph [ref=e539]: AI Receptionist, Office Manager and Office Optimizer for Dental Offices
+                - generic [ref=e540]:
+                    - heading "Quick Links" [level=2] [ref=e542]
+                    - list [ref=e544]:
+                        - listitem [ref=e545]:
+                            - link "Features" [ref=e546] [cursor=pointer]:
+                                - /url: /#features
+                                - generic [ref=e547]: Features
+                        - listitem [ref=e548]:
+                            - link "Blog" [ref=e549] [cursor=pointer]:
+                                - /url: https://www.getviva.ai/blog
+                                - generic [ref=e550]: Blog
+                        - listitem [ref=e551]:
+                            - link "Contact" [ref=e552] [cursor=pointer]:
+                                - /url: mailto:%20info@getviva.ai
+                                - generic [ref=e553]: Contact
+                - generic [ref=e554]:
+                    - heading "Resources" [level=2] [ref=e556]
+                    - list [ref=e558]:
+                        - listitem [ref=e559]:
+                            - link "Service Status" [ref=e560] [cursor=pointer]:
+                                - /url: https://status.getviva.ai/
+                                - generic [ref=e561]: Service Status
+                        - listitem [ref=e562]:
+                            - link "Trust Center" [ref=e563] [cursor=pointer]:
+                                - /url: https://viva-health.secureframetrust.com
+                                - generic [ref=e564]: Trust Center
+                - generic [ref=e565]:
+                    - heading "General Inquiries" [level=2] [ref=e567]
+                    - list [ref=e569]:
+                        - listitem [ref=e570]:
+                            - link "info@getviva.ai" [ref=e571] [cursor=pointer]:
+                                - /url: mailto:info@getviva.ai
+                                - img [ref=e573]
+                                - generic [ref=e575]: info@getviva.ai
+                    - heading "Security Issues" [level=2] [ref=e577]
+                    - list [ref=e579]:
+                        - listitem [ref=e580]:
+                            - link "sec@getviva.ai" [ref=e581] [cursor=pointer]:
+                                - /url: mailto:info@getviva.ai
+                                - img [ref=e583]
+                                - generic [ref=e585]: sec@getviva.ai
+                    - generic [ref=e587]:
+                        - link "X-twitter" [ref=e589] [cursor=pointer]:
+                            - /url: https://x.com/Vivahealthai
+                            - generic [ref=e590]: X-twitter
+                            - img [ref=e591]
+                        - link "Instagram" [ref=e594] [cursor=pointer]:
+                            - /url: https://www.instagram.com/vivahealthai
+                            - generic [ref=e595]: Instagram
+                            - img [ref=e596]
+                        - link "Linkedin-in" [ref=e599] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/company/get-viva-ai
+                            - generic [ref=e600]: Linkedin-in
+                            - img [ref=e601]
+                        - link "Facebook" [ref=e604] [cursor=pointer]:
+                            - /url: https://www.facebook.com/people/Viva-Ai/61564257737819/
+                            - generic [ref=e605]: Facebook
+                            - img [ref=e606]
+            - generic [ref=e609]:
+                - paragraph [ref=e612]: © VIVA AI 2025. All rights reserved
+                - list [ref=e615]:
+                    - listitem [ref=e616]:
+                        - link "Prohibited Use Policy" [ref=e617] [cursor=pointer]:
+                            - /url: https://www.getviva.ai/prohibited-use-policy-log
+                            - generic [ref=e618]: Prohibited Use Policy
+                    - listitem [ref=e619]:
+                        - link "Terms of Service" [ref=e620] [cursor=pointer]:
+                            - /url: https://www.getviva.ai/terms-of-service-log
+                            - generic [ref=e621]: Terms of Service
+                    - listitem [ref=e622]:
+                        - link "Privacy Notice" [ref=e623] [cursor=pointer]:
+                            - /url: https://www.getviva.ai/privacy-policy/
+                            - generic [ref=e624]: Privacy Notice
+    - generic [ref=e625]: desktop

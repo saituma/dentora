@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import type React from "react";
 import { toast } from "sonner";
+import { ConfirmAction } from "@/components/confirm-action";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -28,13 +29,57 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetTenantCallsQuery,
   useGetTenantQuery,
+  useInvalidateTenantConfigCacheMutation,
+  useRunPhiDryRunMutation,
+  useUpdateTenantPlanMutation,
   useUpdateTenantStatusMutation,
 } from "@/features/admin/adminApi";
 import { cn } from "@/lib/utils";
+
+const PLANS = ["starter", "professional", "enterprise"] as const;
+
+function PlanControl({ tenantId, plan }: { tenantId: string; plan: string }) {
+  const [updatePlan, { isLoading }] = useUpdateTenantPlanMutation();
+  const change = async (next: string) => {
+    if (next === plan) return;
+    try {
+      await updatePlan({ tenantId, plan: next }).unwrap();
+      toast.success(`Plan changed to ${next}`);
+    } catch {
+      toast.error("Failed to change plan");
+    }
+  };
+  return (
+    <div className="space-y-1">
+      <div className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground">
+        Plan
+      </div>
+      <Select value={plan} onValueChange={change} disabled={isLoading}>
+        <SelectTrigger className="h-8 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {PLANS.map((p) => (
+            <SelectItem key={p} value={p} className="capitalize">
+              {p}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 function timeAgo(dateStr?: string) {
   if (!dateStr) return "—";
@@ -111,6 +156,8 @@ export default function TenantDetailPage() {
     limit: 5,
   });
   const [updateStatus] = useUpdateTenantStatusMutation();
+  const [invalidateCache] = useInvalidateTenantConfigCacheMutation();
+  const [runPhiDryRun] = useRunPhiDryRunMutation();
 
   const recentCalls = callsData?.data ?? [];
   const totalCalls = callsData?.total ?? 0;
@@ -232,6 +279,8 @@ export default function TenantDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  <PlanControl tenantId={tenant.id} plan={tenant.plan} />
+                  <div className="h-px bg-border my-1" />
                   {tenant.status !== "suspended" && (
                     <StatusActionDialog
                       triggerLabel="Suspend clinic"
@@ -270,6 +319,43 @@ export default function TenantDetailPage() {
                       }
                     />
                   )}
+                  <div className="h-px bg-border my-1" />
+                  <ConfirmAction
+                    trigger={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                      >
+                        Invalidate config cache
+                      </Button>
+                    }
+                    title="Invalidate config cache?"
+                    description="Forces the AI receptionist to reload this clinic's config on the next call. Use after editing config that isn't taking effect."
+                    confirmLabel="Invalidate"
+                    successMessage="Config cache invalidated"
+                    onConfirm={async () => {
+                      await invalidateCache(tenant.id).unwrap();
+                    }}
+                  />
+                  <ConfirmAction
+                    trigger={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start gap-2"
+                      >
+                        Run calendar PHI scan
+                      </Button>
+                    }
+                    title="Run a calendar PHI dry-run?"
+                    description="Scans the clinic's Google Calendar for exposed patient data and records the findings. This is a read-only dry-run — it does not modify any events."
+                    confirmLabel="Run scan"
+                    successMessage="PHI dry-run started"
+                    onConfirm={async () => {
+                      await runPhiDryRun(tenant.id).unwrap();
+                    }}
+                  />
                   <Link href={`/calls?tenantId=${tenant.id}`} className="block">
                     <Button
                       variant="ghost"
