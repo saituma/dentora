@@ -100,10 +100,14 @@ function HeroSection() {
               AI Receptionist for Dental Clinics · UK & Ireland
             </motion.div>
 
-            <h1 className="font-display text-3xl font-extrabold leading-[1.05] tracking-tight text-[#c7d0d9] sm:text-5xl md:text-6xl lg:text-[4.5rem]">
-              AI Receptionist
+            <h1 className="font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-[5rem]">
+              <span className="bg-gradient-to-br from-white via-white to-[#c7d0d9] bg-clip-text text-transparent">
+                AI Receptionist
+              </span>
               <br />
-              for Dental Clinics
+              <span className="bg-gradient-to-r from-[#4fc3f7] to-[#81d4fa] bg-clip-text text-transparent">
+                for Dental Clinics
+              </span>
             </h1>
 
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-[#c7d0d9]/60">
