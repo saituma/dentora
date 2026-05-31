@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { startLoadingSound, stopLoadingSound } from '@/lib/sounds';
 import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -319,7 +318,6 @@ function ElevenLabsAgentPageInner() {
     textOnly,
     clientTools: {
       list_appointments: async () => {
-        void startLoadingSound();
         try {
           const response = await callBackendGet<{ data: unknown }>('/appointments/upcoming');
           appendLog({ role: 'event', text: 'Loaded upcoming appointments from calendar.' });
@@ -331,11 +329,9 @@ function ElevenLabsAgentPageInner() {
           });
           return JSON.stringify({ error: formatMessage(error) });
         } finally {
-          stopLoadingSound();
         }
       },
       lookup_patient: async (params: { phoneNumber: string; dateOfBirth: string }) => {
-        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>('/patients/lookup', params);
           appendLog({ role: 'event', text: 'Patient profile lookup completed.' });
@@ -344,7 +340,6 @@ function ElevenLabsAgentPageInner() {
           appendLog({ role: 'error', text: `Patient lookup failed: ${formatMessage(error)}` });
           return JSON.stringify({ error: formatMessage(error) });
         } finally {
-          stopLoadingSound();
         }
       },
       check_availability: async (params: {
@@ -353,7 +348,6 @@ function ElevenLabsAgentPageInner() {
         requestedPeriod?: 'morning' | 'afternoon' | 'evening' | null;
         appointmentDurationMinutes?: number;
       }) => {
-        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>(
             '/appointments/availability',
@@ -365,7 +359,6 @@ function ElevenLabsAgentPageInner() {
           appendLog({ role: 'error', text: `Availability check failed: ${formatMessage(error)}` });
           return JSON.stringify({ error: formatMessage(error) });
         } finally {
-          stopLoadingSound();
         }
       },
       create_appointment: async (params: {
@@ -377,7 +370,6 @@ function ElevenLabsAgentPageInner() {
         dateOfBirth?: string | null;
         reasonForVisit: string;
       }) => {
-        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/book', {
             slot: { startIso: params.startIso, endIso: params.endIso },
@@ -398,11 +390,9 @@ function ElevenLabsAgentPageInner() {
           });
           return JSON.stringify({ error: formatMessage(error) });
         } finally {
-          stopLoadingSound();
         }
       },
       cancel_appointment: async (params: { eventId: string }) => {
-        void startLoadingSound();
         try {
           const response = await callBackend<{ data: { success: boolean } }>(
             '/appointments/cancel',
@@ -417,7 +407,6 @@ function ElevenLabsAgentPageInner() {
           });
           return JSON.stringify({ error: formatMessage(error) });
         } finally {
-          stopLoadingSound();
         }
       },
       reschedule_appointment: async (params: {
@@ -425,7 +414,6 @@ function ElevenLabsAgentPageInner() {
         startIso: string;
         endIso: string;
       }) => {
-        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/reschedule', {
             eventId: params.eventId,
@@ -440,7 +428,6 @@ function ElevenLabsAgentPageInner() {
           });
           return JSON.stringify({ error: formatMessage(error) });
         } finally {
-          stopLoadingSound();
         }
       },
     },
@@ -448,7 +435,6 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
     },
     onDisconnect: () => {
-      stopLoadingSound();
       appendLog({ role: 'event', text: 'Disconnected.' });
       const conversationId = conversationIdRef.current;
       if (!conversationId) return;
@@ -472,9 +458,7 @@ function ElevenLabsAgentPageInner() {
       const role = typeof record.role === 'string' ? record.role : 'agent';
       const text = typeof record.message === 'string' ? record.message : formatMessage(message);
       if (role === 'user') {
-        void startLoadingSound();
       } else {
-        stopLoadingSound();
       }
       appendLog({ role: role === 'user' ? 'user' : 'agent', text });
       if (
@@ -572,7 +556,6 @@ function ElevenLabsAgentPageInner() {
     };
 
     try {
-      void startLoadingSound();
       if (connectionType === 'websocket') {
         const response = await createSignedUrl({ agentId }).unwrap();
         if (!response?.data?.signedUrl) {
@@ -628,13 +611,12 @@ function ElevenLabsAgentPageInner() {
           }),
         );
       }
-      stopLoadingSound();
+
       appendLog({
         role: 'system',
         text: `Session started for ${agentNameVar.trim() || DEFAULT_AGENT_NAME}.`,
       });
     } catch (error) {
-      stopLoadingSound();
       if (connectionType === 'webrtc') {
         appendLog({ role: 'event', text: 'WebRTC failed, retrying with WebSocket.' });
         try {
@@ -647,7 +629,7 @@ function ElevenLabsAgentPageInner() {
             connectionType: 'websocket',
             dynamicVariables: { ...dynamicVariables, ...(response.data.dynamicVariables ?? {}) },
           });
-          stopLoadingSound();
+
           setConnectionType('websocket');
           appendLog({
             role: 'system',
