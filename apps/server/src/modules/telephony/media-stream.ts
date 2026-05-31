@@ -140,6 +140,7 @@ interface MediaStreamSession {
   dynamicVariables: Record<string, unknown>;
   contextualUpdate: string;
   thinkingSound?: { stop: () => void };
+  thinkingTimer?: ReturnType<typeof setTimeout>;
 }
 
 const activeSessions = new Map<string, MediaStreamSession>();
@@ -1125,6 +1126,8 @@ async function handleElevenLabsMessageWithTenant(
     case 'audio': {
       const audioBase64 = message.audio_event?.audio_base_64 as string | undefined;
       if (!audioBase64) return;
+      clearTimeout(session.thinkingTimer);
+      session.thinkingTimer = undefined;
       session.thinkingSound?.stop();
       session.thinkingSound = undefined;
       logger.debug(
@@ -1136,6 +1139,8 @@ async function handleElevenLabsMessageWithTenant(
     }
     case 'interruption': {
       logger.info({ callSessionId: session.callSessionId }, 'ElevenLabs interruption received');
+      clearTimeout(session.thinkingTimer);
+      session.thinkingTimer = undefined;
       session.thinkingSound?.stop();
       session.thinkingSound = undefined;
       sendClearToTwilio(session);
@@ -1144,6 +1149,11 @@ async function handleElevenLabsMessageWithTenant(
     case 'user_transcript': {
       const text = message.user_transcription_event?.user_transcript as string | undefined;
       if (!text) return;
+      clearTimeout(session.thinkingTimer);
+      session.thinkingTimer = setTimeout(() => {
+        session.thinkingSound?.stop();
+        session.thinkingSound = startThinkingSound(session.ws, session.streamSid);
+      }, 500);
       logger.info(
         { callSessionId: session.callSessionId, transcriptLength: text.length },
         'User transcript received',
