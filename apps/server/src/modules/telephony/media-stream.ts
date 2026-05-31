@@ -1144,8 +1144,6 @@ async function handleElevenLabsMessageWithTenant(
     case 'user_transcript': {
       const text = message.user_transcription_event?.user_transcript as string | undefined;
       if (!text) return;
-      session.thinkingSound?.stop();
-      session.thinkingSound = startThinkingSound(session.ws, session.streamSid);
       logger.info(
         { callSessionId: session.callSessionId, transcriptLength: text.length },
         'User transcript received',
@@ -1192,6 +1190,9 @@ async function handleElevenLabsMessageWithTenant(
       const toolCallId = toolCall.tool_call_id as string | undefined;
       const params = toolCall.parameters || {};
       if (!toolName || !toolCallId || !session.elevenSocket) return;
+
+      session.thinkingSound?.stop();
+      session.thinkingSound = startThinkingSound(session.ws, session.streamSid);
 
       logger.info(
         { callSessionId: session.callSessionId, toolName, toolCallId },
@@ -1240,6 +1241,9 @@ async function handleElevenLabsMessageWithTenant(
             is_error: true,
           }),
         );
+      } finally {
+        session.thinkingSound?.stop();
+        session.thinkingSound = undefined;
       }
       break;
     }
