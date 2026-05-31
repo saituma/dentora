@@ -91,7 +91,7 @@ function HeroSection() {
       <div className="mx-auto max-w-7xl">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           {/* Left */}
-          <motion.div {...d(0.05)}>
+          <motion.div {...d(0.05)} className="relative z-10">
             <motion.div
               {...d(0)}
               className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#111827] px-4 py-2 text-sm text-[#c7d0d9]/70"
@@ -100,10 +100,8 @@ function HeroSection() {
               AI Receptionist for Dental Clinics · UK & Ireland
             </motion.div>
 
-            <h1 className="font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-[5rem]">
-              <span className="bg-gradient-to-br from-white via-white to-[#c7d0d9] bg-clip-text text-transparent">
-                AI Receptionist
-              </span>
+            <h1 className="font-mono text-4xl font-black leading-[1.08] tracking-tight sm:text-5xl md:text-6xl lg:text-[4.75rem]">
+              <span className="text-white">AI Receptionist</span>
               <br />
               <span className="bg-gradient-to-r from-[#4fc3f7] to-[#81d4fa] bg-clip-text text-transparent">
                 for Dental Clinics
@@ -146,7 +144,7 @@ function HeroSection() {
           </motion.div>
 
           {/* Right — live call card */}
-          <motion.div {...d(0.15)} className="relative">
+          <motion.div {...d(0.15)} className="relative z-0">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-xl shadow-black/30">
               {/* Header */}
               <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
