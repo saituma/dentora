@@ -1,6 +1,5 @@
 import { WebSocket } from 'ws';
 
-// μ-law encode a 16-bit linear PCM sample to 8-bit mulaw
 function linearToMulaw(sample: number): number {
   const BIAS = 33;
   const CLIP = 32635;
@@ -24,68 +23,45 @@ function linearToMulaw(sample: number): number {
   return ~(sign | (exponent << 4) | mantissa) & 0xff;
 }
 
-// Generate one "tick" — a 3ms impulse followed by silence, total 250ms at 8kHz
-function generateTickBuffer(): Buffer {
+// Build a 1-second typing sound: 4 keyboard taps at 8kHz mulaw
+function buildLoopBuffer(): Buffer {
   const SAMPLE_RATE = 8000;
-  const TOTAL_MS = 250;
-  const TICK_MS = 3;
-  const total = Math.floor((SAMPLE_RATE * TOTAL_MS) / 1000);
-  const tickSamples = Math.floor((SAMPLE_RATE * TICK_MS) / 1000);
-  const buf = Buffer.alloc(total);
+  const buf = Buffer.alloc(SAMPLE_RATE); // 1 second
 
-  for (let i = 0; i < total; i++) {
-    let pcm = 0;
-    if (i < tickSamples) {
-      // Soft exponential decay impulse — sounds like a quiet keyboard tap
-      const t = i / tickSamples;
-      pcm = Math.round(800 * Math.exp(-t * 6) * Math.sin(2 * Math.PI * 1200 * (i / SAMPLE_RATE)));
+  // Each tap: 15ms of a decaying tone at decent amplitude, rest is silence
+  const TAP_SAMPLES = Math.floor((SAMPLE_RATE * 15) / 1000); // 120 samples
+  const TAP_OFFSETS_MS = [0, 240, 500, 740];
+
+  for (const offsetMs of TAP_OFFSETS_MS) {
+    const start = Math.floor((SAMPLE_RATE * offsetMs) / 1000);
+    for (let i = 0; i < TAP_SAMPLES && start + i < SAMPLE_RATE; i++) {
+      const t = i / TAP_SAMPLES;
+      const decay = Math.exp(-t * 8);
+      const tone = Math.sin(2 * Math.PI * 900 * (i / SAMPLE_RATE));
+      const pcm = Math.round(7000 * decay * tone);
+      buf[start + i] = linearToMulaw(pcm);
     }
-    buf[i] = linearToMulaw(pcm);
   }
+
   return buf;
 }
 
-// Pre-generate once at module load — 4 ticks with slight rhythm variation
-const TICK = generateTickBuffer();
-// Build a 1-second loop: tick at 0ms, 280ms, 520ms, 780ms
-const LOOP_SAMPLES = 8000; // 1 second
-const LOOP_BUFFER = Buffer.alloc(LOOP_SAMPLES);
-const OFFSETS = [0, 280, 520, 780];
-for (const offsetMs of OFFSETS) {
-  const offsetSamples = Math.floor((8000 * offsetMs) / 1000);
-  TICK.copy(LOOP_BUFFER, offsetSamples, 0, Math.min(TICK.length, LOOP_SAMPLES - offsetSamples));
-}
-const LOOP_B64 = LOOP_BUFFER.toString('base64');
+const LOOP_B64 = buildLoopBuffer().toString('base64');
 
-function sendThinkingChunk(ws: WebSocket, streamSid: string): void {
+function sendChunk(ws: WebSocket, streamSid: string): void {
   if (ws.readyState !== WebSocket.OPEN) return;
-  ws.send(
-    JSON.stringify({
-      event: 'media',
-      streamSid,
-      media: { payload: LOOP_B64 },
-    }),
-  );
+  ws.send(JSON.stringify({ event: 'media', streamSid, media: { payload: LOOP_B64 } }));
 }
 
-function sendClear(ws: WebSocket, streamSid: string): void {
-  if (ws.readyState !== WebSocket.OPEN) return;
-  ws.send(JSON.stringify({ event: 'clear', streamSid }));
-}
-
-export interface ThinkingSound {
-  stop: () => void;
-}
-
-export function startThinkingSound(ws: WebSocket, streamSid: string): ThinkingSound {
-  // Send first chunk immediately, then loop every ~950ms (slightly under 1s to avoid gaps)
-  sendThinkingChunk(ws, streamSid);
-  const interval = setInterval(() => sendThinkingChunk(ws, streamSid), 950);
+export function startThinkingSound(ws: WebSocket, streamSid: string): { stop: () => void } {
+  sendChunk(ws, streamSid);
+  const interval = setInterval(() => sendChunk(ws, streamSid), 950);
 
   return {
     stop() {
       clearInterval(interval);
-      sendClear(ws, streamSid);
+      // No clear — let the buffered audio play out naturally.
+      // AI audio appends after it in Twilio's queue.
     },
   };
 }
