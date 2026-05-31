@@ -448,6 +448,7 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
     },
     onDisconnect: () => {
+      stopLoadingSound();
       appendLog({ role: 'event', text: 'Disconnected.' });
       const conversationId = conversationIdRef.current;
       if (!conversationId) return;
@@ -470,6 +471,11 @@ function ElevenLabsAgentPageInner() {
       const record = message as unknown as Record<string, unknown>;
       const role = typeof record.role === 'string' ? record.role : 'agent';
       const text = typeof record.message === 'string' ? record.message : formatMessage(message);
+      if (role === 'user') {
+        void startLoadingSound();
+      } else {
+        stopLoadingSound();
+      }
       appendLog({ role: role === 'user' ? 'user' : 'agent', text });
       if (
         role === 'user' &&
