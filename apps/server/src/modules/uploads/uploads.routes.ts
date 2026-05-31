@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { authenticateJwt, resolveTenant } from '../../middleware/index.js';
+import { authenticateJwt, resolveTenant, rateLimiter } from '../../middleware/index.js';
+
+const uploadsRateLimiter = rateLimiter({
+  maxRequests: 20,
+  windowSeconds: 60,
+  keyPrefix: 'uploads',
+});
 import {
   uploadFile,
   downloadFile,
@@ -34,6 +40,7 @@ uploadsRouter.post(
   '/clinic-logo',
   authenticateJwt,
   resolveTenant,
+  uploadsRateLimiter,
   upload.single('file'),
   async (req, res, next) => {
     try {
@@ -62,6 +69,7 @@ uploadsRouter.post(
 uploadsRouter.post(
   '/user-avatar',
   authenticateJwt,
+  uploadsRateLimiter,
   upload.single('file'),
   async (req, res, next) => {
     try {

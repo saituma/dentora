@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dentora — Revenue & Cost Model</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #fff;
+    color: #1a1a2e;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f2027 0%, #1a3a4a 50%, #16213e 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    page-break-after: always;
+  }
+  .cover-logo { font-size: 48px; font-weight: 900; color: #00d4aa; letter-spacing: -2px; margin-bottom: 6px; }
+  .cover-built { font-size: 13px; color: #5a8a7e; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 60px; }
+  .cover-built span { color: #00d4aa; font-weight: 700; }
+  .cover-title { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 14px; line-height: 1.2; }
+  .cover-subtitle { font-size: 15px; color: #a0c4bc; max-width: 500px; margin-bottom: 60px; }
+  .cover-divider { width: 80px; height: 3px; background: #00d4aa; margin: 0 auto 40px; }
+  .cover-boxes { display: flex; gap: 20px; margin-bottom: 60px; flex-wrap: wrap; justify-content: center; }
+  .cover-box { background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.3); border-radius: 12px; padding: 20px 28px; text-align: center; }
+  .cover-box-val { font-size: 26px; font-weight: 800; color: #00d4aa; }
+  .cover-box-label { font-size: 10px; color: #7ecfbd; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .cover-date { font-size: 12px; color: #5a8a7e; letter-spacing: 2px; text-transform: uppercase; }
+
+  /* ── Page ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 50px 50px 60px; }
+  .page-break { page-break-before: always; }
+
+  /* ── Section header ── */
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 14px; border-bottom: 2px solid #e8f4f1; }
+  .section-num { width: 36px; height: 36px; background: #00d4aa; color: #fff; font-weight: 800; font-size: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-title { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+  .section-desc { font-size: 12px; color: #6b7a8d; margin-top: 2px; }
+
+  /* ── Tools grid ── */
+  .tools-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 36px; }
+  .tool-card { border: 1px solid #e0ebe8; border-radius: 10px; padding: 16px 14px; text-align: center; page-break-inside: avoid; }
+  .tool-name { font-weight: 700; font-size: 13px; color: #1a1a2e; margin-bottom: 4px; }
+  .tool-purpose { font-size: 11px; color: #6b7a8d; margin-bottom: 8px; }
+  .tool-cost { font-size: 12px; font-weight: 700; }
+  .tool-cost.red { color: #e05a5a; }
+  .tool-cost.muted { color: #9aabb5; }
+
+  /* ── Main financials table ── */
+  .fin-table { width: 100%; border-collapse: collapse; margin-bottom: 36px; page-break-inside: avoid; }
+  .fin-table th { background: #1a1a2e; color: #fff; padding: 12px 14px; text-align: right; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .fin-table th:first-child { text-align: left; border-radius: 8px 0 0 0; }
+  .fin-table th:last-child { border-radius: 0 8px 0 0; }
+  .fin-table td { padding: 12px 14px; text-align: right; border-bottom: 1px solid #eef2f0; font-size: 13px; }
+  .fin-table td:first-child { text-align: left; }
+  .fin-table tr:nth-child(even) td { background: #f9fdfb; }
+  .fin-table .section-row td { background: #f0f4ff; font-weight: 700; color: #2c3e9e; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .fin-table .section-row.green-row td { background: #e8f7f3; color: #007a60; }
+  .fin-table .section-row.red-row td { background: #fff0f0; color: #c0392b; }
+  .fin-table .section-row.purple-row td { background: #f5f0ff; color: #6b2d9e; }
+  .fin-table .subtotal td { background: #f0f4f8; font-weight: 700; font-size: 12px; }
+  .fin-table .total-row td { background: #1a1a2e !important; color: #fff; font-weight: 800; font-size: 14px; }
+  .fin-table .profit-row td { background: #00a080 !important; color: #fff; font-weight: 800; font-size: 15px; }
+  .green { color: #00a080; font-weight: 700; }
+  .red { color: #e05a5a; }
+  .purple { color: #9b59b6; font-weight: 700; }
+  .muted { color: #9aabb5; font-size: 11px; }
+
+  /* ── CRA highlight box ── */
+  .cra-box {
+    background: linear-gradient(135deg, #1a0533, #2d1b4e);
+    border-radius: 14px;
+    padding: 32px 36px;
+    margin-bottom: 28px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    page-break-inside: avoid;
+  }
+  .cra-logo { font-size: 22px; font-weight: 900; color: #c084fc; white-space: nowrap; }
+  .cra-desc { font-size: 13px; color: #c4a8e0; flex: 1; }
+  .cra-desc strong { color: #e0c8ff; }
+  .cra-fee-block { text-align: center; }
+  .cra-fee-val { font-size: 32px; font-weight: 900; color: #c084fc; }
+  .cra-fee-label { font-size: 10px; color: #a078cc; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .cra-fee-note { font-size: 10px; color: #7a5a99; margin-top: 4px; }
+
+  /* ── Big stat ── */
+  .big-stat-block { background: linear-gradient(135deg, #0f2027, #1a3a4a); border-radius: 14px; padding: 40px; text-align: center; color: #fff; margin-bottom: 30px; page-break-inside: avoid; }
+  .big-stat-title { font-size: 13px; color: #7ecfbd; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; }
+  .big-stats-row { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; }
+  .big-stat { text-align: center; }
+  .big-stat-val { font-size: 36px; font-weight: 900; color: #00d4aa; line-height: 1; }
+  .big-stat-sub { font-size: 10px; color: #7ecfbd; text-transform: uppercase; letter-spacing: 1px; margin-top: 6px; }
+  .big-stat-divider { width: 1px; background: rgba(255,255,255,0.15); align-self: stretch; }
+
+  /* ── Margin pill ── */
+  .margin-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #e8f7f3; color: #007a60; }
+
+  /* ── Footer ── */
+  .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #e0ebe8; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #9aabb5; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-logo">Dentora</div>
+  <div class="cover-built">Built &amp; operated by <span>Client Reach AI</span></div>
+  <div class="cover-title">Revenue &amp; Cost Model</div>
+  <div class="cover-subtitle">Full breakdown of what Dentora earns, what tools it pays for, what Client Reach AI earns, and Dentora's net profit — at every scale.</div>
+  <div class="cover-divider"></div>
+  <div class="cover-boxes">
+    <div class="cover-box">
+      <div class="cover-box-val">£229/mo</div>
+      <div class="cover-box-label">Avg revenue per clinic</div>
+    </div>
+    <div class="cover-box">
+      <div class="cover-box-val">£19/mo</div>
+      <div class="cover-box-label">Tool cost per clinic</div>
+    </div>
+    <div class="cover-box">
+      <div class="cover-box-val">90%</div>
+      <div class="cover-box-label">Net margin at scale</div>
+    </div>
+  </div>
+  <div class="cover-date">Confidential · May 2026</div>
+</div>
+
+<!-- PAGE 2 — TOOLS + CRA -->
+<div class="page">
+
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div>
+      <div class="section-title">Tools Dentora Uses</div>
+      <div class="section-desc">Every third-party service powering the platform — cost per clinic per month</div>
+    </div>
+  </div>
+
+  <div class="tools-grid">
+    <div class="tool-card">
+      <div class="tool-name">Twilio</div>
+      <div class="tool-purpose">Phone numbers &amp; call routing</div>
+      <div class="tool-cost red">£13.00 / clinic</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">ElevenLabs</div>
+      <div class="tool-purpose">AI voice (primary TTS)</div>
+      <div class="tool-cost red">£2.80 / clinic</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">OpenAI</div>
+      <div class="tool-purpose">GPT-4o brain + fallback TTS</div>
+      <div class="tool-cost red">£2.20 / clinic</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">Cloudflare R2</div>
+      <div class="tool-purpose">Audio &amp; file storage</div>
+      <div class="tool-cost red">£0.30 / clinic</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">Heroku</div>
+      <div class="tool-purpose">Server hosting</div>
+      <div class="tool-cost red">£0.40 / clinic</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">Datadog</div>
+      <div class="tool-purpose">Monitoring &amp; alerts</div>
+      <div class="tool-cost red">£0.20 / clinic</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">Anthropic</div>
+      <div class="tool-purpose">Claude AI (LLM fallback)</div>
+      <div class="tool-cost muted">Pay-as-you-go</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">GitHub + tools</div>
+      <div class="tool-purpose">Code, CI/CD, dev tooling</div>
+      <div class="tool-cost muted">Fixed overhead</div>
+    </div>
+  </div>
+
+  <!-- Client Reach AI box -->
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div>
+      <div class="section-title">Client Reach AI — Development Team</div>
+      <div class="section-desc">The team that builds and maintains Dentora</div>
+    </div>
+  </div>
+
+  <div class="cra-box">
+    <div>
+      <div class="cra-logo">Client Reach AI</div>
+      <div class="cra-desc" style="margin-top:8px;">
+        <strong>Client Reach AI</strong> builds, maintains, and scales Dentora. This covers the full engineering team — senior engineers, mid engineers, DevOps, QA, and management. Dentora pays Client Reach AI a fixed monthly fee that grows with the business.
+      </div>
+    </div>
+    <div style="display:flex; gap:24px; flex-shrink:0;">
+      <div class="cra-fee-block">
+        <div class="cra-fee-val">£13k</div>
+        <div class="cra-fee-label">at 1k clinics</div>
+      </div>
+      <div class="cra-fee-block">
+        <div class="cra-fee-val">£27k</div>
+        <div class="cra-fee-label">at 10k clinics</div>
+      </div>
+      <div class="cra-fee-block">
+        <div class="cra-fee-val">£113k</div>
+        <div class="cra-fee-label">at 100k clinics</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Dentora — Internal Financial Model · Client Reach AI · Confidential</span>
+    <span>Page 2 of 3</span>
+  </div>
+</div>
+
+<!-- PAGE 3 — FULL TABLE -->
+<div class="page page-break">
+
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div>
+      <div class="section-title">Dentora Net Revenue — After All Costs</div>
+      <div class="section-desc">Revenue → minus tools → minus Client Reach AI → Dentora net profit</div>
+    </div>
+  </div>
+
+  <table class="fin-table">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>1k Clinics</th>
+        <th>10k Clinics</th>
+        <th>25k Clinics</th>
+        <th>50k Clinics</th>
+        <th>100k Clinics</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr class="section-row green-row">
+        <td colspan="6">Revenue</td>
+      </tr>
+      <tr>
+        <td>Gross monthly revenue (£229/clinic avg)</td>
+        <td class="green">£229k</td>
+        <td class="green">£2.29M</td>
+        <td class="green">£5.73M</td>
+        <td class="green">£11.45M</td>
+        <td class="green">£22.9M</td>
+      </tr>
+
+      <tr class="section-row red-row">
+        <td colspan="6">Tool Costs (Twilio · ElevenLabs · OpenAI · Cloudflare · Heroku · Datadog)</td>
+      </tr>
+      <tr>
+        <td>Twilio — calls &amp; phone numbers</td>
+        <td class="red">£13k</td>
+        <td class="red">£130k</td>
+        <td class="red">£325k</td>
+        <td class="red">£650k</td>
+        <td class="red">£1.3M</td>
+      </tr>
+      <tr>
+        <td>ElevenLabs — AI voice TTS</td>
+        <td class="red">£2.8k</td>
+        <td class="red">£28k</td>
+        <td class="red">£70k</td>
+        <td class="red">£140k</td>
+        <td class="red">£280k</td>
+      </tr>
+      <tr>
+        <td>OpenAI — GPT-4o &amp; fallback TTS</td>
+        <td class="red">£2.2k</td>
+        <td class="red">£22k</td>
+        <td class="red">£55k</td>
+        <td class="red">£110k</td>
+        <td class="red">£220k</td>
+      </tr>
+      <tr>
+        <td>Cloudflare R2 — storage</td>
+        <td class="red">£0.3k</td>
+        <td class="red">£3k</td>
+        <td class="red">£7.5k</td>
+        <td class="red">£15k</td>
+        <td class="red">£30k</td>
+      </tr>
+      <tr>
+        <td>Heroku — server hosting</td>
+        <td class="red">£0.4k</td>
+        <td class="red">£4k</td>
+        <td class="red">£10k</td>
+        <td class="red">£20k</td>
+        <td class="red">£40k</td>
+      </tr>
+      <tr>
+        <td>Datadog + monitoring</td>
+        <td class="red">£0.2k</td>
+        <td class="red">£2k</td>
+        <td class="red">£5k</td>
+        <td class="red">£10k</td>
+        <td class="red">£20k</td>
+      </tr>
+      <tr class="subtotal">
+        <td>Total tool costs</td>
+        <td class="red">£18.9k</td>
+        <td class="red">£189k</td>
+        <td class="red">£472.5k</td>
+        <td class="red">£945k</td>
+        <td class="red">£1.89M</td>
+      </tr>
+
+      <tr class="section-row purple-row">
+        <td colspan="6">Client Reach AI — Dev Team Fee</td>
+      </tr>
+      <tr>
+        <td>Client Reach AI monthly fee</td>
+        <td class="purple">£13.3k</td>
+        <td class="purple">£26.7k</td>
+        <td class="purple">£53.4k</td>
+        <td class="purple">£75k</td>
+        <td class="purple">£113.3k</td>
+      </tr>
+      <tr>
+        <td class="muted">Team at this scale</td>
+        <td class="muted">2 devs</td>
+        <td class="muted">4 devs</td>
+        <td class="muted">8 devs</td>
+        <td class="muted">11 devs</td>
+        <td class="muted">17 devs</td>
+      </tr>
+
+      <tr class="section-row red-row">
+        <td colspan="6">Operational Overhead (Support · Sales · Marketing · Legal)</td>
+      </tr>
+      <tr>
+        <td>Customer support + sales + marketing</td>
+        <td class="red">£9k</td>
+        <td class="red">£27k</td>
+        <td class="red">£66k</td>
+        <td class="red">£135k</td>
+        <td class="red">£270k</td>
+      </tr>
+      <tr>
+        <td>Legal, GDPR compliance, misc tools</td>
+        <td class="red">£3k</td>
+        <td class="red">£10k</td>
+        <td class="red">£16k</td>
+        <td class="red">£27k</td>
+        <td class="red">£45k</td>
+      </tr>
+      <tr class="subtotal">
+        <td>Total overhead</td>
+        <td class="red">£12k</td>
+        <td class="red">£37k</td>
+        <td class="red">£82k</td>
+        <td class="red">£162k</td>
+        <td class="red">£315k</td>
+      </tr>
+
+      <tr class="total-row">
+        <td>Total monthly costs (all in)</td>
+        <td>£44.2k</td>
+        <td>£252.7k</td>
+        <td>£607.9k</td>
+        <td>£1.182M</td>
+        <td>£2.318M</td>
+      </tr>
+      <tr class="profit-row">
+        <td>Dentora net profit (monthly)</td>
+        <td>£184.8k</td>
+        <td>£2.037M</td>
+        <td>£5.12M</td>
+        <td>£10.27M</td>
+        <td>£20.58M</td>
+      </tr>
+      <tr>
+        <td><strong>Dentora net profit (annual)</strong></td>
+        <td class="green"><strong>£2.22M</strong></td>
+        <td class="green"><strong>£24.44M</strong></td>
+        <td class="green"><strong>£61.44M</strong></td>
+        <td class="green"><strong>£123.2M</strong></td>
+        <td class="green"><strong>£246.96M</strong></td>
+      </tr>
+      <tr>
+        <td>Net margin after all costs</td>
+        <td><span class="margin-pill">81%</span></td>
+        <td><span class="margin-pill">89%</span></td>
+        <td><span class="margin-pill">89%</span></td>
+        <td><span class="margin-pill">90%</span></td>
+        <td><span class="margin-pill">90%</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="big-stat-block">
+    <div class="big-stat-title">At 100,000 Clinics — What Each Party Receives Annually</div>
+    <div class="big-stats-row">
+      <div class="big-stat">
+        <div class="big-stat-val">£274M</div>
+        <div class="big-stat-sub">Dentora Gross Revenue</div>
+      </div>
+      <div class="big-stat-divider"></div>
+      <div class="big-stat">
+        <div class="big-stat-val" style="color:#c084fc;">£1.36M</div>
+        <div class="big-stat-sub">Client Reach AI (dev team)</div>
+      </div>
+      <div class="big-stat-divider"></div>
+      <div class="big-stat">
+        <div class="big-stat-val" style="color:#e05a5a;">£22.7M</div>
+        <div class="big-stat-sub">Tools &amp; Overhead</div>
+      </div>
+      <div class="big-stat-divider"></div>
+      <div class="big-stat">
+        <div class="big-stat-val" style="color:#00d4aa;">£247M</div>
+        <div class="big-stat-sub">Dentora Net Profit</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Dentora — Internal Financial Model · Client Reach AI · Confidential · May 2026</span>
+    <span>Page 3 of 3</span>
+  </div>
+</div>
+
+</body>
+</html>

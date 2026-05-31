@@ -1,0 +1,583 @@
+- generic [active] [ref=e1]:
+    - generic [ref=e2]:
+        - generic [ref=e4]:
+            - link "Meet Aimee" [ref=e5] [cursor=pointer]:
+                - /url: /meet-aimee
+                - generic [ref=e6]: Meet Aimee
+            - generic [ref=e8]:
+                - text: ✨
+                - strong [ref=e9]: Voice
+                - text: +
+                - strong [ref=e10]: Text
+                - strong [ref=e11]: AI
+                - emphasis [ref=e12]: Now Live
+        - generic [ref=e14]:
+            - link "Meet Aimee" [ref=e15] [cursor=pointer]:
+                - /url: /meet-aimee
+                - generic [ref=e16]: Meet Aimee
+            - generic [ref=e18]:
+                - text: ✨
+                - strong [ref=e19]: Voice
+                - text: +
+                - strong [ref=e20]: Text
+                - strong [ref=e21]: AI
+                - emphasis [ref=e22]: Now Live
+        - main [ref=e23]:
+            - generic [ref=e27]:
+                - heading "AI-Powered Dental Revenue Recovery Suite" [level=1] [ref=e29]: AI-Powered Dental Revenue Recovery Suite
+                - paragraph [ref=e30]: AI receptionist for dental and veterinary practices that answers the phone, texts back missed calls, and proves exactly which marketing channels are filling your chairs.
+                - link "Book a Demo" [ref=e31] [cursor=pointer]:
+                    - /url: /book-a-demo
+                    - generic [ref=e32]: Book a Demo
+                - link "open lightbox" [ref=e35] [cursor=pointer]:
+                    - /url: '#'
+                - banner [ref=e41]:
+                    - generic [ref=e45]:
+                        - link "home" [ref=e46] [cursor=pointer]:
+                            - /url: /
+                        - navigation [ref=e47]:
+                            - generic [ref=e48]:
+                                - generic:
+                                    - button: 
+                                - text: 
+                                - button "What We Do" [ref=e50] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e51]: What We Do
+                                - button "Who We Serve" [ref=e53] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e54]: Who We Serve
+                                - button "Who We Are" [ref=e56] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e57]: Who We Are
+                                - link "Pricing" [ref=e58] [cursor=pointer]:
+                                    - /url: /pricing-page
+                                - button "Resources" [ref=e60] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e61]: Resources
+                                - button "Customers" [ref=e63] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e64]: Customers
+                                - link "Support" [ref=e65] [cursor=pointer]:
+                                    - /url: https://support.peerlogic.com
+                                - link "Login" [ref=e66] [cursor=pointer]:
+                                    - /url: /login
+                                    - generic [ref=e67]: Login
+                - banner [ref=e68]:
+                    - generic [ref=e72]:
+                        - link "home" [ref=e73] [cursor=pointer]:
+                            - /url: /
+                        - navigation [ref=e74]:
+                            - generic [ref=e75]:
+                                - generic:
+                                    - button: 
+                                - text: 
+                                - button "What We Do" [ref=e77] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e78]: What We Do
+                                - button "Who We Serve" [ref=e80] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e81]: Who We Serve
+                                - button "Who We Are" [ref=e83] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e84]: Who We Are
+                                - link "Pricing" [ref=e85] [cursor=pointer]:
+                                    - /url: /pricing-page
+                                - button "Resources" [ref=e87] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e88]: Resources
+                                - button "Customers" [ref=e90] [cursor=pointer]:
+                                    - text: 
+                                    - generic [ref=e91]: Customers
+                                - link "Support" [ref=e92] [cursor=pointer]:
+                                    - /url: https://support.peerlogic.com
+                                - link "Login" [ref=e93] [cursor=pointer]:
+                                    - /url: /login
+                                    - generic [ref=e94]: Login
+            - generic [ref=e97]:
+                - generic [ref=e103]:
+                    - list [ref=e105]:
+                        - listitem [ref=e106]
+                        - listitem [ref=e108]
+                        - listitem [ref=e110]
+                        - listitem [ref=e112]
+                        - listitem [ref=e114]
+                        - listitem [ref=e116]
+                        - listitem [ref=e118]
+                        - listitem [ref=e120]
+                        - listitem [ref=e122]
+                        - listitem [ref=e124]
+                        - listitem [ref=e126]
+                    - list [ref=e129]:
+                        - listitem [ref=e130]
+                        - listitem [ref=e132]
+                        - listitem [ref=e134]
+                        - listitem [ref=e136]
+                        - listitem [ref=e138]
+                        - listitem [ref=e140]
+                        - listitem [ref=e142]
+                        - listitem [ref=e144]
+                        - listitem [ref=e146]
+                        - listitem [ref=e148]
+                        - listitem [ref=e150]
+                - generic [ref=e152]:
+                    - heading "AI Phone Features Dental Practices and Vet Clinics Need to Grow" [level=2] [ref=e154]
+                    - generic [ref=e155]:
+                        - generic [ref=e158] [cursor=pointer]:
+                            - heading "Dental Clinics" [level=4] [ref=e159]
+                            - paragraph [ref=e161]: Aimee is the dental receptionist that ensures every call is answered, every appointment opportunity is captured, and every patient gets the personalized experience they expect – even after hours.
+                            - link "Learn More" [ref=e163]:
+                                - /url: /book-a-demo
+                                - strong [ref=e165]: Learn More
+                        - generic [ref=e168] [cursor=pointer]:
+                            - img [ref=e170]
+                            - generic [ref=e177]:
+                                - text: Veterinary
+                                - text: Clinics
+                        - generic [ref=e180] [cursor=pointer]:
+                            - img [ref=e182]
+                            - generic [ref=e186]:
+                                - text: Front Desk
+                                - text: Teams
+                        - generic [ref=e189] [cursor=pointer]:
+                            - img [ref=e191]
+                            - generic [ref=e195]:
+                                - text: Practice
+                                - text: Owners
+                        - generic [ref=e198] [cursor=pointer]:
+                            - img [ref=e200]
+                            - generic [ref=e208]: DSOs
+            - generic [ref=e210]:
+                - generic [ref=e215]:
+                    - heading "Dental Practices Lose Thousands in Revenue to Missed and Mishandled Calls" [level=2] [ref=e217]
+                    - paragraph [ref=e218]: When office managers and front-desk staff are overwhelmed, appointments, revenue, and customer satisfaction start falling through the cracks.
+                - generic [ref=e223]:
+                    - group "1 / 4" [ref=e224]:
+                        - generic [ref=e225]:
+                            - generic [ref=e226]:
+                                - heading "Missed Calls" [level=4] [ref=e227]
+                                - paragraph [ref=e229]: If the phone rings and there’s nobody to pick up, that’s potential revenue down the drain.Automate phone conversations so that your front office managers and customer-first teams can focus on delivering personalized service to patients in the office.
+                            - generic [ref=e231]:
+                                - generic [ref=e232]: '12'
+                                - generic [ref=e233]: additional new patients per month
+                    - group "2 / 4" [ref=e234]:
+                        - generic [ref=e235]:
+                            - generic [ref=e236]:
+                                - heading "Limited Availability" [level=4] [ref=e237]
+                                - paragraph [ref=e239]: Most practices are only open for a part of the day, but patient inquiries come in around the clock.Without 24/7 availability, you’re missing calls and opportunities to grow.
+                            - generic [ref=e241]:
+                                - generic [ref=e242]: 38%
+                                - generic [ref=e243]: fewer missed appointments with Peerlogic
+                    - group "3 / 4" [ref=e244]:
+                        - generic [ref=e245]:
+                            - generic [ref=e246]:
+                                - heading "Visibility Gaps Across Locations" [level=4] [ref=e247]
+                                - paragraph [ref=e249]: In growing practices and DSOs, the main challenge isn’t call volume, but the lack of visibility into missed opportunities. Without a centralized view across locations, it’s hard to spot gaps, track lost leads, or see the impact on revenue and patient satisfaction.
+                            - generic [ref=e251]:
+                                - generic [ref=e252]: $16K
+                                - generic [ref=e253]: average increase in production with Peerlogic
+                    - group "4 / 4" [ref=e254]:
+                        - generic [ref=e255]:
+                            - generic [ref=e256]:
+                                - heading "Inconsistent Patient Experience" [level=4] [ref=e257]
+                                - paragraph [ref=e259]: If the phone rings and there’s nobody to pick up, that’s potential revenue down the drain.Automate phone conversations so that your front office managers and customer-first teams can focus on delivering personalized service to patients in the office.
+                            - generic [ref=e261]:
+                                - generic [ref=e262]: 50%
+                                - generic [ref=e263]: reduction in front office workload with Peerlogic.
+            - generic [ref=e271]:
+                - generic [ref=e272]:
+                    - heading "Meet Aimee" [level=2] [ref=e274]
+                    - heading "Your Front Desk AI Assistant" [level=2] [ref=e276]
+                    - paragraph [ref=e277]: Aimee is your front-office AI assistant that ensures all patients are taken care of, all appointments are scheduled, and your team stays happy and productive.
+                - generic [ref=e278]:
+                    - generic [ref=e279]:
+                        - generic [ref=e283]:
+                            - generic [ref=e284]: Picks Up Every Time
+                            - generic [ref=e285]: Don’t miss a call from a patient ever again – let Aimee follow up automatically and get that appointment scheduled in your system.
+                        - generic [ref=e289]:
+                            - generic [ref=e290]: Works Outside of Office Hours
+                            - generic [ref=e291]: Always online, always there to help, Aimee maintains the brand experience your patients know and love so that you never miss an opportunity to book appointments and delight your patients.
+                    - generic [ref=e292]:
+                        - generic [ref=e296]:
+                            - generic [ref=e297]: Delivers Meaningful Business Insights
+                            - generic [ref=e298]: Aimee provides powerful, real-time analytics dashboards that surface key metrics across all locations. Missed call trends, lead conversion rates, appointment volume, and patient response times are just some of the metrics you need in order to grow.
+                        - generic [ref=e302]:
+                            - generic [ref=e303]: Provides Patient Visibility
+                            - generic [ref=e304]: Aimee understands the full patient journey — not just who they are, but everything they've experienced. By connecting personal details, medical history, past appointments, and behavior patterns.
+            - generic [ref=e308]:
+                - heading "More Than Just AI" [level=2] [ref=e310]
+                - paragraph [ref=e311]: Peerlogic is about advanced AI as much as it’s about building a fully integrated communications and intelligence system for multi-location practices, DSOs, and single practices.
+                - generic [ref=e312]:
+                    - generic [ref=e313]:
+                        - heading "Centralized Analytics for Smarter Decisions" [level=4] [ref=e315]
+                        - paragraph [ref=e317]: Get a unified view across all your locations and communication channels with Peerlogic’s analytics dashboards. Track call volume, missed opportunities, appointment trends and more—all in real time.
+                    - generic [ref=e318]:
+                        - heading "Enterprise Grade, 99.999% Uptime" [level=4] [ref=e321]
+                        - paragraph [ref=e322]: Peerlogic’s phone system combines high-quality VoIP infrastructure with real-time caller intelligence. Know who’s calling, why they’re calling, and how the interaction impacts your business before anyone even picks up the phone. The
+            - generic [ref=e326]:
+                - generic [ref=e327]:
+                    - heading "Up And Running in No Time" [level=2] [ref=e328]
+                    - paragraph [ref=e331]: Get up and running with Peerlogic and integrate all the features seamlessly into your existing workflows.Get advanced phone systems, web chat, SMS, analytics and the Aimee AI assistant in a single easy-to-use platform.
+                - generic [ref=e333]:
+                    - generic [ref=e338]:
+                        - generic [ref=e339]: CONSULTATION
+                        - generic [ref=e340]: Talk to our expert team and tell us about your practice, your immediate needs, and your long-term goals.
+                    - generic [ref=e348]:
+                        - strong [ref=e350]: PROPOSAL
+                        - generic [ref=e351]: We’ll tailor a solution that’s right for you - nothing you don’t need and everything to grow your practice, and delight your staff and patients.
+                    - generic [ref=e359]:
+                        - strong [ref=e361]: IMPLEMENTATION
+                        - generic [ref=e362]: You don’t need to do a thing – our team is here to implement the Peerlogic workspace, train your staff, and ensure the transition is seamless, efficient, and stress-free.
+                    - generic [ref=e370]:
+                        - strong [ref=e372]: SUPPORT
+                        - generic [ref=e373]: We’re here to build lasting partnerships, and that means providing ongoing support to your team to ensure your continued growth and success.
+                    - link "Book a Demo" [ref=e380] [cursor=pointer]:
+                        - /url: /book-a-demo
+                        - generic [ref=e381]: Book a Demo
+            - generic [ref=e393]:
+                - generic [ref=e394]:
+                    - group "1 / 4" [ref=e395]:
+                        - generic [ref=e396]:
+                            - heading "“Peerlogic is THE best phone company and we love them!”" [level=3] [ref=e397]
+                            - paragraph [ref=e399]: The customer service is great and anytime we have an issue, they are on it ASAP. I have no complaints and everyone I speak to is so professional and courteous.
+                            - generic [ref=e401]:
+                                - paragraph [ref=e402]: Cristina Yi
+                                - paragraph [ref=e403]: Yi Dentistry
+                    - group "2 / 4" [ref=e404]:
+                        - generic [ref=e405]:
+                            - heading "“It is an absolute delight to work with such a professionals”" [level=3] [ref=e406]
+                            - paragraph [ref=e408]: They are quick to respond with any questions our company has as well as provide assistance within minutes of our correspondence. Top Notch Pros!"
+                            - generic [ref=e410]:
+                                - paragraph [ref=e411]: Joe Messana
+                                - paragraph [ref=e412]: Kessler Dental
+                    - group "3 / 4" [ref=e413]:
+                        - generic [ref=e414]:
+                            - heading "\"Peerlogic has been a game-changer for our team”" [level=3] [ref=e415]
+                            - paragraph [ref=e417]: The AI integrations and real-time reporting provide invaluable insights, while seamless support ensures issues are resolved quickly—even on weekends.
+                            - generic [ref=e419]:
+                                - paragraph [ref=e420]: Calvin Spivey
+                                - paragraph [ref=e421]: Urban Animal
+                    - group "4 / 4" [ref=e422]:
+                        - generic [ref=e423]:
+                            - heading "“Peerlogic is THE best phone company and we love them!”" [level=3] [ref=e424]
+                            - paragraph [ref=e426]: The customer service is great and anytime we have an issue, they are on it ASAP. I have no complaints and everyone I speak to is so professional and courteous.
+                            - generic [ref=e428]:
+                                - paragraph [ref=e429]: Cristina Yi
+                                - paragraph [ref=e430]: Yi Dentistry
+                - generic [ref=e433]: 01 / 04
+            - generic [ref=e438]:
+                - heading "Frequently Asked Questions" [level=2] [ref=e440]
+                - generic [ref=e442]:
+                    - generic [ref=e443]:
+                        - heading "What is an AI front desk assistant and how does it work?" [level=3] [ref=e446] [cursor=pointer]
+                        - generic [ref=e451]: An AI front desk assistant like Aimee automates routine communication tasks for dental and veterinary clinics. It answers calls, follows up with patients, and schedules appointments – all while integrating seamlessly with your existing systems.
+                    - generic [ref=e453]:
+                        - heading "How can Aimee help reduce missed calls and lost revenue?" [level=3] [ref=e456] [cursor=pointer]
+                        - generic [ref=e461]: Aimee responds to missed calls automatically, follows up with patients, and books appointments in real-time – even after hours. This means fewer lost opportunities and more patients through your doors.
+                    - generic [ref=e463]:
+                        - heading "Is Peerlogic’s AI assistant available 24/7?" [level=3] [ref=e466] [cursor=pointer]
+                        - generic [ref=e471]: Yes, Aimee is available around the clock. Whether your front desk is closed or your team is busy with in-office patients, Aimee ensures your practice never misses a chance to engage with a caller.
+                    - generic [ref=e473]:
+                        - heading "Can Aimee personalize patient interactions?" [level=3] [ref=e476] [cursor=pointer]
+                        - generic [ref=e481]: Absolutely. Aimee accesses key patient data – like medical history and previous interactions – to deliver a tailored, human-like experience every time.
+                    - generic [ref=e483]:
+                        - heading "How quickly can we get started with Peerlogic?" [level=3] [ref=e486] [cursor=pointer]
+                        - generic [ref=e491]: Right away. Peerlogic handles everything from setup to staff training. Most practices are up and running with Aimee in just a few days.
+                    - generic [ref=e493]:
+                        - heading "Does Peerlogic integrate with our current systems?" [level=3] [ref=e496] [cursor=pointer]
+                        - generic [ref=e501]: Yes, Peerlogic is built to integrate smoothly with most major practice management systems.Our team works with you to ensure a seamless connection and zero disruption.
+                    - generic [ref=e503]:
+                        - heading "Is this solution suitable for both dental and veterinary practices?" [level=3] [ref=e506] [cursor=pointer]
+                        - generic [ref=e511]: Yes, Aimee is designed to support the unique needs of both dental and veterinary clinics, offering industry-specific workflows and communication strategies.
+                    - generic [ref=e513]:
+                        - heading "What kind of support do we receive after implementation?" [level=3] [ref=e516] [cursor=pointer]
+                        - generic [ref=e521]: Peerlogic provides ongoing support to ensure your team is confident and your system runs smoothly. We’re here to help your practice grow long-term after onboarding is complete.
+                    - generic [ref=e523]:
+                        - generic [ref=e524]:
+                            - heading "Still Have Questions?" [level=3] [ref=e525]
+                            - paragraph [ref=e527]: Visit the help center to get started
+                        - link "See all FAQs" [ref=e528] [cursor=pointer]:
+                            - /url: /book-a-demo
+                            - strong [ref=e530]: See all FAQs
+            - generic [ref=e537]:
+                - heading "Front Desk AI for Modern Practices" [level=2] [ref=e538]
+                - paragraph [ref=e540]: Let Aimee handle the front desk so your team can focus on delivering exceptional care. Start turning missed calls into booked appointments today.
+                - link "Book a Demo" [ref=e542] [cursor=pointer]:
+                    - /url: /book-a-demo
+                    - generic [ref=e543]: Book a Demo
+            - generic [ref=e549]:
+                - generic [ref=e550]:
+                    - heading "See how ‍Peerlogic Works" [level=2] [ref=e551]:
+                        - generic [ref=e552]:
+                            - text: See how
+                            - text: ‍
+                        - text: Peerlogic Works
+                    - generic [ref=e555]: Schedule a demo to learn more about the Peerlogic product suite. We're here to help grow your practice.
+                    - generic [ref=e556]:
+                        - link "info@peerlogic.com" [ref=e557] [cursor=pointer]:
+                            - /url: mailto:info@peerlogic.com
+                            - generic [ref=e558]: info@peerlogic.com
+                        - link "+1 (800) 967-7330" [ref=e559] [cursor=pointer]:
+                            - /url: tel:+1(800)967-7330
+                            - generic [ref=e560]: +1 (800) 967-7330
+                - generic [ref=e563]:
+                    - group [ref=e564]:
+                        - generic [ref=e565]:
+                            - generic [ref=e566]: Practice or DSO Name*
+                            - textbox "Practice or DSO Name* Practice or DSO Name*" [ref=e568]:
+                                - /placeholder: ''
+                    - group [ref=e569]:
+                        - generic [ref=e570]:
+                            - generic [ref=e571]:
+                                - strong [ref=e573]: First Name
+                                - text: '*'
+                            - textbox "First Name* First Name*" [ref=e575]:
+                                - /placeholder: ''
+                        - generic [ref=e576]:
+                            - generic [ref=e577]:
+                                - strong [ref=e579]: Last Name
+                                - text: '*'
+                            - textbox "Last Name* Last Name*" [ref=e581]:
+                                - /placeholder: ''
+                    - group [ref=e582]:
+                        - generic [ref=e583]:
+                            - generic [ref=e584]:
+                                - strong [ref=e586]: Phone
+                                - text: '*'
+                            - textbox "Phone* Phone*" [ref=e588]:
+                                - /placeholder: ''
+                        - generic [ref=e589]:
+                            - generic [ref=e590]:
+                                - strong [ref=e592]: Practice Email
+                                - text: '*'
+                            - textbox "Practice Email* Practice Email*" [ref=e594]:
+                                - /placeholder: ''
+                    - group [ref=e595]:
+                        - generic [ref=e596]:
+                            - generic [ref=e597]: What PMS does your practice use?
+                            - textbox "What PMS does your practice use? What PMS does your practice use?" [ref=e599]:
+                                - /placeholder: ''
+                    - group [ref=e600]:
+                        - generic [ref=e601]:
+                            - generic [ref=e602]: Phone System Name
+                            - textbox "Phone System Name Phone System Name" [ref=e604]:
+                                - /placeholder: ''
+                    - group [ref=e605]:
+                        - generic [ref=e606]:
+                            - generic [ref=e607]: Do you leverage a call-center?
+                            - checkbox "Yes Yes No No" [ref=e609]:
+                                - checkbox "Yes Yes" [ref=e610]:
+                                    - generic [ref=e611]:
+                                        - checkbox "Yes Yes" [ref=e612]
+                                        - text: 'Yes'
+                                - checkbox "No No" [ref=e613]:
+                                    - generic [ref=e614]:
+                                        - checkbox "No No" [ref=e615]
+                                        - text: 'No'
+                    - group
+                    - group [ref=e616]:
+                        - generic [ref=e618]: At Peerlogic, your data is safe, de-identified, and never shared or sold. We train our AI using synthetic data , never live customer information, and follow the highest privacy and security standards.
+                    - iframe [ref=e807]:
+                        - generic [ref=f19e4]:
+                            - text: protected by
+                            - strong [ref=f19e5]: reCAPTCHA
+                    - button "Choose Time to Meet" [ref=e621]
+            - generic [ref=e626]:
+                - generic [ref=e627]:
+                    - generic [ref=e628]:
+                        - generic [ref=e629]:
+                            - generic [ref=e630]: Phone Number
+                            - link "+1 (800) 967-7330" [ref=e631] [cursor=pointer]:
+                                - /url: '#'
+                                - generic [ref=e632]: +1 (800) 967-7330
+                        - generic [ref=e633]:
+                            - generic [ref=e634]: Email Address
+                            - generic [ref=e635]: info@peerlogic.com
+                        - generic [ref=e636]:
+                            - generic [ref=e637]: Physical Address
+                            - generic [ref=e638]: 15059 N SCOTTSDALE RD Suite M3-350, SCOTTSDALE, AZ 85254
+                        - generic [ref=e639]:
+                            - link:
+                                - /url: https://www.linkedin.com/company/peerlogic/
+                            - link:
+                                - /url: https://www.facebook.com/peerlogicinc
+                            - link:
+                                - /url: https://www.instagram.com/peerlogic_/
+                            - link:
+                                - /url: https://x.com/askpeerlogic
+                    - generic [ref=e640]:
+                        - generic [ref=e641]:
+                            - generic [ref=e642]: What We Do
+                            - generic [ref=e643]:
+                                - link "Conversational Insights" [ref=e644] [cursor=pointer]:
+                                    - /url: /conversational-insights
+                                - link "AI Engagement" [ref=e645] [cursor=pointer]:
+                                    - /url: /ai-engagement
+                                - link "Phones" [ref=e646] [cursor=pointer]:
+                                    - /url: /phones-old
+                                - link "Integrations" [ref=e647] [cursor=pointer]:
+                                    - /url: /integrations
+                                - link "Mobile App" [ref=e648] [cursor=pointer]:
+                                    - /url: /mobile-app
+                                - link "Aimee" [ref=e649] [cursor=pointer]:
+                                    - /url: /aimee
+                        - generic [ref=e650]:
+                            - generic [ref=e651]: who we help
+                            - generic [ref=e652]:
+                                - link "Dental" [ref=e653] [cursor=pointer]:
+                                    - /url: /dental
+                                - link "Veterinary" [ref=e654] [cursor=pointer]:
+                                    - /url: /vet
+                        - generic [ref=e655]:
+                            - generic [ref=e656]: who we serve
+                            - generic [ref=e657]:
+                                - link "Front Office Teams" [ref=e658] [cursor=pointer]:
+                                    - /url: /front-office-teams
+                                - link "Practice Owners" [ref=e659] [cursor=pointer]:
+                                    - /url: /practice-owners
+                                - link "Enterprises" [ref=e660] [cursor=pointer]:
+                                    - /url: /enterprises
+                        - generic [ref=e661]:
+                            - generic [ref=e662]: company
+                            - generic [ref=e663]:
+                                - link "About Us" [ref=e664] [cursor=pointer]:
+                                    - /url: /about
+                                - link "Careers" [ref=e665] [cursor=pointer]:
+                                    - /url: /careers
+                                - link "Resources" [ref=e666] [cursor=pointer]:
+                                    - /url: /resources
+                                - link "Legal" [ref=e667] [cursor=pointer]:
+                                    - /url: https://support.peerlogic.com/knowledge-base/?_gl=1%2Aj755rp%2A_gcl_au%2ANTAwODIzMzAzLjE3MjcxOTcyMjA.%2A_ga%2AMTQ0NDMxMzQzNy4xNzI3MTk3MjIw%2A_ga_18V4Z8DG05%2AMTczMzc1NTM2MC4xNy4xLjE3MzM3NTcyOTMuNTEuMC4zOTczNzMxMTM.
+                - generic [ref=e670]:
+                    - link "Back to top" [ref=e671] [cursor=pointer]:
+                        - /url: '#top'
+                        - generic [ref=e672]: Back to top
+                    - link "Demo" [ref=e673] [cursor=pointer]:
+                        - /url: /book-a-demo
+                        - generic [ref=e674]: Demo
+            - banner [ref=e675]:
+                - generic [ref=e676]:
+                    - link:
+                        - /url: '#'
+                    - navigation [ref=e677]:
+                        - link "Home" [ref=e678] [cursor=pointer]:
+                            - /url: '#'
+                        - link "About" [ref=e679] [cursor=pointer]:
+                            - /url: '#'
+                        - link "Contact" [ref=e680] [cursor=pointer]:
+                            - /url: '#'
+                    - text: 
+            - generic [ref=e681]:
+                - generic [ref=e683]:
+                    - generic [ref=e684]: 'Conversion Rate Improvement: Increased'
+                    - generic [ref=e685]: 35% to 65%
+                - generic [ref=e687]:
+                    - generic [ref=e688]: Total Appointments Scheduled
+                    - generic [ref=e689]: '244'
+                - generic [ref=e691]:
+                    - generic [ref=e692]: Total Scheduled Appointment Value
+                    - generic [ref=e693]: $204,687
+                - generic [ref=e695]:
+                    - generic [ref=e696]: Average Improvement Rate Across Practices
+                    - generic [ref=e697]: 71.15%
+    - banner [ref=e698]:
+        - generic [ref=e702]:
+            - link "home" [ref=e703] [cursor=pointer]:
+                - /url: /
+            - navigation [ref=e704]:
+                - generic [ref=e705]:
+                    - generic:
+                        - button: 
+                    - text: 
+                    - button "What We Do" [ref=e707] [cursor=pointer]:
+                        - text: 
+                        - generic [ref=e708]: What We Do
+                    - button "Who We Serve" [ref=e710] [cursor=pointer]:
+                        - text: 
+                        - generic [ref=e711]: Who We Serve
+                    - button "Who We Are" [ref=e713] [cursor=pointer]:
+                        - text: 
+                        - generic [ref=e714]: Who We Are
+                    - link "Pricing" [ref=e715] [cursor=pointer]:
+                        - /url: /pricing-page
+                    - button "Resources" [ref=e717] [cursor=pointer]:
+                        - text: 
+                        - generic [ref=e718]: Resources
+                    - button "Customers" [ref=e720] [cursor=pointer]:
+                        - text: 
+                        - generic [ref=e721]: Customers
+                    - link "Support" [ref=e722] [cursor=pointer]:
+                        - /url: https://support.peerlogic.com
+                    - link "Login" [ref=e723] [cursor=pointer]:
+                        - /url: /login
+                        - generic [ref=e724]: Login
+    - generic [ref=e730]:
+        - generic [ref=e731]:
+            - heading "See how ‍Peerlogic Works" [level=2] [ref=e732]:
+                - generic [ref=e733]:
+                    - text: See how
+                    - text: ‍
+                - text: Peerlogic Works
+            - generic [ref=e736]: Schedule a demo to learn more about the Peerlogic product suite. We're here to help grow your practice.
+            - generic [ref=e737]:
+                - link "info@peerlogic.com" [ref=e738] [cursor=pointer]:
+                    - /url: mailto:info@peerlogic.com
+                    - generic [ref=e739]: info@peerlogic.com
+                - link "+1 (800) 967-7330" [ref=e740] [cursor=pointer]:
+                    - /url: tel:+1(800)967-7330
+                    - generic [ref=e741]: +1 (800) 967-7330
+        - generic [ref=e744]:
+            - group [ref=e745]:
+                - generic [ref=e746]:
+                    - generic [ref=e747]: Practice or DSO Name*
+                    - textbox [ref=e749]
+            - group [ref=e750]:
+                - generic [ref=e751]:
+                    - generic [ref=e752]:
+                        - strong [ref=e754]: First Name
+                        - text: '*'
+                    - textbox [ref=e756]
+                - generic [ref=e757]:
+                    - generic [ref=e758]:
+                        - strong [ref=e760]: Last Name
+                        - text: '*'
+                    - textbox [ref=e762]
+            - group [ref=e763]:
+                - generic [ref=e764]:
+                    - generic [ref=e765]:
+                        - strong [ref=e767]: Phone
+                        - text: '*'
+                    - textbox [ref=e769]
+                - generic [ref=e770]:
+                    - generic [ref=e771]:
+                        - strong [ref=e773]: Practice Email
+                        - text: '*'
+                    - textbox [ref=e775]
+            - group [ref=e776]:
+                - generic [ref=e777]:
+                    - generic [ref=e778]: What PMS does your practice use?
+                    - textbox [ref=e780]
+            - group [ref=e781]:
+                - generic [ref=e782]:
+                    - generic [ref=e783]: Phone System Name
+                    - textbox [ref=e785]
+            - group [ref=e786]:
+                - generic [ref=e787]:
+                    - generic [ref=e788]: Do you leverage a call-center?
+                    - checkbox "Yes No" [ref=e790]:
+                        - checkbox "Yes" [ref=e791]:
+                            - generic [ref=e792]:
+                                - checkbox [ref=e793]
+                                - text: 'Yes'
+                        - checkbox "No" [ref=e794]:
+                            - generic [ref=e795]:
+                                - checkbox [ref=e796]
+                                - text: 'No'
+            - group
+            - group [ref=e797]:
+                - generic [ref=e799]: At Peerlogic, your data is safe, de-identified, and never shared or sold. We train our AI using synthetic data , never live customer information, and follow the highest privacy and security standards.
+            - iframe [ref=e812]:
+                - generic [ref=f20e4]:
+                    - text: protected by
+                    - strong [ref=f20e5]: reCAPTCHA
+            - button "Choose Time to Meet" [ref=e802]
+    - text: x

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppDispatch } from '@/store/hooks';
@@ -18,6 +18,18 @@ import { API_BASE_URL, fetchCsrfToken } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+
+function extractRetryAfterSeconds(err: unknown): number | null {
+  if (!err || typeof err !== 'object') return null;
+  const data = (err as Record<string, unknown>).data;
+  if (!data || typeof data !== 'object') return null;
+  const error = (data as Record<string, unknown>).error;
+  if (!error || typeof error !== 'object') return null;
+  const details = (error as Record<string, unknown>).details;
+  if (!details || typeof details !== 'object') return null;
+  const seconds = (details as Record<string, unknown>).retryAfterSeconds;
+  return typeof seconds === 'number' ? seconds : null;
+}
 
 const mapServerStepToClientStep = (step?: string): OnboardingStep => {
   if (!step) return 'clinic-profile';
@@ -54,6 +66,19 @@ export function LoginForm() {
   const otpInputId = 'login-otp-code';
   const isOAuthCallback = searchParams.get('oauth') === 'google';
   const [oauthLoading, setOauthLoading] = useState(isOAuthCallback);
+
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+
+  useEffect(() => {
+    if (rateLimitCountdown <= 0) return;
+    const timer = setTimeout(() => setRateLimitCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [rateLimitCountdown]);
+
+  const handleRateLimitError = useCallback((err: unknown) => {
+    const seconds = extractRetryAfterSeconds(err);
+    if (seconds && seconds > 0) setRateLimitCountdown(seconds);
+  }, []);
 
   const [login, { isLoading }] = useLoginMutation();
   const [sendEmailOtp, { isLoading: sendingOtp }] = useSendEmailOtpMutation();
@@ -146,6 +171,7 @@ export function LoginForm() {
       const result = await login({ email, password }).unwrap();
       await finalizeLogin(result);
     } catch (err: unknown) {
+      handleRateLimitError(err);
       toast.error(getUserFriendlyApiError(err, { operation: 'login' }));
     }
   };
@@ -156,6 +182,7 @@ export function LoginForm() {
       setOtpSent(true);
       toast.success('Verification code sent.');
     } catch (err: unknown) {
+      handleRateLimitError(err);
       toast.error(getUserFriendlyApiError(err));
     }
   };
@@ -165,6 +192,7 @@ export function LoginForm() {
       const result = await verifyEmailOtp({ email, code: otpCode }).unwrap();
       await finalizeLogin(result);
     } catch (err: unknown) {
+      handleRateLimitError(err);
       toast.error(getUserFriendlyApiError(err));
     }
   };
@@ -241,9 +269,13 @@ export function LoginForm() {
             <Button
               type="submit"
               className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
-              disabled={isLoading}
+              disabled={isLoading || rateLimitCountdown > 0}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading
+                ? 'Signing in...'
+                : rateLimitCountdown > 0
+                  ? `Try again in ${rateLimitCountdown}s`
+                  : 'Sign in'}
             </Button>
           </Field>
 
@@ -281,10 +313,14 @@ export function LoginForm() {
                 variant="outline"
                 className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
                 onClick={handleSendOtp}
-                disabled={sendingOtp || !email}
+                disabled={sendingOtp || !email || rateLimitCountdown > 0}
                 aria-label="Send sign in code to email"
               >
-                {sendingOtp ? 'Sending code...' : 'Send email code'}
+                {sendingOtp
+                  ? 'Sending code...'
+                  : rateLimitCountdown > 0
+                    ? `Try again in ${rateLimitCountdown}s`
+                    : 'Send email code'}
               </Button>
             ) : (
               <div className="space-y-2">
@@ -307,9 +343,13 @@ export function LoginForm() {
                   variant="outline"
                   className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
                   onClick={handleOtpLogin}
-                  disabled={verifyingOtp || otpCode.length !== 6}
+                  disabled={verifyingOtp || otpCode.length !== 6 || rateLimitCountdown > 0}
                 >
-                  {verifyingOtp ? 'Verifying...' : 'Sign in with email code'}
+                  {verifyingOtp
+                    ? 'Verifying...'
+                    : rateLimitCountdown > 0
+                      ? `Try again in ${rateLimitCountdown}s`
+                      : 'Sign in with email code'}
                 </Button>
               </div>
             )}

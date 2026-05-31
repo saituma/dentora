@@ -1,0 +1,298 @@
+- generic [ref=e3]:
+    - navigation [ref=e7]:
+        - link "Linda AI Logo" [ref=e9] [cursor=pointer]:
+            - /url: ./
+            - img "Linda AI Logo" [ref=e11]
+        - generic [ref=e12]:
+            - link "Features" [ref=e14] [cursor=pointer]:
+                - /url: ./#feature
+                - paragraph [ref=e16]: Features
+            - link "About us" [ref=e18] [cursor=pointer]:
+                - /url: https://www.meetlinda.ai/aboutus
+                - paragraph [ref=e20]: About us
+            - link "Pricing" [ref=e22] [cursor=pointer]:
+                - /url: ./#pricing
+                - paragraph [ref=e24]: Pricing
+            - link "FAQ" [ref=e26] [cursor=pointer]:
+                - /url: ./#faq
+                - paragraph [ref=e28]: FAQ
+            - link "Blog" [ref=e30] [cursor=pointer]:
+                - /url: ./dental-ai-blogs
+                - paragraph [ref=e32]: Blog
+        - link "Contact us" [ref=e34] [cursor=pointer]:
+            - /url: https://meetlinda.typeform.com/to/mi9kLkcL
+            - paragraph [ref=e36]: Contact us
+    - generic [ref=e63]:
+        - banner [ref=e64]:
+            - banner [ref=e65]:
+                - banner [ref=e66]:
+                    - generic [ref=e67]:
+                        - generic [ref=e68]:
+                            - heading "AI Receptionist for Dental Clinics" [level=1] [ref=e71]
+                            - generic [ref=e73]:
+                                - paragraph [ref=e74]: Linda AI is a 24/7 AI phone receptionist built for dental practices across the UK & Ireland.
+                                - paragraph [ref=e75]: Linda answers every patient call, books appointments directly into your practice management system, takes deposits to reduce no-shows, and handles WhatsApp enquiries and after-hours calls around the clock, so your front desk team can focus on in-clinic care.
+                        - link "Get started" [ref=e79] [cursor=pointer]:
+                            - /url: https://calendly.com/indiahoc-meetlinda/linda-ai-learn-more
+                            - paragraph [ref=e81]: Get started
+                    - generic [ref=e86]:
+                        - generic [ref=e87]:
+                            - paragraph [ref=e90]: Patient Calls
+                            - generic [ref=e92]:
+                                - generic [ref=e93]:
+                                    - img "Linda AI patient call log" [ref=e97]
+                                    - generic [ref=e98]:
+                                        - paragraph [ref=e100]: Maggie Johnson
+                                        - paragraph [ref=e102]: New Patient
+                                - generic [ref=e114]:
+                                    - img "Linda AI patient call log" [ref=e118]
+                                    - generic [ref=e119]:
+                                        - paragraph [ref=e121]: Chris Friedkly
+                                        - paragraph [ref=e123]: Existing Patient
+                                - generic [ref=e124]:
+                                    - img "Linda AI patient call log" [ref=e128]
+                                    - generic [ref=e129]:
+                                        - paragraph [ref=e131]: Gael Harry
+                                        - paragraph [ref=e133]: New Patient
+                            - paragraph [ref=e136]: All customers
+                        - generic [ref=e138]:
+                            - generic [ref=e139]:
+                                - generic [ref=e140]:
+                                    - paragraph [ref=e142]: Daily Average
+                                    - paragraph [ref=e144]: 3h 20m
+                                - generic [ref=e145]:
+                                    - paragraph [ref=e147]: +30m
+                                    - paragraph [ref=e149]: this week
+                            - generic [ref=e150]:
+                                - paragraph [ref=e157]: M
+                                - paragraph [ref=e164]: T
+                                - paragraph [ref=e171]: W
+                                - paragraph [ref=e178]: T
+                                - paragraph [ref=e185]: F
+                                - paragraph [ref=e192]: S
+                                - paragraph [ref=e199]: S
+                - list [ref=e202]:
+                    - listitem [ref=e203]:
+                        - img "Docklands Dental" [ref=e207]
+                    - listitem [ref=e208]:
+                        - img "Kings Hill Clinic" [ref=e212]
+                    - listitem [ref=e213]:
+                        - img "syncdental" [ref=e217]
+                    - listitem [ref=e218]:
+                        - img "Cube dental" [ref=e222]
+                    - listitem [ref=e223]:
+                        - img [ref=e226]
+                    - listitem [ref=e227]:
+                        - img [ref=e230]
+                    - listitem [ref=e231]:
+                        - img [ref=e234]
+                    - listitem [ref=e235]:
+                        - img [ref=e238]
+        - generic [ref=e240]:
+            - generic [ref=e242]:
+                - img [ref=e243] [cursor=pointer]
+                - button "Play" [ref=e244] [cursor=pointer]:
+                    - img [ref=e245]
+            - generic [ref=e250]:
+                - generic [ref=e251]:
+                    - generic [ref=e253]:
+                        - generic [ref=e254]:
+                            - paragraph [ref=e256]: '01'
+                            - generic [ref=e257]:
+                                - heading "Easy setup" [level=5] [ref=e260]
+                                - paragraph [ref=e262]: Connect Linda to your phone system and PMS.
+                        - img "Linda AI setup screen - connecting to phone system and practice management software" [ref=e267]
+                    - generic [ref=e272]:
+                        - paragraph [ref=e274]: '02'
+                        - generic [ref=e275]:
+                            - heading "Never miss a call" [level=5] [ref=e278]
+                            - paragraph [ref=e280]: Linda answers, books and takes deposits 24/7.
+                - generic [ref=e283]:
+                    - paragraph [ref=e285]: '03'
+                    - generic [ref=e286]:
+                        - heading "Measure impact" [level=5] [ref=e289]
+                        - paragraph [ref=e291]: See appointments, revenue booked, and FTAs reduced.
+        - generic [ref=e293]:
+            - generic [ref=e296]:
+                - heading "Capture demand. Reduce no-shows. Increase chair utilisation." [level=2] [ref=e299]
+                - paragraph [ref=e301]: Clinics see a 15% increase in bookings when Linda goes live.
+            - generic [ref=e304]:
+                - generic [ref=e305]:
+                    - paragraph [ref=e310] [cursor=pointer]: New Patients
+                    - paragraph [ref=e316] [cursor=pointer]: Reduce FTA Rates
+                    - paragraph [ref=e322] [cursor=pointer]: Increase Bookings
+                    - paragraph [ref=e328] [cursor=pointer]: Patient Reactivation
+                - generic [ref=e331]:
+                    - generic [ref=e333]:
+                        - img "Abstract background" [ref=e336]
+                        - img "Linda AI converting new patient calls into booked appointments" [ref=e340]
+                    - generic [ref=e341]:
+                        - paragraph [ref=e345]: New Patients
+                        - heading "Convert calls into new patients." [level=3] [ref=e347]
+                        - paragraph [ref=e349]: Linda answers every call, captures new patient details, and books appointments instantly - so marketing leads never go to voicemail.
+        - generic [ref=e351]:
+            - generic [ref=e352]:
+                - generic [ref=e355]:
+                    - heading "Powerful integrations" [level=2] [ref=e358]
+                    - paragraph [ref=e360]: Seamlessly integrate with your favourite tools to ensure Linda is always in sync with your clinic.
+                    - link "Get started" [ref=e362] [cursor=pointer]:
+                        - /url: https://calendly.com/indiahoc-meetlinda/linda-ai-learn-more
+                        - paragraph [ref=e364]: Get started
+                - generic [ref=e368]:
+                    - img [ref=e372]
+                    - img [ref=e377]
+                    - img [ref=e382]
+                    - img [ref=e387]
+                - generic [ref=e389]:
+                    - generic [ref=e392]:
+                        - paragraph [ref=e395]: '01'
+                        - paragraph [ref=e397]: Explore supported integrations
+                    - generic [ref=e400]:
+                        - paragraph [ref=e403]: '02'
+                        - paragraph [ref=e405]: Securely link your account
+                    - generic [ref=e408]:
+                        - paragraph [ref=e411]: '03'
+                        - paragraph [ref=e413]: Sync and streamline your workflows
+            - generic [ref=e416]:
+                - list [ref=e418]:
+                    - listitem [ref=e419]:
+                        - img "Dentally practice management software - Linda AI integration" [ref=e423]
+                    - listitem [ref=e424]:
+                        - img "Gmail - Linda AI integration" [ref=e428]
+                    - listitem [ref=e429]:
+                        - img "Outlook - Linda AI integration" [ref=e433]
+                    - listitem [ref=e434]:
+                        - img "WhatsApp - Linda AI integration" [ref=e438]
+                - list [ref=e440]:
+                    - listitem [ref=e441]:
+                        - img "Software of Excellence - Linda AI integration" [ref=e445]
+                    - listitem [ref=e446]:
+                        - img "Pabau - Linda AI integration" [ref=e450]
+                    - listitem [ref=e451]:
+                        - img "Twilio - Linda AI Integration" [ref=e455]
+                    - listitem [ref=e456]:
+                        - img "Dentrix Ascend - Linda AI integration" [ref=e460]
+        - generic [ref=e465]:
+            - heading "Flexible pricing" [level=2] [ref=e472]
+            - generic [ref=e474]:
+                - generic [ref=e475]:
+                    - heading "Access to all agents" [level=4] [ref=e480]
+                    - generic [ref=e481]:
+                        - generic:
+                            - generic:
+                                - heading [level=2]
+                            - generic:
+                                - paragraph
+                        - paragraph [ref=e483]: Pricing plans based on your clinics needs.
+                    - link "Schedule a demo" [ref=e485] [cursor=pointer]:
+                        - /url: https://calendly.com/indiahoc-meetlinda/linda-ai-learn-more
+                        - paragraph [ref=e487]: Schedule a demo
+                - generic [ref=e491]:
+                    - paragraph [ref=e496]: Scheduler for all booking activities
+                    - paragraph [ref=e501]: Lead manager
+                    - paragraph [ref=e506]: Recall and lapsed patients agent
+                    - paragraph [ref=e511]: Care co-ordinator
+                    - paragraph [ref=e516]: Payments manager incl. Stripe
+        - generic [ref=e519]:
+            - generic [ref=e523]:
+                - heading "Success stories" [level=2] [ref=e526]
+                - paragraph [ref=e528]: Linda is trusted by single site, multi-site and DSOs across the UK and Ireland.
+            - generic [ref=e529]:
+                - img [ref=e533]
+                - img [ref=e538]
+                - img [ref=e543]
+                - img [ref=e548]
+                - img [ref=e553]
+            - generic [ref=e555]:
+                - generic [ref=e556]:
+                    - generic [ref=e561]:
+                        - generic [ref=e562]:
+                            - img [ref=e566]
+                            - paragraph [ref=e569]: Linda AI has become essential to our clinic. She manages calls when we’re unavailable, handles outbound comms, and patients love it. We've already recommended Linda to others.
+                        - generic [ref=e571]:
+                            - paragraph [ref=e573]: Practice Manager
+                            - paragraph [ref=e575]: Dublin Dental Practice
+                    - generic [ref=e580]:
+                        - generic [ref=e581]:
+                            - img [ref=e585]
+                            - paragraph [ref=e588]: Linda AI has completely changed the way we connect with patients. Calls are never missed, patients can reach us anytime, and bookings happen seamlessly around the clock.
+                        - generic [ref=e590]:
+                            - paragraph [ref=e592]: Head of IT
+                            - paragraph [ref=e594]: UK Dental Group
+                - generic [ref=e599]:
+                    - generic [ref=e600]:
+                        - img [ref=e604]
+                        - paragraph [ref=e607]: Linda AI integrates seamlessly with our cloud-based practice management software. It has given us the flexibility to handle calls and bookings out of hours, while improving appointment confirmations.
+                    - generic [ref=e609]:
+                        - paragraph [ref=e611]: Practice Owner
+                        - paragraph [ref=e613]: Three Site Dental Group
+        - generic [ref=e615]:
+            - generic [ref=e618]:
+                - heading "Your questions, answered" [level=2] [ref=e621]
+                - paragraph [ref=e623]: Get quick answers to the most common questions about Linda AI.
+                - link "Contact us" [ref=e625] [cursor=pointer]:
+                    - /url: https://meetlinda.typeform.com/to/mi9kLkcL
+                    - paragraph [ref=e627]: Contact us
+            - generic [ref=e630]:
+                - generic [ref=e632] [cursor=pointer]:
+                    - heading "What types of clinics do you work with?" [level=6] [ref=e636]
+                    - generic:
+                        - generic:
+                            - paragraph: We partner with dental clinics of all sizes - single site clinics, DSO's, squat practices etc.
+                - generic [ref=e639] [cursor=pointer]:
+                    - heading "How long does it take to see results?" [level=6] [ref=e643]
+                    - generic:
+                        - generic:
+                            - paragraph: We offer clinics a one month free pilot. This provides the clinic with an opportunity to see how Linda works in the practice.
+                - generic [ref=e646] [cursor=pointer]:
+                    - heading "Can Linda integrate with our existing tools?" [level=6] [ref=e650]
+                    - generic:
+                        - generic:
+                            - paragraph: Yes. Linda works with a wide range of PMS and voice systems, including Dentally.
+                - generic [ref=e653] [cursor=pointer]:
+                    - heading "Do you offer phone and WhatsApp?" [level=6] [ref=e657]
+                    - generic:
+                        - generic:
+                            - paragraph: Yes. Linda is available for phone and WhatsApp communications.
+                - generic [ref=e660] [cursor=pointer]:
+                    - heading "What does onboarding look like?" [level=6] [ref=e664]
+                    - generic:
+                        - generic:
+                            - paragraph: Our onboarding process is a simple three step process. Please get in touch if you would like to trial Linda.
+        - generic [ref=e668]:
+            - link "New Template" [ref=e669] [cursor=pointer]:
+                - /url: https://www.framer.com/marketplace/templates/zova/
+                - paragraph [ref=e671]: New Template
+            - link "Use Template" [ref=e674] [cursor=pointer]:
+                - /url: https://lunisdesign.lemonsqueezy.com/buy/6130087a-b272-4d83-a2cf-f426dc0a0b89
+                - paragraph [ref=e678]: Use Template
+    - contentinfo [ref=e679]:
+        - contentinfo [ref=e683]:
+            - contentinfo [ref=e684]:
+                - generic [ref=e689]:
+                    - link "Home" [ref=e691] [cursor=pointer]:
+                        - /url: ./
+                        - paragraph [ref=e693]: Home
+                    - link "Privacy Policy" [ref=e695] [cursor=pointer]:
+                        - /url: https://candy-brain-756.notion.site/Privacy-Policy-2953a3c2858a80ecbbecc445f63bdbb6?pvs=73
+                        - paragraph [ref=e697]: Privacy Policy
+                    - link "Terms of Service" [ref=e699] [cursor=pointer]:
+                        - /url: https://candy-brain-756.notion.site/Terms-of-Service-2fc3a3c2858a8008b61df438353147bd
+                        - paragraph [ref=e701]: Terms of Service
+                    - link "Hiring" [ref=e703] [cursor=pointer]:
+                        - /url: https://jobs.ashbyhq.com/linda
+                        - paragraph [ref=e705]: Hiring
+                    - link "Status" [ref=e707] [cursor=pointer]:
+                        - /url: https://linda-ai.openstatus.dev
+                        - paragraph [ref=e709]: Status
+                - generic [ref=e711]:
+                    - generic [ref=e712]:
+                        - link [ref=e714] [cursor=pointer]:
+                            - /url: https://www.instagram.com/meetlinda.ai/
+                        - link [ref=e716] [cursor=pointer]:
+                            - /url: https://www.linkedin.com/company/meetlinda
+                        - link [ref=e718] [cursor=pointer]:
+                            - /url: https://www.tiktok.com/@meetlinda.ai
+                    - paragraph [ref=e720]:
+                        - link "info@meetlinda.ai" [ref=e721] [cursor=pointer]:
+                            - /url: 'mailto: info@meetlinda.ai'

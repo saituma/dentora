@@ -80,9 +80,16 @@ export const apiRateLimiter = rateLimiter({
 });
 
 export const authRateLimiter = rateLimiter({
-  maxRequests: 10000,
+  maxRequests: 20,
   windowSeconds: 60,
   keyPrefix: 'auth',
+});
+
+// Tighter limit for credential submission and OTP sends — brute-force / cost targets.
+export const loginRateLimiter = rateLimiter({
+  maxRequests: 10,
+  windowSeconds: 60,
+  keyPrefix: 'auth-login',
 });
 
 export const webhookRateLimiter = rateLimiter({

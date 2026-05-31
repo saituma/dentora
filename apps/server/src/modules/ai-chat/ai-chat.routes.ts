@@ -1,8 +1,13 @@
-
 import { Router } from 'express';
 import * as aiChatService from './ai-chat.service.js';
-import { authenticateJwt, resolveTenant, validate } from '../../middleware/index.js';
+import { authenticateJwt, resolveTenant, validate, rateLimiter } from '../../middleware/index.js';
 import { z } from 'zod';
+
+const aiChatRateLimiter = rateLimiter({
+  maxRequests: 30,
+  windowSeconds: 60,
+  keyPrefix: 'ai-chat',
+});
 
 export const aiChatRouter = Router();
 
@@ -10,6 +15,7 @@ aiChatRouter.use(authenticateJwt, resolveTenant);
 
 aiChatRouter.post(
   '/turn',
+  aiChatRateLimiter,
   validate({
     body: z.object({
       message: z.string().min(1).max(2000),
