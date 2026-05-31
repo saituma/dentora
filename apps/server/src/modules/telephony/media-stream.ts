@@ -13,6 +13,7 @@ import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { decryptField } from '../../lib/encrypted-column.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
+import { startThinkingSound } from './thinking-sound.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
 import { elevenLabsFetch } from '../elevenlabs/elevenlabs-fetch.js';
 import { runWithTenantContext, setActiveTenantContext } from '../../db/tenant-context.js';
@@ -138,6 +139,7 @@ interface MediaStreamSession {
   firstMediaLogged?: boolean;
   dynamicVariables: Record<string, unknown>;
   contextualUpdate: string;
+  thinkingSound?: { stop: () => void };
 }
 
 const activeSessions = new Map<string, MediaStreamSession>();
@@ -1123,6 +1125,8 @@ async function handleElevenLabsMessageWithTenant(
     case 'audio': {
       const audioBase64 = message.audio_event?.audio_base_64 as string | undefined;
       if (!audioBase64) return;
+      session.thinkingSound?.stop();
+      session.thinkingSound = undefined;
       logger.debug(
         { callSessionId: session.callSessionId, chunkSize: audioBase64.length },
         'Received audio from ElevenLabs',
@@ -1132,12 +1136,16 @@ async function handleElevenLabsMessageWithTenant(
     }
     case 'interruption': {
       logger.info({ callSessionId: session.callSessionId }, 'ElevenLabs interruption received');
+      session.thinkingSound?.stop();
+      session.thinkingSound = undefined;
       sendClearToTwilio(session);
       break;
     }
     case 'user_transcript': {
       const text = message.user_transcription_event?.user_transcript as string | undefined;
       if (!text) return;
+      session.thinkingSound?.stop();
+      session.thinkingSound = startThinkingSound(session.ws, session.streamSid);
       logger.info(
         { callSessionId: session.callSessionId, transcriptLength: text.length },
         'User transcript received',

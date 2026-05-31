@@ -6,13 +6,15 @@ export const soundMiddleware: Middleware = () => (next) => (action) => {
   if (typeof window === 'undefined') return result;
 
   const type = (action as { type?: string }).type ?? '';
-  const isMutationFulfilled = type.includes('executeMutation') && type.endsWith('/fulfilled');
-  const isMutationRejected = type.includes('executeMutation') && type.endsWith('/rejected');
+  const isQueryPending = type.includes('executeQuery') && type.endsWith('/pending');
+  const isQueryDone =
+    (type.includes('executeQuery') && type.endsWith('/fulfilled')) ||
+    (type.includes('executeQuery') && type.endsWith('/rejected'));
 
-  if (isMutationFulfilled) {
-    import('@/lib/sounds').then(({ playSound }) => void playSound('success', 0.5));
-  } else if (isMutationRejected) {
-    import('@/lib/sounds').then(({ playSound }) => void playSound('tool-call', 0.4));
+  if (isQueryPending) {
+    import('@/lib/sounds').then(({ startLoadingSound }) => void startLoadingSound());
+  } else if (isQueryDone) {
+    import('@/lib/sounds').then(({ stopLoadingSound }) => stopLoadingSound());
   }
 
   return result;

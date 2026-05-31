@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { playSound, preloadSounds, startLoadingSound, stopLoadingSound } from '@/lib/sounds';
+import { startLoadingSound, stopLoadingSound } from '@/lib/sounds';
 import { useConversation, ConversationProvider } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -245,10 +245,6 @@ function ElevenLabsAgentPageInner() {
     .join(' | ');
 
   useEffect(() => {
-    preloadSounds();
-  }, []);
-
-  useEffect(() => {
     if (clinic?.clinicName && clinicNameVar === 'Your Clinic') {
       setClinicNameVar(clinic.clinicName);
     }
@@ -323,7 +319,7 @@ function ElevenLabsAgentPageInner() {
     textOnly,
     clientTools: {
       list_appointments: async () => {
-        void playSound('tool-call');
+        void startLoadingSound();
         try {
           const response = await callBackendGet<{ data: unknown }>('/appointments/upcoming');
           appendLog({ role: 'event', text: 'Loaded upcoming appointments from calendar.' });
@@ -334,10 +330,12 @@ function ElevenLabsAgentPageInner() {
             text: `Loading appointments failed: ${formatMessage(error)}`,
           });
           return JSON.stringify({ error: formatMessage(error) });
+        } finally {
+          stopLoadingSound();
         }
       },
       lookup_patient: async (params: { phoneNumber: string; dateOfBirth: string }) => {
-        void playSound('tool-call');
+        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>('/patients/lookup', params);
           appendLog({ role: 'event', text: 'Patient profile lookup completed.' });
@@ -345,6 +343,8 @@ function ElevenLabsAgentPageInner() {
         } catch (error) {
           appendLog({ role: 'error', text: `Patient lookup failed: ${formatMessage(error)}` });
           return JSON.stringify({ error: formatMessage(error) });
+        } finally {
+          stopLoadingSound();
         }
       },
       check_availability: async (params: {
@@ -353,7 +353,7 @@ function ElevenLabsAgentPageInner() {
         requestedPeriod?: 'morning' | 'afternoon' | 'evening' | null;
         appointmentDurationMinutes?: number;
       }) => {
-        void playSound('tool-call');
+        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>(
             '/appointments/availability',
@@ -364,6 +364,8 @@ function ElevenLabsAgentPageInner() {
         } catch (error) {
           appendLog({ role: 'error', text: `Availability check failed: ${formatMessage(error)}` });
           return JSON.stringify({ error: formatMessage(error) });
+        } finally {
+          stopLoadingSound();
         }
       },
       create_appointment: async (params: {
@@ -375,13 +377,10 @@ function ElevenLabsAgentPageInner() {
         dateOfBirth?: string | null;
         reasonForVisit: string;
       }) => {
-        void playSound('tool-call');
+        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/book', {
-            slot: {
-              startIso: params.startIso,
-              endIso: params.endIso,
-            },
+            slot: { startIso: params.startIso, endIso: params.endIso },
             patient: {
               fullName: params.fullName,
               age: params.age,
@@ -398,16 +397,16 @@ function ElevenLabsAgentPageInner() {
             text: `Appointment creation failed: ${formatMessage(error)}`,
           });
           return JSON.stringify({ error: formatMessage(error) });
+        } finally {
+          stopLoadingSound();
         }
       },
       cancel_appointment: async (params: { eventId: string }) => {
-        void playSound('tool-call');
+        void startLoadingSound();
         try {
           const response = await callBackend<{ data: { success: boolean } }>(
             '/appointments/cancel',
-            {
-              eventId: params.eventId,
-            },
+            { eventId: params.eventId },
           );
           appendLog({ role: 'event', text: 'Appointment cancelled in connected calendar.' });
           return JSON.stringify(response.data);
@@ -417,6 +416,8 @@ function ElevenLabsAgentPageInner() {
             text: `Appointment cancellation failed: ${formatMessage(error)}`,
           });
           return JSON.stringify({ error: formatMessage(error) });
+        } finally {
+          stopLoadingSound();
         }
       },
       reschedule_appointment: async (params: {
@@ -424,14 +425,11 @@ function ElevenLabsAgentPageInner() {
         startIso: string;
         endIso: string;
       }) => {
-        void playSound('tool-call');
+        void startLoadingSound();
         try {
           const response = await callBackend<{ data: unknown }>('/appointments/reschedule', {
             eventId: params.eventId,
-            slot: {
-              startIso: params.startIso,
-              endIso: params.endIso,
-            },
+            slot: { startIso: params.startIso, endIso: params.endIso },
           });
           appendLog({ role: 'event', text: 'Appointment rescheduled in connected calendar.' });
           return JSON.stringify(response.data);
@@ -441,11 +439,12 @@ function ElevenLabsAgentPageInner() {
             text: `Appointment reschedule failed: ${formatMessage(error)}`,
           });
           return JSON.stringify({ error: formatMessage(error) });
+        } finally {
+          stopLoadingSound();
         }
       },
     },
     onConnect: () => {
-      void playSound('connecting');
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
     },
     onDisconnect: () => {
@@ -484,12 +483,8 @@ function ElevenLabsAgentPageInner() {
       appendLog({ role: 'error', text: formatMessage(error) });
       toast.error('ElevenLabs conversation failed. Check your API key and agent.');
     },
-    onModeChange: (mode) => {
-      const m = mode as { mode?: string };
-      if (m?.mode === 'speaking') void playSound('speaking', 0.5);
-      if (m?.mode === 'listening') void playSound('listening', 0.5);
-      appendLog({ role: 'event', text: `Mode changed: ${formatMessage(mode)}` });
-    },
+    onModeChange: (mode) =>
+      appendLog({ role: 'event', text: `Mode changed: ${formatMessage(mode)}` }),
     onStatusChange: (status) =>
       appendLog({ role: 'event', text: `Status: ${formatMessage(status)}` }),
     onDebug: (event) => appendLog({ role: 'event', text: `Debug: ${formatMessage(event)}` }),
@@ -506,7 +501,6 @@ function ElevenLabsAgentPageInner() {
   }, [conversation.status]);
 
   const startConversation = async () => {
-    void playSound('click');
     if (!agentId) {
       toast.error('Select an agent voice below before starting.');
       return;
@@ -677,7 +671,6 @@ function ElevenLabsAgentPageInner() {
   };
 
   const stopConversation = async () => {
-    void playSound('click');
     try {
       await conversation.endSession();
       appendLog({ role: 'system', text: 'Session ended.' });
