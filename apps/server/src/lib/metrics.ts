@@ -197,6 +197,13 @@ export const mediaStreamAbnormalDisconnectTotal = new client.Counter({
   registers: [register],
 });
 
+export const convaiToolTimeoutTotal = new client.Counter({
+  name: 'convai_tool_timeout_total',
+  help: 'ConvAI tool calls that exceeded the execution timeout (caller would otherwise hear silence)',
+  labelNames: ['tool'] as const,
+  registers: [register],
+});
+
 export const appointmentReconciliationFailedTotal = new client.Counter({
   name: 'appointment_reconciliation_failed_total',
   help: 'Total appointment reconciliation failures requiring staff review',
