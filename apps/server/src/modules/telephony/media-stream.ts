@@ -999,7 +999,29 @@ export async function handleStreamStart(
     // after a cache miss — which will still work, just with the previous agent prompt.
     void ensureAgentPromptDates(tenantId, agentId);
 
-    const elevenSocket = await createConvaiWebSocket(session, agentId);
+    // If ElevenLabs is genuinely unreachable (signed-URL fetch fails), the caller is
+    // already committed to <Connect><Stream> — bare-closing the ws leaves them in dead
+    // air. Rescue them to the practice/voicemail instead, mirroring the abnormal mid-call
+    // drop path. This matters because the webhook now re-admits a probe call once the
+    // elevenlabs breaker's reset window elapses, so this path is reachable during a real
+    // outage rather than only as dead air.
+    let elevenSocket: WebSocket;
+    try {
+      elevenSocket = await createConvaiWebSocket(session, agentId);
+    } catch (err) {
+      logger.error(
+        { err, callSessionId, tenantId },
+        'ElevenLabs connection failed during stream init — rescuing caller',
+      );
+      await handleStreamEnd(callSessionId, 'elevenlabs_connect_failed');
+      const rescued = session.callSid
+        ? await redirectLiveCallToFallback({ tenantId, callSid: session.callSid, callSessionId })
+        : { success: false };
+      if (!rescued.success && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      return false;
+    }
 
     // Guard: if the session ended while we were waiting for the ElevenLabs signed URL
     // (e.g. timeout fired or caller hung up), close the socket immediately rather than

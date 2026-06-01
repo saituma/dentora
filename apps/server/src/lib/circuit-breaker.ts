@@ -118,11 +118,26 @@ export async function withCircuitBreaker<T>(serviceName: string, fn: () => Promi
   }
 }
 
+/**
+ * An open breaker is only "open" until its reset window elapses; after that it is
+ * eligible to probe (half-open). The in-band transition to half-open happens lazily
+ * inside withCircuitBreaker on the next wrapped call — but callers that *gate* on
+ * breaker state (e.g. the telephony webhook diverting calls to voicemail) suppress
+ * that very traffic, so the breaker would otherwise read 'open' forever. Surfacing
+ * the elapsed reset here lets those gates re-admit a probe instead of deadlocking.
+ */
+function reportedState(state: CBState, lastFailureAt: number): CBState {
+  if (state === 'open' && Date.now() >= lastFailureAt + RESET_TIMEOUT_MS) {
+    return 'half-open';
+  }
+  return state;
+}
+
 /** Returns a snapshot of this dyno's breaker states for health/metrics endpoints. */
 export function getCircuitBreakerStatus(): Record<string, { state: CBState; failures: number }> {
   const out: Record<string, { state: CBState; failures: number }> = {};
   for (const [name, b] of breakers) {
-    out[name] = { state: b.state, failures: b.failures };
+    out[name] = { state: reportedState(b.state, b.lastFailureAt), failures: b.failures };
   }
   return out;
 }
@@ -140,7 +155,11 @@ export async function getCircuitBreakerStatusShared(): Promise<
   const out: Record<string, { state: CBState; failures: number; dyno?: string }> = {};
 
   for (const [name, b] of breakers) {
-    out[name] = { state: b.state, failures: b.failures, dyno: DYNO };
+    out[name] = {
+      state: reportedState(b.state, b.lastFailureAt),
+      failures: b.failures,
+      dyno: DYNO,
+    };
   }
 
   try {
@@ -151,9 +170,10 @@ export async function getCircuitBreakerStatusShared(): Promise<
       if (!raw) continue;
       const s = JSON.parse(raw) as SharedBreaker;
       const name = key.replace(`global:${SHARED_DOMAIN}:`, '');
+      const sState = reportedState(s.state, s.lastFailureAt);
       const existing = out[name];
-      if (!existing || STATE_SEVERITY[s.state] > STATE_SEVERITY[existing.state]) {
-        out[name] = { state: s.state, failures: s.failures, dyno: s.dyno };
+      if (!existing || STATE_SEVERITY[sState] > STATE_SEVERITY[existing.state]) {
+        out[name] = { state: sState, failures: s.failures, dyno: s.dyno };
       }
     }
   } catch {
