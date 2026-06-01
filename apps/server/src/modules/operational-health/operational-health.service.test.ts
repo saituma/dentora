@@ -11,6 +11,7 @@ vi.mock('../../db/index.js', () => ({
 
 import {
   countRecentMediaStreamHealthEvents,
+  countRecentMediaStreamEventsByType,
   getOperationalHealthSnapshot,
   recordMediaStreamHealthEvent,
   recordOperationalHealthFailure,
@@ -176,5 +177,21 @@ describe('operational health service', () => {
         since: new Date('2026-05-14T00:00:00.000Z'),
       }),
     ).resolves.toBe(3);
+  });
+
+  it('counts recent events globally by type (for the call-drop spike watch)', async () => {
+    const chain = {
+      from: vi.fn(),
+      where: vi.fn().mockResolvedValue([{ value: 5 }]),
+    };
+    chain.from.mockReturnValue(chain);
+    mockDb.select.mockReturnValueOnce(chain);
+
+    await expect(
+      countRecentMediaStreamEventsByType({
+        eventType: 'abnormal_disconnect',
+        since: new Date('2026-05-14T00:00:00.000Z'),
+      }),
+    ).resolves.toBe(5);
   });
 });

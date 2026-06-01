@@ -238,3 +238,25 @@ export async function countRecentMediaStreamHealthEvents(input: {
 
   return row?.value ?? 0;
 }
+
+/**
+ * Global count (across all tenants) of a given media-stream health event type
+ * since `since`. Used by the worker's health watch to detect systemic spikes
+ * (e.g. a wave of mid-call drops) — written by the web dyno, read by the worker.
+ */
+export async function countRecentMediaStreamEventsByType(input: {
+  eventType: MediaStreamHealthEventType;
+  since: Date;
+}): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(mediaStreamHealthEvents)
+    .where(
+      and(
+        eq(mediaStreamHealthEvents.eventType, input.eventType),
+        gte(mediaStreamHealthEvents.occurredAt, input.since),
+      ),
+    );
+
+  return row?.value ?? 0;
+}
