@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
+    "verify:tenant-isolation": "tsx scripts/verify-tenant-isolation.ts",
     "simulate:twilio": "tsx scripts/simulate-twilio-webhooks.ts",
     "simulate:twilio:media": "tsx scripts/simulate-twilio-media-stream.ts",
     "simulate:dentally": "tsx src/modules/pms/adapters/dentally/dentally-sandbox-simulator.ts",

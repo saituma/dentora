@@ -1,10 +1,12 @@
 import path from 'path';
-import { Pool } from 'pg';
+import { Pool, type PoolClient } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import * as schema from './schema.js';
 import { env } from '../config/env.js';
+import { features } from '../config/features.js';
 import { logger } from '../lib/logger.js';
+import { getActiveTenantId } from './tenant-als.js';
 
 function buildConnectionString(rawUrl: string): string {
   const parsedUrl = new URL(rawUrl);
@@ -54,6 +56,49 @@ function resolvePgSsl(
   return undefined;
 }
 
+/**
+ * Set the Postgres `app.current_tenant_id` GUC on every connection checkout from
+ * the active tenant context, so RLS policies enforce isolation for ALL queries —
+ * not just those wrapped in withTenantTransaction. Setting it on every checkout
+ * (to '' when there is no context) prevents a stale value from a prior request
+ * leaking on a pooled connection, and makes RLS fail closed outside a context.
+ *
+ * No-op unless FF_DATABASE_RLS is on, so shipping this code with the flag off
+ * changes nothing at runtime — enabling the flag is the activation switch.
+ */
+function installTenantGuc(target: Pool): void {
+  if (!features.databaseRls) return;
+
+  const originalConnect = target.connect.bind(target);
+
+  const applyGuc = async (client: PoolClient): Promise<void> => {
+    const tenantId = getActiveTenantId() ?? '';
+    await client.query("SELECT set_config('app.current_tenant_id', $1, false)", [tenantId]);
+  };
+
+  target.connect = ((
+    cb?: (err: Error | undefined, client?: PoolClient, done?: (release?: unknown) => void) => void,
+  ) => {
+    if (typeof cb === 'function') {
+      originalConnect((err, client, done) => {
+        if (err || !client) {
+          cb(err, client, done);
+          return;
+        }
+        applyGuc(client).then(
+          () => cb(err, client, done),
+          (gucErr: Error) => cb(gucErr, client, done),
+        );
+      });
+      return undefined;
+    }
+    return (originalConnect() as Promise<PoolClient>).then(async (client) => {
+      await applyGuc(client);
+      return client;
+    });
+  }) as typeof target.connect;
+}
+
 const connectionString = buildConnectionString(env.DATABASE_URL);
 
 const pool = new Pool({
@@ -63,6 +108,7 @@ const pool = new Pool({
   idleTimeoutMillis: 10000,
   ssl: resolvePgSsl(connectionString),
 });
+installTenantGuc(pool);
 
 export const db = drizzle(pool, { schema, logger: env.NODE_ENV === 'development' });
 
@@ -79,6 +125,7 @@ const replicaPool = new Pool({
   idleTimeoutMillis: 10000,
   ssl: resolvePgSsl(replicaConnectionString),
 });
+installTenantGuc(replicaPool);
 
 export const dbReplica = drizzle(replicaPool, { schema, logger: false });
 
