@@ -144,6 +144,11 @@ async function resolveTenant(
     throw new TenantArchivedError(tenantId);
   }
 
+  // Establish tenant context BEFORE reading tenant-scoped tables below
+  // (tenant_active_config is RLS-forced). The DB pool hook reads this to set
+  // app.current_tenant_id on checkout, so the query is correctly scoped.
+  setActiveTenantContext({ tenantId: tenant.tenantId, correlationId, source: 'request' });
+
   let activeConfigVersion = 0;
 
   const cachedVersion = await tenantCacheGet<number>(tenantId, 'active_config', 'version');
@@ -180,11 +185,6 @@ async function resolveTenant(
   };
 
   req.tenantContext = tenantContext;
-  setActiveTenantContext({
-    tenantId: tenant.tenantId,
-    correlationId,
-    source: 'request',
-  });
 
   const tenantLogger = createTenantLogger(tenantId, correlationId);
   tenantLogger.info({ method, configVersion: activeConfigVersion }, 'Tenant resolved successfully');
