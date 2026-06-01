@@ -190,6 +190,13 @@ export const mediaStreamPendingLimitExceededTotal = new client.Counter({
   registers: [register],
 });
 
+export const mediaStreamAbnormalDisconnectTotal = new client.Counter({
+  name: 'media_stream_abnormal_disconnect_total',
+  help: 'Mid-call ElevenLabs ConvAI disconnects (caller still connected, non-normal WS close code)',
+  labelNames: ['code'] as const,
+  registers: [register],
+});
+
 export const appointmentReconciliationFailedTotal = new client.Counter({
   name: 'appointment_reconciliation_failed_total',
   help: 'Total appointment reconciliation failures requiring staff review',

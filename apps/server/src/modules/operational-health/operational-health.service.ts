@@ -7,7 +7,8 @@ export type OperationalHealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'un
 export type MediaStreamHealthEventType =
   | 'start_timeout'
   | 'invalid_start'
-  | 'pending_limit_exceeded';
+  | 'pending_limit_exceeded'
+  | 'abnormal_disconnect';
 
 export interface AppointmentMaintenanceHealthMetadata {
   tenantsProcessed: number;

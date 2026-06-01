@@ -24,6 +24,7 @@ import {
   mediaStreamInvalidStartTotal,
   mediaStreamPendingLimitExceededTotal,
   mediaStreamStartTimeoutTotal,
+  mediaStreamAbnormalDisconnectTotal,
 } from '../../lib/metrics.js';
 import { recordMediaStreamHealthEvent } from '../operational-health/operational-health.service.js';
 
@@ -1019,11 +1020,34 @@ export async function handleStreamStart(
       });
     });
 
-    elevenSocket.on('close', () => {
-      logger.info({ callSessionId }, 'ElevenLabs WebSocket closed');
+    elevenSocket.on('close', (code: number, reason: Buffer) => {
+      // If the caller's Twilio socket is still open when ElevenLabs closes, the AI
+      // dropped first (rather than the caller hanging up). A non-normal close code in
+      // that state is an abnormal mid-call drop — the caller is left in dead air.
+      // We record it (metric + health event) so the rate is visible before adding any
+      // automatic live-call handoff. Behaviour is otherwise unchanged.
+      const callerStillConnected = ws.readyState === WebSocket.OPEN;
+      const abnormal = callerStillConnected && code !== 1000 && code !== 1001;
+      logger.info(
+        { callSessionId, code, reason: reason?.toString(), callerStillConnected },
+        'ElevenLabs WebSocket closed',
+      );
+      if (abnormal) {
+        const session = activeSessions.get(callSessionId);
+        mediaStreamAbnormalDisconnectTotal.inc({ code: String(code) });
+        void recordMediaStreamHealthEvent({
+          tenantId: session?.tenantId ?? null,
+          eventType: 'abnormal_disconnect',
+          reasonCode: `ELEVENLABS_CLOSE_${code}`,
+        });
+        logger.error(
+          { callSessionId, code, turnCount: session?.turnCount ?? 0 },
+          'ElevenLabs WebSocket dropped mid-call — caller left without an agent',
+        );
+      }
       // Always call handleStreamEnd so the session is cleaned up even if the Twilio
       // close event never fires (e.g. socket is already CLOSING when ws.close() is called).
-      void handleStreamEnd(callSessionId, 'elevenlabs_closed');
+      void handleStreamEnd(callSessionId, abnormal ? 'elevenlabs_dropped' : 'elevenlabs_closed');
       if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
