@@ -13,6 +13,7 @@ import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { decryptField } from '../../lib/encrypted-column.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
+import { redirectLiveCallToFallback } from './telephony.service.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
 import { elevenLabsFetch } from '../elevenlabs/elevenlabs-fetch.js';
 import { runWithTenantContext, setActiveTenantContext } from '../../db/tenant-context.js';
@@ -1032,8 +1033,14 @@ export async function handleStreamStart(
         { callSessionId, code, reason: reason?.toString(), callerStillConnected },
         'ElevenLabs WebSocket closed',
       );
+      // Capture session refs before handleStreamEnd removes it from the map.
+      const session = activeSessions.get(callSessionId);
+      const rescue =
+        abnormal && session?.callSid
+          ? { tenantId: session.tenantId, callSid: session.callSid }
+          : null;
+
       if (abnormal) {
-        const session = activeSessions.get(callSessionId);
         mediaStreamAbnormalDisconnectTotal.inc({ code: String(code) });
         void recordMediaStreamHealthEvent({
           tenantId: session?.tenantId ?? null,
@@ -1042,13 +1049,22 @@ export async function handleStreamStart(
         });
         logger.error(
           { callSessionId, code, turnCount: session?.turnCount ?? 0 },
-          'ElevenLabs WebSocket dropped mid-call — caller left without an agent',
+          'ElevenLabs WebSocket dropped mid-call — rescuing caller',
         );
       }
+
       // Always call handleStreamEnd so the session is cleaned up even if the Twilio
       // close event never fires (e.g. socket is already CLOSING when ws.close() is called).
       void handleStreamEnd(callSessionId, abnormal ? 'elevenlabs_dropped' : 'elevenlabs_closed');
-      if (ws.readyState === WebSocket.OPEN) {
+
+      if (rescue) {
+        // Redirect the still-connected caller to a human/voicemail instead of dead air.
+        // The Twilio REST redirect replaces the <Connect><Stream> and closes this ws;
+        // only hang up ourselves if the rescue could not be issued.
+        void redirectLiveCallToFallback({ ...rescue, callSessionId }).then((r) => {
+          if (!r.success && ws.readyState === WebSocket.OPEN) ws.close();
+        });
+      } else if (ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
     });
