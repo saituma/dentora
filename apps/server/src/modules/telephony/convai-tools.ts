@@ -175,6 +175,13 @@ function dispatchToolCall(input: {
       return getClinicInfo(tenantId);
     case 'get_business_hours':
       return getBusinessHours(tenantId);
+    case 'acknowledge_input':
+      // Conversational backchannel the agent fires on nearly every turn (its prompt
+      // tells it to "briefly acknowledge what the caller said"). It has no server-side
+      // effect — but without this case it hit the default and returned an error result,
+      // so the agent kept hearing "please try again or contact the front desk" and
+      // could never collect the caller's details. Acknowledge it as a silent no-op.
+      return Promise.resolve({ acknowledged: true });
     default:
       throw new ValidationError(`Unknown tool: ${toolName}`);
   }
