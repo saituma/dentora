@@ -33,17 +33,21 @@ import { sendTelegramMessage } from './lib/telegram.js';
 
 const workers: Array<{ close: () => Promise<void> }> = [];
 
-async function start(): Promise<void> {
-  initTelegramDispatcher();
-  logger.info('Worker process starting');
-
-  try {
-    await initRedis();
-    logger.info('Redis connected');
-  } catch (err) {
-    logger.error({ err }, 'Redis connection failed — worker cannot start without Redis');
-    process.exit(1);
+export async function startBackgroundWorkers(opts: { initInfra?: boolean } = {}): Promise<void> {
+  // When co-located in the web process (no separate worker dyno), telemetry, Redis,
+  // and the log→Telegram dispatcher are already initialised by index.ts. Only a
+  // standalone worker process initialises its own infra.
+  if (opts.initInfra) {
+    initTelegramDispatcher();
+    try {
+      await initRedis();
+      logger.info('Redis connected');
+    } catch (err) {
+      logger.error({ err }, 'Redis connection failed — worker cannot start without Redis');
+      process.exit(1);
+    }
   }
+  logger.info('Background workers starting');
 
   const { createWorker } = await import('./lib/queue.js');
 
@@ -221,37 +225,43 @@ async function start(): Promise<void> {
   notifyOps({ category: 'LIFECYCLE', title: '🚀 Worker process ready' }).catch(() => undefined);
 }
 
-async function shutdown(signal: string): Promise<void> {
-  logger.info({ signal }, 'Worker shutdown signal received');
-  notifyOps({ category: 'LIFECYCLE', title: `🛑 Worker shutting down (${signal})` }).catch(
-    () => undefined,
-  );
-
+/** Close BullMQ workers + queues. Redis/telemetry are owned by the host process. */
+export async function stopBackgroundWorkers(): Promise<void> {
   await Promise.all(workers.map((w) => w.close().catch(() => undefined)));
   await closeAllQueues();
-  await closeRedis();
-
-  if (process.env.OTEL_ENABLED === 'true') {
-    await shutdownTelemetry();
-  }
-
-  logger.info('Worker process exited cleanly');
-  process.exit(0);
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+// Standalone worker-process entry — only when run as a dedicated worker dyno
+// (WORKER_STANDALONE=true). In the current single-dyno setup the web process calls
+// startBackgroundWorkers() directly, so this block stays dormant on import.
+if (process.env.WORKER_STANDALONE === 'true') {
+  const shutdown = async (signal: string): Promise<void> => {
+    logger.info({ signal }, 'Worker shutdown signal received');
+    notifyOps({ category: 'LIFECYCLE', title: `🛑 Worker shutting down (${signal})` }).catch(
+      () => undefined,
+    );
+    await stopBackgroundWorkers();
+    await closeRedis();
+    if (process.env.OTEL_ENABLED === 'true') {
+      await shutdownTelemetry();
+    }
+    logger.info('Worker process exited cleanly');
+    process.exit(0);
+  };
 
-process.on('unhandledRejection', (reason) => {
-  logger.error({ err: reason }, 'Unhandled rejection in worker');
-  notifyOps({
-    category: 'ERROR',
-    title: 'Unhandled rejection in worker',
-    detail: String(reason).slice(0, 300),
-  }).catch(() => undefined);
-});
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('unhandledRejection', (reason) => {
+    logger.error({ err: reason }, 'Unhandled rejection in worker');
+    notifyOps({
+      category: 'ERROR',
+      title: 'Unhandled rejection in worker',
+      detail: String(reason).slice(0, 300),
+    }).catch(() => undefined);
+  });
 
-start().catch((err) => {
-  logger.error({ err }, 'Worker failed to start');
-  process.exit(1);
-});
+  startBackgroundWorkers({ initInfra: true }).catch((err) => {
+    logger.error({ err }, 'Worker failed to start');
+    process.exit(1);
+  });
+}
