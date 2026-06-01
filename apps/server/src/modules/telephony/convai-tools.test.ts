@@ -159,6 +159,17 @@ beforeEach(() => {
 });
 
 describe('ConvAI appointment tools', () => {
+  it('acknowledges the agent backchannel tool as a no-op success instead of erroring', async () => {
+    const result = await handleConvaiToolCall({
+      tenantId: 'tenant-a',
+      toolName: 'acknowledge_input',
+      callSessionId: 'call-session-a',
+      params: { text: 'mm-hmm' },
+    });
+
+    expect(result).toEqual({ acknowledged: true });
+  });
+
   it('refuses public appointment listing without loading calendar events or returning PHI', async () => {
     const result = await handleConvaiToolCall({
       tenantId: 'tenant-a',
