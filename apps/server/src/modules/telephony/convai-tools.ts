@@ -7,6 +7,7 @@ import {
 import { forwardCallToHuman, sendAppointmentSms } from './telephony.service.js';
 import { ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { convaiToolTimeoutTotal } from '../../lib/metrics.js';
 import { features } from '../../config/features.js';
 import {
   bookLedgerBackedAppointment,
@@ -96,6 +97,39 @@ function normalizeAgentIso(isoStr: string, timezone: string): string {
   return isoStr;
 }
 
+// A tool call that hangs leaves the caller in silence while the agent waits for a
+// client_tool_result. Cap it: on timeout, return a graceful result so the agent can
+// speak instead of freezing. Safe even for write tools — booking is idempotent on
+// (tenant, slot, phone), so a subsequent retry dedups rather than double-booking.
+export const TOOL_CALL_TIMEOUT_MS = 15_000;
+
+const TOOL_TIMEOUT_RESULT = {
+  success: false,
+  message:
+    "I'm having a little trouble completing that right now. Let me take your details and have the team follow up.",
+} as const;
+
+export async function withToolTimeout<T>(
+  toolName: string,
+  tenantId: string,
+  fn: () => Promise<T>,
+  timeoutMs: number = TOOL_CALL_TIMEOUT_MS,
+): Promise<T | typeof TOOL_TIMEOUT_RESULT> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<typeof TOOL_TIMEOUT_RESULT>((resolve) => {
+    timer = setTimeout(() => {
+      convaiToolTimeoutTotal.inc({ tool: toolName });
+      logger.error({ tenantId, toolName, timeoutMs }, 'ConvAI tool call timed out');
+      resolve(TOOL_TIMEOUT_RESULT);
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([fn(), timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function handleConvaiToolCall(input: {
   tenantId: string;
   toolName: string;
@@ -103,11 +137,22 @@ export async function handleConvaiToolCall(input: {
   callSid?: string;
   callSessionId?: string;
 }): Promise<unknown> {
-  const { tenantId, toolName, params } = input;
+  const { tenantId, toolName } = input;
   logger.info(
     { tenantId, toolName, callSessionId: input.callSessionId },
     'ConvAI tool call received',
   );
+  return withToolTimeout(toolName, tenantId, () => dispatchToolCall(input));
+}
+
+function dispatchToolCall(input: {
+  tenantId: string;
+  toolName: string;
+  params: Record<string, unknown>;
+  callSid?: string;
+  callSessionId?: string;
+}): Promise<unknown> {
+  const { tenantId, toolName, params } = input;
 
   switch (toolName) {
     case 'list_appointments':
