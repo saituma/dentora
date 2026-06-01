@@ -832,6 +832,63 @@ export async function forwardCallToHuman(input: {
   }
 }
 
+/**
+ * Rescue a live call after the AI voice provider drops mid-conversation: redirect
+ * the still-connected caller (via the Twilio REST API) to the practice's reception
+ * number — falling back to voicemail when no number is configured — instead of
+ * leaving them in dead air. forward-status handles no-answer → voicemail. If the
+ * configured number happens to be the AI line itself, the redirect re-enters the
+ * voice webhook, whose own breaker check + loop guard route it to voicemail.
+ */
+export async function redirectLiveCallToFallback(input: {
+  tenantId: string;
+  callSid: string;
+  callSessionId: string;
+}): Promise<{ success: boolean }> {
+  const log = logger.child({ module: 'call-rescue', callSessionId: input.callSessionId });
+  try {
+    const client = createTwilioRestClient();
+    const { voiceUrl } = buildTwilioWebhookUrls();
+    const baseUrl = voiceUrl.replace('/api/telephony/webhook/voice', '');
+    const query = `callSessionId=${encodeURIComponent(input.callSessionId)}&amp;tenantId=${encodeURIComponent(input.tenantId)}`;
+
+    let forwardNumber: string | undefined;
+    try {
+      const clinic = (await configService.getClinicProfile(input.tenantId)) as
+        | { phone?: string | null; primaryPhone?: string | null }
+        | undefined;
+      const candidate = (clinic?.phone ?? clinic?.primaryPhone ?? '').trim();
+      if (candidate && /\d/.test(candidate)) forwardNumber = candidate;
+    } catch (err) {
+      log.warn({ err }, 'Could not resolve forward number for live-call rescue');
+    }
+
+    const twiml = forwardNumber
+      ? [
+          '<Response>',
+          '<Say voice="alice" language="en-GB">One moment please, connecting you to the practice.</Say>',
+          `<Dial timeout="25" action="${baseUrl}/api/telephony/webhook/forward-status?${query}"><Number>${twimlEscape(forwardNumber)}</Number></Dial>`,
+          '</Response>',
+        ].join('')
+      : [
+          '<Response>',
+          '<Say voice="alice" language="en-GB">Sorry, we hit a technical problem. Please leave a message after the tone and the team will call you back.</Say>',
+          `<Record maxLength="180" action="${baseUrl}/api/telephony/webhook/voicemail?${query}" transcribe="true" />`,
+          '</Response>',
+        ].join('');
+
+    await client.calls(input.callSid).update({ twiml });
+    log.info(
+      { callSid: input.callSid, rescuedVia: forwardNumber ? 'forward' : 'voicemail' },
+      'Live call rescued after AI drop',
+    );
+    return { success: true };
+  } catch (err) {
+    log.error({ err, callSid: input.callSid }, 'Failed to rescue live call after AI drop');
+    return { success: false };
+  }
+}
+
 function twimlEscape(value: string): string {
   return value
     .replace(/&/g, '&amp;')
