@@ -9,6 +9,7 @@ import { logEmitter, getRecentLogs, type LogEntry } from '../admin/admin-log-str
 import {
   getOperationalHealthSnapshot,
   APPOINTMENT_MAINTENANCE_COMPONENT,
+  countRecentMediaStreamEventsByType,
 } from '../operational-health/operational-health.service.js';
 import { getQueue, QUEUE_NAMES } from '../../lib/queue.js';
 import {
@@ -221,6 +222,11 @@ const _watchState = new Map<string, 'ok' | 'bad'>();
 const FAILED_JOBS_THRESHOLD = 10;
 const PROVIDER_MIN_SAMPLES = 20;
 const PROVIDER_MIN_SUCCESS = 0.5;
+// Mid-call ConvAI drops don't trip the elevenlabs breaker (they're WS drops, not
+// fetch failures), and per-event log alerts dedup by title — so a wave of dropped
+// patients can otherwise go unnoticed. Edge-alert on a spike instead.
+const CALL_DROP_WINDOW_MS = 10 * 60_000;
+const CALL_DROP_SPIKE_THRESHOLD = 3;
 
 function edge(key: string, isBad: boolean, badTitle: string, goodTitle: string): void {
   const prev = _watchState.get(key);
@@ -309,6 +315,24 @@ export async function runHealthWatch(): Promise<void> {
       .then(() => true)
       .catch(() => false);
     edge('redis', !redisOk, `🔴 Redis not responding to ping`, `✅ Redis recovered`);
+  } catch {
+    /* skip */
+  }
+
+  // Mid-call AI drop spike — patients being dropped mid-conversation.
+  try {
+    const drops = await countRecentMediaStreamEventsByType({
+      eventType: 'abnormal_disconnect',
+      since: new Date(Date.now() - CALL_DROP_WINDOW_MS),
+    });
+    edge(
+      'call_drops',
+      drops >= CALL_DROP_SPIKE_THRESHOLD,
+      `📞 ${drops} AI calls dropped mid-conversation in the last ${Math.round(
+        CALL_DROP_WINDOW_MS / 60_000,
+      )}m — patients are being affected`,
+      `✅ AI call-drop spike subsided`,
+    );
   } catch {
     /* skip */
   }
