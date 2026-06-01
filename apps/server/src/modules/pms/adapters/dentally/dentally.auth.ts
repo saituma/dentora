@@ -144,6 +144,7 @@ function defaultDentallyConfig(): DentallyConfig {
     replayWindowSeconds: env.DENTALLY_WEBHOOK_REPLAY_WINDOW_SECONDS,
     timeoutMs: env.DENTALLY_REQUEST_TIMEOUT_MS,
     maxRetries: env.DENTALLY_MAX_RETRIES,
+    readOnly: false,
   });
 }
 
@@ -176,6 +177,7 @@ export function dentallyConfigFromIntegration(integration: Integration): Dentall
     accountId: optionalString(config.accountId),
     practiceId: optionalString(config.practiceId),
     practiceName: optionalString(config.practiceName),
+    readOnly: config.readOnly === true,
   });
 }
 
@@ -273,9 +275,16 @@ export function hasDentallyScope(
   return normalized.has(required) || normalized.has(BROAD_SCOPE_PREFIX[required]);
 }
 
-export function missingDentallyScopes(scopes: readonly string[] | undefined): string[] {
-  if (!scopes || scopes.length === 0) return [...DENTALLY_REQUIRED_SCOPES];
-  return DENTALLY_REQUIRED_SCOPES.filter((scope) => !hasDentallyScope(scopes, scope));
+// A practice can self-issue a read-only token (no partner approval) with just these.
+export const DENTALLY_READ_ONLY_REQUIRED_SCOPES = ['patient:read', 'appointment:read'] as const;
+
+export function missingDentallyScopes(
+  scopes: readonly string[] | undefined,
+  readOnly = false,
+): string[] {
+  const required = readOnly ? DENTALLY_READ_ONLY_REQUIRED_SCOPES : DENTALLY_REQUIRED_SCOPES;
+  if (!scopes || scopes.length === 0) return [...required];
+  return required.filter((scope) => !hasDentallyScope(scopes, scope));
 }
 
 function practiceMetadata(input: {
@@ -294,20 +303,25 @@ export function validateDentallyCredentials(input: {
   config: DentallyConfig;
   credentials: DentallyStoredCredentials;
 }): void {
+  const readOnly = input.config.readOnly;
   if (!input.credentials.encryptedAccessToken) {
-    throw new DentallyAuthError('Dentally OAuth access token is required');
+    throw new DentallyAuthError('Dentally access token is required');
   }
-  if (!input.credentials.encryptedRefreshToken) {
+  // Partner OAuth tokens rotate, so a refresh token + expiry are mandatory. A practice-issued
+  // read-only token is static: no refresh token, and an expiry only if Dentally set one.
+  if (!readOnly && !input.credentials.encryptedRefreshToken) {
     throw new DentallyAuthError('Dentally OAuth refresh token is required');
   }
-  const expiresAtMs = tokenExpiresAtMs(input.credentials.accessTokenExpiresAt);
-  if (expiresAtMs <= Date.now() + EXPIRY_SKEW_MS) {
-    throw new DentallyAuthError('Dentally access token is expired');
+  if (!readOnly || input.credentials.accessTokenExpiresAt) {
+    const expiresAtMs = tokenExpiresAtMs(input.credentials.accessTokenExpiresAt);
+    if (expiresAtMs <= Date.now() + EXPIRY_SKEW_MS) {
+      throw new DentallyAuthError('Dentally access token is expired');
+    }
   }
   if (input.credentials.tokenType && input.credentials.tokenType.toLowerCase() !== 'bearer') {
     throw new DentallyAuthError('Dentally token type must be Bearer');
   }
-  const missingScopes = missingDentallyScopes(input.credentials.scopes);
+  const missingScopes = missingDentallyScopes(input.credentials.scopes, readOnly);
   if (missingScopes.length > 0) {
     throw new DentallyAuthError(
       `Dentally credentials are missing scopes: ${missingScopes.join(', ')}`,
@@ -326,12 +340,17 @@ export async function resolveDentallyAuthContext(
   const config = dentallyConfigFromIntegration(integration);
   const credentials = dentallyCredentialsFromIntegration(integration);
   validateDentallyCredentials({ config, credentials });
-  if (!credentials.encryptedAccessToken || !credentials.encryptedRefreshToken) {
+  if (!credentials.encryptedAccessToken) {
+    throw new DentallyAuthError('Dentally credentials are incomplete');
+  }
+  if (!config.readOnly && !credentials.encryptedRefreshToken) {
     throw new DentallyAuthError('Dentally OAuth credentials are incomplete');
   }
 
   const token = decryptSecret(credentials.encryptedAccessToken, 'access token');
-  decryptSecret(credentials.encryptedRefreshToken, 'refresh token');
+  if (credentials.encryptedRefreshToken) {
+    decryptSecret(credentials.encryptedRefreshToken, 'refresh token');
+  }
 
   return {
     baseUrl: config.baseUrl,

@@ -64,6 +64,37 @@ describe('Dentally auth hardening', () => {
     });
   });
 
+  it('resolves a read-only integration with a static practice token and no refresh token', async () => {
+    const credentials = encryptDentallyCredentialsForStorage({
+      accessToken: 'readonly-token-a',
+      tokenType: 'Bearer',
+      scopes: ['patient:read', 'appointment:read'],
+      practiceId: 'practice-a',
+      practiceName: 'Practice A',
+    });
+
+    await expect(
+      resolveDentallyAuthContext(integrationFixture({ config: { readOnly: true }, credentials })),
+    ).resolves.toMatchObject({
+      authorizationHeader: 'Bearer readonly-token-a',
+      config: { readOnly: true },
+    });
+  });
+
+  it('still requires a refresh token when the integration is not read-only', async () => {
+    const credentials = encryptDentallyCredentialsForStorage({
+      accessToken: 'readonly-token-a',
+      tokenType: 'Bearer',
+      scopes: ['patient:read', 'appointment:read'],
+      practiceId: 'practice-a',
+      practiceName: 'Practice A',
+    });
+
+    await expect(
+      resolveDentallyAuthContext(integrationFixture({ credentials })),
+    ).rejects.toBeInstanceOf(DentallyAuthError);
+  });
+
   it('normalizes legacy base URLs that include /v1', async () => {
     await expect(
       resolveDentallyAuthContext(
