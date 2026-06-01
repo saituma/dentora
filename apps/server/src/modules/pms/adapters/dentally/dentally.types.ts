@@ -17,6 +17,9 @@ export interface DentallyConfig {
   accountId?: string;
   practiceId?: string;
   practiceName?: string;
+  // Read-only integrations use a practice-issued token (patient:read + appointment:read)
+  // that Dentally grants without partner approval. Writes are rejected at the client.
+  readOnly: boolean;
 }
 
 export interface DentallyStoredCredentials {

@@ -13,6 +13,7 @@ import {
   DentallyApiError,
   DentallyAuthError,
   DentallyCapabilityUnavailableError,
+  DentallyReadOnlyError,
   DentallyConflictError,
   DentallyNetworkError,
   DentallyRateLimitError,
@@ -467,6 +468,11 @@ export class DentallyClient {
   }
 
   private async requestRaw(path: string, init: DentallyRequestInit): Promise<Response> {
+    // Single chokepoint: a read-only integration may never issue a mutating request,
+    // no matter which adapter method (current or future) calls it.
+    if (this.auth.config.readOnly && init.method !== 'GET') {
+      throw new DentallyReadOnlyError(capabilityLabel(init, path));
+    }
     const response = await this.fetchDentally(path, init);
     if (response.status === 405 || response.status === 501) {
       throw new DentallyCapabilityUnavailableError(init.capability ?? `${init.method} ${path}`);

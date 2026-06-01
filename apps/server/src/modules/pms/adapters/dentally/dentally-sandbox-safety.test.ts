@@ -26,6 +26,7 @@ function config(baseUrl = 'https://api.sandbox.dentally.co'): DentallyConfig {
     maxRetries: 2,
     practiceId: 'practice-a',
     practiceName: 'Practice A',
+    readOnly: false,
   };
 }
 

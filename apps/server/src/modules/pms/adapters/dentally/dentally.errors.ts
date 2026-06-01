@@ -29,6 +29,17 @@ export class DentallyAuthError extends IntegrationError {
   }
 }
 
+export class DentallyReadOnlyError extends IntegrationError {
+  public constructor(operation: string) {
+    super(
+      'scheduling',
+      'dentally',
+      `Dentally integration is read-only — ${operation} is not permitted`,
+    );
+    this.name = 'DentallyReadOnlyError';
+  }
+}
+
 export class DentallyApiError extends IntegrationError {
   public readonly status?: number;
   public readonly context: DentallyRequestErrorContext;

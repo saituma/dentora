@@ -6,6 +6,7 @@ import {
   DentallyConflictError,
   DentallyNetworkError,
   DentallyRateLimitError,
+  DentallyReadOnlyError,
   DentallyValidationError,
 } from './dentally.errors.js';
 import type { DentallyAuthContext } from './dentally.types.js';
@@ -34,6 +35,7 @@ function authContext(overrides: Partial<DentallyAuthContext['config']> = {}): De
       maxRetries: 2,
       practiceId: 'practice-a',
       practiceName: 'Practice A',
+      readOnly: false,
       ...overrides,
     },
     credentials: {
@@ -57,6 +59,36 @@ function authContext(overrides: Partial<DentallyAuthContext['config']> = {}): De
 }
 
 describe('DentallyClient', () => {
+  it('rejects writes on a read-only integration before any network call', async () => {
+    const fetchImpl = vi.fn<FetchImplementation>();
+    const client = new DentallyClient(authContext({ readOnly: true }), { fetchImpl });
+
+    await expect(client.createPatient({ first_name: 'Jane' })).rejects.toBeInstanceOf(
+      DentallyReadOnlyError,
+    );
+    await expect(
+      client.createAppointment({
+        patient_id: 'patient-a',
+        start_time: '2026-06-02T09:00:00.000Z',
+        finish_time: '2026-06-02T09:30:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(DentallyReadOnlyError);
+    await expect(client.cancelAppointment('appointment-a')).rejects.toBeInstanceOf(
+      DentallyReadOnlyError,
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('still allows reads on a read-only integration', async () => {
+    const fetchImpl = vi
+      .fn<FetchImplementation>()
+      .mockResolvedValue(new Response(JSON.stringify({ patients: [] }), { status: 200 }));
+    const client = new DentallyClient(authContext({ readOnly: true }), { fetchImpl });
+
+    await expect(client.listPatientsByPhone('+15551234567')).resolves.toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('uses the official base URL with /v1 request paths and a valid user agent', async () => {
     const fetchImpl = vi
       .fn<FetchImplementation>()
