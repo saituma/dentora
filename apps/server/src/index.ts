@@ -25,6 +25,9 @@ import { initTelegramDispatcher, notifyOps } from './modules/ops-telegram/index.
 
 const port = env.PORT;
 
+// Set when background workers are started in-process (no separate worker dyno).
+let stopWorkers: (() => Promise<void>) | null = null;
+
 async function waitForDatabase(maxAttempts = 5, delayMs = 3000): Promise<boolean> {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const dbOk = await checkDbHealth();
@@ -73,6 +76,25 @@ async function start() {
     attachMediaStreamWebSocket(server);
     attachReceptionistLiveWebSocket(server);
 
+    // No separate worker dyno (cost) — run BullMQ consumers + scheduled tasks
+    // (post-call notifications, cost attribution, data retention, health watch) in
+    // this process. A failure here must not take down the call-serving API.
+    if (process.env.RUN_WORKERS_IN_WEB !== 'false') {
+      try {
+        const { startBackgroundWorkers, stopBackgroundWorkers } = await import('./worker.js');
+        await startBackgroundWorkers();
+        stopWorkers = stopBackgroundWorkers;
+        logger.info('Background workers started in web process');
+      } catch (err) {
+        logger.error({ err }, 'Background workers failed to start in web process');
+        notifyOps({
+          category: 'ERROR',
+          title: 'Background workers failed to start in web process',
+          detail: String(err).slice(0, 300),
+        }).catch(() => undefined);
+      }
+    }
+
     server.on('clientError', (err, socket) => {
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'ECONNRESET' || code === 'EPIPE') {
@@ -112,6 +134,11 @@ async function start() {
       clearInterval(dbKeepAlive);
       clearSessionTimeoutInterval();
       await closeAllSessions();
+      if (stopWorkers) {
+        await stopWorkers().catch((err) =>
+          logger.error({ err }, 'Failed to stop background workers'),
+        );
+      }
       server.close(async () => {
         logger.info('HTTP server closed');
         await closeDb();
