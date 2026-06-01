@@ -125,9 +125,19 @@ adminCallsRouter.get('/:callId', async (req, res, next) => {
       db
         .select()
         .from(callEvents)
-        .where(eq(callEvents.callSessionId, callId))
+        .where(
+          and(eq(callEvents.callSessionId, callId), eq(callEvents.tenantId, callSession.tenantId)),
+        )
         .orderBy(callEvents.timestamp),
-      db.select().from(callTranscripts).where(eq(callTranscripts.callSessionId, callId)),
+      db
+        .select()
+        .from(callTranscripts)
+        .where(
+          and(
+            eq(callTranscripts.callSessionId, callId),
+            eq(callTranscripts.tenantId, callSession.tenantId),
+          ),
+        ),
     ]);
 
     res.json({ data: { ...callSession, events, transcripts } });

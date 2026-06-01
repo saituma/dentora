@@ -8,7 +8,7 @@ import {
   tenantRegistry,
   voiceProfile,
 } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { generateId } from '../../lib/crypto.js';
 import { cache } from '../../lib/cache.js';
 import { updateOnboardingStep } from './progress.js';
@@ -25,7 +25,11 @@ export async function saveClinicIdentity(
     afterHoursBehavior?: string;
   },
 ): Promise<void> {
-  const [existing] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(clinicProfile)
+    .where(eq(clinicProfile.tenantId, tenantId))
+    .limit(1);
 
   if (existing) {
     await db
@@ -35,7 +39,9 @@ export async function saveClinicIdentity(
         primaryPhone: data.phone ?? existing.primaryPhone,
         supportEmail: data.email ?? existing.supportEmail,
         timezone: data.timezone ?? existing.timezone,
-        locations: data.address ? [{ address: data.address, operatingHours: data.operatingHours }] : existing.locations,
+        locations: data.address
+          ? [{ address: data.address, operatingHours: data.operatingHours }]
+          : existing.locations,
         updatedAt: new Date(),
       })
       .where(eq(clinicProfile.id, existing.id));
@@ -49,19 +55,28 @@ export async function saveClinicIdentity(
       primaryPhone: data.phone ?? '',
       supportEmail: data.email ?? '',
       timezone: data.timezone ?? 'America/New_York',
-      locations: data.address ? [{ address: data.address, operatingHours: data.operatingHours }] : [],
+      locations: data.address
+        ? [{ address: data.address, operatingHours: data.operatingHours }]
+        : [],
     });
   }
 
-  await db.update(tenantRegistry).set({ clinicName: data.clinicName, updatedAt: new Date() }).where(eq(tenantRegistry.id, tenantId));
+  await db
+    .update(tenantRegistry)
+    .set({ clinicName: data.clinicName, updatedAt: new Date() })
+    .where(eq(tenantRegistry.id, tenantId));
   await updateOnboardingStep(tenantId, 'clinic-profile');
 }
 
 export async function saveStaffMembers(
   tenantId: string,
-  staffMembers: Array<{ id?: string; name: string; role: string; acceptsAppointments?: boolean }>
+  staffMembers: Array<{ id?: string; name: string; role: string; acceptsAppointments?: boolean }>,
 ): Promise<void> {
-  const [existing] = await db.select().from(clinicProfile).where(eq(clinicProfile.tenantId, tenantId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(clinicProfile)
+    .where(eq(clinicProfile.tenantId, tenantId))
+    .limit(1);
   if (existing) {
     await db
       .update(clinicProfile)
@@ -117,16 +132,23 @@ export async function saveBookingRules(
     rescheduleLimit?: number;
   },
 ): Promise<void> {
-  const [existing] = await db.select().from(bookingRules).where(eq(bookingRules.tenantId, tenantId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(bookingRules)
+    .where(eq(bookingRules.tenantId, tenantId))
+    .limit(1);
 
   const values = {
     minNoticePeriodHours: data.minNoticeHours ?? 2,
     maxAdvanceBookingDays: data.advanceBookingDays ?? data.maxFutureDays ?? 30,
     cancellationCutoffHours: data.cancellationHours ?? 24,
-    defaultAppointmentDurationMinutes: data.defaultAppointmentDurationMinutes ?? existing?.defaultAppointmentDurationMinutes ?? 30,
-    bufferBetweenAppointmentsMinutes: data.bufferBetweenAppointmentsMinutes ?? existing?.bufferBetweenAppointmentsMinutes ?? 0,
+    defaultAppointmentDurationMinutes:
+      data.defaultAppointmentDurationMinutes ?? existing?.defaultAppointmentDurationMinutes ?? 30,
+    bufferBetweenAppointmentsMinutes:
+      data.bufferBetweenAppointmentsMinutes ?? existing?.bufferBetweenAppointmentsMinutes ?? 0,
     operatingSchedule: data.operatingSchedule ?? existing?.operatingSchedule ?? {},
-    closedDates: data.closedDates ?? (existing as { closedDates?: string[] } | undefined)?.closedDates ?? [],
+    closedDates:
+      data.closedDates ?? (existing as { closedDates?: string[] } | undefined)?.closedDates ?? [],
     doubleBookingPolicy: (data.doubleBookingPolicy ?? 'forbid') as never,
     emergencySlotPolicy: { policy: data.emergencySlotPolicy ?? 'reserved' },
     afterHoursPolicy: { action: 'voicemail' },
@@ -134,7 +156,10 @@ export async function saveBookingRules(
   };
 
   if (existing) {
-    await db.update(bookingRules).set(values).where(eq(bookingRules.id, existing.id));
+    await db
+      .update(bookingRules)
+      .set(values)
+      .where(and(eq(bookingRules.id, existing.id), eq(bookingRules.tenantId, tenantId)));
   } else {
     await db.insert(bookingRules).values({
       id: generateId(),
@@ -155,17 +180,26 @@ export async function savePolicies(
     content: string;
   }>,
 ): Promise<void> {
-  const [existing] = await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(policies)
+    .where(eq(policies.tenantId, tenantId))
+    .limit(1);
 
   const escalationPolicy = policyList.find((policy) => policy.policyType === 'escalation');
   const emergencyPolicy = policyList.find((policy) => policy.policyType === 'emergency');
-  const otherPolicies = policyList.filter((policy) => !['escalation', 'emergency'].includes(policy.policyType));
+  const otherPolicies = policyList.filter(
+    (policy) => !['escalation', 'emergency'].includes(policy.policyType),
+  );
 
   const values = {
     escalationConditions: escalationPolicy
       ? { type: escalationPolicy.policyType, content: escalationPolicy.content }
       : (existing?.escalationConditions ?? { conditions: [] }),
-    emergencyDisclaimer: emergencyPolicy?.content ?? existing?.emergencyDisclaimer ?? 'In case of emergency, please call 911.',
+    emergencyDisclaimer:
+      emergencyPolicy?.content ??
+      existing?.emergencyDisclaimer ??
+      'In case of emergency, please call 911.',
     sensitiveTopics: otherPolicies.map((policy) => ({
       type: policy.policyType,
       content: policy.content,
@@ -175,7 +209,10 @@ export async function savePolicies(
   };
 
   if (existing) {
-    await db.update(policies).set(values).where(eq(policies.id, existing.id));
+    await db
+      .update(policies)
+      .set(values)
+      .where(and(eq(policies.id, existing.id), eq(policies.tenantId, tenantId)));
   } else {
     await db.insert(policies).values({
       id: generateId(),
@@ -198,9 +235,15 @@ export async function saveContextDocuments(
   }>,
 ): Promise<void> {
   const sanitizeText = (value: string) => value.replace(/\u0000/g, '').trim();
-  const [existing] = await db.select().from(policies).where(eq(policies.tenantId, tenantId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(policies)
+    .where(eq(policies.tenantId, tenantId))
+    .limit(1);
   const existingSensitiveTopics = Array.isArray(existing?.sensitiveTopics)
-    ? (existing.sensitiveTopics as Array<Record<string, unknown>>).filter((entry) => entry?.type !== 'context_document')
+    ? (existing.sensitiveTopics as Array<Record<string, unknown>>).filter(
+        (entry) => entry?.type !== 'context_document',
+      )
     : [];
 
   const documentTopics = documents.map((document) => ({
@@ -219,7 +262,10 @@ export async function saveContextDocuments(
   };
 
   if (existing) {
-    await db.update(policies).set(values).where(eq(policies.id, existing.id));
+    await db
+      .update(policies)
+      .set(values)
+      .where(and(eq(policies.id, existing.id), eq(policies.tenantId, tenantId)));
   } else {
     await db.insert(policies).values({
       id: generateId(),
@@ -253,9 +299,20 @@ export async function saveVoiceProfile(
   const normalizedTone =
     data.tone === 'warm'
       ? 'friendly'
-      : (data.tone as 'calm' | 'friendly' | 'professional' | 'urgent' | 'formal' | 'casual' | undefined);
+      : (data.tone as
+          | 'calm'
+          | 'friendly'
+          | 'professional'
+          | 'urgent'
+          | 'formal'
+          | 'casual'
+          | undefined);
 
-  const [existing] = await db.select().from(voiceProfile).where(eq(voiceProfile.tenantId, tenantId)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(voiceProfile)
+    .where(eq(voiceProfile.tenantId, tenantId))
+    .limit(1);
   const values = {
     tone: normalizedTone ?? 'professional',
     voiceId: data.voiceId ?? 'default',
