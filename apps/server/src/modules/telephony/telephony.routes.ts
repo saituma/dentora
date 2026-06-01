@@ -16,6 +16,8 @@ import { logger } from '../../lib/logger.js';
 import { getRedis } from '../../lib/cache.js';
 import { runWithTenantContext } from '../../db/tenant-context.js';
 import { createMediaStreamToken } from './stream-token.js';
+import { getCircuitBreakerStatusShared } from '../../lib/circuit-breaker.js';
+import * as configService from '../config/config.service.js';
 
 const WEBHOOK_IDEMPOTENCY_TTL = 86_400; // 24 h
 
@@ -52,6 +54,57 @@ function twimlEscape(value: string): string {
 function isOnboardingNotPublishedError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   return /No active config version for tenant/i.test(error.message);
+}
+
+/**
+ * Graceful fallback when the AI voice provider (ElevenLabs ConvAI) is unavailable.
+ * The voice webhook commits the call to <Connect><Stream>; if ConvAI then fails to
+ * connect, the caller would hear dead air with no way to inject TwiML. So when the
+ * elevenlabs circuit breaker is open we never commit to the stream — we forward to
+ * the practice's number (forward-status handles no-answer → voicemail) or, if there
+ * is no safe number to dial, take a voicemail directly.
+ */
+export async function buildAiUnavailableTwiml(
+  tenantId: string,
+  callSessionId: string,
+  calledNumber: string,
+): Promise<string> {
+  const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
+  const query = `callSessionId=${encodeURIComponent(callSessionId)}&amp;tenantId=${encodeURIComponent(tenantId)}`;
+  const digits = (value: string) => value.replace(/\D/g, '');
+
+  let forwardNumber: string | undefined;
+  try {
+    const clinic = (await configService.getClinicProfile(tenantId)) as
+      | { phone?: string | null; primaryPhone?: string | null }
+      | undefined;
+    const candidate = (clinic?.phone ?? clinic?.primaryPhone ?? '').trim();
+    // Only forward to a real number that differs from the called line (avoid a dial loop).
+    if (candidate && digits(candidate) && digits(candidate) !== digits(calledNumber)) {
+      forwardNumber = candidate;
+    }
+  } catch (err) {
+    logger.warn(
+      { err, tenantId },
+      'Could not resolve clinic forward number for AI-unavailable fallback',
+    );
+  }
+
+  if (forwardNumber) {
+    return twimlXml([
+      '<Response>',
+      '<Say voice="alice" language="en-GB">Thanks for calling. Connecting you to the practice now.</Say>',
+      `<Dial timeout="25" action="${baseUrl}/api/telephony/webhook/forward-status?${query}"><Number>${twimlEscape(forwardNumber)}</Number></Dial>`,
+      '</Response>',
+    ]);
+  }
+
+  return twimlXml([
+    '<Response>',
+    '<Say voice="alice" language="en-GB">Thanks for calling. Our booking assistant is briefly unavailable. Please leave a message after the tone and the team will call you back.</Say>',
+    `<Record maxLength="180" action="${baseUrl}/api/telephony/webhook/voicemail?${query}" transcribe="true" />`,
+    '</Response>',
+  ]);
 }
 
 const FALLBACK_TWIML = twimlXml([
@@ -417,6 +470,20 @@ telephonyRouter.post(
         from: From,
         accountSid: AccountSid,
       });
+
+      // If the AI voice provider is in a sustained outage (its circuit breaker is
+      // open), do NOT commit the call to <Connect><Stream> — that would leave the
+      // caller in dead air when ConvAI fails to connect. Divert to a human/voicemail.
+      const breakers = await getCircuitBreakerStatusShared();
+      if (breakers.elevenlabs?.state === 'open') {
+        logger.error(
+          { callSid: CallSid, tenantId: result.tenantId, callSessionId: result.callSessionId },
+          'ElevenLabs breaker open — diverting inbound call to human/voicemail fallback',
+        );
+        const fallback = await buildAiUnavailableTwiml(result.tenantId, result.callSessionId, To);
+        res.type('text/xml').send(fallback);
+        return;
+      }
 
       const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
       const wsBase = baseUrl.replace(/^http/i, 'ws');
