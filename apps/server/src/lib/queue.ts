@@ -1,4 +1,12 @@
-import { Queue, Worker, type Job, type WorkerOptions, type QueueOptions } from 'bullmq';
+import {
+  Queue,
+  Worker,
+  type Job,
+  type WorkerOptions,
+  type QueueOptions,
+  type ConnectionOptions,
+} from 'bullmq';
+import Redis from 'ioredis';
 import { trace, SpanStatusCode, context } from '@opentelemetry/api';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
@@ -6,21 +14,21 @@ import { bullmqJobsTotal } from './metrics.js';
 
 const tracer = trace.getTracer('bullmq');
 
-function parseRedisUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    return {
-      host: parsed.hostname || '127.0.0.1',
-      port: parseInt(parsed.port || '6379', 10),
-      password: parsed.password || undefined,
-      maxRetriesPerRequest: null as null,
-    };
-  } catch {
-    return { host: '127.0.0.1', port: 6379, maxRetriesPerRequest: null as null };
-  }
-}
-
-const connection = parseRedisUrl(env.REDIS_URL);
+// ONE shared Redis connection for all BullMQ queues + workers.
+//  - TLS: prod is rediss:// (Heroku Redis). The previous config parsed only
+//    host/port/password and dropped TLS, so every BullMQ connection to the TLS-only
+//    Redis was reset (ECONNRESET). Mirror the cache client and pass tls.
+//  - Connection budget: Heroku Redis maxclients is ~18. One connection per
+//    queue/worker would exceed it; sharing keeps the count low (each Worker still
+//    opens its own blocking connection internally, but Queues all reuse this one).
+//  - maxRetriesPerRequest must be null for BullMQ blocking commands.
+const redisConnection = new Redis(env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+  tls: env.REDIS_URL.startsWith('rediss://') ? { rejectUnauthorized: false } : undefined,
+});
+// Cast bridges a duplicate-ioredis-version type skew (app's ioredis vs BullMQ's);
+// the instance is API-compatible at runtime.
+const connection = redisConnection as unknown as ConnectionOptions;
 
 export const QUEUE_NAMES = {
   COST_ATTRIBUTION: 'cost-attribution',
@@ -177,5 +185,6 @@ export async function closeAllQueues(): Promise<void> {
   const closePromises = Array.from(queues.values()).map((q) => q.close());
   await Promise.all(closePromises);
   queues.clear();
+  await redisConnection.quit().catch(() => undefined);
   logger.info('All queues closed');
 }
