@@ -169,6 +169,21 @@ export async function testIntegration(
     }
   }
 
+  if (integration.provider === 'dentally') {
+    // Dynamic import avoids a static cycle: the Dentally client imports this registry.
+    const { DentallyClient } = await import('../pms/adapters/dentally/dentally.client.js');
+    const client = await DentallyClient.forTenant({ tenantId, integrationId: integration.id });
+    const now = new Date();
+    // A read covered by the read-only scope set (appointment:read) — proves live connectivity
+    // without attempting any write or touching an endpoint the practice token can't reach.
+    await client.listAppointments({
+      after: now.toISOString(),
+      before: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      per_page: 1,
+    });
+    return { success: true, message: 'Connected — read live data from Dentally' };
+  }
+
   return { success: true, message: 'Integration connectivity test passed' };
 }
 

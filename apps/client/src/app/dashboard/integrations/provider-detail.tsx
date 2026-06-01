@@ -42,6 +42,8 @@ import {
   useGetSchedulingConfigQuery,
   useConfigureProviderMutation,
   useRunDentallyVerificationMutation,
+  useCreateIntegrationMutation,
+  useTestIntegrationMutation,
 } from '@/features/integrations/integrationsApi';
 import type {
   ProviderDetail,
@@ -97,6 +99,127 @@ function GoogleDetail() {
   );
 }
 
+function DentallyConnectCard() {
+  const { data: integrationData } = useGetIntegrationsQuery();
+  const integration = providerIntegration(integrationData?.data ?? [], 'dentally');
+  const [practiceName, setPracticeName] = useState('');
+  const [token, setToken] = useState('');
+  const [createIntegration, { isLoading: isConnecting }] = useCreateIntegrationMutation();
+  const [testIntegration, { isLoading: isTesting }] = useTestIntegrationMutation();
+  const [testResult, setTestResult] = useState<string | null>(null);
+
+  const connectedName =
+    typeof integration?.config?.practiceName === 'string'
+      ? integration.config.practiceName
+      : 'your practice';
+  const isReadOnly = integration?.config?.readOnly === true;
+
+  async function handleConnect() {
+    if (!practiceName.trim() || !token.trim()) {
+      toast.error('Enter your practice name and Dentally token');
+      return;
+    }
+    try {
+      await createIntegration({
+        integrationType: 'scheduling',
+        provider: 'dentally',
+        config: {
+          readOnly: true,
+          baseUrl: 'https://api.dentally.co',
+          practiceName: practiceName.trim(),
+        },
+        credentials: {
+          accessToken: token.trim(),
+          tokenType: 'Bearer',
+          scopes: ['patient:read', 'appointment:read'],
+          practiceName: practiceName.trim(),
+        },
+      }).unwrap();
+      setToken('');
+      toast.success('Dentally connected (read-only)');
+    } catch {
+      toast.error('Could not connect Dentally — check the token and try again');
+    }
+  }
+
+  async function handleTest() {
+    if (!integration) return;
+    setTestResult(null);
+    try {
+      const result = await testIntegration(integration.id).unwrap();
+      setTestResult(result.message);
+      toast.success('Dentally connection verified');
+    } catch {
+      setTestResult('Connection test failed — the token may be invalid or lack read access.');
+      toast.error('Dentally connection test failed');
+    }
+  }
+
+  if (integration) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Dentally connection</CardTitle>
+          <CardDescription>
+            Connected to {connectedName}
+            {isReadOnly ? ' · read-only (view diary & patients)' : ''}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button onClick={handleTest} disabled={isTesting} variant="outline">
+            {isTesting ? <Loader2Icon className="animate-spin" /> : <ServerIcon />}
+            Test connection
+          </Button>
+          {testResult ? <p className="text-sm text-muted-foreground">{testResult}</p> : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Connect your Dentally account</CardTitle>
+        <CardDescription>
+          Read-only access lets the AI see your live diary and patients. In Dentally open Settings →
+          Developer Settings → Generate new token, scope it to patient:read and appointment:read,
+          then paste it below.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="space-y-1">
+          <label htmlFor="dentally-practice" className="text-xs text-muted-foreground">
+            Practice name
+          </label>
+          <Input
+            id="dentally-practice"
+            value={practiceName}
+            onChange={(event) => setPracticeName(event.target.value)}
+            placeholder="e.g. Bright Smile Dental"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="dentally-token" className="text-xs text-muted-foreground">
+            Read-only API token
+          </label>
+          <Input
+            id="dentally-token"
+            type="password"
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+            placeholder="Paste your Dentally token"
+            autoComplete="off"
+          />
+        </div>
+        <Button onClick={handleConnect} disabled={isConnecting}>
+          {isConnecting ? <Loader2Icon className="animate-spin" /> : null}
+          Connect Dentally
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function DentallyDetail() {
   const [runningType, setRunningType] = useState<string | undefined>();
   const [runVerification] = useRunDentallyVerificationMutation();
@@ -139,12 +262,13 @@ function DentallyDetail() {
 
   return (
     <div className="space-y-4">
+      <DentallyConnectCard />
       <Alert variant="warning">
         <AlertTriangleIcon />
-        <AlertTitle>Dentally is not production ready</AlertTitle>
+        <AlertTitle>Booking into Dentally needs partner approval</AlertTitle>
         <AlertDescription>
-          Do not enable Dentally for live clinics unless the real sandbox has passed verification
-          and controlled pilot readiness is explicitly approved.
+          A read-only connection lets the AI view the live diary and patients now. Creating or
+          cancelling appointments in Dentally stays disabled until partner verification passes.
         </AlertDescription>
       </Alert>
       <Card>

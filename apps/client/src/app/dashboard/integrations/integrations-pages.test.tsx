@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   getDentallyReport: vi.fn(),
   runDentallyVerification: vi.fn(),
   getIntegrationLogs: vi.fn(),
+  createIntegration: vi.fn(),
+  testIntegration: vi.fn(),
 }));
 
 vi.mock('@/features/integrations/integrationsApi', () => ({
@@ -26,6 +28,8 @@ vi.mock('@/features/integrations/integrationsApi', () => ({
   useGetDentallyVerificationReportQuery: mocks.getDentallyReport,
   useRunDentallyVerificationMutation: mocks.runDentallyVerification,
   useGetIntegrationLogsQuery: mocks.getIntegrationLogs,
+  useCreateIntegrationMutation: mocks.createIntegration,
+  useTestIntegrationMutation: mocks.testIntegration,
 }));
 
 vi.mock('sonner', () => ({
@@ -106,6 +110,8 @@ beforeEach(() => {
     refetch: vi.fn(),
   });
   mocks.runDentallyVerification.mockReturnValue([vi.fn(), { isLoading: false }]);
+  mocks.createIntegration.mockReturnValue([vi.fn(), { isLoading: false }]);
+  mocks.testIntegration.mockReturnValue([vi.fn(), { isLoading: false }]);
   mocks.getIntegrationLogs.mockReturnValue({
     data: { data: [] },
     isLoading: false,
@@ -123,13 +129,42 @@ describe('integrations dashboard pages', () => {
     expect(screen.getByText('CS R4+')).toBeInTheDocument();
   });
 
-  it('shows Dentally verification actions and production warnings', () => {
+  it('shows the read-only connect form, verification actions, and partner-approval warning', () => {
     render(<DentallyIntegrationPage />);
 
+    expect(screen.getByText('Connect your Dentally account')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /connect dentally/i })).toBeInTheDocument();
     expect(screen.getByText('Dentally verification')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /connectivity/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /appointment create dry-run/i })).toBeInTheDocument();
-    expect(screen.getAllByText(/not production ready/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/partner approval/i).length).toBeGreaterThan(0);
+  });
+
+  it('shows connected state when a Dentally integration exists', () => {
+    mocks.getIntegrations.mockReturnValue({
+      data: {
+        data: [
+          ...integrations,
+          {
+            id: 'dentally-a',
+            tenantId: 'tenant-a',
+            integrationType: 'scheduling',
+            provider: 'dentally',
+            config: { readOnly: true, practiceName: 'Bright Smile Dental' },
+            isActive: true,
+            status: 'active',
+            createdAt: '2026-05-01T00:00:00.000Z',
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DentallyIntegrationPage />);
+
+    expect(screen.getByText(/Connected to Bright Smile Dental/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /test connection/i })).toBeInTheDocument();
   });
 
   it('shows SOE vendor access required without connected claims', () => {

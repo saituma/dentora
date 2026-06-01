@@ -293,10 +293,12 @@ function practiceMetadata(input: {
 }): { practiceId: string; practiceName: string } {
   const practiceId = input.credentials.practiceId ?? input.config.practiceId;
   const practiceName = input.credentials.practiceName ?? input.config.practiceName;
-  if (!practiceId || !practiceName) {
+  // A read-only practice token is already scoped to a single practice, so only a display
+  // name is needed; partner OAuth integrations still require the numeric practice id.
+  if (!practiceName || (!input.config.readOnly && !practiceId)) {
     throw new DentallyAuthError('Dentally practice metadata is required');
   }
-  return { practiceId, practiceName };
+  return { practiceId: practiceId ?? '', practiceName };
 }
 
 export function validateDentallyCredentials(input: {
