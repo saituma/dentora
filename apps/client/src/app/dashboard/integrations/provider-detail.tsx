@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import {
   AlertTriangleIcon,
   ClipboardCopyIcon,
+  ExternalLinkIcon,
   FileTextIcon,
   Loader2Icon,
   MailIcon,
@@ -99,6 +100,8 @@ function GoogleDetail() {
   );
 }
 
+const DENTALLY_TOKEN_URL = 'https://app.dentally.co/settings/developer/tokens';
+
 function DentallyConnectCard() {
   const { data: integrationData } = useGetIntegrationsQuery();
   const integration = providerIntegration(integrationData?.data ?? [], 'dentally');
@@ -181,12 +184,34 @@ function DentallyConnectCard() {
       <CardHeader>
         <CardTitle className="text-base">Connect your Dentally account</CardTitle>
         <CardDescription>
-          Read-only access lets the AI see your live diary and patients. In Dentally open Settings →
-          Developer Settings → Generate new token, scope it to patient:read and appointment:read,
-          then paste it below.
+          Read-only access lets the AI see your live diary and patients — it can never change
+          anything in Dentally.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
+        <ol className="space-y-1.5 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1.</span> Open your Dentally token page
+            (button below) — log in if asked.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2.</span> Click{' '}
+            <span className="font-medium text-foreground">Generate new token</span>, tick{' '}
+            <span className="font-medium text-foreground">patient:read</span> and{' '}
+            <span className="font-medium text-foreground">appointment:read</span>, then copy it.
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3.</span> Paste it below with your
+            practice name and connect.
+          </li>
+        </ol>
+        <Button
+          variant="outline"
+          onClick={() => window.open(DENTALLY_TOKEN_URL, '_blank', 'noopener,noreferrer')}
+        >
+          <ExternalLinkIcon />
+          Open Dentally token page
+        </Button>
         <div className="space-y-1">
           <label htmlFor="dentally-practice" className="text-xs text-muted-foreground">
             Practice name
