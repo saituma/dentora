@@ -45,7 +45,9 @@ import {
   useRunDentallyVerificationMutation,
   useCreateIntegrationMutation,
   useTestIntegrationMutation,
+  useDeleteIntegrationMutation,
 } from '@/features/integrations/integrationsApi';
+import { getUserFriendlyApiError } from '@/lib/api-error';
 import type {
   ProviderDetail,
   SchedulingProvider,
@@ -102,6 +104,21 @@ function GoogleDetail() {
 
 const DENTALLY_TOKEN_URL = 'https://app.dentally.co/settings/developer/tokens';
 
+function dentallyConnectError(error: unknown): string {
+  const raw = getUserFriendlyApiError(error);
+  const lower = raw.toLowerCase();
+  if (lower.includes('scope') || lower.includes('403') || lower.includes('forbidden')) {
+    return 'That token is missing the right access. In Dentally, generate a new token with both patient:read and appointment:read ticked, then reconnect.';
+  }
+  if (lower.includes('401') || lower.includes('unauthor') || lower.includes('invalid')) {
+    return 'That token didn’t work. Make sure you clicked Generate in Dentally and copied the whole token, then try again.';
+  }
+  if (lower.includes('reach the server') || lower.includes('network')) {
+    return raw;
+  }
+  return 'Couldn’t connect to Dentally. Double-check the token and reconnect.';
+}
+
 function DentallyConnectCard() {
   const { data: integrationData } = useGetIntegrationsQuery();
   const integration = providerIntegration(integrationData?.data ?? [], 'dentally');
@@ -109,7 +126,9 @@ function DentallyConnectCard() {
   const [token, setToken] = useState('');
   const [createIntegration, { isLoading: isConnecting }] = useCreateIntegrationMutation();
   const [testIntegration, { isLoading: isTesting }] = useTestIntegrationMutation();
+  const [deleteIntegration] = useDeleteIntegrationMutation();
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   const connectedName =
     typeof integration?.config?.practiceName === 'string'
@@ -122,8 +141,12 @@ function DentallyConnectCard() {
       toast.error('Enter your practice name and Dentally token');
       return;
     }
+    setConnectError(null);
+    // Validate the token against Dentally before declaring success — a clinic onboarding
+    // unattended must never be left with a stored-but-broken "connected" state.
+    let createdId: string | undefined;
     try {
-      await createIntegration({
+      const created = await createIntegration({
         integrationType: 'scheduling',
         provider: 'dentally',
         config: {
@@ -138,10 +161,19 @@ function DentallyConnectCard() {
           practiceName: practiceName.trim(),
         },
       }).unwrap();
+      createdId = created.id;
+      await testIntegration(created.id).unwrap();
       setToken('');
-      toast.success('Dentally connected (read-only)');
-    } catch {
-      toast.error('Could not connect Dentally — check the token and try again');
+      toast.success('Dentally connected — the AI can now read your live diary');
+    } catch (error) {
+      if (createdId) {
+        await deleteIntegration(createdId)
+          .unwrap()
+          .catch(() => undefined);
+      }
+      const friendly = dentallyConnectError(error);
+      setConnectError(friendly);
+      toast.error(friendly);
     }
   }
 
@@ -236,9 +268,16 @@ function DentallyConnectCard() {
             autoComplete="off"
           />
         </div>
-        <Button onClick={handleConnect} disabled={isConnecting}>
-          {isConnecting ? <Loader2Icon className="animate-spin" /> : null}
-          Connect Dentally
+        {connectError ? (
+          <Alert variant="warning">
+            <AlertTriangleIcon />
+            <AlertTitle>Couldn’t connect</AlertTitle>
+            <AlertDescription>{connectError}</AlertDescription>
+          </Alert>
+        ) : null}
+        <Button onClick={handleConnect} disabled={isConnecting || isTesting}>
+          {isConnecting || isTesting ? <Loader2Icon className="animate-spin" /> : null}
+          {isConnecting || isTesting ? 'Connecting…' : 'Connect Dentally'}
         </Button>
       </CardContent>
     </Card>
