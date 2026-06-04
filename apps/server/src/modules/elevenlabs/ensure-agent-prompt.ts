@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V12';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V13';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -108,6 +108,12 @@ FREQUENTLY ASKED QUESTIONS
 If the caller's question matches one of these, give that answer directly — word for word where you can. If nothing matches: "I don't have that to hand — I'll make a note for the team to call you back."
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CLINIC NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{clinic_notes}}
+Use these notes to answer patient questions about parking, accessibility, NHS/private status, transport, and any other practical details. Answer directly from these notes — do not say you don't have the information if it is listed here.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SIDE QUESTIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 If the caller asks something off to the side (parking, directions, insurance):
@@ -157,7 +163,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v13', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v14', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -193,7 +199,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v13', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v14', agentId, true, 3600);
       return;
     }
 
