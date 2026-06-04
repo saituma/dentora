@@ -418,7 +418,7 @@ const buildContextualUpdate = (input: {
   return lines.join('\n');
 };
 
-async function buildConvaiContext(tenantId: string) {
+export async function buildConvaiContext(tenantId: string) {
   const [clinic, services, policies, faqs, bookingRules, voiceProfile] = await Promise.all([
     configService.getClinicProfile(tenantId),
     configService.getServices(tenantId),

@@ -7,8 +7,10 @@ import { ensureAgentPromptDates } from './ensure-agent-prompt.js';
 import { elevenLabsFetch } from './elevenlabs-fetch.js';
 import { isWithinBusinessHours } from '../telephony/telephony.service.js';
 import { getClinicProfile } from '../config/config.service.js';
+import { buildConvaiContext } from '../telephony/media-stream.js';
 import { ProviderError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { env } from '../../config/env.js';
 
 const convaiRateLimiter = rateLimiter({
   maxRequests: 60,
@@ -215,6 +217,136 @@ elevenlabsRouter.post(
       });
     } catch (error) {
       logger.error({ err: error }, 'Failed to create ElevenLabs signed URL');
+      next(error);
+    }
+  },
+);
+
+const testSessionSchema = z.object({
+  callerPhoneNumber: z.string().optional(),
+  tenantId: z.string().uuid().optional(),
+});
+
+/**
+ * Middleware that accepts either a standard JWT (→ resolveTenant) or the
+ * CALL_TEST_SECRET env var. When the secret is used, tenantId must be in the
+ * request body. This avoids requiring a short-lived JWT for the local dev test page.
+ */
+function authenticateTestSessionRequest(
+  req: import('express').Request,
+  res: import('express').Response,
+  next: import('express').NextFunction,
+): void {
+  const authHeader = req.headers.authorization ?? '';
+  const secret = env.CALL_TEST_SECRET;
+
+  if (secret && authHeader === `Bearer ${secret}`) {
+    const tenantId = (req.body as { tenantId?: string }).tenantId;
+    if (!tenantId) {
+      res
+        .status(400)
+        .json({ error: 'tenantId is required when authenticating with CALL_TEST_SECRET' });
+      return;
+    }
+    req.tenantContext = {
+      tenantId,
+      clinicSlug: '',
+      status: 'active',
+      activeConfigVersion: 0,
+      resolvedVia: 'jwt',
+      correlationId: `test-${Date.now()}`,
+      requestedAt: new Date().toISOString(),
+    };
+    next();
+    return;
+  }
+
+  authenticateJwt(req, res, (err?: unknown) => {
+    if (err) {
+      next(err);
+      return;
+    }
+    resolveTenant(req, res, next);
+  });
+}
+
+/**
+ * POST /api/elevenlabs/convai/test-session
+ *
+ * Returns a signed URL + the EXACT same dynamic variables the phone call injects
+ * into the ConvAI agent (via buildConvaiContext). Use this to drive a browser-based
+ * call test that is 100% contextually equivalent to a real inbound call.
+ *
+ * Accepts either a standard JWT bearer token OR the CALL_TEST_SECRET env var
+ * (in which case tenantId must be provided in the request body).
+ *
+ * Optional callerPhoneNumber simulates the Twilio caller ID so the agent skips
+ * asking for the patient's number.
+ */
+elevenlabsRouter.post(
+  '/convai/test-session',
+  authenticateTestSessionRequest,
+  convaiRateLimiter,
+  validate({ body: testSessionSchema }),
+  async (req, res, next) => {
+    try {
+      const { callerPhoneNumber } = req.body as z.infer<typeof testSessionSchema>;
+      const tenantId = req.tenantContext!.tenantId;
+      const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
+
+      const { dynamicVariables, voiceProfile } = await buildConvaiContext(tenantId);
+
+      if (callerPhoneNumber?.trim()) {
+        dynamicVariables.caller_phone_number = callerPhoneNumber.trim();
+      }
+
+      const vp = voiceProfile as Record<string, unknown> | null;
+      const agentId = vp?.voiceAgentId as string | undefined;
+      if (!agentId) {
+        throw new ValidationError('No ElevenLabs agent ID configured for this tenant');
+      }
+
+      void ensureAgentPromptDates(tenantId, agentId);
+
+      const response = await elevenLabsFetch(
+        `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
+        { headers: { 'xi-api-key': apiKey } },
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new ProviderError(
+          `ElevenLabs ConvAI signed URL error: ${response.status} ${errorBody}`,
+          'elevenlabs',
+          response.status,
+        );
+      }
+
+      const payload = (await response.json()) as { signed_url?: string };
+      if (!payload.signed_url) {
+        throw new ValidationError('ElevenLabs signed URL response missing signed_url field');
+      }
+
+      req.audit?.({
+        action: 'elevenlabs.test_session',
+        entityType: 'elevenlabs_conversation',
+        afterState: { agentId, keyResolvedVia: resolvedVia },
+      });
+
+      res.json({
+        data: {
+          signedUrl: payload.signed_url,
+          agentId,
+          dynamicVariables,
+        },
+        meta: {
+          agentId,
+          keyResolvedVia: resolvedVia,
+          correlationId: req.tenantContext!.correlationId,
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to create ElevenLabs test session');
       next(error);
     }
   },
