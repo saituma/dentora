@@ -248,7 +248,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
           body: JSON.stringify({
             conversation_config: {
               agent: { prompt: { llm: 'gemini-2.0-flash' } },
-              turn: { turn_timeout: 5 },
+              turn: { turn_timeout: 1, turn_eagerness: 'eager' },
             },
           }),
         },
