@@ -153,6 +153,53 @@ function twimlErrorBoundary(...middleware: RequestHandler[]): RequestHandler[] {
   });
 }
 
+/**
+ * POST /api/telephony/test-voice-dial
+ *
+ * TwiML App voice URL used by the browser call-test page. Twilio hits this
+ * when the Twilio Voice SDK makes an outbound call; we return TwiML that dials
+ * the target number passed as the `To` parameter.
+ */
+telephonyRouter.post('/test-voice-dial', webhookRateLimiter, (req, res) => {
+  const to = String(req.body?.To ?? '').trim();
+  if (!to || !/^\+[1-9]\d{1,14}$/.test(to)) {
+    res
+      .status(200)
+      .type('text/xml')
+      .send('<Response><Say>Invalid number.</Say><Hangup/></Response>');
+    return;
+  }
+  res
+    .type('text/xml')
+    .send(
+      `<Response><Dial timeout="30"><Number>${to.replace(/[<>&"']/g, '')}</Number></Dial></Response>`,
+    );
+});
+
+/**
+ * GET /api/telephony/test-voice-token
+ *
+ * Returns a short-lived Twilio Voice SDK access token for the browser call-test
+ * page. Authenticated with CALL_TEST_SECRET only — never exposed to patients.
+ */
+telephonyRouter.get('/test-voice-token', webhookRateLimiter, (req, res, next) => {
+  try {
+    const secret = env.CALL_TEST_SECRET;
+    const authHeader = String(req.headers.authorization ?? '');
+    if (!secret || authHeader !== `Bearer ${secret}`) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const result = telephonyService.createClientAccessToken({
+      identity: 'call-test',
+      ttlSeconds: 3600,
+    });
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 telephonyRouter.get('/webhook-base', authenticateJwt, resolveTenant, async (_req, res, next) => {
   try {
     const baseUrl = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
