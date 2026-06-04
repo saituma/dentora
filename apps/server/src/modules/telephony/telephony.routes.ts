@@ -169,10 +169,14 @@ telephonyRouter.post('/test-voice-dial', webhookRateLimiter, (req, res) => {
       .send('<Response><Say>Invalid number.</Say><Hangup/></Response>');
     return;
   }
+  // Use the Twilio number passed from the browser as callerId so PSTN carriers accept the call.
+  // Without a valid E.164 callerId the carrier rejects immediately with busy/hangup.
+  const rawFrom = String(req.body?.From ?? '').trim();
+  const from = /^\+[1-9]\d{1,14}$/.test(rawFrom) ? rawFrom : '';
   res
     .type('text/xml')
     .send(
-      `<Response><Dial timeout="30"><Number>${to.replace(/[<>&"']/g, '')}</Number></Dial></Response>`,
+      `<Response><Dial${from ? ` callerId="${from}"` : ''} timeout="30"><Number>${to.replace(/[<>&"']/g, '')}</Number></Dial></Response>`,
     );
 });
 
