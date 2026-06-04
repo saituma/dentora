@@ -315,23 +315,24 @@ elevenlabsRouter.post(
 
       void ensureAgentPromptDates(tenantId, agentId);
 
-      const response = await elevenLabsFetch(
-        `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
+      // Fetch WebRTC conversation token (full-duplex, Opus codec, lower latency than WebSocket).
+      const tokenResponse = await elevenLabsFetch(
+        `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
         { headers: { 'xi-api-key': apiKey } },
       );
 
-      if (!response.ok) {
-        const errorBody = await response.text();
+      if (!tokenResponse.ok) {
+        const errorBody = await tokenResponse.text();
         throw new ProviderError(
-          `ElevenLabs ConvAI signed URL error: ${response.status} ${errorBody}`,
+          `ElevenLabs ConvAI token error: ${tokenResponse.status} ${errorBody}`,
           'elevenlabs',
-          response.status,
+          tokenResponse.status,
         );
       }
 
-      const payload = (await response.json()) as { signed_url?: string };
-      if (!payload.signed_url) {
-        throw new ValidationError('ElevenLabs signed URL response missing signed_url field');
+      const tokenPayload = (await tokenResponse.json()) as { token?: string; expires_at?: number };
+      if (!tokenPayload.token) {
+        throw new ValidationError('ElevenLabs token response missing token field');
       }
 
       req.audit?.({
@@ -346,7 +347,7 @@ elevenlabsRouter.post(
 
       res.json({
         data: {
-          signedUrl: payload.signed_url,
+          conversationToken: tokenPayload.token,
           agentId,
           dynamicVariables,
           contextualUpdate: contextualUpdate + callerPhoneInstruction,
