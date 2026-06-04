@@ -13,7 +13,7 @@ import { resolveApiKey } from '../api-keys/api-key.service.js';
 import { decryptField } from '../../lib/encrypted-column.js';
 import * as configService from '../config/config.service.js';
 import { handleConvaiToolCall } from './convai-tools.js';
-import { redirectLiveCallToFallback } from './telephony.service.js';
+import { redirectLiveCallToFallback, isWithinBusinessHours } from './telephony.service.js';
 import { ensureAgentPromptDates } from '../elevenlabs/ensure-agent-prompt.js';
 import { elevenLabsFetch } from '../elevenlabs/elevenlabs-fetch.js';
 import { runWithTenantContext, setActiveTenantContext } from '../../db/tenant-context.js';
@@ -510,6 +510,27 @@ export async function buildConvaiContext(tenantId: string) {
             ? 'Speak at a natural, steady pace with clear pauses between sentences.'
             : 'Speak at a brisk, efficient pace while staying easy to understand.';
 
+  const now = new Date();
+  const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: clinicTimezone,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const currentDateTime = dateTimeFormatter.format(now);
+
+  const isOpen = isWithinBusinessHours(
+    clinic?.businessHours as Record<string, { start: string; end: string } | null> | null,
+    clinicTimezone,
+  );
+  const isAfterHoursText = isOpen
+    ? `NOTE: The clinic is currently OPEN. Current date and time: ${currentDateTime}.`
+    : `NOTE: The clinic is currently CLOSED. Current date and time: ${currentDateTime}. Do not offer same-day slots — offer tomorrow morning or the next business day.`;
+
   const dynamicVariables = {
     agent_name: 'Receptionist',
     clinic_name: clinic?.clinicName ?? 'Dentora Clinic',
@@ -520,6 +541,8 @@ export async function buildConvaiContext(tenantId: string) {
     clinic_timezone: clinicTimezone,
     today_date: todayDate,
     current_year: currentYear,
+    current_datetime: currentDateTime,
+    is_after_hours: isAfterHoursText,
     clinic_description: clinic?.description ?? '',
     clinic_specialties: Array.isArray(clinic?.specialties) ? clinic.specialties.join(', ') : '',
     business_hours: formatBusinessHours(
