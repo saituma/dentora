@@ -10,6 +10,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const CSRF_SKIP_PREFIXES = [
   '/api/webhooks',
   '/api/telephony/webhook',
+  '/api/telephony/test-voice-dial',
   '/api/pms/webhooks',
   '/api/admin/seed',
   '/api/telegram/webhook',
