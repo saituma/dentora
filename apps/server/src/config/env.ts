@@ -158,6 +158,8 @@ const envSchema = z.object({
   TELEGRAM_ALERT_CHAT_ID: z.string().default(''),
   TELEGRAM_WEBHOOK_SECRET: z.string().default(''),
 
+  CALL_TEST_SECRET: z.string().default(''),
+
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   OTEL_EXPORTER_ENDPOINT: z.string().default(''),
   SENTRY_DSN: z.string().default(''),

@@ -227,8 +227,11 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       );
     }
 
-    // Best-effort latency/turn tuning. Kept separate so an unsupported field
+    // Best-effort LLM/turn tuning. Kept separate so an unsupported field
     // can never block the critical prompt patch above.
+    // NOTE: do NOT include a `tts` block here — a bare tts patch with no voice_id can
+    // silently reset the agent to the platform default voice, and optimize_streaming_latency≥3
+    // trades naturalness for speed in an audible way (robotic-sounding output).
     try {
       const tuneRes = await fetch(
         `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`,
@@ -239,7 +242,6 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
             conversation_config: {
               agent: { prompt: { llm: 'gemini-2.0-flash' } },
               turn: { turn_timeout: 5 },
-              tts: { optimize_streaming_latency: 3 },
             },
           }),
         },
