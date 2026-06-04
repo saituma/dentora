@@ -140,6 +140,7 @@ interface MediaStreamSession {
   firstMediaLogged?: boolean;
   dynamicVariables: Record<string, unknown>;
   contextualUpdate: string;
+  needsTranscode?: boolean;
 }
 
 const activeSessions = new Map<string, MediaStreamSession>();
@@ -1142,7 +1143,11 @@ async function handleElevenLabsMessageWithTenant(
       session.outputFormat = meta.agent_output_audio_format;
       session.elevenReady = true;
 
-      if (session.inputFormat !== 'ulaw_8000' || session.outputFormat !== 'ulaw_8000') {
+      const SUPPORTED_OUTPUT_FORMATS = new Set(['ulaw_8000', 'pcm_16000']);
+      if (
+        session.inputFormat !== 'ulaw_8000' ||
+        !SUPPORTED_OUTPUT_FORMATS.has(session.outputFormat ?? '')
+      ) {
         logger.error(
           {
             callSessionId: session.callSessionId,
@@ -1160,6 +1165,7 @@ async function handleElevenLabsMessageWithTenant(
         }
         return;
       }
+      session.needsTranscode = session.outputFormat === 'pcm_16000';
 
       if (session.contextualUpdate && session.elevenSocket?.readyState === WebSocket.OPEN) {
         logger.info(
@@ -1366,12 +1372,50 @@ function flushPendingAudio(session: MediaStreamSession): void {
   session.pendingAudioChunks = [];
 }
 
+// Linear PCM 16-bit signed → G.711 μ-law (ITU-T G.711)
+function pcm16ToUlaw(pcmBuf: Buffer): Buffer {
+  const out = Buffer.alloc(pcmBuf.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    let sample = pcmBuf.readInt16LE(i * 2);
+    const sign = sample < 0 ? 0x80 : 0;
+    if (sample < 0) sample = -sample;
+    sample = Math.min(sample, 32635);
+    sample += 0x84;
+    let exponent = 7;
+    for (let mask = 0x4000; (sample & mask) === 0 && exponent > 0; exponent--, mask >>= 1);
+    const mantissa = (sample >> (exponent + 3)) & 0x0f;
+    out[i] = ~(sign | (exponent << 4) | mantissa) & 0xff;
+  }
+  return out;
+}
+
+// Downsample 16kHz → 8kHz by averaging pairs
+function downsample16to8(pcmBuf: Buffer): Buffer {
+  const samples = pcmBuf.length / 2;
+  const out = Buffer.alloc(Math.floor(samples / 2) * 2);
+  for (let i = 0; i < out.length / 2; i++) {
+    const s1 = pcmBuf.readInt16LE(i * 4);
+    const s2 = pcmBuf.readInt16LE(i * 4 + 2);
+    out.writeInt16LE(Math.round((s1 + s2) / 2), i * 2);
+  }
+  return out;
+}
+
 function sendAudioToTwilio(session: MediaStreamSession, audioBase64: string): void {
   if (session.ws.readyState !== WebSocket.OPEN) return;
+
+  let payload = audioBase64;
+  if (session.needsTranscode) {
+    const pcm16k = Buffer.from(audioBase64, 'base64');
+    const pcm8k = downsample16to8(pcm16k);
+    const ulaw = pcm16ToUlaw(pcm8k);
+    payload = ulaw.toString('base64');
+  }
+
   const chunkSize = 8000;
   let chunkCount = 0;
-  for (let i = 0; i < audioBase64.length; i += chunkSize) {
-    const chunk = audioBase64.slice(i, i + chunkSize);
+  for (let i = 0; i < payload.length; i += chunkSize) {
+    const chunk = payload.slice(i, i + chunkSize);
     session.ws.send(
       JSON.stringify({ event: 'media', streamSid: session.streamSid, media: { payload: chunk } }),
     );
