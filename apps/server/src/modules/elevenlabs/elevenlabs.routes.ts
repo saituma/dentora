@@ -297,7 +297,8 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      const { dynamicVariables, voiceProfile } = await buildConvaiContext(tenantId);
+      const { dynamicVariables, contextualUpdate, voiceProfile } =
+        await buildConvaiContext(tenantId);
 
       if (callerPhoneNumber?.trim()) {
         dynamicVariables.caller_phone_number = callerPhoneNumber.trim();
@@ -336,11 +337,16 @@ elevenlabsRouter.post(
         afterState: { agentId, keyResolvedVia: resolvedVia },
       });
 
+      const callerPhoneInstruction = callerPhoneNumber?.trim()
+        ? `\n- The caller's inbound phone number is ${callerPhoneNumber.trim()}. Use this as their phone number for booking — do NOT ask them for it.`
+        : '';
+
       res.json({
         data: {
           signedUrl: payload.signed_url,
           agentId,
           dynamicVariables,
+          contextualUpdate: contextualUpdate + callerPhoneInstruction,
         },
         meta: {
           agentId,
