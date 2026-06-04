@@ -14,7 +14,7 @@ import { env } from '../../config/env.js';
 import { setActiveTenantContext } from '../../db/tenant-als.js';
 import { db } from '../../db/index.js';
 import { tenantRegistry, clinicProfile, voiceProfile, twilioNumbers } from '../../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 const convaiRateLimiter = rateLimiter({
   maxRequests: 60,
@@ -359,6 +359,75 @@ elevenlabsRouter.post(
       });
     } catch (error) {
       logger.error({ err: error }, 'Failed to create ElevenLabs test session');
+      next(error);
+    }
+  },
+);
+
+const testVoiceSwitchSchema = z.object({
+  voiceId: z.string().min(1).max(120),
+});
+
+/**
+ * POST /api/elevenlabs/convai/test-voice-switch
+ *
+ * Temporarily switches the agent's voice for testing. CALL_TEST_SECRET auth only.
+ */
+elevenlabsRouter.post(
+  '/convai/test-voice-switch',
+  convaiRateLimiter,
+  validate({ body: testVoiceSwitchSchema }),
+  async (req, res, next) => {
+    try {
+      const secret = env.CALL_TEST_SECRET;
+      const authHeader = req.headers.authorization ?? '';
+      if (!secret || authHeader !== `Bearer ${secret}`) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const { voiceId } = req.body as z.infer<typeof testVoiceSwitchSchema>;
+
+      // Find the first tenant with a voice agent (for now, use the first available)
+      const [vp] = await db
+        .select({ voiceAgentId: voiceProfile.voiceAgentId })
+        .from(voiceProfile)
+        .where(sql`${voiceProfile.voiceAgentId} IS NOT NULL`)
+        .limit(1);
+
+      const agentId = vp?.voiceAgentId;
+      if (!agentId) {
+        throw new ValidationError('No voice agent configured');
+      }
+
+      const { apiKey } = await resolveApiKey('', 'elevenlabs').catch(() => ({
+        apiKey: env.ELEVENLABS_API_KEY,
+        resolvedVia: 'platform' as const,
+      }));
+
+      const patchRes = await elevenLabsFetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversation_config: { tts: { voice_id: voiceId } },
+          }),
+        },
+      );
+
+      if (!patchRes.ok) {
+        const body = await patchRes.text();
+        throw new ProviderError(
+          `Voice switch failed: ${patchRes.status} ${body}`,
+          'elevenlabs',
+          patchRes.status,
+        );
+      }
+
+      res.json({ data: { agentId, voiceId, success: true } });
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to switch test voice');
       next(error);
     }
   },
