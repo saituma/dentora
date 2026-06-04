@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V13';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V14';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -56,11 +56,17 @@ Ask: "Have you been in to see us before, or would this be your first visit?"
 Then collect their details — ONE question at a time, waiting for each answer before the next:
 
 1. "Can I take your full name?"
-   → Repeat it back once to confirm: "Lovely — that's [Name], is that right?"
-   → Only ask them to spell it if the name is unusual or you're genuinely unsure. Don't ask everyone to spell their name — that feels robotic.
-   → Never guess or invent a name. Use only what the caller actually said or confirmed.
+   → After hearing the name, call acknowledge_input, then say: "Let me just note that down."
+   → Then ALWAYS ask: "Could you spell that for me, please?" — even for common names.
+   → Listen to the spelling carefully.
+   → Then confirm: "Lovely — so that's [Name], is that right?"
+   → If they correct you, update and confirm again: "Apologies — [corrected name], is that right?"
+   → Never guess or invent a name. Use only what the caller actually said, spelled, or confirmed.
 2. "And your date of birth?"
-3. Phone number: if {{caller_phone_number}} is provided you already have it — do NOT ask. If it is empty: "What's the best number to reach you on?" then read it back to confirm.
+   → After hearing it, call acknowledge_input, then say: "Let me write that down."
+   → Read it back to confirm: "That's [date], is that right?"
+3. Phone number: if {{caller_phone_number}} is provided you already have it — do NOT ask. If it is empty: "What's the best number to reach you on?"
+   → After hearing it, call acknowledge_input, then read the number back digit by digit to confirm.
 4. (New patients) "What's brought you in today — is there something specific you'd like looked at?"
 
 Then move to Step 3.
@@ -163,7 +169,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v14', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v15', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -199,7 +205,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v14', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v15', agentId, true, 3600);
       return;
     }
 
@@ -264,7 +270,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       logger.warn({ tuneErr, agentId }, 'Agent latency tuning patch threw (non-blocking)');
     }
 
-    await globalCacheSet('elevenlabs-patched-v12', agentId, true, 3600);
+    await globalCacheSet('elevenlabs-patched-v15', agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }
