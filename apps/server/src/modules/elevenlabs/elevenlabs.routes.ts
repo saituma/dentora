@@ -12,6 +12,9 @@ import { ProviderError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
 import { setActiveTenantContext } from '../../db/tenant-als.js';
+import { db } from '../../db/index.js';
+import { tenantRegistry, clinicProfile, voiceProfile, twilioNumbers } from '../../db/schema.js';
+import { eq, and } from 'drizzle-orm';
 
 const convaiRateLimiter = rateLimiter({
   maxRequests: 60,
@@ -360,6 +363,57 @@ elevenlabsRouter.post(
     }
   },
 );
+
+/**
+ * GET /api/elevenlabs/convai/test-tenants
+ *
+ * Returns all active tenants with their clinic name, Twilio inbound number,
+ * clinic forward number, and voice agent info. CALL_TEST_SECRET auth only.
+ */
+elevenlabsRouter.get('/convai/test-tenants', convaiRateLimiter, async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization ?? '';
+    const secret = env.CALL_TEST_SECRET;
+    if (!secret || authHeader !== `Bearer ${secret}`) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const rows = await db
+      .select({
+        tenantId: tenantRegistry.id,
+        clinicName: clinicProfile.clinicName,
+        forwardPhone: clinicProfile.phone,
+        primaryPhone: clinicProfile.primaryPhone,
+        twilioNumber: twilioNumbers.phoneNumber,
+        voiceAgentId: voiceProfile.voiceAgentId,
+        voiceId: voiceProfile.voiceId,
+        status: tenantRegistry.status,
+      })
+      .from(tenantRegistry)
+      .leftJoin(clinicProfile, eq(clinicProfile.tenantId, tenantRegistry.id))
+      .leftJoin(voiceProfile, eq(voiceProfile.tenantId, tenantRegistry.id))
+      .leftJoin(
+        twilioNumbers,
+        and(eq(twilioNumbers.tenantId, tenantRegistry.id), eq(twilioNumbers.status, 'active')),
+      )
+      .where(eq(tenantRegistry.status, 'active'));
+
+    const tenants = rows.map((r) => ({
+      tenantId: r.tenantId,
+      clinicName: r.clinicName ?? r.tenantId,
+      twilioNumber: r.twilioNumber ?? null,
+      forwardPhone: r.forwardPhone ?? r.primaryPhone ?? null,
+      voiceAgentId: r.voiceAgentId ?? null,
+      voiceId: r.voiceId ?? null,
+    }));
+
+    res.json({ data: tenants });
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to list test tenants');
+    next(error);
+  }
+});
 
 /**
  * POST /api/elevenlabs/convai/agent-voice-preview
