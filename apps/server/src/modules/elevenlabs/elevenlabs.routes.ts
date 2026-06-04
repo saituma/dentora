@@ -11,6 +11,7 @@ import { buildConvaiContext } from '../telephony/media-stream.js';
 import { ProviderError, ValidationError } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
 import { env } from '../../config/env.js';
+import { setActiveTenantContext } from '../../db/tenant-als.js';
 
 const convaiRateLimiter = rateLimiter({
   maxRequests: 60,
@@ -248,15 +249,17 @@ function authenticateTestSessionRequest(
         .json({ error: 'tenantId is required when authenticating with CALL_TEST_SECRET' });
       return;
     }
+    const correlationId = `test-${Date.now()}`;
     req.tenantContext = {
       tenantId,
       clinicSlug: '',
       status: 'active',
       activeConfigVersion: 0,
       resolvedVia: 'jwt',
-      correlationId: `test-${Date.now()}`,
+      correlationId,
       requestedAt: new Date().toISOString(),
     };
+    setActiveTenantContext({ tenantId, correlationId, source: 'request' });
     next();
     return;
   }
