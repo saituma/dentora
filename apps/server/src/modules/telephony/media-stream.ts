@@ -1289,7 +1289,7 @@ async function handleElevenLabsMessageWithTenant(
       const text = message.agent_response_event?.agent_response as string | undefined;
       if (!text) return;
       if (shouldPlayTypingSound(text)) {
-        sendAudioToTwilio(session, TYPING_SOUND_ULAW_B64);
+        sendRawUlawToTwilio(session, TYPING_SOUND_ULAW_B64);
       }
       logger.info(
         { callSessionId: session.callSessionId, responseLength: text.length },
@@ -1462,6 +1462,19 @@ function downsample16to8(pcmBuf: Buffer): Buffer {
     out.writeInt16LE(Math.round((s1 + s2) / 2), i * 2);
   }
   return out;
+}
+
+// Send raw ulaw audio directly to Twilio — no transcoding. Used for pre-encoded
+// assets like the typing sound that are already in ulaw 8kHz format.
+function sendRawUlawToTwilio(session: MediaStreamSession, ulawBase64: string): void {
+  if (session.ws.readyState !== WebSocket.OPEN) return;
+  const chunkSize = 8000;
+  for (let i = 0; i < ulawBase64.length; i += chunkSize) {
+    const chunk = ulawBase64.slice(i, i + chunkSize);
+    session.ws.send(
+      JSON.stringify({ event: 'media', streamSid: session.streamSid, media: { payload: chunk } }),
+    );
+  }
 }
 
 function sendAudioToTwilio(session: MediaStreamSession, audioBase64: string): void {
