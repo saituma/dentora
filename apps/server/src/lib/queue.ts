@@ -10,6 +10,7 @@ import Redis from 'ioredis';
 import { trace, SpanStatusCode, context } from '@opentelemetry/api';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
+import { runWithTenantContext } from '../db/tenant-als.js';
 import { bullmqJobsTotal } from './metrics.js';
 
 const tracer = trace.getTracer('bullmq');
@@ -106,7 +107,9 @@ export function createWorker<T extends { tenantId: string }>(
         },
       });
       try {
-        await context.with(trace.setSpan(context.active(), span), () => processor(job));
+        await context.with(trace.setSpan(context.active(), span), () =>
+          runWithTenantContext({ tenantId, source: 'worker' }, () => processor(job)),
+        );
         span.setStatus({ code: SpanStatusCode.OK });
         bullmqJobsTotal.inc({ queue: queueName, outcome: 'success' });
         jobLogger.info('Job completed');

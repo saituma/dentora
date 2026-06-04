@@ -211,6 +211,8 @@ export function initTelegramDispatcher(): void {
     if (entry.path) meta.path = entry.path;
     if (entry.tenantId) meta.tenantId = entry.tenantId;
     if (entry.service) meta.service = entry.service;
+    if (entry.queue) meta.queue = entry.queue;
+    if (entry.originalQueue) meta.queue = entry.originalQueue;
     notifyOps({ category, title, meta }).catch(() => undefined);
   });
 }
