@@ -4,6 +4,7 @@ import { getActiveTenantId } from '../../db/tenant-context.js';
 import { logger } from '../../lib/logger.js';
 import { createMediaStreamToken } from './stream-token.js';
 import {
+  buildConvaiClientTools,
   getPendingMediaStreamCount,
   getPendingMediaStreamCountForIp,
   handleStreamStart,
@@ -79,6 +80,31 @@ beforeEach(() => {
 afterEach(() => {
   resetPendingMediaStreamStateForTests();
   vi.useRealTimers();
+});
+
+describe('ConvAI client tool contract', () => {
+  it('enables typing sound only through explicit tool execution', () => {
+    const tools = buildConvaiClientTools();
+
+    expect(tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        'acknowledge_input',
+        'check_availability',
+        'create_appointment',
+        'get_clinic_info',
+      ]),
+    );
+    expect(
+      tools.every(
+        (tool) => tool.tool_call_sound === 'typing' && tool.tool_call_sound_behavior === 'always',
+      ),
+    ).toBe(true);
+    expect(tools.find((tool) => tool.name === 'create_appointment')).toMatchObject({
+      parameters: {
+        required: ['fullName', 'phoneNumber', 'startIso', 'reasonForVisit'],
+      },
+    });
+  });
 });
 
 describe('media stream pending connection guard', () => {

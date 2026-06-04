@@ -481,6 +481,59 @@ describe('AI receptionist booking simulation', () => {
     expect(serialized(mockLogger.info.mock.calls)).not.toContain(patientInput.phoneNumber);
   });
 
+  it('normalizes legacy ConvAI booking fields into the ledger-backed save flow', async () => {
+    queueReadinessRows();
+
+    const result = await withTenant(tenantId, () =>
+      handleConvaiToolCall({
+        tenantId,
+        toolName: 'create_appointment',
+        callSessionId: 'call-session-a',
+        params: {
+          patientName: patientInput.fullName,
+          patientPhone: patientInput.phoneNumber,
+          patientDob: patientInput.dateOfBirth,
+          startIso,
+          durationMinutes: 30,
+          reason: patientInput.reasonForVisit,
+        },
+      }),
+    );
+
+    const booking = asBookingResult(result);
+
+    expect(order).toEqual([
+      'availability',
+      'patient-upsert',
+      'hold-created',
+      'hold-confirmed',
+      'google-event-created',
+      'external-event-attached',
+    ]);
+    expect(mockFindAvailableCalendarSlots).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId,
+        requestedDate: '2026-06-01',
+        requestedTime: '14:00',
+        appointmentDurationMinutes: 30,
+      }),
+    );
+    expect(mockUpsertPatientProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId,
+        fullName: patientInput.fullName,
+        phoneNumber: patientInput.phoneNumber,
+        dateOfBirth: patientInput.dateOfBirth,
+        notes: patientInput.reasonForVisit,
+      }),
+    );
+    expect(booking).toMatchObject({
+      success: true,
+      appointmentId: 'appointment-a',
+      eventId: 'google-event-a',
+    });
+  });
+
   it('rejects booking safely when tenant context is missing', async () => {
     const result = await handleConvaiToolCall({
       tenantId,

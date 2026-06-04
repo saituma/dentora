@@ -6,7 +6,8 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V14';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V15';
+const PROMPT_CACHE_KEY = 'elevenlabs-patched-v16';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -25,7 +26,7 @@ HOW TO SOUND
 • Talk like a friendly human receptionist, not a script. Short, natural sentences.
 • ONE question at a time. Ask it, wait for the answer, then move on. Never stack two questions.
 • Keep every reply to one or two sentences — this is a phone call, not an essay.
-• Briefly acknowledge what the caller said before moving on ("Lovely, thanks" / "No problem at all").
+• Briefly acknowledge what the caller said before moving on ("Lovely, thanks" / "No problem at all"). This is spoken acknowledgement only; do not call acknowledge_input for ordinary chat or information answers.
 • Never start a reply with a label or a bracketed word. The ONLY brackets you may ever use are genuine emotion cues such as [calm] or [reassuring] — never put an ordinary word like [Patient] in brackets.
 • Never address the caller as "Patient" or any placeholder. If you don't know their name yet, just speak to them directly.
 • UK English throughout (999, A&E, NHS 111).
@@ -123,7 +124,7 @@ Use these notes to answer patient questions about parking, accessibility, NHS/pr
 SIDE QUESTIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 If the caller asks something off to the side (parking, directions, insurance):
-1. Answer it in one sentence from clinic info, or: "I don't have that to hand — I'll note it for the team."
+1. Answer it in one sentence from clinic info, or: "I don't have that to hand — I'll pass a message to the team."
 2. Then gently steer back: "Now, back to your appointment — [next question]."
 If something is clearly not aimed at you (background noise, a side conversation): ignore it and re-engage — "Sorry about that — shall we carry on?"
 
@@ -151,6 +152,7 @@ NEVER
 • Never diagnose, or promise a specific treatment or outcome.
 • Never say "we can treat your emergency now."
 • Never ask for an email address — it is not needed for booking.
+• Never call acknowledge_input when only answering information, checking hours, giving prices, or reading FAQs.
 • Never bundle two questions into one reply.`;
 }
 
@@ -169,7 +171,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v15', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>(PROMPT_CACHE_KEY, agentId);
   if (alreadyPatched) return;
 
   try {
@@ -198,14 +200,30 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
     }
 
     const agent = (await getRes.json()) as {
-      conversation_config?: { agent?: { prompt?: { prompt?: string } } };
+      conversation_config?: {
+        agent?: { prompt?: { prompt?: string } };
+        asr?: { user_input_audio_format?: string };
+        tts?: {
+          voice_id?: string;
+          model_id?: string;
+          agent_output_audio_format?: string;
+          stability?: number;
+          similarity_boost?: number;
+          speed?: number;
+        };
+      };
     };
 
     const currentPrompt = agent.conversation_config?.agent?.prompt?.prompt ?? '';
+    const currentAsr = agent.conversation_config?.asr ?? {};
+    const currentTts = agent.conversation_config?.tts ?? {};
+    const hasTwilioAudioFormats =
+      currentAsr.user_input_audio_format === 'ulaw_8000' &&
+      currentTts.agent_output_audio_format === 'ulaw_8000';
 
     // If already on this version, cache and skip
-    if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v15', agentId, true, 3600);
+    if (currentPrompt.includes(PROMPT_VERSION) && hasTwilioAudioFormats) {
+      await globalCacheSet(PROMPT_CACHE_KEY, agentId, true, 3600);
       return;
     }
 
@@ -221,6 +239,19 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
         headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           conversation_config: {
+            asr: {
+              user_input_audio_format: 'ulaw_8000',
+            },
+            tts: {
+              ...currentTts,
+              ...(currentTts.voice_id ? { voice_id: currentTts.voice_id } : {}),
+              model_id: currentTts.model_id ?? 'eleven_flash_v2_5',
+              agent_output_audio_format: 'ulaw_8000',
+              stability: currentTts.stability ?? 0.55,
+              similarity_boost: currentTts.similarity_boost ?? 0.85,
+              speed: currentTts.speed ?? 0.96,
+              optimize_streaming_latency: 1,
+            },
             agent: {
               prompt: { prompt: newPrompt },
               first_message: '{{greeting_message}}',
@@ -242,9 +273,8 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // Best-effort LLM/turn tuning. Kept separate so an unsupported field
     // can never block the critical prompt patch above.
-    // NOTE: do NOT include a `tts` block here — a bare tts patch with no voice_id can
-    // silently reset the agent to the platform default voice, and optimize_streaming_latency≥3
-    // trades naturalness for speed in an audible way (robotic-sounding output).
+    // NOTE: keep this patch away from `tts`; the critical patch above already
+    // preserves the existing voice while setting Twilio-safe audio formats.
     try {
       const tuneRes = await fetch(
         `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`,
@@ -270,7 +300,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
       logger.warn({ tuneErr, agentId }, 'Agent latency tuning patch threw (non-blocking)');
     }
 
-    await globalCacheSet('elevenlabs-patched-v15', agentId, true, 3600);
+    await globalCacheSet(PROMPT_CACHE_KEY, agentId, true, 3600);
   } catch (err) {
     logger.warn({ err, agentId }, 'ensureAgentPromptDates failed (non-blocking)');
   }

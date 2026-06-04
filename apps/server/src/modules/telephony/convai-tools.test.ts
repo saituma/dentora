@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetClinicProfile = vi.hoisted(() => vi.fn());
 const mockGetBookingRules = vi.hoisted(() => vi.fn());
@@ -95,6 +95,8 @@ const startIso = '2026-06-01T14:00:00.000Z';
 const endIso = '2026-06-01T14:30:00.000Z';
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-05-01T12:00:00.000Z'));
   vi.clearAllMocks();
   mockFeatures.aiAppointmentChangesRequireReview = false;
   mockComputeOnboardingReadiness.mockResolvedValue({
@@ -156,6 +158,10 @@ beforeEach(() => {
     ],
     timezone: 'UTC',
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('ConvAI appointment tools', () => {
