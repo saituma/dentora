@@ -254,7 +254,7 @@ export default function ClinicPage() {
         }).unwrap()
       : addPolicy({
           policyType: 'clinic_info',
-          content: '',
+          content: notesContent || ' ',
         })
           .unwrap()
           .then((created) =>
