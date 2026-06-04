@@ -28,6 +28,34 @@ import {
 const APPOINTMENT_LIST_PRIVACY_MESSAGE =
   "For privacy reasons, I can't list patient appointments. I can help check availability, book a new appointment, cancel, or reschedule if you provide the appointment details.";
 
+function optionalString(params: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = params[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  }
+  return '';
+}
+
+function optionalNumber(params: Record<string, unknown>, ...keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = params[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
+}
+
+function endIsoFromDuration(startIso: string, durationMinutes?: number): string {
+  if (!durationMinutes) return '';
+  const startAt = new Date(startIso);
+  if (!Number.isFinite(startAt.getTime())) return '';
+  return new Date(startAt.getTime() + durationMinutes * 60_000).toISOString();
+}
+
 function getTodayInTimezone(timezone: string): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -196,8 +224,8 @@ async function listAppointments(tenantId: string) {
 }
 
 async function lookupPatient(tenantId: string, params: Record<string, unknown>) {
-  const phoneNumber = String(params.phoneNumber ?? '').trim();
-  const dateOfBirth = String(params.dateOfBirth ?? '').trim();
+  const phoneNumber = optionalString(params, 'phoneNumber', 'phone', 'patientPhone');
+  const dateOfBirth = optionalString(params, 'dateOfBirth', 'patientDob', 'dob');
   if (!phoneNumber || !dateOfBirth) {
     throw new ValidationError('phoneNumber and dateOfBirth are required');
   }
@@ -218,7 +246,7 @@ async function lookupPatient(tenantId: string, params: Record<string, unknown>) 
  * works only once a profile exists (e.g. after booking).
  */
 async function setReminderConsent(tenantId: string, params: Record<string, unknown>) {
-  const phoneNumber = String(params.phoneNumber ?? '').trim();
+  const phoneNumber = optionalString(params, 'phoneNumber', 'patientPhone', 'callerPhoneNumber');
   const consent = params.consent === true || params.consent === 'true' || params.consent === 'yes';
   const channelRaw = String(params.channel ?? '').trim();
   const preferredChannel = (['sms', 'whatsapp', 'both', 'none'] as const).find(
@@ -265,7 +293,7 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
     ? rules?.closedDates.filter((value): value is string => typeof value === 'string')
     : null;
 
-  const rawRequestedDate = String(params.requestedDate ?? '').trim();
+  const rawRequestedDate = optionalString(params, 'requestedDate', 'date', 'dateRangeStart');
   if (!rawRequestedDate) {
     throw new ValidationError('requestedDate is required');
   }
@@ -306,21 +334,22 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
     tenantId,
     minimumStartAt,
     requestedDate,
-    requestedTime: params.requestedTime ? String(params.requestedTime) : null,
+    requestedTime: optionalString(params, 'requestedTime', 'time') || null,
     requestedPeriod: params.requestedPeriod
       ? (String(params.requestedPeriod) as 'morning' | 'afternoon' | 'evening')
       : null,
-    appointmentDurationMinutes: params.appointmentDurationMinutes
-      ? Number(params.appointmentDurationMinutes)
-      : (rules?.defaultAppointmentDurationMinutes ?? 30),
+    appointmentDurationMinutes:
+      optionalNumber(params, 'appointmentDurationMinutes', 'durationMinutes') ??
+      rules?.defaultAppointmentDurationMinutes ??
+      30,
     bufferBetweenAppointmentsMinutes: rules?.bufferBetweenAppointmentsMinutes ?? 0,
     operatingSchedule:
       (rules?.operatingSchedule as Record<string, unknown> | null) ??
       (clinic.businessHours as Record<string, unknown> | null) ??
       null,
     closedDates,
-    maxSlots: params.maxSlots ? Number(params.maxSlots) : 5,
-    lookAheadDays: params.lookAheadDays ? Number(params.lookAheadDays) : 14,
+    maxSlots: optionalNumber(params, 'maxSlots') ?? 5,
+    lookAheadDays: optionalNumber(params, 'lookAheadDays') ?? 14,
   });
 }
 
@@ -338,13 +367,18 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
     throw new ValidationError('Clinic timezone is required to book appointments');
   }
 
-  const rawStartIso = String(params.startIso ?? '').trim();
-  const rawEndIso = String(params.endIso ?? '').trim();
-  const fullName = String(params.fullName ?? '').trim();
-  const phoneNumber = String(params.phoneNumber ?? '').trim();
-  const reasonForVisit = String(params.reasonForVisit ?? '').trim();
-  const dateOfBirth = params.dateOfBirth ? String(params.dateOfBirth) : null;
-  const age = params.age ? Number(params.age) : undefined;
+  const rawStartIso = optionalString(params, 'startIso');
+  const rawEndIso =
+    optionalString(params, 'endIso') ||
+    endIsoFromDuration(
+      rawStartIso,
+      optionalNumber(params, 'appointmentDurationMinutes', 'durationMinutes'),
+    );
+  const fullName = optionalString(params, 'fullName', 'patientName', 'name');
+  const phoneNumber = optionalString(params, 'phoneNumber', 'patientPhone', 'callerPhoneNumber');
+  const reasonForVisit = optionalString(params, 'reasonForVisit', 'reason');
+  const dateOfBirth = optionalString(params, 'dateOfBirth', 'patientDob', 'dob') || null;
+  const age = optionalNumber(params, 'age');
 
   if (!rawStartIso || !rawEndIso || !fullName || !phoneNumber || !reasonForVisit) {
     throw new ValidationError(
@@ -500,8 +534,8 @@ async function cancelAppointment(
     appointmentId: typeof params.appointmentId === 'string' ? params.appointmentId : null,
     appAppointmentId: typeof params.appAppointmentId === 'string' ? params.appAppointmentId : null,
     externalCalendarEventId: typeof params.eventId === 'string' ? params.eventId : null,
-    phoneNumber: typeof params.phoneNumber === 'string' ? params.phoneNumber : null,
-    dateOfBirth: typeof params.dateOfBirth === 'string' ? params.dateOfBirth : null,
+    phoneNumber: optionalString(params, 'phoneNumber', 'patientPhone') || null,
+    dateOfBirth: optionalString(params, 'dateOfBirth', 'patientDob', 'dob') || null,
     appointmentDate: typeof params.appointmentDate === 'string' ? params.appointmentDate : null,
     appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
     timezone: typeof params.timezone === 'string' ? params.timezone : null,
@@ -553,8 +587,13 @@ async function rescheduleAppointment(
   });
   if (readinessFailure) return readinessFailure;
 
-  const rawStartIso = String(params.startIso ?? '').trim();
-  const rawEndIso = String(params.endIso ?? '').trim();
+  const rawStartIso = optionalString(params, 'startIso', 'newStartIso');
+  const rawEndIso =
+    optionalString(params, 'endIso', 'newEndIso') ||
+    endIsoFromDuration(
+      rawStartIso,
+      optionalNumber(params, 'appointmentDurationMinutes', 'durationMinutes'),
+    );
 
   if (!rawStartIso || !rawEndIso) {
     throw new ValidationError('startIso and endIso are required');
@@ -566,8 +605,8 @@ async function rescheduleAppointment(
     appointmentId: typeof params.appointmentId === 'string' ? params.appointmentId : null,
     appAppointmentId: typeof params.appAppointmentId === 'string' ? params.appAppointmentId : null,
     externalCalendarEventId: typeof params.eventId === 'string' ? params.eventId : null,
-    phoneNumber: typeof params.phoneNumber === 'string' ? params.phoneNumber : null,
-    dateOfBirth: typeof params.dateOfBirth === 'string' ? params.dateOfBirth : null,
+    phoneNumber: optionalString(params, 'phoneNumber', 'patientPhone') || null,
+    dateOfBirth: optionalString(params, 'dateOfBirth', 'patientDob', 'dob') || null,
     appointmentDate: typeof params.appointmentDate === 'string' ? params.appointmentDate : null,
     appointmentTime: typeof params.appointmentTime === 'string' ? params.appointmentTime : null,
     timezone: typeof params.timezone === 'string' ? params.timezone : null,
