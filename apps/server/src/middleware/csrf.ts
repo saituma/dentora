@@ -11,6 +11,7 @@ const CSRF_SKIP_PREFIXES = [
   '/api/webhooks',
   '/api/telephony/webhook',
   '/api/telephony/test-voice-dial',
+  '/api/telephony/test-voice-recording',
   '/api/pms/webhooks',
   '/api/admin/seed',
   '/api/telegram/webhook',

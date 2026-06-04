@@ -169,16 +169,85 @@ telephonyRouter.post('/test-voice-dial', webhookRateLimiter, (req, res) => {
       .send('<Response><Say>Invalid number.</Say><Hangup/></Response>');
     return;
   }
-  // Use the Twilio number passed from the browser as callerId so PSTN carriers accept the call.
-  // Without a valid E.164 callerId the carrier rejects immediately with busy/hangup.
   const rawFrom = String(req.body?.From ?? '').trim();
   const from = /^\+[1-9]\d{1,14}$/.test(rawFrom) ? rawFrom : '';
+  const base = env.TWILIO_WEBHOOK_BASE_URL.replace(/\/$/, '');
   res
     .type('text/xml')
     .send(
-      `<Response><Dial${from ? ` callerId="${from}"` : ''} timeout="30"><Number>${to.replace(/[<>&"']/g, '')}</Number></Dial></Response>`,
+      [
+        '<Response>',
+        `<Dial${from ? ` callerId="${from}"` : ''} timeout="30"`,
+        ` record="record-from-answer-dual"`,
+        ` recordingStatusCallback="${base}/api/telephony/test-voice-recording"`,
+        ` recordingStatusCallbackMethod="POST">`,
+        `<Number>${to.replace(/[<>&"']/g, '')}</Number>`,
+        '</Dial>',
+        '</Response>',
+      ].join(''),
     );
 });
+
+/**
+ * POST /api/telephony/test-voice-recording
+ *
+ * Twilio callback when a test-voice-dial recording is ready.
+ * Stores the recording SID against the call SID in Redis so the browser can poll for it.
+ */
+telephonyRouter.post('/test-voice-recording', webhookRateLimiter, async (req, res) => {
+  try {
+    const { CallSid, RecordingSid, RecordingUrl, RecordingStatus, RecordingDuration } = req.body;
+    if (CallSid && RecordingSid && RecordingStatus === 'completed') {
+      const redis = getRedis();
+      await redis.setex(
+        `test-recording:${CallSid}`,
+        3600,
+        JSON.stringify({
+          recordingSid: RecordingSid,
+          recordingUrl: RecordingUrl,
+          duration: RecordingDuration,
+        }),
+      );
+    }
+    res.sendStatus(204);
+  } catch {
+    res.sendStatus(204);
+  }
+});
+
+/**
+ * GET /api/telephony/test-voice-recording/:callSid
+ *
+ * Returns recording info for a call SID. Used by the browser test page after hang-up.
+ */
+telephonyRouter.get(
+  '/test-voice-recording/:callSid',
+  webhookRateLimiter,
+  async (req, res, next) => {
+    try {
+      const secret = env.CALL_TEST_SECRET;
+      if (!secret || req.headers.authorization !== `Bearer ${secret}`) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      const callSid = req.params.callSid;
+      const redis = getRedis();
+      const raw = await redis.get(`test-recording:${callSid}`);
+      if (!raw) {
+        res.json({ data: null });
+        return;
+      }
+      const data = JSON.parse(raw) as {
+        recordingSid: string;
+        recordingUrl: string;
+        duration: string;
+      };
+      res.json({ data });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 /**
  * GET /api/telephony/test-voice-token
