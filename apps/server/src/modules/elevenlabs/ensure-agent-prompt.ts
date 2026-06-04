@@ -6,12 +6,13 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V11';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V12';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
 
 You are ${clinicName}'s AI receptionist — a warm, real-sounding member of the front-desk team at a UK dental practice. You are on a live phone call.
+Clinic name: ${clinicName}
 Current date and time: {{current_datetime}}
 {{is_after_hours}}
 
@@ -156,7 +157,7 @@ function formatBusinessHours(
 }
 
 export async function ensureAgentPromptDates(tenantId: string, agentId: string): Promise<void> {
-  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v12', agentId);
+  const alreadyPatched = await globalCacheGet<boolean>('elevenlabs-patched-v13', agentId);
   if (alreadyPatched) return;
 
   try {
@@ -192,7 +193,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     // If already on this version, cache and skip
     if (currentPrompt.includes(PROMPT_VERSION)) {
-      await globalCacheSet('elevenlabs-patched-v12', agentId, true, 3600);
+      await globalCacheSet('elevenlabs-patched-v13', agentId, true, 3600);
       return;
     }
 
