@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const BASE_URL = 'https://api.elevenlabs.io/v1';
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V15';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V16';
 
 function usage() {
   console.log(`
