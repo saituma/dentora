@@ -211,12 +211,12 @@ function patchPayload(agent) {
       tts: {
         ...tts,
         ...(tts.voice_id ? { voice_id: tts.voice_id } : {}),
-        model_id: tts.model_id ?? 'eleven_flash_v2_5',
+        model_id: tts.model_id ?? 'eleven_v3_conversational',
         agent_output_audio_format: 'ulaw_8000',
-        stability: tts.stability ?? 0.55,
-        similarity_boost: tts.similarity_boost ?? 0.85,
-        speed: tts.speed ?? 0.96,
-        optimize_streaming_latency: 1,
+        stability: 0.6,
+        similarity_boost: 0.85,
+        speed: 0.96,
+        optimize_streaming_latency: 0,
       },
       agent: {
         prompt: {
