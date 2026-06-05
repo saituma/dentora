@@ -7,7 +7,7 @@ import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
 const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V15';
-const PROMPT_CACHE_KEY = 'elevenlabs-patched-v16';
+const PROMPT_CACHE_KEY = 'elevenlabs-patched-v18';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -201,7 +201,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
 
     const agent = (await getRes.json()) as {
       conversation_config?: {
-        agent?: { prompt?: { prompt?: string } };
+        agent?: { prompt?: { prompt?: string; tools?: unknown[]; tool_ids?: unknown[] } };
         asr?: { user_input_audio_format?: string };
         tts?: {
           voice_id?: string;
@@ -217,6 +217,7 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
     const currentPrompt = agent.conversation_config?.agent?.prompt?.prompt ?? '';
     const currentAsr = agent.conversation_config?.asr ?? {};
     const currentTts = agent.conversation_config?.tts ?? {};
+    const currentTools = agent.conversation_config?.agent?.prompt?.tools ?? [];
     const hasTwilioAudioFormats =
       currentAsr.user_input_audio_format === 'ulaw_8000' &&
       currentTts.agent_output_audio_format === 'ulaw_8000';
@@ -253,9 +254,14 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
               optimize_streaming_latency: 1,
             },
             agent: {
-              prompt: { prompt: newPrompt },
+              prompt: {
+                prompt: newPrompt,
+                llm: 'gemini-2.0-flash',
+                ...(currentTools.length > 0 ? { tools: currentTools } : {}),
+              },
               first_message: '{{greeting_message}}',
             },
+            turn: { turn_timeout: 1, turn_eagerness: 'eager' },
           },
         }),
       },
@@ -269,35 +275,6 @@ export async function ensureAgentPromptDates(tenantId: string, agentId: string):
         { agentId, status: patchRes.status, body: body.slice(0, 300) },
         'Failed to patch agent prompt',
       );
-    }
-
-    // Best-effort LLM/turn tuning. Kept separate so an unsupported field
-    // can never block the critical prompt patch above.
-    // NOTE: keep this patch away from `tts`; the critical patch above already
-    // preserves the existing voice while setting Twilio-safe audio formats.
-    try {
-      const tuneRes = await fetch(
-        `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`,
-        {
-          method: 'PATCH',
-          headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            conversation_config: {
-              agent: { prompt: { llm: 'gemini-2.0-flash' } },
-              turn: { turn_timeout: 1, turn_eagerness: 'eager' },
-            },
-          }),
-        },
-      );
-      if (!tuneRes.ok) {
-        const body = await tuneRes.text();
-        logger.warn(
-          { agentId, status: tuneRes.status, body: body.slice(0, 300) },
-          'Agent latency tuning patch failed (non-blocking)',
-        );
-      }
-    } catch (tuneErr) {
-      logger.warn({ tuneErr, agentId }, 'Agent latency tuning patch threw (non-blocking)');
     }
 
     await globalCacheSet(PROMPT_CACHE_KEY, agentId, true, 3600);
