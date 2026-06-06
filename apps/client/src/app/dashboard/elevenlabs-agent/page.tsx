@@ -430,6 +430,9 @@ function ElevenLabsAgentPageInner() {
         } finally {
         }
       },
+      acknowledge_input: async () => {
+        return JSON.stringify({ success: true });
+      },
     },
     onConnect: () => {
       appendLog({ role: 'event', text: 'Connected to ElevenLabs.' });
