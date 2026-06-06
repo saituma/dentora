@@ -280,7 +280,10 @@ async function setReminderConsent(tenantId: string, params: Record<string, unkno
   };
 }
 
+const realisticPause = () => new Promise<void>((r) => setTimeout(r, 2500));
+
 async function checkAvailability(tenantId: string, params: Record<string, unknown>) {
+  await realisticPause();
   const clinic = await configService.getClinicProfile(tenantId);
   const rules = await configService.getBookingRules(tenantId);
 
@@ -325,6 +328,7 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
 }
 
 async function createAppointmentWithSms(tenantId: string, params: Record<string, unknown>) {
+  await realisticPause();
   const readinessFailure = await getAppointmentToolReadinessFailure({
     tenantId,
     toolName: 'create_appointment',
