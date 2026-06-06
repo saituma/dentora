@@ -21,11 +21,7 @@ import {
   markAppointmentExternalSyncState,
   markAppointmentReconciliationNeeded,
 } from './appointment-ledger.service.js';
-import {
-  formatDateInTimeZone,
-  formatTimeInTimeZone,
-  makeDateInTimeZone,
-} from './appointment-timezone.js';
+import { formatDateInTimeZone, formatTimeInTimeZone } from './appointment-timezone.js';
 import { scheduleAppointmentReminders } from '../reminders/reminder.service.js';
 import { scheduleDepositCreation } from '../deposits/deposit.service.js';
 
@@ -167,21 +163,8 @@ function findExactRequestedSlot(input: {
   );
 }
 
-function calculatePublicAvailabilityFloor(timezone: string): Date {
-  const now = new Date();
-  const nowHour = Number(
-    new Intl.DateTimeFormat('en-GB', { timeZone: timezone, hour: '2-digit', hour12: false }).format(
-      now,
-    ),
-  );
-  if (nowHour >= 12) {
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const [year, month, day] = formatDateInTimeZone(tomorrow, timezone).split('-').map(Number);
-    return makeDateInTimeZone(timezone, year, month, day, 0, 0);
-  }
-
-  const [year, month, day] = formatDateInTimeZone(now, timezone).split('-').map(Number);
-  return makeDateInTimeZone(timezone, year, month, day, 12, 0);
+function calculatePublicAvailabilityFloor(minNoticeHours: number): Date {
+  return new Date(Date.now() + minNoticeHours * 60 * 60 * 1000);
 }
 
 function assertPublicBookingRules(input: {
@@ -192,37 +175,6 @@ function assertPublicBookingRules(input: {
 }): void {
   const { startAt } = parseSlot(input.slot);
   const maxStart = Date.now() + input.maxAdvanceBookingDays * 24 * 60 * 60 * 1000;
-  const startDateLocal = formatDateInTimeZone(startAt, input.timezone);
-  const todayLocal = formatDateInTimeZone(new Date(), input.timezone);
-  const tomorrowLocal = formatDateInTimeZone(
-    new Date(Date.now() + 24 * 60 * 60 * 1000),
-    input.timezone,
-  );
-  const isToday = startDateLocal === todayLocal;
-  const isTomorrow = startDateLocal === tomorrowLocal;
-  const nowHour = Number(formatTimeInTimeZone(new Date(), input.timezone).slice(0, 2));
-  const startHour = Number(formatTimeInTimeZone(startAt, input.timezone).slice(0, 2));
-  const reason = input.patient.reasonForVisit.toLowerCase();
-  const isEmergency =
-    /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(
-      reason,
-    );
-
-  if (isEmergency) {
-    // Emergency bookings bypass same-day restrictions.
-  } else if (isToday) {
-    if (nowHour >= 12) {
-      throw new ValidationError(
-        'Same-day appointments are only available when booked in the morning',
-      );
-    }
-    if (startHour < 12) {
-      throw new ValidationError('Same-day appointments must be scheduled in the afternoon');
-    }
-  } else if (!isTomorrow) {
-    // No min-notice enforcement for later dates on the public route.
-  }
-
   if (startAt.getTime() > maxStart) {
     throw new ValidationError('Appointment time is too far in advance based on booking rules');
   }
@@ -332,7 +284,7 @@ export async function checkPublicAppointmentAvailability(input: {
 
   return await checkAppointmentAvailability({
     tenantId: input.tenantId,
-    minimumStartAt: calculatePublicAvailabilityFloor(clinic.timezone),
+    minimumStartAt: calculatePublicAvailabilityFloor(rules?.minNoticePeriodHours ?? 2),
     requestedDate: input.requestedDate,
     requestedTime: input.requestedTime,
     requestedPeriod: input.requestedPeriod,

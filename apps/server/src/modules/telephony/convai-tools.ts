@@ -15,7 +15,6 @@ import {
   checkAppointmentAvailability,
   rescheduleLedgerBackedAppointment,
 } from '../appointments/appointment-application.service.js';
-import { makeDateInTimeZone } from '../appointments/appointment-timezone.js';
 import { getAppointmentToolReadinessFailure } from '../appointments/appointment-tool-readiness.js';
 import { resolveVerifiedAppointmentForCaller } from '../appointments/appointment-lookup.service.js';
 import {
@@ -299,36 +298,8 @@ async function checkAvailability(tenantId: string, params: Record<string, unknow
   }
   const requestedDate = normalizeAgentDate(rawRequestedDate, clinic.timezone);
 
-  // Never offer a slot that createAppointmentWithSms would reject: enforce the
-  // min-notice window and the same-day rule (no same-day after noon; before
-  // noon, same-day slots must be in the afternoon).
   const minNoticeHours = rules?.minNoticePeriodHours ?? 2;
-  const minNoticeFloorMs = Date.now() + minNoticeHours * 60 * 60 * 1000;
-  const availabilityDateParts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: clinic.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const availabilityNowHour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: clinic.timezone,
-      hour: '2-digit',
-      hour12: false,
-    }).format(new Date()),
-  );
-  let sameDayFloor: Date;
-  if (availabilityNowHour >= 12) {
-    const [ty, tm, td] = availabilityDateParts
-      .format(new Date(Date.now() + 24 * 60 * 60 * 1000))
-      .split('-')
-      .map(Number);
-    sameDayFloor = makeDateInTimeZone(clinic.timezone, ty, tm, td, 0, 0);
-  } else {
-    const [y, m, d] = availabilityDateParts.format(new Date()).split('-').map(Number);
-    sameDayFloor = makeDateInTimeZone(clinic.timezone, y, m, d, 12, 0);
-  }
-  const minimumStartAt = new Date(Math.max(minNoticeFloorMs, sameDayFloor.getTime()));
+  const minimumStartAt = new Date(Date.now() + minNoticeHours * 60 * 60 * 1000);
 
   return await checkAppointmentAvailability({
     tenantId,
@@ -405,31 +376,6 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
   const minStart = now + minNoticeHours * 60 * 60 * 1000;
   const maxStart = now + maxAdvanceDays * 24 * 60 * 60 * 1000;
 
-  const dateFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: clinic.timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const timeFormatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: clinic.timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const startDateLocal = dateFormatter.format(startAt);
-  const todayLocal = dateFormatter.format(new Date());
-  const tomorrowLocal = dateFormatter.format(new Date(Date.now() + 24 * 60 * 60 * 1000));
-  const isToday = startDateLocal === todayLocal;
-  const isTomorrow = startDateLocal === tomorrowLocal;
-
-  const nowHour = Number(
-    timeFormatter.formatToParts(new Date()).find((part) => part.type === 'hour')?.value ?? '0',
-  );
-  const startHour = Number(
-    timeFormatter.formatToParts(startAt).find((part) => part.type === 'hour')?.value ?? '0',
-  );
-
   const reason = reasonForVisit.toLowerCase();
   const isEmergency =
     /\b(emergency|severe|bleeding|trauma|swelling|broken|abscess|infection|fever|uncontrolled)\b/.test(
@@ -446,19 +392,6 @@ async function createAppointmentWithSms(tenantId: string, params: Record<string,
       throw new ValidationError(
         `Appointments cannot be scheduled more than ${maxAdvanceDays} days in advance`,
       );
-    }
-
-    if (isToday) {
-      if (nowHour >= 12) {
-        throw new ValidationError(
-          'Same-day appointments are only available when booked in the morning',
-        );
-      }
-      if (startHour < 12) {
-        throw new ValidationError('Same-day appointments must be scheduled in the afternoon');
-      }
-    } else if (!isTomorrow) {
-      // No additional constraints
     }
   }
 
