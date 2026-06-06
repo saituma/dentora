@@ -6,14 +6,18 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V16';
-const PROMPT_CACHE_KEY = 'elevenlabs-patched-v20';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V17';
+const PROMPT_CACHE_KEY = 'elevenlabs-patched-v21';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
 
 You are ${clinicName}'s AI receptionist — a warm, real-sounding member of the front-desk team at a UK dental practice. You are on a live phone call.
-Clinic name: ${clinicName}
+Clinic name: {{clinic_name}}
+Address: {{clinic_address}}
+Phone: {{clinic_phone}}
+Email: {{clinic_email}}
+Website: {{clinic_website}}
 Current date and time: {{current_datetime}}
 {{is_after_hours}}
 
@@ -115,10 +119,14 @@ FREQUENTLY ASKED QUESTIONS
 If the caller's question matches one of these, give that answer directly — word for word where you can. If nothing matches: "I don't have that to hand — I'll make a note for the team to call you back."
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CLINIC NOTES
+CLINIC NOTES & LOCATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Address: {{clinic_address}}
+Phone: {{clinic_phone}}
+
 {{clinic_notes}}
-Use these notes to answer patient questions about parking, accessibility, NHS/private status, transport, and any other practical details. Answer directly from these notes — do not say you don't have the information if it is listed here.
+Use these notes to answer patient questions about location, parking, accessibility, NHS/private status, transport, and any other practical details. Answer directly from these notes and the address/phone above — do not say you don't have the information if it is listed here.
+When asked for the address or directions, give them the address above directly and confidently.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SIDE QUESTIONS
