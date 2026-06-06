@@ -387,7 +387,8 @@ export async function bookLedgerBackedAppointment(
       unknown
     > | null,
     closedDates,
-    maxSlots: 1,
+    // Large enough to iterate past all earlier slots and reach the requested time.
+    maxSlots: 96,
     lookAheadDays: 1,
   });
 

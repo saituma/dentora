@@ -282,7 +282,7 @@ export async function findAvailableCalendarSlots(input: CalendarAvailabilityInpu
         Number(getFormatterParts(slotStart, input.timezone).minute) === requestedTime.minute
       ) {
         exactMatch = slot;
-        if (suggestedSlots.length === 0) suggestedSlots.push(slot);
+        suggestedSlots.push(slot);
         break;
       }
 
