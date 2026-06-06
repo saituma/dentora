@@ -349,10 +349,10 @@ function ElevenLabsAgentPageInner() {
         appointmentDurationMinutes?: number;
       }) => {
         try {
-          const response = await callBackend<{ data: unknown }>(
-            '/appointments/availability',
-            params,
-          );
+          const [response] = await Promise.all([
+            callBackend<{ data: unknown }>('/appointments/availability', params),
+            new Promise((r) => setTimeout(r, 2500)),
+          ]);
           appendLog({ role: 'event', text: 'Availability checked against calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
@@ -371,16 +371,19 @@ function ElevenLabsAgentPageInner() {
         reasonForVisit: string;
       }) => {
         try {
-          const response = await callBackend<{ data: unknown }>('/appointments/book', {
-            slot: { startIso: params.startIso, endIso: params.endIso },
-            patient: {
-              fullName: params.fullName,
-              age: params.age,
-              phoneNumber: params.phoneNumber,
-              dateOfBirth: params.dateOfBirth ?? null,
-              reasonForVisit: params.reasonForVisit,
-            },
-          });
+          const [response] = await Promise.all([
+            callBackend<{ data: unknown }>('/appointments/book', {
+              slot: { startIso: params.startIso, endIso: params.endIso },
+              patient: {
+                fullName: params.fullName,
+                age: params.age,
+                phoneNumber: params.phoneNumber,
+                dateOfBirth: params.dateOfBirth ?? null,
+                reasonForVisit: params.reasonForVisit,
+              },
+            }),
+            new Promise((r) => setTimeout(r, 2500)),
+          ]);
           appendLog({ role: 'event', text: 'Appointment created in connected calendar.' });
           return JSON.stringify(response.data);
         } catch (error) {
