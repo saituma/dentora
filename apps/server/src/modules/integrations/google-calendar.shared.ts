@@ -86,18 +86,78 @@ export function getDayKey(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     weekday: 'long',
-  }).format(date).toLowerCase();
+  })
+    .format(date)
+    .toLowerCase();
+}
+
+const NUM_WORDS = [
+  '',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+  'twenty-one',
+  'twenty-two',
+  'twenty-three',
+  'twenty-four',
+  'twenty-five',
+  'twenty-six',
+  'twenty-seven',
+  'twenty-eight',
+  'twenty-nine',
+];
+
+function toWord(n: number): string {
+  if (n <= 29) return NUM_WORDS[n];
+  if (n === 30) return 'thirty';
+  return `thirty-${NUM_WORDS[n - 30]}`;
+}
+
+function spokenTime(hour: number, minute: number): string {
+  const period = hour < 12 ? 'in the morning' : hour < 18 ? 'in the afternoon' : 'in the evening';
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  const nextH12 = h12 === 12 ? 1 : h12 + 1;
+  if (minute === 0) return `${toWord(h12)} o'clock ${period}`;
+  if (minute === 15) return `quarter past ${toWord(h12)} ${period}`;
+  if (minute === 30) return `half past ${toWord(h12)} ${period}`;
+  if (minute === 45) return `quarter to ${toWord(nextH12)} ${period}`;
+  if (minute < 30) return `${toWord(minute)} past ${toWord(h12)} ${period}`;
+  return `${toWord(60 - minute)} to ${toWord(nextH12)} ${period}`;
 }
 
 export function formatSlotLabel(startIso: string, timezone: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+  const date = new Date(startIso);
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: timezone,
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(startIso));
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const hour = Number(get('hour'));
+  const minute = Number(get('minute'));
+  const dateStr = `${get('weekday')}, ${get('day')} ${get('month')}`;
+  return `${dateStr} at ${spokenTime(hour, minute)}`;
 }
 
 export function parseTimeString(value?: string | null): { hour: number; minute: number } | null {
@@ -125,7 +185,11 @@ export async function exchangeGoogleAuthCode(code: string): Promise<GoogleTokenR
 
   const data = (await response.json()) as GoogleTokenResponse;
   if (!response.ok || data.error || !data.access_token) {
-    throw new IntegrationError('calendar', 'google_calendar', data.error_description || data.error || 'Failed to exchange authorization code');
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      data.error_description || data.error || 'Failed to exchange authorization code',
+    );
   }
   return data;
 }
@@ -144,18 +208,31 @@ async function refreshGoogleAccessToken(refreshToken: string): Promise<GoogleTok
 
   const data = (await response.json()) as GoogleTokenResponse;
   if (!response.ok || data.error || !data.access_token) {
-    throw new IntegrationError('calendar', 'google_calendar', data.error_description || data.error || 'Failed to refresh Google access token');
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      data.error_description || data.error || 'Failed to refresh Google access token',
+    );
   }
   return data;
 }
 
-export async function fetchGoogleCalendarIdentity(accessToken: string): Promise<GoogleCalendarIdentity> {
-  const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=10', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+export async function fetchGoogleCalendarIdentity(
+  accessToken: string,
+): Promise<GoogleCalendarIdentity> {
+  const response = await fetch(
+    'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=10',
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
 
   if (!response.ok) {
-    throw new IntegrationError('calendar', 'google_calendar', 'Failed to read Google Calendar list');
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      'Failed to read Google Calendar list',
+    );
   }
 
   const payload = (await response.json()) as {
@@ -170,17 +247,22 @@ export async function fetchGoogleCalendarIdentity(accessToken: string): Promise<
   };
 }
 
-export async function resolveValidGoogleAccessToken(integration: Integration): Promise<{ accessToken: string; integration: Integration }> {
+export async function resolveValidGoogleAccessToken(
+  integration: Integration,
+): Promise<{ accessToken: string; integration: Integration }> {
   const credentials = (integration.credentials ?? {}) as Record<string, unknown>;
-  const encryptedAccessToken = typeof credentials.encryptedAccessToken === 'string'
-    ? credentials.encryptedAccessToken
-    : undefined;
-  const encryptedRefreshToken = typeof credentials.encryptedRefreshToken === 'string'
-    ? credentials.encryptedRefreshToken
-    : undefined;
-  const accessTokenExpiresAt = typeof credentials.accessTokenExpiresAt === 'string'
-    ? credentials.accessTokenExpiresAt
-    : undefined;
+  const encryptedAccessToken =
+    typeof credentials.encryptedAccessToken === 'string'
+      ? credentials.encryptedAccessToken
+      : undefined;
+  const encryptedRefreshToken =
+    typeof credentials.encryptedRefreshToken === 'string'
+      ? credentials.encryptedRefreshToken
+      : undefined;
+  const accessTokenExpiresAt =
+    typeof credentials.accessTokenExpiresAt === 'string'
+      ? credentials.accessTokenExpiresAt
+      : undefined;
 
   if (!encryptedAccessToken) {
     throw new IntegrationError('calendar', 'google_calendar', 'Missing Google access token');
@@ -199,7 +281,11 @@ export async function resolveValidGoogleAccessToken(integration: Integration): P
   }
 
   if (!encryptedRefreshToken) {
-    throw new IntegrationError('calendar', 'google_calendar', 'Google access token expired and no refresh token is available');
+    throw new IntegrationError(
+      'calendar',
+      'google_calendar',
+      'Google access token expired and no refresh token is available',
+    );
   }
 
   let refreshToken: string;
