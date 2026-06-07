@@ -6,6 +6,7 @@ import {
   Building2,
   HeartPulse,
   LayoutDashboard,
+  MessageSquare,
   Phone,
   PhoneCall,
   PoundSterling,
@@ -37,6 +38,7 @@ const navMain = [
   { title: "Users", href: "/users", icon: Users },
   { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Cost", href: "/cost", icon: PoundSterling },
+  { title: "Demo Requests", href: "/demo-requests", icon: MessageSquare },
 ];
 
 const navSecondary = [

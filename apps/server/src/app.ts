@@ -38,6 +38,7 @@ import { staffReviewRouter } from './modules/staff-review/index.js';
 import { uploadsRouter } from './modules/uploads/uploads.routes.js';
 import { pmsDashboardRouter } from './modules/pms/index.js';
 import { opsTelegramRouter } from './modules/ops-telegram/index.js';
+import { demoRouter } from './modules/demo/index.js';
 
 export const app = express();
 
@@ -173,6 +174,7 @@ app.use('/api/staff-review', staffReviewRouter);
 app.use('/api/uploads', uploadsRouter);
 app.use('/api/pms', pmsDashboardRouter);
 app.use('/api/telegram', opsTelegramRouter);
+app.use('/api/demo-requests', demoRouter);
 
 // ─── Error handling ───────────────────────────────────────────────────────────
 

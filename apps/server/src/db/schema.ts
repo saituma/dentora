@@ -1371,6 +1371,24 @@ export const calendarPhiRemediationRuns = pgTable(
   ],
 );
 
+export const demoRequests = pgTable(
+  'demo_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fullName: text('full_name').notNull(),
+    email: text('email').notNull(),
+    phoneE164: text('phone_e164').notNull(),
+    phoneCountry: text('phone_country').notNull(),
+    message: text('message').notNull(),
+    source: text('source').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('demo_requests_created_at_idx').on(table.createdAt),
+    index('demo_requests_email_idx').on(table.email),
+  ],
+);
+
 export const tenantApiKeysRelations = relations(tenantApiKeys, ({ one }) => ({
   tenant: one(tenantRegistry, {
     fields: [tenantApiKeys.tenantId],

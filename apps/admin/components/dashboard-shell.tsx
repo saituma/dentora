@@ -34,6 +34,7 @@ const segmentLabel: Record<string, string> = {
   analytics: "Analytics",
   cost: "Cost",
   "phone-pool": "Phone Pool",
+  "demo-requests": "Demo Requests",
 };
 
 function HeaderBreadcrumb() {

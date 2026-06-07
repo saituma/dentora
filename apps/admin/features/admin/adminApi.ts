@@ -17,6 +17,7 @@ export const adminApi = createApi({
     "Ops",
     "Analytics",
     "PhonePool",
+    "DemoRequests",
   ],
   endpoints: (builder) => ({
     // ── Platform ───────────────────────────────────────────────────────
@@ -314,6 +315,15 @@ export const adminApi = createApi({
       }),
       invalidatesTags: ["PhonePool"],
     }),
+
+    // ── Demo requests ──────────────────────────────────────────────────
+    getDemoRequests: builder.query<
+      PaginatedResponse<DemoRequest>,
+      DemoRequestsQuery
+    >({
+      query: (params) => ({ url: "/demo-requests", params }),
+      providesTags: ["DemoRequests"],
+    }),
   }),
 });
 
@@ -357,6 +367,7 @@ export const {
   useBuyPhoneNumberMutation,
   useAssignPhoneNumberMutation,
   useReleasePhoneNumberMutation,
+  useGetDemoRequestsQuery,
 } = adminApi;
 
 // ── Query param types ───────────────────────────────────────────────────
@@ -652,4 +663,21 @@ export interface PhoneNumber {
   tenantId?: string | null;
   clinicName?: string | null;
   createdAt: string;
+}
+
+export interface DemoRequest {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneE164: string;
+  phoneCountry: string;
+  message: string;
+  source: string;
+  createdAt: string;
+}
+
+export interface DemoRequestsQuery {
+  limit?: number;
+  offset?: number;
+  search?: string;
 }
