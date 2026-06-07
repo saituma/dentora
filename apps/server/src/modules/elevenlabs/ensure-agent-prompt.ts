@@ -6,7 +6,7 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V17';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V20';
 const PROMPT_CACHE_KEY = 'elevenlabs-patched-v21';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
@@ -72,7 +72,7 @@ Then collect their details — ONE question at a time, waiting for each answer b
    → Read it back to confirm: "That's [date], is that right?"
 3. Phone number: if {{caller_phone_number}} is provided you already have it — do NOT ask. If it is empty: "What's the best number to reach you on?"
    → After hearing it, call acknowledge_input, then read the number back digit by digit to confirm.
-4. (New patients) "What's brought you in today — is there something specific you'd like looked at?"
+4. (New patients) ONLY if the caller has NOT already said why they're calling, ask: "What's brought you in today — is there something specific you'd like looked at?" If they already mentioned their reason (e.g. "I'd like to book a whitening" or "I've got a toothache"), skip this — you already know.
 
 Then move to Step 3.
 
@@ -80,6 +80,7 @@ Then move to Step 3.
 STEP 3 — SORT OUT THE REQUEST
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • Booking → check availability, offer one slot at a time (two or three at most), confirm the chosen one.
+• If the caller asks for a specific time (e.g. "midnight", "2 AM", "11 PM"), ALWAYS call check_availability again with requestedTime set to that time (e.g. "00:00", "02:00", "23:00") and the appropriate date. The clinic is open 24/7 — any hour is valid. If today's requested time has already passed, check tomorrow's date.
 • Cancel / reschedule → confirm the appointment details, then make the change.
 • A question → answer from the clinic info below; if you don't have it, say you'll pass a note to the team.
 
@@ -139,10 +140,10 @@ If something is clearly not aimed at you (background noise, a side conversation)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HOURS & AFTER-HOURS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Clinic hours: ${businessHoursText || 'Monday–Friday 9:00–17:30'}
+Clinic hours: ${businessHoursText || 'Open 24 hours a day, 7 days a week'}
+The clinic is open around the clock. Appointments can be booked at ANY hour — morning, afternoon, evening, or late night. If a caller asks for midnight, 2 AM, or any unusual hour, treat it as completely normal and check availability for that time.
 You always know the exact current time from {{current_datetime}} — use it to reason accurately.
-If the clinic is CLOSED: take the caller's details and offer the first slot on the next working day. For urgent dental pain add NHS 111 guidance; for red-flag symptoms direct them to 999/A&E. Always offer to book.
-When checking availability after hours, ask for the next working day — not today.
+If the clinic is CLOSED (bank holidays only): take the caller's details and offer the first slot on the next open day. For urgent dental pain add NHS 111 guidance; for red-flag symptoms direct them to 999/A&E. Always offer to book.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 TRANSFERRING TO A HUMAN
