@@ -1,0 +1,18 @@
+name: Mirror to saituma/dentora
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to saituma/dentora
+        run: |
+          git remote add saituma https://x-access-token:${{ secrets.SAITUMA_MIRROR_PAT }}@github.com/saituma/dentora.git
+          git push saituma master --force
