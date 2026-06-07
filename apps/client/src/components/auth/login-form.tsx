@@ -209,8 +209,8 @@ export function LoginForm() {
   if (oauthLoading) {
     return (
       <div className="flex min-h-[320px] w-full flex-col items-center justify-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-[#4fc3f7]" />
-        <p className="text-sm text-[#c7d0d9]/50">Signing you in…</p>
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[var(--mk-hairline)] border-t-[var(--mk-accent)]" />
+        <p className="text-sm mk-faint">Signing you in…</p>
       </div>
     );
   }
@@ -218,15 +218,13 @@ export function LoginForm() {
   return (
     <div className="w-full">
       <div className="mb-7">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Welcome back</h2>
-        <p className="mt-1 text-sm text-[#c7d0d9]/60">
-          Sign in with password, email code, or Google.
-        </p>
+        <h2 className="font-display text-2xl font-bold mk-body">Welcome back</h2>
+        <p className="mt-1 text-sm mk-muted">Sign in with password, email code, or Google.</p>
       </div>
       <form onSubmit={handlePasswordLogin} aria-label="Login form">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="email" className="text-sm font-medium text-[#c7d0d9]/80">
+            <FieldLabel htmlFor="email" className="text-sm font-medium mk-body">
               Email
             </FieldLabel>
             <Input
@@ -239,17 +237,17 @@ export function LoginForm() {
               inputMode="email"
               aria-label="Email address"
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           <Field>
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="password" className="text-sm font-medium text-[#c7d0d9]/80">
+              <FieldLabel htmlFor="password" className="text-sm font-medium mk-body">
                 Password
               </FieldLabel>
               <Link
                 href="/forgot-password"
-                className="text-sm text-[#4fc3f7] underline-offset-2 hover:underline"
+                className="text-sm mk-accent underline-offset-2 hover:underline"
               >
                 Forgot password?
               </Link>
@@ -262,13 +260,13 @@ export function LoginForm() {
               autoComplete="current-password"
               aria-label="Password"
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           <Field>
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
+              className="w-full rounded-full mk-btn-primary text-[15px] font-medium"
               disabled={isLoading || rateLimitCountdown > 0}
             >
               {isLoading
@@ -281,10 +279,10 @@ export function LoginForm() {
 
           <div className="relative my-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
+              <div className="w-full border-t border-[var(--mk-hairline)]" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-3 text-[#c7d0d9]/50">or continue with</span>
+              <span className="bg-[var(--mk-surface)] px-3 mk-faint">or continue with</span>
             </div>
           </div>
 
@@ -292,7 +290,7 @@ export function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
+              className="w-full rounded-full border-[var(--mk-hairline)] bg-[var(--mk-surface)] text-[15px] font-medium mk-body hover:bg-[var(--mk-inset-bg)]"
               onClick={startGoogle}
               disabled={googleLoading}
               aria-label="Continue with Google"
@@ -311,7 +309,7 @@ export function LoginForm() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
+                className="w-full rounded-full border-[var(--mk-hairline)] bg-[var(--mk-surface)] text-[15px] font-medium mk-body hover:bg-[var(--mk-inset-bg)]"
                 onClick={handleSendOtp}
                 disabled={sendingOtp || !email || rateLimitCountdown > 0}
                 aria-label="Send sign in code to email"
@@ -336,12 +334,12 @@ export function LoginForm() {
                   inputMode="numeric"
                   pattern="[0-9]*"
                   aria-label="Email verification code"
-                  className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+                  className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
+                  className="w-full rounded-full border-[var(--mk-hairline)] bg-[var(--mk-surface)] text-[15px] font-medium mk-body hover:bg-[var(--mk-inset-bg)]"
                   onClick={handleOtpLogin}
                   disabled={verifyingOtp || otpCode.length !== 6 || rateLimitCountdown > 0}
                 >
@@ -354,9 +352,9 @@ export function LoginForm() {
               </div>
             )}
           </Field>
-          <p className="text-[#c7d0d9]/60 text-sm text-center">
+          <p className="mk-muted text-sm text-center">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-[#4fc3f7] underline-offset-2 hover:underline">
+            <Link href="/signup" className="mk-accent underline-offset-2 hover:underline">
               Sign up
             </Link>
           </p>

@@ -13,7 +13,12 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   return (
-    <div className="relative bg-transparent">
+    <div data-mk-scope className="mk-scope relative bg-transparent">
+      {/* Ambient premium depth behind the app (z-0, sits above body bg, below content) */}
+      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="mk-glow mk-glow-primary absolute -top-40 left-1/3 size-[560px] opacity-40" />
+        <div className="mk-glow mk-glow-secondary absolute bottom-0 right-0 size-[420px] opacity-30" />
+      </div>
       <DentoraAiChat />
       <div className="relative z-10">
         <SidebarProvider

@@ -13,8 +13,8 @@ export default async function VerifyEmailPage({
 
   return (
     <div className="w-full">
-      <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Verify your email</h2>
-      <p className="mt-2 text-sm text-[#c7d0d9]/60">
+      <h2 className="font-display text-2xl font-bold mk-body">Verify your email</h2>
+      <p className="mt-2 text-sm mk-muted">
         {token
           ? 'Your email has been verified. You can now sign in to your account.'
           : 'We sent a verification link to your email. Click the link to verify your account.'}
@@ -22,7 +22,7 @@ export default async function VerifyEmailPage({
       <div className="mt-6">
         <Button
           render={<Link href="/login" />}
-          className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
+          className="w-full rounded-full mk-btn-primary text-[15px] font-medium"
         >
           Go to sign in
         </Button>

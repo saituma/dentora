@@ -36,8 +36,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <Provider store={store}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          forcedTheme="dark"
+          defaultTheme="light"
+          disableTransitionOnChange
           enableSystem={false}
         >
           <KBarProvider>
