@@ -6,8 +6,8 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V20';
-const PROMPT_CACHE_KEY = 'elevenlabs-patched-v22';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V21';
+const PROMPT_CACHE_KEY = 'elevenlabs-patched-v23';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -56,6 +56,8 @@ Never end on emergency guidance alone — always offer to book.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STEP 2 — WHO AM I SPEAKING TO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT: Remember what the caller said at the start of the call. If they already told you why they're calling (e.g. "I'd like a cleaning", "teeth whitening please", "I've got a toothache"), you already know their reason — do NOT ask again later.
+
 Ask: "Have you been in to see us before, or would this be your first visit?"
 
 Then collect their details — ONE question at a time, waiting for each answer before the next:
@@ -72,7 +74,7 @@ Then collect their details — ONE question at a time, waiting for each answer b
    → Read it back to confirm: "That's [date], is that right?"
 3. Phone number: if {{caller_phone_number}} is provided you already have it — do NOT ask. If it is empty: "What's the best number to reach you on?"
    → After hearing it, call acknowledge_input, then read the number back digit by digit to confirm.
-4. (New patients) ONLY if the caller has NOT already said why they're calling, ask: "What's brought you in today — is there something specific you'd like looked at?" If they already mentioned their reason (e.g. "I'd like to book a whitening" or "I've got a toothache"), skip this — you already know.
+4. (New patients only, AND only if the caller has NOT already mentioned why they're calling) Ask: "What's brought you in today — is there something specific you'd like looked at?" If they already said their reason at the start of the call, skip this entirely and go straight to Step 3.
 
 Then move to Step 3.
 
