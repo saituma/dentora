@@ -1,87 +1,32 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { Shield, Lock, Zap } from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
+import { SiteHeader } from '@/components/marketing/site-chrome';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-svh bg-transparent">
-      <div className="grid min-h-svh grid-cols-1 lg:grid-cols-[46vw_54vw]">
-        {/* Left panel — brand */}
-        <motion.aside
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-          className="relative hidden flex-col justify-between border-r border-white/10 bg-[#111827] px-14 py-14 lg:flex"
-        >
-          <Link href="/">
-            <Image
-              src="/dentora.png"
-              alt="Dentora"
-              width={678}
-              height={581}
-              className="h-9 w-auto"
-            />
-          </Link>
+    <div
+      data-mk-scope
+      className="mk-scope mk-bg relative flex min-h-svh flex-col mk-body antialiased"
+    >
+      <SiteHeader />
+      <main className="relative isolate flex flex-1 items-center justify-center px-5 py-12 sm:px-6">
+        {/* Ambient depth */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="mk-grid mk-fade-edges absolute inset-0" />
+          <div className="mk-glow mk-glow-primary mk-animate-breathe left-1/2 top-[-8%] size-[520px] -translate-x-1/2" />
+          <div className="mk-glow mk-glow-secondary absolute bottom-[6%] right-[12%] size-[320px]" />
+        </div>
 
-          <div className="space-y-5">
-            <h1 className="font-display text-5xl font-extrabold leading-tight text-[#c7d0d9]">
-              Your clinic,
-              <br />
-              always available.
-            </h1>
-            <p className="max-w-sm text-lg leading-relaxed text-[#c7d0d9]/60">
-              Dentora handles every patient call 24/7, so your team can focus on what matters most.
-            </p>
-
-            <div className="flex flex-wrap gap-4 pt-2">
-              {[
-                { icon: Shield, label: 'UK GDPR Compliant' },
-                { icon: Lock, label: 'End-to-end Encrypted' },
-                { icon: Zap, label: 'Instant Setup' },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-[#4fc3f7]/10">
-                    <item.icon className="size-4 text-[#4fc3f7]" />
-                  </div>
-                  <span className="text-sm text-[#c7d0d9]/70">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-xs text-[#c7d0d9]/50">
-            © {new Date().getFullYear()} Dentora AI. All rights reserved.
-          </p>
-        </motion.aside>
-
-        {/* Right panel — form */}
-        <motion.main
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.08 }}
-          className="flex w-full items-center justify-center bg-[#111827] px-6 py-10 sm:px-10 lg:px-16"
-        >
-          <div className="w-full max-w-md">
-            {/* Mobile logo */}
-            <div className="mb-8 flex justify-center lg:hidden">
-              <Link href="/">
-                <Image
-                  src="/dentora.png"
-                  alt="Dentora"
-                  width={678}
-                  height={581}
-                  className="h-8 w-auto"
-                />
-              </Link>
-            </div>
+        <div className="w-full max-w-md">
+          <div className="mk-panel rounded-3xl p-7 sm:p-8">
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>
-        </motion.main>
-      </div>
+          <p className="mt-6 text-center text-xs mk-faint">
+            UK GDPR compliant · End-to-end encrypted · Trusted by UK & Ireland clinics
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

@@ -219,7 +219,7 @@ export default function LogsPage() {
               {paused ? <Play size={13} /> : <Pause size={13} />}
               {paused ? "Resume" : "Pause"}
               {paused && bufferRef.current.length > 0 && (
-                <span className="ml-1 bg-amber-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">
+                <span className="ml-1 bg-amber-500 text-primary-foreground text-[10px] rounded-full px-1.5 py-0.5 font-bold">
                   {bufferRef.current.length}
                 </span>
               )}

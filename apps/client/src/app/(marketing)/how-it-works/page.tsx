@@ -55,13 +55,15 @@ export default function HowItWorksPage() {
           <motion.div
             key={step.number}
             {...d(i * 0.12)}
-            className="overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-sm"
+            className="mk-panel mk-lift overflow-hidden rounded-3xl"
           >
             <div className="grid gap-0 md:grid-cols-2">
               {/* Output panel */}
-              <div className="border-b border-white/10 bg-[#111827] p-6 md:border-b-0 md:border-r">
-                <p className="mb-1 text-xs font-medium text-[#4fc3f7]">Step {step.number}</p>
-                <p className="mb-4 font-display text-lg font-bold text-[#c7d0d9]">{step.title}</p>
+              <div className="border-b border-[var(--mk-hairline)] bg-[var(--mk-inset-bg)] p-6 md:border-b-0 md:border-r md:border-[var(--mk-hairline)]">
+                <p className="mb-1 text-xs font-medium uppercase tracking-wider mk-accent">
+                  Step {step.number}
+                </p>
+                <p className="mb-4 font-display text-lg font-bold mk-heading">{step.title}</p>
                 <div className="space-y-2">
                   {step.outputs.map((line, j) => (
                     <motion.div
@@ -70,9 +72,9 @@ export default function HowItWorksPage() {
                       whileInView={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 + j * 0.12 }}
                       viewport={{ once: true }}
-                      className="flex items-center gap-2 text-sm text-[#c7d0d9]/70"
+                      className="flex items-center gap-2 text-sm mk-body"
                     >
-                      <CheckCircle2 className="size-3.5 shrink-0 text-[#4fc3f7]" />
+                      <CheckCircle2 className="size-3.5 shrink-0 mk-accent" />
                       {line}
                     </motion.div>
                   ))}
@@ -81,7 +83,7 @@ export default function HowItWorksPage() {
 
               {/* Human explanation */}
               <div className="flex flex-col justify-center p-8">
-                <p className="text-sm leading-relaxed text-[#c7d0d9]/60">{step.desc}</p>
+                <p className="text-sm leading-relaxed mk-muted">{step.desc}</p>
               </div>
             </div>
           </motion.div>
@@ -90,8 +92,8 @@ export default function HowItWorksPage() {
 
       {/* Integration note */}
       <motion.div {...inView} className="mt-10">
-        <div className="rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-sm">
-          <p className="mb-4 text-sm font-semibold text-[#c7d0d9]">
+        <div className="mk-panel rounded-3xl p-6">
+          <p className="mb-4 text-sm font-semibold mk-heading">
             Integrates with your existing tools
           </p>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
@@ -103,11 +105,11 @@ export default function HowItWorksPage() {
             ].map(({ name, status }) => (
               <div
                 key={name}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-[#111827] px-3 py-2.5"
+                className="flex items-center justify-between rounded-xl mk-inset px-3 py-2.5"
               >
-                <span className="text-xs font-medium text-[#c7d0d9]">{name}</span>
+                <span className="text-xs font-medium mk-body">{name}</span>
                 <span className="flex items-center gap-1 text-[10px] text-emerald-600">
-                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
                   {status}
                 </span>
               </div>
@@ -120,7 +122,7 @@ export default function HowItWorksPage() {
       <motion.div {...inView} className="mt-14 text-center">
         <Link
           href="/contact"
-          className="inline-flex h-12 items-center gap-2 rounded-full bg-[#4fc3f7] px-8 text-sm font-semibold text-white shadow-lg shadow-[#4fc3f7]/20 transition hover:bg-[#38b2f0]"
+          className="mk-btn-primary inline-flex h-12 items-center gap-2 rounded-full px-8 text-sm font-semibold"
         >
           Get Dentora for your practice <ArrowRight className="size-4" />
         </Link>

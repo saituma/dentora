@@ -136,7 +136,7 @@ function StatusActionDialog({
             onClick={onConfirm}
             className={
               destructive
-                ? "bg-rose-500 hover:bg-rose-600 text-white"
+                ? "bg-rose-500 hover:bg-rose-600 text-primary-foreground"
                 : undefined
             }
           >

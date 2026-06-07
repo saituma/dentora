@@ -52,13 +52,13 @@ function OnboardingStepContent() {
         transition={{ duration: 0.45, ease: 'easeOut' }}
         className="min-w-0 space-y-6"
       >
-        <div className="min-w-0 max-w-full border border-foreground/[0.1] bg-card/95 p-5 shadow-sm backdrop-blur sm:p-7">
+        <div className="mk-panel min-w-0 max-w-full rounded-3xl p-5 sm:p-7">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium text-[#4fc3f7]">
+              <p className="text-xs font-medium text-primary">
                 Step {STEPS.length} of {STEPS.length}
               </p>
-              <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">
+              <h1 className="mt-2 font-display text-2xl font-bold tracking-[-0.02em] mk-heading sm:text-3xl">
                 {showCelebration ? STEP_META.complete.title : 'Complete setup'}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -97,7 +97,7 @@ function OnboardingStepContent() {
       <div className="min-w-0 max-w-full border border-foreground/[0.1] bg-card/95 p-5 shadow-sm backdrop-blur sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-[#4fc3f7]">
+            <p className="text-xs font-medium text-primary">
               Step {flow.currentStep + 1} of {STEPS.length}
             </p>
             <h1 className="mt-2 text-2xl font-medium tracking-tight sm:text-3xl">

@@ -8,8 +8,9 @@ import { ArrowRight, Mail, Phone, MapPin } from 'lucide-react';
 const fadeUp = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.7, ease: 'easeOut' as const },
+  viewport: { once: true, margin: '-80px' },
+  // ease-out extracted by designlang from Linear
+  transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const },
 };
 
 export default function ContactPage() {
@@ -25,12 +26,15 @@ export default function ContactPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
-      <motion.div {...fadeUp} className="mb-16 text-center">
-        <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#4fc3f7]">
+      <motion.div {...fadeUp} className="relative mb-16 text-center">
+        <div className="mk-glow mk-glow-primary mk-animate-breathe pointer-events-none left-1/2 top-[-60px] size-[420px] -translate-x-1/2 opacity-40" />
+        <span className="mk-chip relative mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider mk-accent">
           Contact Us
-        </p>
-        <h1 className="font-display text-4xl font-bold text-[#c7d0d9] md:text-5xl">Get in Touch</h1>
-        <p className="mx-auto mt-4 max-w-lg text-lg text-[#c7d0d9]/60">
+        </span>
+        <h1 className="relative font-display text-4xl font-bold leading-[1.08] tracking-[-0.03em] mk-heading md:text-[3.25rem]">
+          Get in Touch
+        </h1>
+        <p className="relative mx-auto mt-4 max-w-lg text-lg mk-muted">
           Questions? Want a demo? We&apos;re here to help.
         </p>
       </motion.div>
@@ -54,15 +58,15 @@ export default function ContactPage() {
           ].map((item) => (
             <div
               key={item.title}
-              className="flex items-start gap-4 rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-sm"
+              className="mk-panel mk-lift flex items-start gap-4 rounded-3xl p-5"
             >
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#4fc3f7]/10">
-                <item.icon className="size-5 text-[#4fc3f7]" />
+              <div className="mk-icon-tile flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <item.icon className="size-5 mk-accent" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#c7d0d9]">{item.title}</p>
-                <p className="mt-0.5 text-sm text-[#c7d0d9]/70">{item.detail}</p>
-                <p className="text-xs text-[#c7d0d9]/50">{item.sub}</p>
+                <p className="text-sm font-semibold mk-heading">{item.title}</p>
+                <p className="mt-0.5 text-sm mk-body">{item.detail}</p>
+                <p className="text-xs mk-faint">{item.sub}</p>
               </div>
             </div>
           ))}
@@ -73,51 +77,47 @@ export default function ContactPage() {
           transition={{ ...fadeUp.transition, delay: 0.1 }}
           className="lg:col-span-3"
         >
-          <div className="rounded-2xl border border-white/10 bg-[#111827] p-8 shadow-sm">
-            <h2 className="mb-1 text-xl font-bold text-[#c7d0d9]">Send us a message</h2>
-            <p className="mb-6 text-sm text-[#c7d0d9]/60">
+          <div className="mk-panel rounded-3xl p-8">
+            <h2 className="mb-1 font-display text-xl font-bold mk-heading">Send us a message</h2>
+            <p className="mb-6 text-sm mk-muted">
               Fill out the form and we&apos;ll respond within 24 hours
             </p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[#c7d0d9]/80">Name</label>
+                  <label className="mb-1.5 block text-xs font-medium mk-body">Name</label>
                   <input
                     name="name"
                     placeholder="Your name"
                     required
-                    className="w-full rounded-lg border border-white/10 bg-[#111827] px-3 py-2.5 text-sm text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7] focus:outline-none"
+                    className="w-full rounded-lg mk-inset px-3 py-2.5 text-sm mk-heading placeholder:mk-faint transition-colors focus:border-[#4fc3f7] focus:bg-black/30 focus:outline-none focus:ring-2 focus:ring-[#4fc3f7]/20"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-[#c7d0d9]/80">
-                    Email
-                  </label>
+                  <label className="mb-1.5 block text-xs font-medium mk-body">Email</label>
                   <input
                     name="email"
                     type="email"
                     placeholder="you@clinic.com"
                     required
-                    className="w-full rounded-lg border border-white/10 bg-[#111827] px-3 py-2.5 text-sm text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7] focus:outline-none"
+                    className="w-full rounded-lg mk-inset px-3 py-2.5 text-sm mk-heading placeholder:mk-faint transition-colors focus:border-[#4fc3f7] focus:bg-black/30 focus:outline-none focus:ring-2 focus:ring-[#4fc3f7]/20"
                   />
                 </div>
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-[#c7d0d9]/80">
-                  Message
-                </label>
+                <label className="mb-1.5 block text-xs font-medium mk-body">Message</label>
                 <textarea
                   name="message"
                   placeholder="Tell us about your practice..."
                   rows={5}
                   required
-                  className="w-full rounded-lg border border-white/10 bg-[#111827] px-3 py-2.5 text-sm text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7] focus:outline-none"
+                  className="w-full rounded-lg mk-inset px-3 py-2.5 text-sm mk-heading placeholder:mk-faint transition-colors focus:border-[#4fc3f7] focus:bg-black/30 focus:outline-none focus:ring-2 focus:ring-[#4fc3f7]/20"
                 />
               </div>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#4fc3f7] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#38b2f0] disabled:opacity-50"
+                className="mk-btn-primary flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold disabled:opacity-50"
               >
                 {isSubmitting ? 'Sending...' : 'Send Message'}
                 <ArrowRight className="size-4" />

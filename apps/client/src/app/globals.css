@@ -154,23 +154,23 @@
   --brand-bg: #0b0f1a;
   --brand-text: #c7d0d9;
 
-  --background: var(--brand-highlight);
-  --foreground: var(--brand-bg);
+  --background: #f4f9fe;
+  --foreground: #0a1f33;
   --card: #ffffff;
-  --card-foreground: var(--brand-bg);
+  --card-foreground: #0a1f33;
   --popover: #ffffff;
-  --popover-foreground: var(--brand-bg);
+  --popover-foreground: #0a1f33;
   --primary: var(--brand-primary);
-  --primary-foreground: var(--brand-bg);
-  --secondary: var(--brand-secondary);
-  --secondary-foreground: var(--brand-bg);
-  --muted: color-mix(in srgb, var(--brand-highlight) 85%, #ffffff);
-  --muted-foreground: color-mix(in srgb, var(--brand-bg) 55%, var(--brand-secondary));
-  --accent: var(--brand-highlight);
-  --accent-foreground: var(--brand-bg);
+  --primary-foreground: #07223a;
+  --secondary: color-mix(in srgb, var(--brand-highlight) 70%, #ffffff);
+  --secondary-foreground: #0a1f33;
+  --muted: #eef4fa;
+  --muted-foreground: #5d7185;
+  --accent: color-mix(in srgb, var(--brand-primary) 9%, #ffffff);
+  --accent-foreground: #0a1f33;
   --destructive: #ef4444;
-  --border: color-mix(in srgb, var(--brand-bg) 10%, var(--brand-highlight));
-  --input: color-mix(in srgb, var(--brand-bg) 10%, var(--brand-highlight));
+  --border: rgba(13, 38, 63, 0.08);
+  --input: rgba(13, 38, 63, 0.1);
   --ring: var(--brand-primary);
   --chart-1: var(--brand-primary);
   --chart-2: var(--brand-secondary);
@@ -409,6 +409,324 @@
     linear-gradient(currentColor 1px, transparent 1px),
     linear-gradient(90deg, currentColor 1px, transparent 1px);
   background-size: 8px 8px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PREMIUM MARKETING LAYER  (mk-*)
+   Design DNA distilled from designlang extractions of Linear + Notion:
+   · Linear  → near-black depth, hairline top-lit panels, ambient radial
+               glows, fine line-grid texture, ease-out motion.
+   · Notion  → soft multi-layer floating shadows, generous rhythm, warmth.
+   Scoped with the `mk-` prefix so the dashboard/app theme is untouched.
+   ════════════════════════════════════════════════════════════════ */
+:root {
+  /* Motion — extracted easing/durations from Linear */
+  --ease-premium: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 420ms;
+}
+
+/* ── Marketing theme scope ──────────────────────────────────────
+   Self-contained light/dark palette for the marketing site only,
+   independent of the app's forced-dark shadcn theme. Toggled by
+   adding/removing `mk-dark` on the `.mk-scope` root. Light = default. */
+.mk-scope {
+  color-scheme: light;
+  --mk-bg: #f4f9fe;
+  --mk-bg-2: #e9f3fc;
+  --mk-surface: #ffffff;
+  --mk-surface-2: #f6fafe;
+  --mk-surface-border: rgba(13, 38, 63, 0.08);
+  --mk-hairline: rgba(13, 38, 63, 0.1);
+  --mk-heading: #0a1f33;
+  --mk-body: #3a4d5e;
+  --mk-muted: #5d7185;
+  --mk-faint: #8499a9;
+  --mk-accent: #0284c7;
+  --mk-accent-strong: #0369a1;
+  --mk-grid-line: rgba(13, 38, 63, 0.045);
+  --mk-glow-1: rgba(79, 195, 247, 0.4);
+  --mk-glow-2: rgba(129, 212, 250, 0.32);
+  --mk-panel-top: rgba(255, 255, 255, 0.9);
+  --mk-panel-shadow:
+    0 1px 2px rgba(13, 38, 63, 0.04), 0 10px 24px -12px rgba(13, 38, 63, 0.14),
+    0 28px 56px -32px rgba(13, 38, 63, 0.18);
+  --mk-panel-lift: 0 1px 2px rgba(13, 38, 63, 0.05), 0 22px 50px -24px rgba(2, 132, 199, 0.28);
+  --mk-inset-bg: #f1f6fb;
+  --mk-inset-border: rgba(13, 38, 63, 0.08);
+  --mk-on-accent: #ffffff;
+}
+.dark .mk-scope,
+.mk-scope.mk-dark {
+  color-scheme: dark;
+  --mk-bg: #0b0f1a;
+  --mk-bg-2: #0d1424;
+  --mk-surface: #111827;
+  --mk-surface-2: #0f1726;
+  --mk-surface-border: rgba(255, 255, 255, 0.07);
+  --mk-hairline: rgba(199, 208, 217, 0.14);
+  --mk-heading: #f1f6fa;
+  --mk-body: rgba(199, 208, 217, 0.86);
+  --mk-muted: rgba(199, 208, 217, 0.6);
+  --mk-faint: rgba(199, 208, 217, 0.42);
+  --mk-accent: #7dd3fc;
+  --mk-accent-strong: #4fc3f7;
+  --mk-grid-line: rgba(199, 208, 217, 0.05);
+  --mk-glow-1: rgba(79, 195, 247, 0.55);
+  --mk-glow-2: rgba(129, 212, 250, 0.42);
+  --mk-panel-top: rgba(255, 255, 255, 0.04);
+  --mk-panel-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -24px rgba(0, 0, 0, 0.7);
+  --mk-panel-lift:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 24px 60px -28px rgba(11, 132, 255, 0.3);
+  --mk-inset-bg: rgba(0, 0, 0, 0.22);
+  --mk-inset-border: rgba(255, 255, 255, 0.08);
+  --mk-on-accent: #ffffff;
+}
+
+@layer utilities {
+  /* Semantic colour helpers — flip automatically with the scope */
+  .mk-bg {
+    background-color: var(--mk-bg);
+  }
+  .mk-bg-2 {
+    background-color: var(--mk-bg-2);
+  }
+  .mk-surface {
+    background-color: var(--mk-surface);
+  }
+  .mk-heading {
+    color: var(--mk-heading);
+  }
+  .mk-body {
+    color: var(--mk-body);
+  }
+  .mk-muted {
+    color: var(--mk-muted);
+  }
+  .mk-faint {
+    color: var(--mk-faint);
+  }
+  .mk-accent {
+    color: var(--mk-accent);
+  }
+  .mk-border-c {
+    border-color: var(--mk-surface-border);
+  }
+  .mk-divide > * + * {
+    border-color: var(--mk-hairline);
+  }
+
+  /* Recessed nested surface (inputs, mini-tiles) */
+  .mk-inset {
+    background-color: var(--mk-inset-bg);
+    border: 1px solid var(--mk-inset-border);
+  }
+
+  /* Sticky header + footer chrome (theme-aware, translucent) */
+  .mk-header {
+    background: color-mix(in srgb, var(--mk-bg) 78%, transparent);
+    border-bottom: 1px solid var(--mk-hairline);
+  }
+  .mk-footer {
+    background: var(--mk-surface-2);
+    border-top: 1px solid var(--mk-hairline);
+  }
+
+  /* ── Premium dashboard surfaces ─────────────────────────────────
+     Restyles EVERY shadcn Card inside the dashboard scope into the
+     landing-page "lit-from-above" panel — one rule covers all routes. */
+  .mk-scope [data-slot='card'] {
+    background: linear-gradient(180deg, var(--mk-panel-top), transparent 160px), var(--mk-surface);
+    border-color: var(--mk-surface-border);
+    box-shadow: var(--mk-panel-shadow);
+    transition:
+      border-color var(--dur-base) var(--ease-premium),
+      box-shadow var(--dur-base) var(--ease-premium);
+  }
+  /* Gradient stat / KPI numbers (premium accent).
+     Solid + safe by default; gradient only inside the premium scope. */
+  .mk-stat {
+    color: var(--mk-heading, currentColor);
+  }
+  .mk-scope .mk-stat {
+    background: linear-gradient(
+      155deg,
+      var(--mk-heading) 0%,
+      color-mix(in srgb, var(--mk-heading) 45%, var(--brand-primary)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  /* ── Top-lit hairline panel (Linear's signature elevation) ──────
+     A 1px inset hairline + a brighter top edge that reads as "lit from
+     above", over a deep panel fill. The core premium surface. */
+  .mk-panel {
+    position: relative;
+    background: linear-gradient(180deg, var(--mk-panel-top), transparent 120px), var(--mk-surface);
+    border: 1px solid var(--mk-surface-border);
+    box-shadow: var(--mk-panel-shadow);
+  }
+
+  /* Softer, friendlier float (Notion's stacked low-opacity shadow) */
+  .mk-panel-soft {
+    background: var(--mk-surface);
+    border: 1px solid var(--mk-surface-border);
+    box-shadow: var(--mk-panel-shadow);
+  }
+
+  /* Interactive lift for cards — pairs with .mk-panel */
+  .mk-lift {
+    transition:
+      transform var(--dur-base) var(--ease-spring),
+      border-color var(--dur-base) var(--ease-premium),
+      box-shadow var(--dur-base) var(--ease-premium);
+  }
+  .mk-lift:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--brand-primary) 40%, var(--mk-surface-border));
+    box-shadow: var(--mk-panel-lift);
+  }
+
+  /* ── Ambient radial glow blobs (sky-tinted, behind hero/CTAs) ── */
+  .mk-glow {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 9999px;
+    filter: blur(72px);
+    opacity: 0.5;
+  }
+  .mk-glow-primary {
+    background: radial-gradient(circle, var(--mk-glow-1) 0%, transparent 70%);
+  }
+  .mk-glow-secondary {
+    background: radial-gradient(circle, var(--mk-glow-2) 0%, transparent 70%);
+  }
+
+  /* ── Fine line-grid backdrop (Linear's repeating hairline grid) ── */
+  .mk-grid {
+    background-image:
+      linear-gradient(to right, var(--mk-grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--mk-grid-line) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  /* Radial fade mask so grids/glows dissolve at the edges */
+  .mk-fade-edges {
+    -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 40%, #000 35%, transparent 100%);
+    mask-image: radial-gradient(ellipse 75% 65% at 50% 40%, #000 35%, transparent 100%);
+  }
+
+  /* ── Hairline gradient divider ── */
+  .mk-hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--mk-hairline) 50%, transparent);
+  }
+
+  /* ── Premium pill button: deep-sky gradient + top sheen + glow ── */
+  .mk-btn-primary {
+    position: relative;
+    background: linear-gradient(180deg, #2bb0ef 0%, #0a84c9 100%);
+    color: #ffffff;
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+      0 1px 2px rgba(2, 60, 99, 0.25),
+      0 10px 26px -8px rgba(2, 132, 199, 0.5);
+    transition:
+      transform var(--dur-fast) var(--ease-spring),
+      box-shadow var(--dur-base) var(--ease-premium),
+      filter var(--dur-base) var(--ease-premium);
+  }
+  .mk-btn-primary:hover {
+    filter: brightness(1.06);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+      0 1px 2px rgba(2, 60, 99, 0.25),
+      0 14px 34px -8px rgba(2, 132, 199, 0.6);
+  }
+  .mk-btn-primary:active {
+    transform: translateY(1px) scale(0.99);
+  }
+
+  /* Glass/ghost button */
+  .mk-btn-ghost {
+    background: color-mix(in srgb, var(--mk-surface) 70%, transparent);
+    border: 1px solid var(--mk-surface-border);
+    color: var(--mk-body);
+    backdrop-filter: blur(8px);
+    transition:
+      background var(--dur-base) var(--ease-premium),
+      border-color var(--dur-base) var(--ease-premium),
+      color var(--dur-base) var(--ease-premium);
+  }
+  .mk-btn-ghost:hover {
+    background: var(--mk-surface);
+    border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--mk-surface-border));
+    color: var(--mk-heading);
+  }
+
+  /* Eyebrow chip */
+  .mk-chip {
+    background: color-mix(in srgb, var(--brand-primary) 9%, var(--mk-surface));
+    border: 1px solid color-mix(in srgb, var(--brand-primary) 20%, var(--mk-surface-border));
+    box-shadow: inset 0 1px 0 0 var(--mk-panel-top);
+  }
+
+  /* Soft radial accent ring used behind icons */
+  .mk-icon-tile {
+    background:
+      radial-gradient(
+        120% 120% at 30% 0%,
+        color-mix(in srgb, var(--brand-primary) 24%, transparent),
+        transparent 60%
+      ),
+      color-mix(in srgb, var(--brand-primary) 8%, var(--mk-surface));
+    border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, var(--mk-surface-border));
+    box-shadow: inset 0 1px 0 0 var(--mk-panel-top);
+  }
+}
+
+/* Gentle floating animation for hero accents */
+@keyframes mk-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes mk-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.06);
+  }
+}
+@layer utilities {
+  .mk-animate-float {
+    animation: mk-float 7s ease-in-out infinite;
+  }
+  .mk-animate-breathe {
+    animation: mk-breathe 9s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mk-animate-float,
+    .mk-animate-breathe {
+      animation: none;
+    }
+  }
 }
 
 @keyframes logo-marquee {

@@ -3,12 +3,15 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-/* ─── Animation helpers ─────────────────────────────────────── */
+/* ─── Animation helpers ─────────────────────────────────────────
+   Easing extracted by designlang from Linear:
+   cubic-bezier(0.25, 0.46, 0.45, 0.94) — a refined ease-out. */
+const EASE = [0.25, 0.46, 0.45, 0.94] as const;
 export const inView = {
   initial: { opacity: 0, y: 22 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.65, ease: 'easeOut' as const },
+  viewport: { once: true, margin: '-80px' },
+  transition: { duration: 0.6, ease: EASE },
 };
 export const d = (delay: number) => ({
   ...inView,
@@ -39,17 +42,17 @@ const TICKER_EVENTS = [
 export function LiveTicker() {
   const text = TICKER_EVENTS.join('    ·    ');
   return (
-    <div className="relative overflow-hidden border-b border-white/10 bg-[#111827] py-2 text-[11px]">
+    <div className="relative overflow-hidden border-b border-[var(--mk-hairline)] bg-[var(--mk-surface)] py-2 text-[11px]">
       <div className="flex">
         <div className="tick whitespace-nowrap font-mono">
-          <span className="text-[#4fc3f7]">[LIVE]</span>
-          <span className="mx-4 text-[#c7d0d9]/20">·</span>
-          <span className="text-[#c7d0d9]/50">{text}</span>
-          <span className="mx-8 text-[#c7d0d9]/20">·</span>
-          <span className="text-[#4fc3f7]">[LIVE]</span>
-          <span className="mx-4 text-[#c7d0d9]/20">·</span>
-          <span className="text-[#c7d0d9]/50">{text}</span>
-          <span className="mx-8 text-[#c7d0d9]/20">·</span>
+          <span className="mk-accent">[LIVE]</span>
+          <span className="mx-4 mk-faint">·</span>
+          <span className="mk-faint">{text}</span>
+          <span className="mx-8 mk-faint">·</span>
+          <span className="mk-accent">[LIVE]</span>
+          <span className="mx-4 mk-faint">·</span>
+          <span className="mk-faint">{text}</span>
+          <span className="mx-8 mk-faint">·</span>
         </div>
       </div>
     </div>
@@ -68,20 +71,15 @@ export function TerminalWindow({
   scanline?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        'overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-sm',
-        className,
-      )}
-    >
+    <div className={cn('mk-panel overflow-hidden rounded-2xl', className)}>
       {title && (
-        <div className="flex items-center gap-2 border-b border-white/10 bg-[#111827] px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-[var(--mk-hairline)] px-4 py-3">
           <div className="flex gap-1.5">
             <div className="size-2.5 rounded-full bg-red-400/60" />
             <div className="size-2.5 rounded-full bg-yellow-400/60" />
             <div className="size-2.5 rounded-full bg-green-400/60" />
           </div>
-          <span className="flex-1 text-center text-[11px] text-[#c7d0d9]/40">{title}</span>
+          <span className="flex-1 text-center text-[11px] mk-faint">{title}</span>
         </div>
       )}
       <div className="relative">{children}</div>
@@ -94,14 +92,16 @@ export function Bubble({ ai, text }: { ai?: boolean; text: string }) {
   return (
     <div className={cn('flex gap-2 text-[11px]', !ai && 'justify-end')}>
       {ai && (
-        <div className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-[#4fc3f7] text-[7px] font-bold text-white">
+        <div className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4fc3f7] to-[#0284c7] text-[7px] font-bold text-white">
           D
         </div>
       )}
       <div
         className={cn(
-          'max-w-[82%] rounded-lg px-2.5 py-1.5 leading-relaxed',
-          ai ? 'bg-[#4fc3f7]/10 text-[#c7d0d9]/80' : 'bg-white/5 text-[#c7d0d9]/80',
+          'max-w-[82%] rounded-lg px-2.5 py-1.5 leading-relaxed ring-1 ring-inset',
+          ai
+            ? 'bg-[#4fc3f7]/10 mk-body ring-[#4fc3f7]/15'
+            : 'bg-[var(--mk-inset-bg)] mk-body ring-white/5',
         )}
       >
         {text}
@@ -124,19 +124,24 @@ export function FCard({
   accent?: 'blue' | 'purple' | 'green';
   children?: React.ReactNode;
 }) {
-  const cls = {
-    blue: 'bg-[#4fc3f7]/10 text-[#4fc3f7]',
-    purple: 'bg-[#4fc3f7]/10 text-[#4fc3f7]',
-    green: 'bg-emerald-500/10 text-emerald-600',
+  const iconColor = {
+    blue: 'mk-accent',
+    purple: 'mk-accent',
+    green: 'text-emerald-500',
   }[accent];
 
   return (
-    <div className="group flex h-full flex-col rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-sm transition hover:border-[#4fc3f7]/30 hover:shadow-md">
-      <div className={cn('mb-4 flex size-9 items-center justify-center rounded-xl', cls)}>
-        <Icon className="size-4" />
+    <div className="mk-panel mk-lift group flex h-full flex-col rounded-3xl p-7">
+      <div className="mk-icon-tile mb-5 flex size-11 items-center justify-center rounded-2xl">
+        <Icon
+          className={cn(
+            'size-5 transition-transform duration-300 group-hover:scale-110',
+            iconColor,
+          )}
+        />
       </div>
-      <h3 className="mb-2 text-sm font-semibold text-[#c7d0d9]">{title}</h3>
-      <p className="flex-1 text-sm leading-relaxed text-[#c7d0d9]/60">{description}</p>
+      <h3 className="mb-2 font-display text-base font-bold mk-heading">{title}</h3>
+      <p className="flex-1 text-[15px] leading-relaxed mk-muted">{description}</p>
       {children}
     </div>
   );
@@ -153,12 +158,20 @@ export function PageHeader({
   subtitle?: string;
 }) {
   return (
-    <motion.div {...inView} className="mb-16 text-center">
-      <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#4fc3f7]">{eyebrow}</p>
-      <h1 className="font-display text-4xl font-bold tracking-tight text-[#c7d0d9] md:text-5xl">
+    <motion.div {...inView} className="relative mb-16 text-center">
+      {/* ambient glow behind the page title */}
+      <div className="mk-glow mk-glow-primary mk-animate-breathe pointer-events-none left-1/2 top-[-60px] size-[420px] -translate-x-1/2 opacity-40" />
+      <span className="mk-chip relative mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider mk-accent">
+        {eyebrow}
+      </span>
+      <h1 className="relative font-display text-4xl font-bold leading-[1.08] tracking-[-0.03em] mk-heading md:text-[3.25rem]">
         {title}
       </h1>
-      {subtitle && <p className="mx-auto mt-4 max-w-xl text-[#c7d0d9]/60">{subtitle}</p>}
+      {subtitle && (
+        <p className="relative mx-auto mt-4 max-w-xl text-lg leading-relaxed mk-muted">
+          {subtitle}
+        </p>
+      )}
     </motion.div>
   );
 }

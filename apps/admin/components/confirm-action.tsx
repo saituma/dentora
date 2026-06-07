@@ -109,7 +109,7 @@ export function ConfirmAction({
             disabled={!canConfirm || busy}
             className={
               destructive
-                ? "bg-rose-500 text-white hover:bg-rose-600"
+                ? "bg-rose-500 text-primary-foreground hover:bg-rose-600"
                 : undefined
             }
           >

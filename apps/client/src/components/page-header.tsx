@@ -16,10 +16,10 @@ export function PageHeader({ title, subtitle, actions, className }: PageHeaderPr
       )}
     >
       <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-[#c7d0d9] lg:text-3xl">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
           {title}
         </h1>
-        {subtitle && <p className="mt-1 text-sm text-[#c7d0d9]/50">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>
