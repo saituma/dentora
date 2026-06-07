@@ -7,7 +7,7 @@ import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
 const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V20';
-const PROMPT_CACHE_KEY = 'elevenlabs-patched-v21';
+const PROMPT_CACHE_KEY = 'elevenlabs-patched-v22';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
