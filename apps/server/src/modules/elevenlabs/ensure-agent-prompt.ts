@@ -6,8 +6,8 @@ import { logger } from '../../lib/logger.js';
 import { globalCacheGet, globalCacheSet } from '../../lib/cache.js';
 
 // Bump this version string whenever the prompt template changes to force a re-patch
-const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V21';
-const PROMPT_CACHE_KEY = 'elevenlabs-patched-v23';
+const PROMPT_VERSION = 'DENTORA_CALL_FLOW_V22';
+const PROMPT_CACHE_KEY = 'elevenlabs-patched-v24';
 
 function buildCallFlowPrompt(clinicName: string, businessHoursText: string): string {
   return `${PROMPT_VERSION}
@@ -74,7 +74,9 @@ Then collect their details — ONE question at a time, waiting for each answer b
    → Read it back to confirm: "That's [date], is that right?"
 3. Phone number: if {{caller_phone_number}} is provided you already have it — do NOT ask. If it is empty: "What's the best number to reach you on?"
    → After hearing it, call acknowledge_input, then read the number back digit by digit to confirm.
-4. (New patients only, AND only if the caller has NOT already mentioned why they're calling) Ask: "What's brought you in today — is there something specific you'd like looked at?" If they already said their reason at the start of the call, skip this entirely and go straight to Step 3.
+4. (New patients) Think back: did the caller already say why they're calling earlier in this conversation?
+   → YES (e.g. they said "teeth whitening", "a cleaning", "toothache", etc.) → Do NOT ask again. Say "Lovely, let me get that [their stated reason] sorted for you" and go straight to Step 3.
+   → NO (they only said "I'd like to book an appointment" with no specific reason) → Ask: "What's brought you in today — is there something specific you'd like looked at?"
 
 Then move to Step 3.
 
