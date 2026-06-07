@@ -94,7 +94,7 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      void ensureAgentPromptDates(tenantId, agentId);
+      await ensureAgentPromptDates(tenantId, agentId);
       const sessionVars = await buildSessionDynamicVars(tenantId);
 
       const response = await elevenLabsFetch(
@@ -177,7 +177,7 @@ elevenlabsRouter.post(
       const tenantId = req.tenantContext!.tenantId;
       const { apiKey, resolvedVia } = await resolveApiKey(tenantId, 'elevenlabs');
 
-      void ensureAgentPromptDates(tenantId, agentId);
+      await ensureAgentPromptDates(tenantId, agentId);
       const sessionVars = await buildSessionDynamicVars(tenantId);
 
       const response = await elevenLabsFetch(
@@ -313,7 +313,7 @@ elevenlabsRouter.post(
         throw new ValidationError('No ElevenLabs agent ID configured for this tenant');
       }
 
-      void ensureAgentPromptDates(tenantId, agentId);
+      await ensureAgentPromptDates(tenantId, agentId);
 
       const response = await elevenLabsFetch(
         `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(agentId)}`,
