@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
                     const maxCount = Math.max(...Object.values(callsByStatus).map(Number));
                     const statusColorMap: Record<string, string> = {
                       completed: 'bg-emerald-500',
-                      escalated: 'bg-[#4fc3f7]',
+                      escalated: 'bg-primary',
                       in_progress: 'bg-amber-500',
                       started: 'bg-amber-400',
                       failed: 'bg-red-500',
@@ -188,7 +188,7 @@ export default function AnalyticsPage() {
                               </div>
                               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                                 <div
-                                  className="h-full rounded-full bg-[#4fc3f7] transition-all duration-500"
+                                  className="h-full rounded-full bg-primary transition-all duration-500"
                                   style={{ width: `${pct}%`, opacity: opacity / 100 }}
                                 />
                               </div>

@@ -102,15 +102,15 @@ export function SignupForm() {
   return (
     <div className="w-full">
       <div className="mb-7">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Create your account</h2>
-        <p className="mt-1 text-sm text-[#c7d0d9]/60">
+        <h2 className="font-display text-2xl font-bold mk-body">Create your account</h2>
+        <p className="mt-1 text-sm mk-muted">
           Start your 14-day free trial with email verification.
         </p>
       </div>
       <form onSubmit={otpSent ? handleVerifyAndCreate : handleSendOtp} aria-label="Sign up form">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="clinicName" className="text-sm font-medium text-[#c7d0d9]/80">
+            <FieldLabel htmlFor="clinicName" className="text-sm font-medium mk-body">
               Clinic name
             </FieldLabel>
             <Input
@@ -121,11 +121,11 @@ export function SignupForm() {
               autoComplete="organization"
               aria-label="Clinic name"
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="email" className="text-sm font-medium text-[#c7d0d9]/80">
+            <FieldLabel htmlFor="email" className="text-sm font-medium mk-body">
               Email
             </FieldLabel>
             <Input
@@ -138,12 +138,12 @@ export function SignupForm() {
               inputMode="email"
               aria-label="Email address"
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           {otpSent && (
             <Field>
-              <FieldLabel htmlFor={codeInputId} className="text-sm font-medium text-[#c7d0d9]/80">
+              <FieldLabel htmlFor={codeInputId} className="text-sm font-medium mk-body">
                 Verification code
               </FieldLabel>
               <Input
@@ -156,14 +156,13 @@ export function SignupForm() {
                 pattern="[0-9]*"
                 aria-label="Verification code"
                 required
-                className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+                className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
               />
-              <p className="mt-2 text-xs text-[#c7d0d9]/60">
-                Code sent to <span className="font-medium text-[#c7d0d9]/80">{email}</span>. Check
-                spam.{' '}
+              <p className="mt-2 text-xs mk-muted">
+                Code sent to <span className="font-medium mk-body">{email}</span>. Check spam.{' '}
                 <button
                   type="button"
-                  className="text-[#4fc3f7] hover:underline disabled:opacity-40"
+                  className="mk-accent hover:underline disabled:opacity-40"
                   onClick={handleResendOtp}
                   disabled={resendCooldown > 0 || sendingOtp}
                 >
@@ -172,7 +171,7 @@ export function SignupForm() {
                 {' · '}
                 <button
                   type="button"
-                  className="text-[#4fc3f7] hover:underline"
+                  className="mk-accent hover:underline"
                   onClick={() => {
                     setOtpSent(false);
                     setCode('');
@@ -186,7 +185,7 @@ export function SignupForm() {
           <Field>
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
+              className="w-full rounded-full mk-btn-primary text-[15px] font-medium"
               disabled={sendingOtp || verifyingOtp}
             >
               {otpSent
@@ -201,10 +200,10 @@ export function SignupForm() {
 
           <div className="relative my-1">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
+              <div className="w-full border-t border-[var(--mk-hairline)]" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-[#0b0f1a] px-3 text-[#c7d0d9]/50">or continue with</span>
+              <span className="bg-[var(--mk-bg)] px-3 mk-faint">or continue with</span>
             </div>
           </div>
 
@@ -212,7 +211,7 @@ export function SignupForm() {
             <Button
               type="button"
               variant="outline"
-              className="w-full rounded-full border-white/10 bg-[#111827] text-[15px] font-medium text-[#c7d0d9]/80 hover:bg-white/5"
+              className="w-full rounded-full border-[var(--mk-hairline)] bg-[var(--mk-surface)] text-[15px] font-medium mk-body hover:bg-[var(--mk-inset-bg)]"
               onClick={startGoogle}
               disabled={googleLoading}
               aria-label="Continue with Google"
@@ -226,9 +225,9 @@ export function SignupForm() {
               {googleLoading ? 'Redirecting...' : 'Continue with Google'}
             </Button>
           </Field>
-          <p className="text-[#c7d0d9]/60 text-sm text-center">
+          <p className="mk-muted text-sm text-center">
             Already have an account?{' '}
-            <Link href="/login" className="text-[#4fc3f7] underline-offset-2 hover:underline">
+            <Link href="/login" className="mk-accent underline-offset-2 hover:underline">
               Sign in
             </Link>
           </p>

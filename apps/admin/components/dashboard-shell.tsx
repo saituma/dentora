@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthGuard } from "@/components/auth-guard";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -104,22 +105,34 @@ function SearchButton() {
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-            <div className="flex flex-1 items-center gap-2 px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <HeaderBreadcrumb />
-              <div className="ml-auto">
-                <SearchButton />
+      <div data-mk-scope className="mk-scope relative">
+        {/* Ambient premium depth behind the app */}
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+          <div className="mk-glow mk-glow-primary absolute -top-40 left-1/3 size-[560px] opacity-40" />
+          <div className="mk-glow mk-glow-secondary absolute bottom-0 right-0 size-[420px] opacity-30" />
+        </div>
+        <div className="relative z-10">
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+              <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+                <div className="flex flex-1 items-center gap-2 px-4">
+                  <SidebarTrigger className="-ml-1" />
+                  <Separator orientation="vertical" className="mr-2 h-4" />
+                  <HeaderBreadcrumb />
+                  <div className="ml-auto flex items-center gap-2">
+                    <SearchButton />
+                    <ThemeToggle />
+                  </div>
+                </div>
+              </header>
+              <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+                {children}
               </div>
-            </div>
-          </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
-        </SidebarInset>
-      </SidebarProvider>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </div>
     </AuthGuard>
   );
 }

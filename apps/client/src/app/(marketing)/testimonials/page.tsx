@@ -65,7 +65,7 @@ export default function TestimonialsPage() {
           <>
             Loved by dental teams
             <br />
-            <span className="text-[#4fc3f7]">across the UK.</span>
+            <span className="mk-accent">across the UK.</span>
           </>
         }
         subtitle="Real results from real practices. No cherry-picking."
@@ -73,16 +73,18 @@ export default function TestimonialsPage() {
 
       {/* Stats strip */}
       <motion.div {...inView} className="mb-14">
-        <div className="grid grid-cols-2 divide-x divide-y divide-black/[0.06] overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-sm md:grid-cols-4 md:divide-y-0">
+        <div className="mk-panel grid grid-cols-2 divide-x divide-y divide-[var(--mk-hairline)] overflow-hidden rounded-3xl md:grid-cols-4 md:divide-y-0">
           {[
             { value: '94,000+', label: 'Calls handled' },
             { value: '98%', label: 'Answer rate' },
             { value: '4.9 / 5', label: 'Avg patient rating' },
             { value: '£2.1M', label: 'Revenue recovered' },
           ].map((s) => (
-            <div key={s.label} className="px-6 py-5 text-center">
-              <p className="font-display text-2xl font-bold text-[#4fc3f7]">{s.value}</p>
-              <p className="mt-1 text-xs text-[#c7d0d9]/60">{s.label}</p>
+            <div key={s.label} className="px-6 py-6 text-center">
+              <p className="font-display bg-gradient-to-r from-[#2bb0ef] to-[#0a6aa3] bg-clip-text text-2xl font-bold text-transparent">
+                {s.value}
+              </p>
+              <p className="mt-1 text-xs mk-muted">{s.label}</p>
             </div>
           ))}
         </div>
@@ -94,31 +96,29 @@ export default function TestimonialsPage() {
           <motion.div
             key={r.name}
             {...d(i * 0.08)}
-            className="flex flex-col rounded-2xl border border-white/10 bg-[#111827] p-6 shadow-sm"
+            className="mk-panel mk-lift flex flex-col rounded-3xl p-7"
           >
             {/* Stars */}
             <div className="mb-3 flex gap-0.5">
               {Array.from({ length: 5 }).map((_, j) => (
-                <Star key={j} className="size-3.5 fill-yellow-400 text-yellow-400" />
+                <Star key={j} className="size-3.5 fill-[#4fc3f7] mk-accent" />
               ))}
             </div>
 
             {/* Metric badge */}
-            <span className="mb-4 inline-block self-start rounded-full border border-[#4fc3f7]/20 bg-[#4fc3f7]/[0.07] px-2.5 py-0.5 text-[10px] font-medium text-[#4fc3f7]">
+            <span className="mb-4 inline-block self-start rounded-full border border-[#4fc3f7]/25 bg-[#4fc3f7]/10 px-2.5 py-0.5 text-[10px] font-medium mk-accent">
               {r.metric}
             </span>
 
-            <p className="flex-1 text-sm leading-relaxed text-[#c7d0d9]/70">
-              &ldquo;{r.quote}&rdquo;
-            </p>
+            <p className="flex-1 text-[15px] leading-relaxed mk-body">&ldquo;{r.quote}&rdquo;</p>
 
-            <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-5">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#4fc3f7] text-xs font-bold text-white">
+            <div className="mt-6 flex items-center gap-3 border-t border-[var(--mk-hairline)] pt-5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4fc3f7] to-[#0284c7] text-xs font-bold text-white">
                 {r.initials}
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#c7d0d9]">{r.name}</p>
-                <p className="text-xs text-[#c7d0d9]/60">{r.practice}</p>
+                <p className="text-sm font-semibold mk-heading">{r.name}</p>
+                <p className="text-xs mk-muted">{r.practice}</p>
               </div>
             </div>
           </motion.div>
@@ -127,10 +127,10 @@ export default function TestimonialsPage() {
 
       {/* CTA */}
       <motion.div {...inView} className="mt-16 text-center">
-        <p className="mb-6 text-[#c7d0d9]/60">Ready to join them?</p>
+        <p className="mb-6 mk-muted">Ready to join them?</p>
         <Link
           href="/contact"
-          className="inline-flex h-12 items-center gap-2 rounded-full bg-[#4fc3f7] px-8 text-sm font-semibold text-white shadow-lg shadow-[#4fc3f7]/20 transition hover:bg-[#38b2f0]"
+          className="mk-btn-primary inline-flex h-12 items-center gap-2 rounded-full px-8 text-sm font-semibold"
         >
           Book your free demo <ArrowRight className="size-4" />
         </Link>

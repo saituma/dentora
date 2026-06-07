@@ -27,10 +27,10 @@ export function ForgotPasswordForm() {
   if (submitted) {
     return (
       <div className="w-full">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Check your email</h2>
-        <p className="mt-2 text-sm text-[#c7d0d9]/60">We sent a password reset link to {email}</p>
+        <h2 className="font-display text-2xl font-bold mk-body">Check your email</h2>
+        <p className="mt-2 text-sm mk-muted">We sent a password reset link to {email}</p>
         <p className="mt-6 text-sm">
-          <Link href="/login" className="text-[#4fc3f7] underline-offset-2 hover:underline">
+          <Link href="/login" className="mk-accent underline-offset-2 hover:underline">
             Back to sign in
           </Link>
         </p>
@@ -41,15 +41,15 @@ export function ForgotPasswordForm() {
   return (
     <div className="w-full">
       <div className="mb-7">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Forgot password</h2>
-        <p className="mt-1 text-sm text-[#c7d0d9]/60">
+        <h2 className="font-display text-2xl font-bold mk-body">Forgot password</h2>
+        <p className="mt-1 text-sm mk-muted">
           Enter your email and we&apos;ll send you a reset link
         </p>
       </div>
       <form onSubmit={handleSubmit}>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="email" className="text-sm font-medium text-[#c7d0d9]/80">
+            <FieldLabel htmlFor="email" className="text-sm font-medium mk-body">
               Email
             </FieldLabel>
             <Input
@@ -59,20 +59,20 @@ export function ForgotPasswordForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           <Field>
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
+              className="w-full rounded-full mk-btn-primary text-[15px] font-medium"
               disabled={isLoading}
             >
               {isLoading ? 'Sending...' : 'Send reset link'}
             </Button>
           </Field>
-          <p className="text-[#c7d0d9]/60 text-sm text-center">
-            <Link href="/login" className="text-[#4fc3f7] underline-offset-2 hover:underline">
+          <p className="mk-muted text-sm text-center">
+            <Link href="/login" className="mk-accent underline-offset-2 hover:underline">
               Back to sign in
             </Link>
           </p>

@@ -80,7 +80,9 @@ function StatusChangeDialog({
           <AlertDialogAction
             onClick={onConfirm}
             className={
-              destructive ? "bg-rose-500 hover:bg-rose-600 text-white" : ""
+              destructive
+                ? "bg-rose-500 hover:bg-rose-600 text-primary-foreground"
+                : ""
             }
           >
             {actionLabel}

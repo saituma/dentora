@@ -134,7 +134,12 @@ export function ReduxProvider({ children }: { children: React.ReactNode }) {
 
 export function ThemeProviderWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="light"
+      enableSystem={false}
+      disableTransitionOnChange
+    >
       {children}
     </ThemeProvider>
   );

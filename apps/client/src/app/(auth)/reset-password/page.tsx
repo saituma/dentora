@@ -28,15 +28,10 @@ function ResetPasswordContent() {
   if (!token) {
     return (
       <div className="w-full">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Invalid link</h2>
-        <p className="mt-2 text-sm text-[#c7d0d9]/60">
-          This password reset link is invalid or has expired.
-        </p>
+        <h2 className="font-display text-2xl font-bold mk-body">Invalid link</h2>
+        <p className="mt-2 text-sm mk-muted">This password reset link is invalid or has expired.</p>
         <p className="mt-6 text-sm">
-          <Link
-            href="/forgot-password"
-            className="text-[#4fc3f7] underline-offset-2 hover:underline"
-          >
+          <Link href="/forgot-password" className="mk-accent underline-offset-2 hover:underline">
             Request a new reset link
           </Link>
         </p>
@@ -47,13 +42,13 @@ function ResetPasswordContent() {
   if (success) {
     return (
       <div className="w-full">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Password reset</h2>
-        <p className="mt-2 text-sm text-[#c7d0d9]/60">
+        <h2 className="font-display text-2xl font-bold mk-body">Password reset</h2>
+        <p className="mt-2 text-sm mk-muted">
           Your password has been updated. You can now sign in.
         </p>
         <div className="mt-6">
           <Link href="/login">
-            <Button className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]">
+            <Button className="w-full rounded-full mk-btn-primary text-[15px] font-medium">
               Sign in
             </Button>
           </Link>
@@ -84,13 +79,13 @@ function ResetPasswordContent() {
   return (
     <div className="w-full">
       <div className="mb-7">
-        <h2 className="font-display text-2xl font-bold text-[#c7d0d9]">Set new password</h2>
-        <p className="mt-1 text-sm text-[#c7d0d9]/60">Enter your new password below</p>
+        <h2 className="font-display text-2xl font-bold mk-body">Set new password</h2>
+        <p className="mt-1 text-sm mk-muted">Enter your new password below</p>
       </div>
       <form onSubmit={handleSubmit}>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="newPassword" className="text-sm font-medium text-[#c7d0d9]/80">
+            <FieldLabel htmlFor="newPassword" className="text-sm font-medium mk-body">
               New password
             </FieldLabel>
             <Input
@@ -101,11 +96,11 @@ function ResetPasswordContent() {
               onChange={(e) => setNewPassword(e.target.value)}
               minLength={8}
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="confirmPassword" className="text-sm font-medium text-[#c7d0d9]/80">
+            <FieldLabel htmlFor="confirmPassword" className="text-sm font-medium mk-body">
               Confirm password
             </FieldLabel>
             <Input
@@ -116,20 +111,20 @@ function ResetPasswordContent() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               minLength={8}
               required
-              className="border-white/10 bg-[#111827] text-[#c7d0d9] placeholder:text-[#c7d0d9]/50 focus:border-[#4fc3f7]"
+              className="border-[var(--mk-hairline)] bg-[var(--mk-surface)] mk-body placeholder:text-[var(--mk-faint)] focus:border-[var(--mk-accent)]"
             />
           </Field>
           <Field>
             <Button
               type="submit"
-              className="w-full rounded-full bg-[#4fc3f7] text-[15px] font-medium text-white hover:bg-[#38b2f0]"
+              className="w-full rounded-full mk-btn-primary text-[15px] font-medium"
               disabled={isLoading}
             >
               {isLoading ? 'Resetting...' : 'Reset password'}
             </Button>
           </Field>
-          <p className="text-[#c7d0d9]/60 text-sm text-center">
-            <Link href="/login" className="text-[#4fc3f7] underline-offset-2 hover:underline">
+          <p className="mk-muted text-sm text-center">
+            <Link href="/login" className="mk-accent underline-offset-2 hover:underline">
               Back to sign in
             </Link>
           </p>

@@ -11,7 +11,7 @@ export default function AnalyticsLoading() {
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="rounded-xl border border-white/8 bg-black/[0.02] p-5 space-y-3">
+          <div key={i} className="rounded-xl border border-border bg-black/[0.02] p-5 space-y-3">
             <Skeleton className="h-4 w-28" />
             <Skeleton className="h-32 w-full rounded-lg" />
           </div>
