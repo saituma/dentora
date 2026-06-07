@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { TestAgentDemo } from '@/components/marketing/test-agent-demo';
 
 /* ──────────────────────────────────────────────────────────────
    Motion — easing + durations extracted by designlang from Linear
@@ -85,6 +86,7 @@ export default function HomePage() {
     <>
       <HeroSection />
       <TrustLogos />
+      <TestAgentDemo />
       <HowItWorksSection />
       <StatsSection />
       <LiveFeedSection />
@@ -109,7 +111,7 @@ function HeroSection() {
       <div className="mx-auto max-w-7xl">
         <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left */}
-          <motion.div {...rise(0.05)} className="relative z-10">
+          <motion.div {...rise(0.05)} className="relative z-10 text-center lg:text-left">
             <motion.div
               {...rise(0)}
               className="mk-chip mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm mk-body"
@@ -129,11 +131,11 @@ function HeroSection() {
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed mk-muted">
               Dentora answers every call, books appointments straight into your practice management
-              system, and handles patient questions around the clock — so your front desk can focus
+              system, and handles patient questions around the clock, so your front desk can focus
               on the people in the chair.
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link
                 href="/contact"
                 className="mk-btn-primary inline-flex h-12 items-center gap-2 rounded-full px-7 text-[15px] font-semibold"
@@ -141,15 +143,18 @@ function HeroSection() {
                 Book a free demo
                 <ArrowRight className="size-4" />
               </Link>
-              <button className="mk-btn-ghost inline-flex h-12 items-center gap-3 rounded-full px-5 text-[15px] font-medium">
+              <a
+                href="#try-demo"
+                className="mk-btn-ghost inline-flex h-12 items-center gap-3 rounded-full px-5 text-[15px] font-medium"
+              >
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2bb0ef] to-[#0a84c9] text-white">
                   <Play className="ml-0.5 size-3 fill-current" />
                 </span>
-                Watch 2-min demo
-              </button>
+                Try it live
+              </a>
             </div>
 
-            <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3">
+            <div className="mt-10 flex flex-wrap justify-center gap-x-7 gap-y-3 lg:justify-start">
               {[
                 { icon: Shield, label: 'UK GDPR Compliant' },
                 { icon: Clock, label: '24/7 Availability' },
@@ -185,7 +190,7 @@ function HeroSection() {
               <div className="space-y-3 p-5">
                 <ChatBubble ai>Hi, this is Dentora for Pearl Dental. How can I help?</ChatBubble>
                 <ChatBubble>I need to book a checkup next week.</ChatBubble>
-                <ChatBubble ai>Of course! Tuesday 10am or Thursday 2pm — which works?</ChatBubble>
+                <ChatBubble ai>Of course! Tuesday 10am or Thursday 2pm. Which works?</ChatBubble>
                 <ChatBubble>Thursday 2pm please.</ChatBubble>
                 <ChatBubble ai>Perfect. Booking Thursday 15 May at 2:00 PM now.</ChatBubble>
               </div>
@@ -288,7 +293,12 @@ function SectionHeading({
   align?: 'center' | 'left';
 }) {
   return (
-    <div className={cn('max-w-2xl', align === 'center' ? 'mx-auto text-center' : 'text-left')}>
+    <div
+      className={cn(
+        'max-w-2xl',
+        align === 'center' ? 'mx-auto text-center' : 'text-center sm:text-left',
+      )}
+    >
       {eyebrow && (
         <span className="mk-chip mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider mk-accent">
           <Sparkles className="size-3" />
@@ -315,13 +325,13 @@ function HowItWorksSection() {
     {
       num: '02',
       title: 'Never miss a call',
-      desc: 'Dentora answers, books and takes deposits 24/7 — in a warm, natural voice.',
+      desc: 'Dentora answers, books and takes deposits 24/7, in a warm, natural voice.',
       badge: 'Answering',
     },
     {
       num: '03',
       title: 'Measure impact',
-      desc: 'See appointments booked, revenue captured, and no-shows reduced — live.',
+      desc: 'See appointments booked, revenue captured, and no-shows reduced, live.',
       badge: 'Analytics',
     },
   ];
@@ -343,9 +353,9 @@ function HowItWorksSection() {
             <motion.div
               key={step.num}
               {...inView(i * 0.1)}
-              className="mk-panel mk-lift relative rounded-3xl p-7"
+              className="mk-panel mk-lift relative rounded-3xl p-7 text-center sm:text-left"
             >
-              <div className="mk-icon-tile flex size-12 items-center justify-center rounded-2xl font-display text-lg font-bold mk-accent">
+              <div className="mk-icon-tile mx-auto flex size-12 items-center justify-center rounded-2xl font-display text-lg font-bold mk-accent sm:mx-0">
                 {step.num}
               </div>
               <h3 className="font-display mt-5 text-xl font-bold mk-heading">{step.title}</h3>
@@ -510,7 +520,7 @@ function FeaturesSection() {
     {
       icon: MessageSquare,
       title: 'Patient Q&A',
-      desc: 'Insurance, pricing, directions, treatments — answered instantly from your own data.',
+      desc: 'Insurance, pricing, directions, treatments, all answered instantly from your own data.',
     },
     {
       icon: BarChart3,
@@ -520,7 +530,7 @@ function FeaturesSection() {
     {
       icon: Shield,
       title: 'UK GDPR ready',
-      desc: 'AES-256 encryption, ICO audit logs, DSAR export — built for UK dental law.',
+      desc: 'AES-256 encryption, ICO audit logs, DSAR export, built for UK dental law.',
     },
     {
       icon: Users,
@@ -551,9 +561,9 @@ function FeaturesSection() {
             <motion.div
               key={f.title}
               {...inView(i * 0.06)}
-              className="mk-panel mk-lift group rounded-3xl p-7"
+              className="mk-panel mk-lift group rounded-3xl p-7 text-center sm:text-left"
             >
-              <div className="mk-icon-tile mb-5 inline-flex size-11 items-center justify-center rounded-2xl">
+              <div className="mk-icon-tile mx-auto mb-5 inline-flex size-11 items-center justify-center rounded-2xl sm:mx-0">
                 <f.icon className="size-5 text-[#0a84c9] transition-transform duration-300 group-hover:scale-110" />
               </div>
               <h3 className="font-display text-lg font-bold mk-heading">{f.title}</h3>
@@ -608,15 +618,15 @@ function TestimonialsSection() {
             <motion.div
               key={t.clinic}
               {...inView(i * 0.1)}
-              className="mk-panel-soft mk-lift flex flex-col rounded-3xl p-7"
+              className="mk-panel-soft mk-lift flex flex-col rounded-3xl p-7 text-center sm:text-left"
             >
-              <div className="mb-4 flex gap-0.5 text-[#0a84c9]">
+              <div className="mb-4 flex justify-center gap-0.5 text-[#0a84c9] sm:justify-start">
                 {Array.from({ length: 5 }).map((_, s) => (
                   <Sparkles key={s} className="size-3.5 fill-current" />
                 ))}
               </div>
               <p className="flex-1 text-[15px] leading-relaxed mk-body">&ldquo;{t.quote}&rdquo;</p>
-              <div className="mt-6 flex items-center gap-3 border-t border-[var(--mk-hairline)] pt-5">
+              <div className="mt-6 flex items-center justify-center gap-3 border-t border-[var(--mk-hairline)] pt-5 sm:justify-start">
                 <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-[#4fc3f7] to-[#0284c7] text-xs font-bold text-white">
                   {t.initials}
                 </div>

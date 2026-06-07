@@ -131,8 +131,8 @@ export function FCard({
   }[accent];
 
   return (
-    <div className="mk-panel mk-lift group flex h-full flex-col rounded-3xl p-7">
-      <div className="mk-icon-tile mb-5 flex size-11 items-center justify-center rounded-2xl">
+    <div className="mk-panel mk-lift group flex h-full flex-col rounded-3xl p-7 text-center sm:text-left">
+      <div className="mk-icon-tile mx-auto mb-5 flex size-11 items-center justify-center rounded-2xl sm:mx-0">
         <Icon
           className={cn(
             'size-5 transition-transform duration-300 group-hover:scale-110',
