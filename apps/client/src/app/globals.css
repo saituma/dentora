@@ -527,6 +527,82 @@
     border: 1px solid var(--mk-inset-border);
   }
 
+  /* ── Premium range slider (ROI calculator) ─────────────────────
+     Native <input type="range"> styled to match the mk-* system.
+     The filled portion is driven by an inline `--pct` custom property. */
+  .mk-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 24px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .mk-slider:focus {
+    outline: none;
+  }
+  .mk-slider::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--mk-hairline);
+    background:
+      linear-gradient(
+        90deg,
+        var(--brand-primary) 0%,
+        #0a84c9 var(--pct, 50%),
+        transparent var(--pct, 50%)
+      ),
+      var(--mk-inset-bg);
+  }
+  .mk-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -8px;
+    height: 22px;
+    width: 22px;
+    border-radius: 9999px;
+    border: 2px solid #ffffff;
+    background: linear-gradient(180deg, #2bb0ef, #0a84c9);
+    box-shadow:
+      0 1px 3px rgba(2, 60, 99, 0.3),
+      0 0 0 6px color-mix(in srgb, var(--brand-primary) 14%, transparent);
+    transition:
+      box-shadow 150ms var(--ease-premium),
+      transform 120ms var(--ease-spring);
+  }
+  .mk-slider:active::-webkit-slider-thumb {
+    transform: scale(1.1);
+  }
+  .mk-slider:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  }
+  .mk-slider::-moz-range-track {
+    height: 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--mk-hairline);
+    background: var(--mk-inset-bg);
+  }
+  .mk-slider::-moz-range-progress {
+    height: 8px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, var(--brand-primary), #0a84c9);
+  }
+  .mk-slider::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    border-radius: 9999px;
+    border: 2px solid #ffffff;
+    background: linear-gradient(180deg, #2bb0ef, #0a84c9);
+    box-shadow:
+      0 1px 3px rgba(2, 60, 99, 0.3),
+      0 0 0 6px color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mk-slider::-webkit-slider-thumb {
+      transition: none;
+    }
+  }
+
   /* Sticky header + footer chrome (theme-aware, translucent) */
   .mk-header {
     background: color-mix(in srgb, var(--mk-bg) 78%, transparent);
