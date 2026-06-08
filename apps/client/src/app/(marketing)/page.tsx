@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TestAgentDemo } from '@/components/marketing/test-agent-demo';
+import { RoiCalculator } from '@/components/marketing/roi-calculator';
 
 /* ──────────────────────────────────────────────────────────────
    Motion — easing + durations extracted by designlang from Linear
@@ -89,6 +90,7 @@ export default function HomePage() {
       <TestAgentDemo />
       <HowItWorksSection />
       <StatsSection />
+      <RoiCalculator />
       <LiveFeedSection />
       <FeaturesSection />
       <TestimonialsSection />
