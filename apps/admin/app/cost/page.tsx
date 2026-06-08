@@ -22,9 +22,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetOpsCostQuery } from "@/features/admin/adminApi";
 
 const usd = (n: number) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: "USD",
+    currency: "GBP",
     maximumFractionDigits: 2,
   }).format(n);
 

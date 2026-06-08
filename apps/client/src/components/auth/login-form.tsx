@@ -352,10 +352,13 @@ export function LoginForm() {
               </div>
             )}
           </Field>
-          <p className="mk-muted text-sm text-center">
+          <p className="text-center text-sm mk-body">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="mk-accent underline-offset-2 hover:underline">
-              Sign up
+            <Link
+              href="/signup"
+              className="font-bold mk-accent underline decoration-2 underline-offset-2 hover:opacity-80"
+            >
+              Sign up free
             </Link>
           </p>
         </FieldGroup>

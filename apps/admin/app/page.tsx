@@ -46,9 +46,9 @@ import { cn } from "@/lib/utils";
 const POLL = 15_000;
 
 const usd = (n: number) =>
-  new Intl.NumberFormat("en-US", {
+  new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: "USD",
+    currency: "GBP",
     maximumFractionDigits: n >= 100 ? 0 : 2,
   }).format(n);
 

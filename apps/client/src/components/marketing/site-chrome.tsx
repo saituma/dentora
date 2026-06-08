@@ -61,7 +61,7 @@ export function SiteHeader() {
             href="/login"
             className="hidden px-4 py-2 text-[15px] font-medium mk-body transition-colors hover:text-[var(--mk-heading)] lg:block"
           >
-            Login
+            Sign up / Login
           </Link>
           <Link
             href="/contact"
@@ -101,7 +101,7 @@ export function SiteHeader() {
               href="/login"
               className="mk-btn-ghost rounded-full px-5 py-2.5 text-center text-[15px] font-medium"
             >
-              Login
+              Sign up / Login
             </Link>
             <Link
               href="/contact"

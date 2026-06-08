@@ -61,8 +61,8 @@ export function formatDuration(seconds?: number | null) {
 
 export function formatMoney(value?: string | number | null) {
   const n = typeof value === 'string' ? Number.parseFloat(value) : (value ?? 0);
-  if (!Number.isFinite(n)) return '$0.00';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  if (!Number.isFinite(n)) return '£0.00';
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
 }
 
 export function formatPercent(value?: number | null) {
