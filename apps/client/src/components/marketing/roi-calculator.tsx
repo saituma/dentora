@@ -120,7 +120,7 @@ export function RoiCalculator() {
           <Sparkles className="size-3" />
           ROI Calculator
         </span>
-        <h2 className="font-display text-3xl font-extrabold leading-[1.1] tracking-[-0.02em] mk-heading md:text-[2.5rem]">
+        <h2 className="font-display text-4xl font-extrabold leading-[1.05] tracking-[-0.025em] mk-heading sm:text-5xl md:text-[3.25rem]">
           Find out how much Dentora can{' '}
           <span className="bg-gradient-to-r from-[#22a6e2] to-[#0a6aa3] bg-clip-text text-transparent">
             save your clinic.
