@@ -18,14 +18,14 @@ const navLinks = [
 export function BrandLogo() {
   return (
     <Link href="/" aria-label="Dentora — Home" className="group flex items-center gap-2.5">
-      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0a1020] ring-1 ring-[var(--mk-surface-border)] shadow-sm transition-transform duration-300 group-hover:scale-105">
+      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0a1020] p-1.5 ring-1 ring-[var(--mk-surface-border)] shadow-sm transition-transform duration-300 group-hover:scale-105">
         <Image
           src="/dentora.png"
           alt="Dentora"
           width={678}
           height={581}
           priority
-          className="size-full scale-[2] object-cover object-[50%_18%]"
+          className="size-full object-contain"
         />
       </span>
       <span className="font-display text-lg font-bold tracking-tight mk-heading">Dentora</span>
