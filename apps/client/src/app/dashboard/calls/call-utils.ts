@@ -26,7 +26,7 @@ export function formatMoney(value?: string | number | null) {
   if (value == null) return '—';
   const numberValue = typeof value === 'string' ? Number.parseFloat(value) : value;
   if (!Number.isFinite(numberValue)) return '—';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numberValue);
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(numberValue);
 }
 
 export function formatStatusLabel(status?: string | null) {
