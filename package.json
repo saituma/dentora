@@ -37,7 +37,7 @@
     "@tailwindcss/postcss": "^4",
     "concurrently": "^9.2.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.4",
+    "lint-staged": "^17.0.7",
     "prettier": "^3.8.3",
     "tailwindcss": "^4"
   }
